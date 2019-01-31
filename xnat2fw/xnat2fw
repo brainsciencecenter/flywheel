@@ -1,0 +1,85 @@
+#/bin/bash
+
+cmd=$(basename $0)
+
+syntax="$cmd [-c csvfile][-f][-g FWGroupID][-n][-P XNATProject][-p FlyWheelProject][-v] [[XNATSession] ...]"
+
+function sys {
+	[ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	[ -z "$opt_n" ] && "$@"
+}
+
+function getFWSessions {
+	GroupID="$1"
+	FWProject="$2"
+
+	for Subject in $( fw ls "${GroupID}/${FWProject}" | awk '{print $2}' )
+	do
+		fw ls "${GroupID}/${FWProject}/${Subject}" | awk '{print $NF}'
+	done 
+}
+
+function getSessionsDiff {
+        GroupID="$1"
+        FWProject="$2"
+
+	diff <(grep '^[0-9]' "$XNATCSVFile" | cut -f 1 -d ,) <(getFWSessions "$GroupID" "$FWProject")
+}
+
+function getSessionsStill2Import {
+        GroupID=$1
+        FWProject="$2"
+
+	getSessionsDiff "$GroupID" "$FWProject" | grep '<' | awk '{print $2}'
+}
+
+function xnat2fw {
+	for Session in "$@"
+	do
+		Subject=$(grep "$Session" "$XNATCSVFile" | cut -f 3 -d ,)
+	
+		sys fw import dicom --de-identify --subject "$Subject" --session "$Session" "$Session" upenn-admins XNATUploads-test
+	
+	done
+}
+
+opt_c=~/admin_1_17_2019_11_4_14.csv
+opt_g=upenn-admins
+opt_p=XNATUploads-test
+opt_P=NACC-SC
+
+XNATBaseDir=/data/XNAT/archive
+
+while getopts c:fg:nP:p:v arg
+do
+	case "$arg" in 
+		c|f|g|n|P|p|v)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $((OPTIND - 1))
+
+XNATCSVFile="$opt_c"
+GroupID="$opt_g"
+XNATProject="$opt_P"
+FWProject="$opt_p"
+
+if [ -n "$1" ]
+then
+	Sessions=("$@")
+else
+	Sessions=($(getSessionsStill2Import "$GroupID" "$FWProject"))
+fi
+
+
+#getSessionsDiff "$GroupID" "$FWProject"
+#getFWSessions "$GroupID" "$FWProject"
+
+cd "${XNATBaseDir}/${XNATProject}/arc001"
+
+echo xnat2fw "${Sessions[@]}"
+
+
+
