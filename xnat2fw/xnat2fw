@@ -2,58 +2,95 @@
 
 cmd=$(basename $0)
 
-syntax="$cmd [-c csvfile][-f][-g FWGroupID][-n][-P XNATProject][-p FlyWheelProject][-v] [[XNATSession] ...]"
+syntax="$cmd [-F][-f][-g FWGroupID][-l][-n][-P XNATProject][-p FlyWheelProject][-q][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[XNATSession] ...]"
 
 function sys {
 	[ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
 	[ -z "$opt_n" ] && "$@"
 }
 
+function getXNATSessions {
+	 (cd "$XNATBaseDir/$XNATProject/arc001"; ls | sort -n)
+}
+
 function getFWSessions {
-	GroupID="$1"
+	FWGroupID="$1"
 	FWProject="$2"
 
-	for Subject in $( fw ls "${GroupID}/${FWProject}" | awk '{print $2}' )
+	for Subject in $( fw ls "${FWGroupID}/${FWProject}" | awk '{print $2}' )
 	do
-		fw ls "${GroupID}/${FWProject}/${Subject}" | awk '{print $NF}'
-	done 
+		fw ls "${FWGroupID}/${FWProject}/${Subject}" | awk '{print $NF}'
+	done | sort -n
 }
 
 function getSessionsDiff {
-        GroupID="$1"
+        FWGroupID="$1"
         FWProject="$2"
 
-	diff <(grep '^[0-9]' "$XNATCSVFile" | cut -f 1 -d ,) <(getFWSessions "$GroupID" "$FWProject")
+	diff <(getXNATSessions "$XNATProject") <(getFWSessions "$FWGroupID" "$FWProject")
 }
 
 function getSessionsStill2Import {
-        GroupID=$1
+        FWGroupID=$1
         FWProject="$2"
 
-	getSessionsDiff "$GroupID" "$FWProject" | grep '<' | awk '{print $2}'
+	getSessionsDiff "$FWGroupID" "$FWProject" | grep '<' | awk '{print $2}'
+}
+
+function session2Subject {
+	 Session="$1"
+
+	 grep ",$Session," "$XNATCSVFile" | cut -f 2 -d ,
 }
 
 function xnat2fw {
+        FWGroupID=$1
+        FWProject="$2"
+
+	shift 2
+
+	local cmd
+
 	for Session in "$@"
 	do
-		Subject=$(grep "$Session" "$XNATCSVFile" | cut -f 3 -d ,)
+		Subject=$(session2Subject "$Session")
+
+		#
+		# *** make sure you found a subject
+		# *** make sure there really is a Session folder in this directory
+		# fw -q doesn't seem to do anything  Force it.
 	
-		sys fw import dicom --de-identify --subject "$Subject" --session "$Session" "$Session" upenn-admins XNATUploads-test
-	
+		cmd=(fw import dicom -y --quiet --de-identify --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Session" "$FWGroupID" "$FWProject")
+		if [ -n "$opt_q" ]
+		then
+			sys "${cmd[@]}" > /dev/null
+		else
+			sys "${cmd[@]}"
+		fi	  
 	done
 }
 
-opt_c=~/admin_1_17_2019_11_4_14.csv
+function getXNATSession2SubjectMap {
+	 SESSIONID=51F4417425E5850017BEC607CFD4B949
+	 sys curl -s -b "JSESSIONID=$SESSIONID" "$XNATURL/data/archive/projects/NACC-SC/experiments?columns=subject_label,label&format=csv" > $XNATCSVFile
+}
+
+function cleanup {
+	 [ -e "$XNATCSVFile" ] && sys rm "$XNATCSVFile"
+	 [ -n "$XNATSessionID" ] && sys curl -b "JSESSIONID=$XNATSessionID" -X DELETE "$XNATURL/data/JSESSION"
+}
+
 opt_g=upenn-admins
 opt_p=XNATUploads-test
 opt_P=NACC-SC
+opt_t=4
+opt_w=2
 
-XNATBaseDir=/data/XNAT/archive
 
-while getopts c:fg:nP:p:v arg
+while getopts Ffg:lnP:p:qt:w:v arg
 do
 	case "$arg" in 
-		c|f|g|n|P|p|v)
+		F|f|g|l|n|P|p|q|t|w|v)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -61,25 +98,40 @@ done
 
 shift $((OPTIND - 1))
 
-XNATCSVFile="$opt_c"
-GroupID="$opt_g"
+XNATBaseDir=/data/XNAT/archive
+
 XNATProject="$opt_P"
+FWGroupID="$opt_g"
 FWProject="$opt_p"
+
+if [ -n "$opt_F" ]
+then
+	getFWSessions "$FWGroupID" "$FWProject"
+	exit
+fi
 
 if [ -n "$1" ]
 then
 	Sessions=("$@")
 else
-	Sessions=($(getSessionsStill2Import "$GroupID" "$FWProject"))
+	Sessions=($(getSessionsStill2Import "$FWGroupID" "$FWProject"))
 fi
 
+if [ -n "$opt_l" ]
+then
+	echo "${Sessions[@]}" | sed "s/ /\n/g"
+	exit 0
+fi
 
-#getSessionsDiff "$GroupID" "$FWProject"
-#getFWSessions "$GroupID" "$FWProject"
+XNATURL=http://picsl-xnat
+XNATSessionID=$(curl -n -s "$XNATURL/data/JSESSION")
 
-cd "${XNATBaseDir}/${XNATProject}/arc001"
+XNATCSVFile=$(sys mktemp /tmp/xnat2fw-XXXXX)
+getXNATSession2SubjectMap
 
-echo xnat2fw "${Sessions[@]}"
+sys cd "${XNATBaseDir}/${XNATProject}/arc001"
 
+xnat2fw "$FWGroupID" "$FWProject" "${Sessions[@]}" 
 
+cleanup
 
