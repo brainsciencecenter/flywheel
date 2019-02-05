@@ -15,6 +15,7 @@ cmd=$(basename $0)
 
 syntax="$cmd [-F]{-g FWGroupID}[-l][-n][-P XNATProject]{-p FlyWheelProject}[-q][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[XNATSession] ...]"
 
+: <<=cut
 =pod
 
 =head1 NAME
@@ -98,10 +99,10 @@ function getFWSessions {
 	FWGroupID="$1"
 	FWProject="$2"
 
-	for Subject in $( fw ls "${FWGroupID}/${FWProject}" | awk '{print $2}' )
+	for Subject in $( fw ls "${FWGroupID}/${FWProject}" | awk '{print $2}' | sort -n)
 	do
-		fw ls "${FWGroupID}/${FWProject}/${Subject}" | awk '{print $NF}'
-	done | sort -n
+		sys fw ls "${FWGroupID}/${FWProject}/${Subject}" | awk '{print $NF}'
+	done
 }
 
 function getSessionsDiff {
