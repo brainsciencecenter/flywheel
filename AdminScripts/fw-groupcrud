@@ -36,6 +36,9 @@ from pprint import pprint
 from subprocess import PIPE, Popen 
 from os.path import expanduser
 
+#
+# *** Should probably be able to add/delete/list/update projects
+#
 class FW():
     args = False
 
@@ -132,6 +135,7 @@ class FW():
         #
         # *** Does not handle project level group permissions
         # *** what happens when setting group and user has different permissions ? Overwrite, notify user?
+        # *** How to set group labels, tags
         #
         group = self.fw.get(args.groupid[0])
 
@@ -176,7 +180,7 @@ class FW():
 
     def delete(self,args):
         #
-        # What do do if a group has projects?
+        # *** What do do if a group has projects?
         #
         existing_groups = self.fw.groups()
         for groupid in args.GroupID:
