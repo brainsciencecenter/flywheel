@@ -1,8 +1,89 @@
 #/bin/bash
 
+#
+# Xnat credentials are expected in ~/.netrc (man netrc for details)
+# should be in the form:
+# machine $hostname login $user password $password
+#
+# Flywheel credentials are expected in the ~/.config/flywheel/api.key file in the form of
+#    $host:$apikey
+# eg:
+#    upenn.flywheel.io:xxxxxxxxxxx
+#
+
 cmd=$(basename $0)
 
-syntax="$cmd [-F][-f][-g FWGroupID][-l][-n][-P XNATProject][-p FlyWheelProject][-q][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[XNATSession] ...]"
+syntax="$cmd [-F]{-g FWGroupID}[-l][-n][-P XNATProject]{-p FlyWheelProject}[-q][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[XNATSession] ...]"
+
+=pod
+
+=head1 NAME
+
+xnat2fw - upload XNAT sessions to flywheel
+
+=head1 SYNOPSIS
+
+xnat2fw {-g FWGroupID} {-p FlyWheelProject} [-n][-P XNATProject][-q][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[XNATSession] ...]
+xnat2fw {-g FWGroupID} {-p FlyWheelProject} [-F]
+xnat2fw {-g FWGroupID} {-p FlyWheelProject} [-l]
+
+=head1 DESCRIPTION
+
+xnat2fw uploads XNAT sessions to flywheel.
+
+=over 8
+
+=item -F
+
+Get list of existing Flywheel session for the given group and project.
+
+=item -g FWGroupID
+
+Required. Specify the flywheel GroupID to upload the XNAT sessions to.
+
+=item -l
+
+List the remaining XNAT sessions to upload to the given Flywheel group and project.
+
+=item -n
+
+No-op.  Show what would have been done, but don't really do anything
+
+=item -P XNATProject
+
+Overrides the Flywheel project specified with '-p'.
+Use this to upload XNAT sessions to a different Flywheel project.
+
+=item -p
+
+Required.  Specify the Flywheel project to upload XNAT sessions to.
+
+=item -q
+
+Quiet mode.  The underlying fw command is quite chatty. This ignores any status reports from fw.
+
+=item -t NumberOfTransferThreads
+
+Number of Transfer Threads.  Defaults to 4.
+
+=item -w NumberOfWorkerThreads
+
+Number of Worker Threads.  Defaults to 2.
+
+=item -v
+
+Verbose.  Show what commands are being run as we go.
+
+=back
+
+A space list of XNAT sessions may be given to xnat2fw.  Without this list, xnat2fw will
+generate a list of sessions still to be uploaded (use xnat2fw -l to see the list) and start uploading them.
+
+=cut
+
+#
+# -P defaults to -p option
+#
 
 function sys {
 	[ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
@@ -53,13 +134,22 @@ function xnat2fw {
 
 	for Session in "$@"
 	do
+		if [ ! -e "$Session" ]
+		then
+			echo "$cmd : No such file or direcotry for session '$Session' : skipping" 1>&2
+			continue
+		fi
+
 		Subject=$(session2Subject "$Session")
+		if [ -z "$Subject" ]
+		then
+			echo "$cmd : Missing subject for session '$Session' : skipping" 1>&2
+			continue
+		fi
 
 		#
-		# *** make sure you found a subject
-		# *** make sure there really is a Session folder in this directory
 		# fw -q doesn't seem to do anything  Force it.
-	
+		#	
 		cmd=(fw import dicom -y --quiet --de-identify --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Session" "$FWGroupID" "$FWProject")
 		if [ -n "$opt_q" ]
 		then
@@ -71,8 +161,11 @@ function xnat2fw {
 }
 
 function getXNATSession2SubjectMap {
-	 SESSIONID=51F4417425E5850017BEC607CFD4B949
-	 sys curl -s -b "JSESSIONID=$SESSIONID" "$XNATURL/data/archive/projects/NACC-SC/experiments?columns=subject_label,label&format=csv" > $XNATCSVFile
+	 local MapFile="$1"
+	 local SessionID="$2"
+
+	 #SESSIONID=51F4417425E5850017BEC607CFD4B949
+	 sys curl -s -b "JSESSIONID=$SessionID" "$XNATURL/data/archive/projects/NACC-SC/experiments?columns=subject_label,label&format=csv" > $MapFile
 }
 
 function cleanup {
@@ -80,14 +173,14 @@ function cleanup {
 	 [ -n "$XNATSessionID" ] && sys curl -b "JSESSIONID=$XNATSessionID" -X DELETE "$XNATURL/data/JSESSION"
 }
 
-opt_g=upenn-admins
-opt_p=XNATUploads-test
-opt_P=NACC-SC
+#
+# *** Remove defaults for opt_g opt_p opt_P and verify they've been given on command line
+#
 opt_t=4
 opt_w=2
 
 
-while getopts Ffg:lnP:p:qt:w:v arg
+while getopts Fg:lnP:p:qt:w:v arg
 do
 	case "$arg" in 
 		F|f|g|l|n|P|p|q|t|w|v)
@@ -98,12 +191,47 @@ done
 
 shift $((OPTIND - 1))
 
+# check FWgroupid/Project exists? --- let it fail
+
+if [ -n "$opt_g" ]
+then
+	FWGroupID="$opt_g"
+else
+	echo "$cmd : Missing -g argument" 1>&2
+	echo "$syntax" 1>&2
+	exit 1
+fi
+
+if [ -n "$opt_p" ]
+then
+	FWProject="$opt_p"
+else
+	echo "$cmd : Missing -p argument" 1>&2
+	echo "$syntax" 1>&2
+	exit 1
+fi
+
+if [ -n "$opt_P" ]
+then
+	XNATProject="$opt_P"
+else
+	XNATProject="$opt_p"
+fi
+
 XNATBaseDir=/data/XNAT/archive
+if [ ! -e "${XNATBaseDir}/${XNATProject}" ]
+then
+	echo "$cmd : No such file or directory '${XNATBaseDir}/${XNATProject}'" 1>&2
+	exit 1
+fi
 
-XNATProject="$opt_P"
-FWGroupID="$opt_g"
-FWProject="$opt_p"
-
+if ! fw status > /dev/null 2>&1
+then
+	echo "$cmd : Flywheel authorization failed" 1>&2
+	echo "	   use 'fw login' command to login to flywheel" 1>&2
+	exit 1
+fi
+	
 if [ -n "$opt_F" ]
 then
 	getFWSessions "$FWGroupID" "$FWProject"
@@ -123,11 +251,19 @@ then
 	exit 0
 fi
 
-XNATURL=http://picsl-xnat
+XNATURL=http://picsl-xnat.uphs.upenn.edu
 XNATSessionID=$(curl -n -s "$XNATURL/data/JSESSION")
 
+HTTPCode=$(curl -b "JSESSIONID=$XNATSessionID" -s -o /dev/null -w "%{http_code}" "${XNATURL}/data/projects/${XNATProject}")
+if [ "$HTTPCode" == 401 ]
+then
+	echo "$cmd : XNAT authorization failed '$XNATURL'" 1>&2
+	cleanup
+	exit 1
+fi
+
 XNATCSVFile=$(sys mktemp /tmp/xnat2fw-XXXXX)
-getXNATSession2SubjectMap
+getXNATSession2SubjectMap "$XNATCSVFile" "$XNATSessionID"
 
 sys cd "${XNATBaseDir}/${XNATProject}/arc001"
 
