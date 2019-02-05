@@ -1,6 +1,7 @@
 #!/opt/rh/rh-python36/root/usr/bin/python
 
-'''Create
+'''
+Create
   create [-l GroupLabel] GroupID
 
 Retrieve
@@ -29,6 +30,7 @@ import sys
 import re
 import argparse
 import flywheel
+import warnings
 
 from pprint import pprint
 from subprocess import PIPE, Popen 
@@ -58,15 +60,15 @@ class FW():
         retrieve_parser.add_argument('-i', '--ids', action='store_true', help='List only GroupIDs')
         retrieve_parser.add_argument('-l', '--labels', action='store_true', help='List only GroupLabels')
         retrieve_parser.add_argument('-m', '--members', action='store_true', help='List only GroupMembers')
-        retrieve_parser.add_argument('-r', '--roles', action='store_true', help='List only GroupRoles')
         retrieve_parser.add_argument('GroupID', nargs='*', help='GroupID')
         retrieve_parser.set_defaults(func=self.retrieve)
 
         update_parser = subparsers.add_parser('update', help='update flywheel groups')
-        update_parser.add_argument('-a', '--append', action='store_true', help='Append members from group.  Default')
+        update_parser.add_argument('-a', '--append', action='store_true', help='Append members to group.  Default')
         update_parser.add_argument('-d', '--delete', action='store_true', help='Delete members from group.  Defaults to append')
-        update_parser.add_argument('-g', '--groupid', nargs=1, action='store', help='GroupID to motify.')
-        update_parser.add_argument('-l', '--label', nargs=1, action='store', help='Update group label')
+        update_parser.add_argument('-g', '--groupid', required=True, nargs=1, action='store', help='GroupID to motify.')
+        update_parser.add_argument('-l', '--label', action='store', help='Update group label')
+        update_parser.add_argument('-p', '--project', action='store', help='Project in group to change user permissions. Use project all to update all projects in the group.  Default is only modify the group permissions') 
         update_parser.add_argument('-r', '--role', choices=['admin', 'ro', 'rw'], default='rw', nargs=1, action='store', help='Set member role.  Defaults to rw')
         update_parser.add_argument('-s', '--set', action='store_true', help='Set members of group.')
         update_parser.add_argument('PennkeyName', nargs='+', action='store', help='PennkeyName')
@@ -77,7 +79,6 @@ class FW():
         delete_parser.set_defaults(func=self.delete)
 
         self.Config = parser.parse_args()
-        print(vars(self.Config))
 
         if (os.path.isfile(self.UserJsonFile)):
             self.fw = flywheel.Client()
@@ -88,21 +89,104 @@ class FW():
         self.Config.func(self.Config)
 
     def create(self,args):
-        print('create args:', args)
+        groupid = args.GroupID[0]
+
+        if (list(filter(lambda k: k.id == groupid, self.fw.groups()))):
+            warnings.warn("Group '%s' already exists" % (groupid))
+            return(False)
+
+        if (args.GroupLabel):
+            grouplabel = args.GroupLabel[0]
+        else:
+            grouplabel = groupid
+
+        self.fw.add_group(flywheel.Group(groupid, grouplabel))
+        if (args.verbose):
+            print('create group %s(%s)' % (grouplabel,groupid) )
+
+        return(True)
 
     def retrieve(self,args):
-        groups = self.fw.groups()
-        
-        for group in sorted(groups, key=lambda k: k['_id']):
-            print('%s: %s' % (group.id, group.label))
+        #
+        # *** does not show any of the project level permissions
+        #
+
+        for group in sorted(self.fw.groups(), key=lambda k: k['_id']):
+            if (args.GroupID and group.id not in args.GroupID):
+                continue
+
+            if (not args.members):
+                if (args.labels):
+                    print('%s' % (group.label))
+                    continue
+                else:
+                    print('%s: %s' % (group.id, group.label))
+
+                    if (args.ids):
+                        continue
+
             for member in sorted(group.permissions, key=lambda k: k['_id']):
                 print("	%s:%s " % (member.id, member.access))
 
     def update(self,args):
-        print('update args:', args)
-        
+        #
+        # *** Does not handle project level group permissions
+        # *** what happens when setting group and user has different permissions ? Overwrite, notify user?
+        #
+        group = self.fw.get(args.groupid[0])
+
+        if (args.append):
+            for user in args.PennkeyName:
+                group_users = list(filter(lambda p: p.id == user, group.permissions))
+                if (group_users):
+                    warn = "User '%s already in group '%s'" % (user,group.id)
+                    warnings.warn(warn)
+                else:
+                    permission = flywheel.Permission(user, args.role)
+                    group.add_permission(permission)
+                    if (args.verbose):
+                        print("add %s to %s with %s" % (user,args.groupid,args.role)
+)
+        elif (args.delete):
+            for user in args.PennkeyName:
+                group_users = list(filter(lambda p: p.id == user, group.permissions))
+                if (not group_users):
+                    warn = "User '%s is not in group '%s'" % (user,group.id)
+                    warnings.warn(warn)
+                else:
+                    group.delete_permission(user)
+                    if (args.verbose):
+                        print("delete %s from %s" % (user,group.id))
+
+        elif (args.set):
+            for user in args.PennkeyName:
+                group_users = list(filter(lambda p: p.id == user, group.permissions))
+                if (not group_users):
+                    permission = flywheel.Permission(user, args.role)
+                    group.add_permission(permission)
+                    if (args.verbose):
+                        print("add %s to %s with %s" % (user,args.groupid,args.role))
+
+            group_users = list(filter(lambda p: not (p.id in args.PennkeyName), group.permissions))
+            for user in group_users:
+                group.delete_permission(user.id)
+                if (args.verbose):
+                        print("delete %s from %s" % (user,group.id))
+
+
     def delete(self,args):
-        print('delete args:', args)
+        #
+        # What do do if a group has projects?
+        #
+        existing_groups = self.fw.groups()
+        for groupid in args.GroupID:
+            if (not (list(filter(lambda g: g.id == groupid, existing_groups)))):
+                warnings.warn("No such group '%s' to delete" % groupid)
+                continue
+
+            self.fw.delete_group(groupid)
+            if (args.verbose):
+                print("delete group '%s'" % (groupid))
 
     def sys(self,command,working_dir=''):
         '''
