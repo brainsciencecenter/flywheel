@@ -164,9 +164,9 @@ function xnat2fw {
 function getXNATSession2SubjectMap {
 	 local MapFile="$1"
 	 local SessionID="$2"
+	 local XNATSession="$3"
 
-	 #SESSIONID=51F4417425E5850017BEC607CFD4B949
-	 sys curl -s -b "JSESSIONID=$SessionID" "$XNATURL/data/archive/projects/NACC-SC/experiments?columns=subject_label,label&format=csv" > $MapFile
+	 sys curl -s -b "JSESSIONID=$SessionID" "$XNATURL/data/archive/projects/${XNATSession}/experiments?columns=subject_label,label&format=csv" > $MapFile
 }
 
 function cleanup {
@@ -264,7 +264,7 @@ then
 fi
 
 XNATCSVFile=$(sys mktemp /tmp/xnat2fw-XXXXX)
-getXNATSession2SubjectMap "$XNATCSVFile" "$XNATSessionID"
+getXNATSession2SubjectMap "$XNATCSVFile" "$XNATSessionID" "$XNATProject"
 
 sys cd "${XNATBaseDir}/${XNATProject}/arc001"
 

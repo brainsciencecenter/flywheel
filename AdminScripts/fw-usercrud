@@ -24,7 +24,7 @@ class FW():
     args = False
 
     def __init__(self):
-        self.UserJsonFile = "~/.config/flywheel/user.json"
+        self.UserJsonFile = expanduser("~") + "/.config/flywheel/user.json"
         self.ApiKeyFile = expanduser("~") + "/.config/flywheel/api.key"
         self.EmailDomain = 'upenn.edu'
 
@@ -74,17 +74,24 @@ class FW():
     def create(self,args):
       #
       # doesn't create site admins
+      # should allow putting users in groups
+      # should allow reading data from a file
       #
+
       users = self.fw.users()
-      email = "%s@%s" % (args.PennkeyName[0], self.EmailDomain)
+      if (re.search('@%s$' % (self.EmailDomain), args.PennkeyName[0])):
+          email = args.PennkeyName[0]
+      else:
+          email = "%s@%s" % (args.PennkeyName[0], self.EmailDomain)
 
       if (list(filter(lambda u: u.id == email, users))):
         warnings.warn("User '%s' already exists" % (email))
         return(False)
 
-      self.fw.add_user(flywheel.User(firstname=args.first_name[0], lastname=args.last_name[0], email=email, id=email))
+      if (not args.no_op):
+          self.fw.add_user(flywheel.User(firstname=args.first_name[0], lastname=args.last_name[0], email=email, id=email))
 
-      if (args.verbose):
+      if (args.verbose or args.no_op):
         print('create user %s %s(%s)' % (args.first_name[0], args.last_name[0], email))
 
       return(True)
@@ -93,7 +100,8 @@ class FW():
       for user in self.fw.users():
         if (args.PennkeyNames and (not (user.id in args.PennkeyNames))):
           continue
-        print("%s %s %s %s" % (user.firstname, user.lastname, user.id, user.root))
+        print(user)
+        #print("%s %s %s %s" % (user.firstname, user.lastname, user.id, user.root))
 
 
     def update(self,args):
