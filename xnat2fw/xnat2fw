@@ -85,7 +85,6 @@ generate a list of sessions still to be uploaded (use xnat2fw -l to see the list
 #
 # -P defaults to -p option
 #
-
 function sys {
 	[ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
 	[ -z "$opt_n" ] && "$@"
@@ -96,9 +95,11 @@ function getXNATSessions {
 }
 
 function getFWSessions {
-	FWGroupID="$1"
-	FWProject="$2"
+	local FWGroupID="$1"
+	local FWProject="$2"
 
+	# *** just because we're authenticated to fw doesn't mean we
+	#     have authorization to this group/project
 	for Subject in $( fw ls "${FWGroupID}/${FWProject}" | awk '{print $2}' | sort -n)
 	do
 		sys fw ls "${FWGroupID}/${FWProject}/${Subject}" | awk '{print $NF}'
@@ -106,28 +107,30 @@ function getFWSessions {
 }
 
 function getSessionsDiff {
-        FWGroupID="$1"
-        FWProject="$2"
+        local FWGroupID="$1"
+        local FWProject="$2"
+	local FWSessions=""
 
-	diff <(getXNATSessions "$XNATProject") <(getFWSessions "$FWGroupID" "$FWProject")
+	FWSessions = $(getFWSessions "$FWGroupID" "$FWProject")
+	diff <(getXNATSessions "$XNATProject") <(echo "$FWSessions")
 }
 
 function getSessionsStill2Import {
-        FWGroupID=$1
-        FWProject="$2"
+        local FWGroupID=$1
+        local FWProject="$2"
 
 	getSessionsDiff "$FWGroupID" "$FWProject" | grep '<' | awk '{print $2}'
 }
 
 function session2Subject {
-	 Session="$1"
+	 local Session="$1"
 
 	 grep ",$Session," "$XNATCSVFile" | cut -f 2 -d ,
 }
 
 function xnat2fw {
-        FWGroupID=$1
-        FWProject="$2"
+        local FWGroupID=$1
+        local FWProject="$2"
 
 	shift 2
 

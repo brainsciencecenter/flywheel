@@ -100,8 +100,7 @@ class FW():
       for user in self.fw.users():
         if (args.PennkeyNames and (not (user.id in args.PennkeyNames))):
           continue
-        print(user)
-        #print("%s %s %s %s" % (user.firstname, user.lastname, user.id, user.root))
+        print("%s %s %s %s" % (user.firstname, user.lastname, user.id, user.root))
 
 
     def update(self,args):

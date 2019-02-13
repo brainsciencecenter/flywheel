@@ -49,7 +49,7 @@ class FW():
         parser = argparse.ArgumentParser(description='Flyweel group CRUD.')
         parser.add_argument('-n', '--no-op', action='store_true', help='No-op')
         parser.add_argument('-v', '--verbose', action='store_true', help='Verbose')
-        parser.add_argument('-r', '--root', action='store_true', help='Login to flywheel as root')
+        parser.add_argument('-r', '--root', default=True, action='store_true', help='Login to flywheel as root')
 
         subparsers = parser.add_subparsers(help='sub-command help', dest='create,get,update,delete')
         subparsers.required = True
@@ -59,11 +59,14 @@ class FW():
         create_parser.add_argument('GroupID', nargs=1, action='store', help='GroupID')
         create_parser.set_defaults(func=self.create)
 
-        retrieve_parser = subparsers.add_parser('get', help='get [-i][-l][-m][-r] GroupID [[ GroupID]...]')
+        retrieve_parser = subparsers.add_parser('get', help='get [-f][-i][-l][-m][-p][-r] GroupID [[ GroupID]...]')
+        retrieve_parser.add_argument('-f', '--fullnames', action='store_true', help='List Fullnames')
         retrieve_parser.add_argument('-i', '--ids', action='store_true', help='List only GroupIDs')
-        retrieve_parser.add_argument('-l', '--labels', action='store_true', help='List only GroupLabels')
-        retrieve_parser.add_argument('-m', '--members', action='store_true', help='List only GroupMembers')
-        retrieve_parser.add_argument('GroupID', nargs='*', help='GroupID')
+        retrieve_parser.add_argument('-l', '--labels', action='store_true', help='List only Group Labels')
+        retrieve_parser.add_argument('-m', '--members', action='store_true', help='List only Group Members')
+        retrieve_parser.add_argument('-p', '--projects', action='store_true', help='List only Group Projects')
+        retrieve_parser.add_argument('-r', '--roles', action='store_true', help='List only Roles')
+        retrieve_parser.add_argument('GroupIDs', nargs='*', help='GroupIDs')
         retrieve_parser.set_defaults(func=self.retrieve)
 
         update_parser = subparsers.add_parser('update', help='update flywheel groups')
@@ -88,7 +91,7 @@ class FW():
         else:
             with open(self.ApiKeyFile) as x: ApiKey = x.read().rstrip()
             self.fw = flywheel.Client(ApiKey,root=self.Config.root)
-
+            
         self.Config.func(self.Config)
 
     def create(self,args):
@@ -112,24 +115,51 @@ class FW():
     def retrieve(self,args):
         #
         # *** does not show any of the project level permissions
+        # *** things to print: GroupID, GroupLabel, GroupMembers, Group Projects
         #
 
-        for group in sorted(self.fw.groups(), key=lambda k: k['_id']):
-            if (args.GroupID and group.id not in args.GroupID):
-                continue
+        if (not (args.ids or args.labels or args.members or args.projects or args.roles)):
+            args.fullnames = args.ids = args.labels = args.members = args.projects = args.roles = True
 
-            if (not args.members):
+        projects = sorted(self.fw.projects(), key=lambda k: k['label'].lower())
+
+        if (args.GroupIDs):
+            groups = []
+            for gid in args.GroupIDs:
+                groups.append(self.fw.get_group(gid))
+        else:
+            groups = self.fw.groups()
+
+        for group in sorted(groups, key=lambda k: k['_id']):
+            if (args.labels):
+                print('%s' % (group.label), end='')
+
+            if (args.ids):
                 if (args.labels):
-                    print('%s' % (group.label))
-                    continue
+                    print("(%s)" % (group.id), end='' )
                 else:
-                    print('%s: %s' % (group.id, group.label))
+                    print('%s' % (group.id), end='')
 
+            print("")
+
+            if (args.projects):
+                print("  Projects:")
+                for project in (list(filter(lambda k: k.group == group.id, projects))):
+                    print("\t",project.label)
+
+            if (args.members):
+                print("  Members:")
+                for member in sorted(group.permissions, key=lambda k: k['_id']):
                     if (args.ids):
-                        continue
+                        print("\t%s:%s" % (member.access, member.id), end='')
+                    if (args.fullnames):
+                        user = self.get_user(member.id)
+                        print(":%s:%s" % (user.firstname, user.lastname), end='')
+                    print("")
 
-            for member in sorted(group.permissions, key=lambda k: k['_id']):
-                print("	%s:%s " % (member.id, member.access))
+    def get_user(self,userid):
+        users = list(filter(lambda u: u.id == userid, self.fw.users()))
+        return(users[0])
 
     def update(self,args):
         #
@@ -140,24 +170,24 @@ class FW():
         # *** make sure users are already created
         # *** have to check if the group exists
 
-        print("args" , args)
-
         groupid = args.groupid[0]
-        groups = list(filter(lambda k: k.id == groupid, self.fw.groups()))
-        if (not groups):
-            warnings.warn("Group '%s' not found" % (groupid))
-            return(False)
- 
-        print("groups: ", groups)
-        #group = self.fw.get(groupid)
-        group = groups[0]
-        print("group = ",group)
-        if (args.append):
+        group = self.fw.get_group(groupid)
+
+        if (args.append and not (args.delete or args.set)):
             for user in args.PennkeyName:
                 group_users = list(filter(lambda p: p.id == user, group.permissions))
                 if (group_users):
-                    warn = "User '%s already in group '%s'" % (user,group.id)
-                    warnings.warn(warn)
+                    # Check if we're just updating the role.
+                    if (group_users[0].access != args.role[0]):
+                        permission = flywheel.Permission(user, args.role[0])
+                        if (not args.no_op):
+                            # why can't update_permissions use the id in the permissions?
+                            group.update_permission(group_users[0].id, permission)
+                        if (args.verbose or args.no_op):
+                            print("update %s to %s with %s" % (user,args.groupid,args.role))
+                    else:
+                        warn = "User '%s already in group '%s'" % (user,group.id)
+                        warnings.warn(warn)
                 else:
                     permission = flywheel.Permission(user, args.role[0])
                     if (not args.no_op):
