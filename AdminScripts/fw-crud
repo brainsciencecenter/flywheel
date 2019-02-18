@@ -60,29 +60,51 @@ class FW():
         self.ApiKeyFile = expanduser("~") + "/.config/flywheel/api.key"
         self.Domain = 'upenn.edu'
 
+        parser = argparse.ArgumentParser(description='Flyweel group CRUD.')
+        parser.add_argument('-n', '--no-op', action='store_true', help='No-op')
+        parser.add_argument('-v', '--verbose', action='store_true', help='Verbose')
+        parser.add_argument('-r', '--root', action='store_true', help='Login to flywheel as root')
+        
         cmd = os.path.basename(sys.argv[0])
 
         if (cmd == "fw-groupcrud"):
-            self.groupCrud()
+            self.groupCrud(parser)
         elif(cmd == "fw-usercrud"):
-            self.userCrud()
+            self.userCrud(parser)
         elif(cmd == "fw-projcrud"):
-            self.projectCrud()
+            self.projectCrud(parser)
         else:
             print("huh?")
             sys.exit(1)
 
+        self.Config = parser.parse_args()
+
+        try:
+            self.fw = flywheel.Client()
+        except (OSError, Exception) as e:
+            try:
+                with open(self.ApiKeyFile) as x: ApiKey = x.read().rstrip()
+                self.fw = flywheel.Client(ApiKey,root=self.Config.root)
+
+                if (self.Config.root):
+                    try:
+                        groups = self.fw.groups()
+                    except:
+                        print("Your ApiKey '%s' does not have site admin privileges" % ApiKey)
+                        sys.exit(1)
+
+            except (OSError, Exception) as e2:
+                print(e2)
+                print(e)
+                sys.exit(1)
+
+        self.Config.func(self.Config)
         sys.exit(0)
 
     def projectCrud(self):
         return(True)
 
-    def groupCrud(self):
-        parser = argparse.ArgumentParser(description='Flyweel group CRUD.')
-        parser.add_argument('-n', '--no-op', action='store_true', help='No-op')
-        parser.add_argument('-v', '--verbose', action='store_true', help='Verbose')
-        parser.add_argument('-r', '--root', default=True, action='store_true', help='Login to flywheel as root')
-
+    def groupCrud(self,parser):
         subparsers = parser.add_subparsers(help='sub-command help', dest='create,get,update,delete')
         subparsers.required = True
 
@@ -118,15 +140,6 @@ class FW():
         delete_parser.add_argument('GroupID', nargs='+', action='store', help='GroupID')
         delete_parser.set_defaults(func=self.groupDelete)
 
-        self.Config = parser.parse_args()
-
-        if (os.path.isfile(self.UserJsonFile)):
-            self.fw = flywheel.Client()
-        else:
-            with open(self.ApiKeyFile) as x: ApiKey = x.read().rstrip()
-            self.fw = flywheel.Client(ApiKey,root=self.Config.root)
-            
-        self.Config.func(self.Config)
 
     def groupCreate(self,args):
         groupid = args.GroupID[0]
@@ -340,16 +353,6 @@ class FW():
         delete_parser = subparsers.add_parser('delete', help='Delete flywheel groups')
         delete_parser.add_argument('GroupID', nargs='+', action='store', help='PennkeyNames')
         delete_parser.set_defaults(func=self.userDelete)
-
-        self.Config = parser.parse_args()
-
-        if (os.path.isfile(self.UserJsonFile)):
-            self.fw = flywheel.Client()
-        else:
-            with open(self.ApiKeyFile) as x: ApiKey = x.read().rstrip()
-            self.fw = flywheel.Client(ApiKey,root=self.Config.root)
-
-        self.Config.func(self.Config)
 
     def userCreate(self,args):
       #
