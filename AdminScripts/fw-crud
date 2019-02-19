@@ -16,13 +16,13 @@ Retrieve
   -r list only roles
 
 Update
-  update [-d][-l GroupLabel][-r admin|ro|rw] GroupID [PennkeyName][[ PennkeyName]...]
+  update [-d][-l GroupLabel][-r admin|ro|rw] GroupID [UserName][[ UserName]...]
   role defaults to rw
 
   defaults to appending pennkeys to the group
   pennkey already in the group with different roles will raise a warning
-  Use -f to force the new group role on a PennkeyName
-  -d is for deleting PennkeyNames from the group.  Warning if the PennkeyName isnn't in the group
+  Use -f to force the new group role on a UserName
+  -d is for deleting UserNames from the group.  Warning if the UserName isnn't in the group
 
 Delete
   delete GroupID [[ GroupID]...]
@@ -30,20 +30,21 @@ Delete
 #
 # Syntax
 #   fw-usercrud [-n][-r][-v] {create|get|update|delete}
-#      create [-c][-G group1[[,group2]...]][-f FirstName][-l LastName][-r admin|ro|rw][-s] [PennkeyName]
+#      create [-c][-G group1[[,group2]...]][-f FirstName][-l LastName][-r admin|ro|rw][-s] [UserName]
 #   -c Create any missing groups
 #   -r role admin, readonly, read/write defaults to readwrite
 #   -s site admin
 
 '''
 
+import argparse
+import csv
+import flywheel
+import logging
 import os
 import sys
 import re
-import argparse
-import flywheel
 import warnings
-import csv
 
 from pprint import pprint
 from subprocess import PIPE, Popen 
@@ -60,18 +61,20 @@ class FW():
         self.ApiKeyFile = expanduser("~") + "/.config/flywheel/api.key"
         self.Domain = 'upenn.edu'
 
+        logging.basicConfig(format='%(message)s')
+
         parser = argparse.ArgumentParser(description='Flyweel group CRUD.')
         parser.add_argument('-n', '--no-op', action='store_true', help='No-op')
         parser.add_argument('-v', '--verbose', action='store_true', help='Verbose')
         parser.add_argument('-r', '--root', action='store_true', help='Login to flywheel as root')
         
-        cmd = os.path.basename(sys.argv[0])
+        self.cmd = os.path.basename(sys.argv[0])
 
-        if (cmd == "fw-groupcrud"):
+        if (self.cmd == "fw-groupcrud"):
             self.groupCrud(parser)
-        elif(cmd == "fw-usercrud"):
+        elif(self.cmd == "fw-usercrud"):
             self.userCrud(parser)
-        elif(cmd == "fw-projcrud"):
+        elif(self.cmd == "fw-projcrud"):
             self.projectCrud(parser)
         else:
             print("huh?")
@@ -98,8 +101,13 @@ class FW():
                 print(e)
                 sys.exit(1)
 
-        self.Config.func(self.Config)
-        sys.exit(0)
+        try:
+            retval = self.Config.func(self.Config)
+        except Exception as e:
+            logging.warn(e)
+            sys.exit(1)
+
+        sys.exit(retval)
 
     def projectCrud(self):
         return(True)
@@ -127,19 +135,18 @@ class FW():
         update_parser.add_argument('-a', '--append', default=True, action='store_true', help='Append members to group.  Default')
         update_parser.add_argument('-c', '--create-users', action='store_true', help='Create user accounts if they are missing')
         update_parser.add_argument('-d', '--delete', action='store_true', help='Delete members from group.  Defaults to append')
-        update_parser.add_argument('-f', '--file', action='store_true', help='args are to read group members from.  Format should be Role:PennkeyName:FirstName:LastName')
+        update_parser.add_argument('-f', '--file', action='store_true', help='args are to read group members from.  Format should be Role:UserName:FirstName:LastName')
         update_parser.add_argument('-g', '--groupid', required=True, nargs=1, action='store', help='GroupID to motify.')
         update_parser.add_argument('-l', '--label', action='store', help='Update group label')
         update_parser.add_argument('-p', '--project', action='store', help='Project in group to change user permissions. Use project all to update all projects in the group.  Default is only modify the group permissions') 
         update_parser.add_argument('-r', '--role', choices=['admin', 'ro', 'rw'], default=['rw'], nargs=1, action='store', help='Set member role.  Defaults to rw')
         update_parser.add_argument('-s', '--set', action='store_true', help='Set members of group.')
-        update_parser.add_argument('PennkeyNames', nargs='+', action='store', help='PennkeyNames')
+        update_parser.add_argument('UserNames', nargs='+', action='store', help='UserNames')
         update_parser.set_defaults(func=self.groupUpdate)
 
         delete_parser = subparsers.add_parser('delete', help='Delete flywheel groups')
         delete_parser.add_argument('GroupID', nargs='+', action='store', help='GroupID')
         delete_parser.set_defaults(func=self.groupDelete)
-
 
     def groupCreate(self,args):
         groupid = args.GroupID[0]
@@ -159,21 +166,13 @@ class FW():
 
         return(True)
 
-    def readCSVFile(self,CSVFileName, Headers=['role','pennkeyname','firstname','lastname']):
-        with open(CSVFileName) as csvfile:
-            reader = csv.DictReader(csvfile, fieldnames=Headers, delimiter=':', quotechar='"')
-            lines = []
-            for row in reader:
-                lines.append(row)
-
-        return(lines)
-
     def groupRetrieve(self,args):
         #
         # *** does not show any of the project level permissions
-        # *** things to print: GroupID, GroupLabel, GroupMembers, Group Projects
         #
 
+        retval = 1
+        
         if (not (args.ids or args.labels or args.members or args.projects or args.roles)):
             args.fullnames = args.ids = args.labels = args.members = args.projects = args.roles = True
 
@@ -185,11 +184,14 @@ class FW():
                 try:
                     groups.append(self.fw.get_group(gid))
                 except flywheel.ApiException as e:
-                    print("No such group '%s'" % (gid))
+                    logging.warning("%s : No such group '%s'" % (self.cmd, gid))
+
         else:
             groups = self.fw.groups()
 
         for group in sorted(groups, key=lambda k: k['_id']):
+            retval = 0
+            
             if (args.labels):
                 print('%s' % (group.label), end='')
 
@@ -212,13 +214,22 @@ class FW():
                     if (args.ids):
                         print("\t%s:%s" % (member.access, member.id), end='')
                     if (args.fullnames):
-                        user = self.get_user(member.id)
-                        print(":%s:%s" % (user.firstname, user.lastname), end='')
+                        user = self.getUser(member.id)
+                        if (user):
+                            print(":%s:%s" % (user.firstname, user.lastname), end='')
+                        else:
+                            logging.warning("%s : No such user '%s'" % (self.cmd, userid))
                     print("")
 
-    def get_user(self,userid):
+        return(retval)
+
+    def getUser(self,userid):
         users = list(filter(lambda u: u.id == userid, self.fw.users()))
-        return(users[0])
+        if users:
+            return(users[0])
+        else:
+            return(False)
+
 
     #
     # user must be in pennkeyname@upenn.edu format
@@ -237,7 +248,7 @@ class FW():
                 if (args.verbose or args.no_op):
                     print("update %s to %s with %s" % (user,args.groupid,role))
             else:
-                warn = "User '%s already in group '%s'" % (user,group.id)
+                warn = "User '%s already in group '%s' as '%s'" % (user,group.id,role)
                 warnings.warn(warn)
         else:
             permission = flywheel.Permission(user, role)
@@ -261,25 +272,25 @@ class FW():
         if (args.append and not (args.delete or args.set)):
             if (args.file):
                 csvlines = []
-                for file in args.PennkeyNames:
+                for file in args.UserNames:
                     csvlines += self.readCSVFile(file)
 
                 for l in csvlines:
-                    user = self.fixPennkeyName(l['pennkeyname'])
+                    user = self.enforceDomain(l['pennkeyname'])
 
-                    if (self.get_user(user)):
+                    if (self.getUser(user)):
                         self.appendUser2Group(group,user,l['role'])
                     elif(args.create_user):
                         self.createUser(l['role'],user,l['firstname'],l['lastname'])
                         self.appendUser2Group(group,user,l['role'])
 
             else:
-                for PennkeyName in args.PennkeyNames:
-                    user = self.enforceDomain(PennkeyName)
-                    self.appendUser2Group(group,user,args.role)
+                for UserName in args.UserNames:
+                    user = self.enforceDomain(UserName)
+                    self.appendUser2Group(group,user,args.role[0])
 
         elif (args.delete):
-            for user in args.PennkeyNames:
+            for user in args.UserNames:
                 group_users = list(filter(lambda p: p.id == user, group.permissions))
                 if (not group_users):
                     warn = "User '%s is not in group '%s'" % (user,group.id)
@@ -290,7 +301,7 @@ class FW():
                         print("delete %s from %s" % (user,group.id))
 
         elif (args.set):
-            for user in args.PennkeyNames:
+            for user in args.UserNames:
                 group_users = list(filter(lambda p: p.id == user, group.permissions))
                 if (not group_users):
                     permission = flywheel.Permission(user, args.role)
@@ -298,7 +309,7 @@ class FW():
                     if (args.verbose):
                         print("add %s to %s with %s" % (user,args.groupid,args.role))
 
-            group_users = list(filter(lambda p: not (p.id in args.PennkeyNames), group.permissions))
+            group_users = list(filter(lambda p: not (p.id in args.UserNames), group.permissions))
             for user in group_users:
                 group.delete_permission(user.id)
                 if (args.verbose):
@@ -320,26 +331,21 @@ class FW():
             if (args.verbose):
                 print("delete group '%s'" % (groupid))
 
-    def userCrud(self):
-        parser = argparse.ArgumentParser(description='Flyweel user CRUD.')
-        parser.add_argument('-n', '--no-op', action='store_true', help='No-op')
-        parser.add_argument('-v', '--verbose', action='store_true', help='Verbose')
-        parser.add_argument('-r', '--root', action='store_true', help='Login to flywheel as root')
-
+    def userCrud(self,parser):
         subparsers = parser.add_subparsers(help='sub-command help', dest='create,get,update,delete')
         subparsers.required = True
 
-        create_parser = subparsers.add_parser('create', help='create [-c]{-f FirstName}{-l LastName}[-g {GroupID[,GroupID]}][-s] PennkeyName')
+        create_parser = subparsers.add_parser('create', help='create [-c]{-f FirstName}{-l LastName}[-g {GroupID[,GroupID]}][-s] UserName')
         create_parser.add_argument('-c', '--create-groups', action='store_true', help='Create missing groups')
         create_parser.add_argument('-f', '--first-name', required=True, nargs=1, action='store', help='First Name')
         create_parser.add_argument('-g', '--group-id', nargs=1, action='store', help='Groups to add user to')
         create_parser.add_argument('-l', '--last-name', required=True, nargs=1, action='store', help='Last Name')
         create_parser.add_argument('-s', '--site-admin', nargs=1, action='store', help='Make user a site administrator')
-        create_parser.add_argument('PennkeyName', nargs=1, action='store', help='PennkeyName')
+        create_parser.add_argument('UserName', nargs=1, action='store', help='UserName')
         create_parser.set_defaults(func=self.userCreate)
 
-        retrieve_parser = subparsers.add_parser('get', help='get [-i][-l][-m][-r] [PennkeyName[ PennkeyName]...]')
-        retrieve_parser.add_argument('PennkeyNames', nargs='*', help='PennkeyNames')
+        retrieve_parser = subparsers.add_parser('get', help='get [-i][-l][-m][-r] [UserName[ UserName]...]')
+        retrieve_parser.add_argument('UserNames', nargs='*', help='UserNames')
         retrieve_parser.set_defaults(func=self.userRetrieve)
 
         update_parser = subparsers.add_parser('update', help='update flywheel user')
@@ -347,11 +353,11 @@ class FW():
         update_parser.add_argument('-e', '--enable', action='store_true', help='enable account.')
         update_parser.add_argument('-f', '--first-name', nargs=1, action='store', help='First name')
         update_parser.add_argument('-l', '--last-name', nargs=1, action='store', help='Last Name')
-        update_parser.add_argument('PennkeyName', nargs=1, action='store', help='PennkeyName')
+        update_parser.add_argument('UserName', nargs=1, action='store', help='UserName')
         update_parser.set_defaults(func=self.userUpdate)
 
-        delete_parser = subparsers.add_parser('delete', help='Delete flywheel groups')
-        delete_parser.add_argument('GroupID', nargs='+', action='store', help='PennkeyNames')
+        delete_parser = subparsers.add_parser('delete', help='Delete flywheel User')
+        delete_parser.add_argument('UserName', nargs='+', action='store', help='UserNames')
         delete_parser.set_defaults(func=self.userDelete)
 
     def userCreate(self,args):
@@ -360,53 +366,65 @@ class FW():
       # should allow putting users in groups
       # should allow reading data from a file
       #
+      username = self.enforceDomain(args.UserName[0])
 
-      users = self.fw.users()
-      if (re.search('@%s$' % (self.EmailDomain), args.PennkeyName[0])):
-          email = args.PennkeyName[0]
-      else:
-          email = "%s@%s" % (args.PennkeyName[0], self.EmailDomain)
-
-      if (list(filter(lambda u: u.id == email, users))):
-        warnings.warn("User '%s' already exists" % (email))
+      if (self.getUser(username)):
+          # *** should raise and exception
+        warnings.warn("User '%s' already exists" % (username))
         return(False)
 
       if (not args.no_op):
-          self.fw.add_user(flywheel.User(firstname=args.first_name[0], lastname=args.last_name[0], email=email, id=email))
+          self.fw.add_user(flywheel.User(firstname=args.first_name[0], lastname=args.last_name[0], email=username, id=username))
 
       if (args.verbose or args.no_op):
-        print('create user %s %s(%s)' % (args.first_name[0], args.last_name[0], email))
+        print('create user %s %s(%s)' % (args.first_name[0], args.last_name[0], username))
 
       return(True)
 
     def userRetrieve(self,args):
       for user in self.fw.users():
-        if (args.PennkeyNames and (not (user.id in args.PennkeyNames))):
+        if (args.UserNames and (not (user.id in args.UserNames))):
           continue
         print("%s %s %s %s" % (user.firstname, user.lastname, user.id, user.root))
 
 
     def userUpdate(self,args):
-        #user = self.fw.get(args.PennkeyName[0])
-        user = self.fw.get('holder@upenn.edu')
-        print(user)
+        user = self.getUser(self.enforceDomain(args.UserName[0]))
+        if (user):
+            print(user)
+            retval = 0
+        else:
+            logging.warning("%s : No such user '%s'" % (self.cmd, user))
+            retval = 1
+
+        return(retval)
 
     def userDelete(self,args):
         #
-        # *** What do do if a group has projects?
+        # *** can't really delete a user yet. -- only disable their account
         #
-        existing_groups = self.fw.groups()
-        for groupid in args.GroupID:
-            if (not (list(filter(lambda g: g.id == groupid, existing_groups)))):
-                warnings.warn("No such group '%s' to delete" % groupid)
-                continue
-
-            self.fw.delete_group(groupid)
-            if (args.verbose):
-                print("delete group '%s'" % (groupid))
+        UserNames = self.Config.UserName
+        for username in UserNames:
+            username = self.enforceDomain(username)
+            user = self.getUser(username)
+            if (user):
+                if (args.verbose):
+                    print("delete user '%s'" % (username))
 
     def enforceDomain(self,user):
-        return(re.sub(r'$','@%s' % (self.Domain), re.sub(r'@.*$',r'', user)))
+        if (re.search('@',user)):
+            return(user)
+        else:
+            return(re.sub(r'$','@%s' % (self.Domain), user))
+
+    def readCSVFile(self,CSVFileName, Headers=['role','pennkeyname','firstname','lastname']):
+        with open(CSVFileName) as csvfile:
+            reader = csv.DictReader(csvfile, fieldnames=Headers, delimiter=':', quotechar='"')
+            lines = []
+            for row in reader:
+                lines.append(row)
+
+        return(lines)
 
     def sys(self,command,working_dir=''):
         '''
