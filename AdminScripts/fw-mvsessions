@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import os
+import flywheel
+import json
+import argparse
+
+from os.path import expanduser
+
+ApiKeyFile = expanduser("~") + "/.config/flywheel/api.key"
+
+try:
+    fw = flywheel.Client()
+except (OSError, Exception) as e:
+    try:
+        with open(ApiKeyFile) as x: ApiKey = x.read().rstrip()
+        fw = flywheel.Client(ApiKey,root=True)
+        
+    except (OSError, Exception) as e2:
+        print("e2",e2)
+        print("e",e)
+
+
+#
+# List all the sessions that match a regex in a group/project
+# Move all the sessions that match a regex in a group/project to a group/project
+#
+# fw-mv-session -f group/project -t group/project SessionRegex [[SessionRegex]...]
+# fw-mv-session -f group/project [[SessionRegex]...]
+#
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-f', '--from-group', action='store', help='The group/project to move sessions from')
+parser.add_argument('-t', '--to', action='store', help='The group/project to move sessions to')
+parser.add_argument('-i', '--info', action='store', help='Dicom metadata to use')
+parser.add_argument('-c', '--create', action='store_true', help='Force creation of projects and subjects')
+parser.add_argument('-n', '--no-op', action='store_true', help='No-op')
+parser.add_argument('-v', '--verbose', action='store_true', help='Verbose')
+parser.add_argument('SessionRegExs', nargs='*', action='store', help='SessionRegExs')
+args = parser.parse_args()
+
+[FromGroupLabel,FromProjectLabel] = args.from_group.split('/')
+
+if (args.to):
+    [ToGroupLabel, ToProjectLabel] = args.to.split('/')
+    print('%s / %s' % (ToGroupLabel, ToProjectLabel))
+    
+#print(fw.projects.find(filter='label={}'.format(args.project_label)))
+
+if (args.info):
+    FileInfo = args.info
+else:
+    FileInfo = False
+
+def sessionCheck(Session, SessionRegEx, FileInfo=False):
+    if (re.search(SessionRegEx,Session.label)):
+        if (FileInfo):
+            (k, v) = FileInfo.split('=')
+            acquisition = fw.get_session_acquisitions(session_id=Session.id)[0]
+            a = fw.get(acquisition.id)
+            val = a.files[0].info.get(k)
+
+            return(v == val)
+        else:
+            return(True)
+    else:
+        return(False)
+
+def find_or_create_subject(fw, project, subject_code, old_subject):
+    # Try to find if a subject with that code already exists in the project
+    subject = fw.subjects.find_first(filter='project={},code={}'.format(project.id, subject_code))
+    if not subject:
+        # if it doesn't, make one with the same metadata
+        new_subject = flywheel.Subject(project=project.id, firstname=old_subject.firstname, code=subject_code,
+                                       lastname=old_subject.lastname, sex=old_subject.sex,
+                                       cohort=old_subject.cohort, ethnicity=old_subject.ethnicity,
+                                       race=old_subject.race, species=old_subject.species,
+                                       strain=old_subject.strain, files=old_subject.files)
+        response = fw.add_subject(new_subject)
+        subject = fw.get_subject(response)
+
+    return subject
+
+def move_session_to_subject(session, subject):
+    session.update({'subject': {'_id': subject.id}})
+
+def createProject(fw,Group,ProjectLabel):
+    print("Create project '%s' in group '%s'" % (ProjectLabel, Group.label))
+    
+FromSessions = []
+FromGroup = fw.get_group(FromGroupLabel)
+if (FromGroup):
+    FromProjects = list(filter(lambda p: p.label == FromProjectLabel, FromGroup.projects()))
+    for FromProject in FromProjects:
+        if (FromProject.label == FromProjectLabel):
+            for SessionRegEx in args.SessionRegExs:
+                FromSessions += list(filter(lambda s: sessionCheck(s,SessionRegEx,FileInfo), FromProject.sessions()))
+
+ToGroupLabel = ToProjectLabel = False
+if (args.to):
+    [ToGroupLabel,ToProjectLabel] = args.to.split('/')
+
+ToGroup = fw.get_group(ToGroupLabel)
+if (not ToGroup):
+    print("No such group '%s'" % (ToGroupLabel))
+    sys.exit(1)
+
+ToProjects = list(filter(lambda p: p.label == ToProjectLabel, ToGroup.projects()))
+if (not ToProjects):
+    if (args.create):
+        ToProject = createProject(fw, ToGroup, ToProjectLabel)
+        sys.exit(0)
+    else:
+        print("No project '%s' in group '%s'" % (ToProjectLabel, ToGroup.label))
+        sys.exit(1)
+
+elif (len(ToProjects) > 1):
+    print("To group '%s' has %d projects named '%s'" % (ToGroupLabel, len(ToProjects), ToProjectLabel))
+    sys.exit(1)
+else:
+    ToProject = ToProjects[0]
+    
+for FromSession in FromSessions:
+    if (ToGroup and ToProject):
+        FromSubject = FromSession.subject
+        # *** needs to be to subject, not just the label
+        ToSubject = find_or_create_subject(fw,ToProject,FromSubject.code,FromSession.subject)
+        if (not ToSubject):
+            print ("Need to create subject '%s' in '%s/%s'" % (FromSubject.code, ToGroup.id, ToProject.label))
+            sys.exit(1)
+            
+        if (args.no_op or args.verbose):
+            print("mv %s/%s/%s/%s to %s/%s/%s" % (FromGroupLabel, FromProjectLabel, FromSubject.label, FromSession.label,
+                                                     ToGroup.id, ToProject.label, ToSubject.label))
+        if (not args.no_op):
+            move_session_to_subject(FromSession, ToSubject)
+
+    else:
+        acquisition = fw.get_session_acquisitions(session_id=FromSession.id)[0]
+        a = fw.get(acquisition.id)
+        sd = a.files[0].info.get('StudyDescription')
+        if (sd):
+            print("%s	%s" % (FromSession.label, sd))
+        else:
+            print("%s" % (FromSession.label))
+
+
