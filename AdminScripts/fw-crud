@@ -206,7 +206,7 @@ class FW():
             if (args.projects):
                 print("  Projects:")
                 for project in (list(filter(lambda k: k.group == group.id, projects))):
-                    print("\t",project.label)
+                    print("\t",project.label,project.permissions)
 
             if (args.members):
                 print("  Members:")
