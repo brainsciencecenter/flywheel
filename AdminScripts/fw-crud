@@ -135,10 +135,11 @@ class FW():
         update_parser.add_argument('-a', '--append', default=True, action='store_true', help='Append members to group.  Default')
         update_parser.add_argument('-c', '--create-users', action='store_true', help='Create user accounts if they are missing')
         update_parser.add_argument('-d', '--delete', action='store_true', help='Delete members from group.  Defaults to append')
+        update_parser.add_argument('-F', '--force', action='store_true', help='Update user project permissions')
         update_parser.add_argument('-f', '--file', action='store_true', help='args are to read group members from.  Format should be Role:UserName:FirstName:LastName')
         update_parser.add_argument('-g', '--groupid', required=True, nargs=1, action='store', help='GroupID to motify.')
-        update_parser.add_argument('-l', '--label', action='store', help='Update group label')
-        update_parser.add_argument('-p', '--project', action='store', help='Project in group to change user permissions. Use project all to update all projects in the group.  Default is only modify the group permissions') 
+        update_parser.add_argument('-l', '--label', action='store', help='Update groufp label')
+        update_parser.add_argument('-p', '--project', action='store', help='Project in group to change user permissions. Use project "all" to add user permissions to all projects in the group.  Default is only modify the group permissions') 
         update_parser.add_argument('-r', '--role', choices=['admin', 'ro', 'rw'], default=['rw'], nargs=1, action='store', help='Set member role.  Defaults to rw')
         update_parser.add_argument('-s', '--set', action='store_true', help='Set members of group.')
         update_parser.add_argument('UserNames', nargs='+', action='store', help='UserNames')
@@ -206,7 +207,7 @@ class FW():
             if (args.projects):
                 print("  Projects:")
                 for project in (list(filter(lambda k: k.group == group.id, projects))):
-                    print("\t",project.label,project.permissions)
+                    print("\t",project.label) 
 
             if (args.members):
                 print("  Members:")
@@ -231,6 +232,28 @@ class FW():
             return(False)
 
 
+    def updateProjectUserRole(self, project, user, role):
+        args = self.Config
+
+        if (list(filter(lambda p: p.id == user and p.access == role, project.permissions))):
+            if (args.force):
+                if (not args.no_op):
+                    project.delete_permissions(user)
+            else:
+                logging.warn("user '%s' is already in project '%s' as '%s'" % (user, project.label, role))
+                return(False)
+
+        permission = flywheel.Permission(user, role)
+
+        if (not args.no_op):
+            try:
+                project.add_permission(permission)
+            except flywheel.ApiException as e:
+                print('API Error: %d -- %s' % (e.status, e.reason))
+
+        if (args.verbose or args.no_op):
+            print("add %s to %s/%s with %s" % (user, project.group, project.label, role))
+        
     #
     # user must be in pennkeyname@upenn.edu format
     #
@@ -248,15 +271,17 @@ class FW():
                 if (args.verbose or args.no_op):
                     print("update %s to %s with %s" % (user,args.groupid,role))
             else:
-                warn = "User '%s already in group '%s' as '%s'" % (user,group.id,role)
-                warnings.warn(warn)
+                raise Exception("User '%s already in group '%s' as '%s'" % (user,group.id,role))
+
         else:
             permission = flywheel.Permission(user, role)
-            if (not args.no_op):
-                group.add_permission(permission)
-            if (args.verbose or args.no_op):
-                print("add %s to %s with %s" % (user,args.groupid,role))
+            if (not args.no_op): 
+                group.add_permission(permission) 
+            if (args.verbose or args.no_op): 
+                print("add %s to %s with %s" % (user,args.groupid,role)) 
 
+
+            
     def groupUpdate(self,args):
         #
         # *** Does not handle project level group permissions
@@ -287,7 +312,15 @@ class FW():
             else:
                 for UserName in args.UserNames:
                     user = self.enforceDomain(UserName)
-                    self.appendUser2Group(group,user,args.role[0])
+                    try:
+                        self.appendUser2Group(group,user,args.role[0])
+                    except (Exception) as e:
+                        logging.warn(e)
+                        
+                    if (args.project):
+                        for p in group.projects():
+                            if (args.project == 'all' or p.label in args.project):
+                                self.updateProjectUserRole(p, user, args.role[0])
 
         elif (args.delete):
             for user in args.UserNames:

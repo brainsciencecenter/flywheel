@@ -1,0 +1,47 @@
+#!/bin/bash
+
+CurrentDir=$(dirname $0)
+export PATH=$CurrentDir:$PATH
+
+Date=$(date +%D)
+FullDate=$(date +%FT%TZ)
+
+Article=360017764333
+
+function pushToZendesk {
+	Article="$1"
+
+	curl -nsk -o /dev/null -X PUT -H "Content-Type: application/json" -d @- https://upenn-cfn.zendesk.com/api/v2/help_center/articles/${Article}/translations/en-us.json
+}
+
+function genCurrentFlywheelGroupJson {
+cat << EOF 
+{
+  "translation": {
+    "id": 360027253593,
+    "url": "https://upenn-cfn.zendesk.com/api/v2/help_center/articles/${Article}/translations/en-us",
+    "html_url": "https://upenn-cfn.zendesk.com/hc/en-us/articles/360017764333",
+    "source_id": ${Article},
+    "source_type": "Article",
+    "locale": "en-us",
+    "title": "Current Flywheel Groups",
+    "body": "Current groups as of ${Date}<br><pre>${Groups}</pre>",
+    "outdated": false,
+    "draft": false,
+    "hidden": false,
+    "created_at": "2019-02-11T19:24:43Z",
+    "updated_at": "${FullDate}",
+    "updated_by_id": ${Article},
+    "created_by_id": ${Article}
+  }
+}
+EOF
+}
+
+function getCurrentFlywheelGroups {
+	fw-groupcrud -r -v get -l -i -p | tr '\n' ';' | sed 's/;/<br>/g'
+}
+
+Groups="$(getCurrentFlywheelGroups)"
+
+genCurrentFlywheelGroupJson | pushToZendesk "$Article"

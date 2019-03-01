@@ -38,7 +38,7 @@ parser.add_argument('-i', '--info', action='store', help='Dicom metadata to use'
 parser.add_argument('-c', '--create', action='store_true', help='Force creation of projects and subjects')
 parser.add_argument('-n', '--no-op', action='store_true', help='No-op')
 parser.add_argument('-v', '--verbose', action='store_true', help='Verbose')
-parser.add_argument('SessionRegExs', nargs='*', action='store', help='SessionRegExs')
+parser.add_argument('SessionRegExs', nargs='*', default='^', action='store', help='SessionRegExs')
 args = parser.parse_args()
 
 [FromGroupLabel,FromProjectLabel] = args.from_group.split('/')
@@ -47,8 +47,6 @@ if (args.to):
     [ToGroupLabel, ToProjectLabel] = args.to.split('/')
     print('%s / %s' % (ToGroupLabel, ToProjectLabel))
     
-#print(fw.projects.find(filter='label={}'.format(args.project_label)))
-
 if (args.info):
     FileInfo = args.info
 else:
@@ -86,9 +84,11 @@ def find_or_create_subject(fw, project, subject_code, old_subject):
 def move_session_to_subject(session, subject):
     session.update({'subject': {'_id': subject.id}})
 
-def createProject(fw,Group,ProjectLabel):
-    print("Create project '%s' in group '%s'" % (ProjectLabel, Group.label))
-    
+def createProject(fw,Group, ProjectLabel):
+    print("Group '%s', Project Label '%s'" % (Group.id, ProjectLabel)) 
+    return(Group.add_project(label=ProjectLabel))
+
+
 FromSessions = []
 FromGroup = fw.get_group(FromGroupLabel)
 if (FromGroup):
@@ -99,28 +99,40 @@ if (FromGroup):
                 FromSessions += list(filter(lambda s: sessionCheck(s,SessionRegEx,FileInfo), FromProject.sessions()))
 
 ToGroupLabel = ToProjectLabel = False
+
+ToGroup = False
+ToProjects = []
+
 if (args.to):
     [ToGroupLabel,ToProjectLabel] = args.to.split('/')
 
-ToGroup = fw.get_group(ToGroupLabel)
-if (not ToGroup):
-    print("No such group '%s'" % (ToGroupLabel))
-    sys.exit(1)
+    print("togrouplabel", ToGroupLabel)
 
-ToProjects = list(filter(lambda p: p.label == ToProjectLabel, ToGroup.projects()))
-if (not ToProjects):
-    if (args.create):
-        ToProject = createProject(fw, ToGroup, ToProjectLabel)
-        sys.exit(0)
-    else:
-        print("No project '%s' in group '%s'" % (ToProjectLabel, ToGroup.label))
+    ToGroup = fw.get_group(ToGroupLabel)
+
+    if (not ToGroup):
+        print("No such group '%s'" % (ToGroupLabel))
         sys.exit(1)
 
-elif (len(ToProjects) > 1):
-    print("To group '%s' has %d projects named '%s'" % (ToGroupLabel, len(ToProjects), ToProjectLabel))
-    sys.exit(1)
-else:
-    ToProject = ToProjects[0]
+    ToProjects = list(filter(lambda p: p.label == ToProjectLabel, ToGroup.projects()))
+    if (not ToProjects):
+        if (args.create):
+            if (args.no_op or args.verbose):
+                print("Create project '%s' in group '%s'" % (ToProjectLabel, ToGroup.id))
+
+            if(not args.no_op):
+                ToProjects = [ createProject(fw, ToGroup, FromProject.label) ]
+
+            sys.exit(0)
+        else:
+            print("No project '%s' in group '%s'" % (ToProjectLabel, ToGroup.label))
+            sys.exit(1)
+
+    elif (len(ToProjects) > 1):
+        print("To group '%s' has %d projects named '%s'" % (ToGroupLabel, len(ToProjects), ToProjectLabel))
+        sys.exit(1)
+    else:
+        ToProject = ToProjects[0]
     
 for FromSession in FromSessions:
     if (ToGroup and ToProject):
@@ -142,7 +154,7 @@ for FromSession in FromSessions:
         a = fw.get(acquisition.id)
         sd = a.files[0].info.get('StudyDescription')
         if (sd):
-            print("%s	%s" % (FromSession.label, sd))
+            print("%s: %s" % (a.created, sd))
         else:
             print("%s" % (FromSession.label))
 
