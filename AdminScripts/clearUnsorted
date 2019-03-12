@@ -1,0 +1,66 @@
+#!/bin/bash
+
+cmd=$(basename $0)
+
+FromGroupProject=unknown/Unsorted
+ToProject=Unsorted
+LookUpTable=~/Work/CfN/flywheel/AdminScripts/StudyDescriptionToGroup
+
+while getopts nv arg
+do
+	case "$arg" in
+	     n|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift $((OPTIND - 1))
+
+if [ -n "$1" ]
+then
+	if [ -e "$1" ]
+	then
+	   StudyDescriptions=($(< "$1"))
+	else
+	   StudyDescriptions=("$@")
+	fi
+else
+	StudyDescriptions=($(./fw-mvsessions -v   -f  "$FromGroupProject" | awk '{print $3}' | sort -u))
+fi
+
+
+function sys {
+	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	 [ -n "$opt_n" ] || "$@"
+}
+
+function getDestGroup {
+	 local StudyDescription="$(echo $1 | sed 's/\^/\\^/')"
+	 local res
+	 local n
+
+	 res=$(grep -P "^${StudyDescription}\s" "${LookUpTable}")
+	 n=$(echo -n "$res" | wc -l)
+	 
+	 if [ -n "$res" ]
+	 then
+		echo "$res" | awk '{print $2}'
+		return 0
+	fi
+
+	return 1
+}
+
+for i in "${StudyDescriptions[@]}"
+do
+	StudyDescription="$i"
+	ToGroup=$(getDestGroup "$StudyDescription")
+
+	if [ -n "$ToGroup" ]
+	then
+		sys ./fw-mvsessions -v -f "$FromGroupProject" -i StudyDescription="$StudyDescription" -t "${ToGroup}/${ToProject}"
+	else		
+		echo No entry for "'$StudyDescription'" in "'$LookUpTable'" 1>&2
+	fi
+done
