@@ -17,6 +17,8 @@ done
 
 shift $((OPTIND - 1))
 
+StudyDescriptions=()
+
 if [ -n "$1" ]
 then
 	if [ -e "$1" ]
@@ -26,7 +28,11 @@ then
 	   StudyDescriptions=("$@")
 	fi
 else
-	StudyDescriptions=($(./fw-mvsessions -v   -f  "$FromGroupProject" | awk '{print $3}' | sort -u))
+	while read line
+	do
+		StudyDescriptions+=("$line")
+	done < <(./fw-mvsessions -v   -f  "$FromGroupProject" | sed 's/^.*: *//; s/ *$//' | sort -u)
+	#echo "StudyDescription: ${StudyDescriptions[0]}"
 fi
 
 
@@ -40,12 +46,11 @@ function getDestGroup {
 	 local res
 	 local n
 
-	 res=$(grep -P "^${StudyDescription}\s" "${LookUpTable}")
-	 n=$(echo -n "$res" | wc -l)
+	 res=$(grep -P "^${StudyDescription}\s" "${LookUpTable}" | sed -r 's/^.*\s//')
 	 
 	 if [ -n "$res" ]
 	 then
-		echo "$res" | awk '{print $2}'
+		echo "$res"
 		return 0
 	fi
 

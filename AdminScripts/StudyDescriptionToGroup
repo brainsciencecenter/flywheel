@@ -11,12 +11,14 @@ CAMRIS^Kable		kable
 CAMRIS^Kohler		bbl
 CAMRIS^Langleben	langlebengrp
 CAMRIS^Loughead		loughead_lab
+CAMRIS Loughead @SIT	loughead_lab
 CAMRIS^Mackey		mackeylab
 CAMRIS^McCormack	smccormacklab
 CAMRIS^Medaglia		medaglia
 CAMRIS^Oathes		oathes_lab
 CAMRIS^Phantom_QA	nncadim/sc3t_fbirn
 CAMRIS^Satterthwaite	bbl
+CAMRIS^Sheikh		sheikh
 CAMRIS^Sheline		cnds
 CAMRIS^ThompsonSchill	stslab
 CAMRIS^VERMA		verma
@@ -24,7 +26,7 @@ CAMRIS^Wolk		dwolklab
 CAMRIS^Woo		woo
 RESEARCH^AGUIRRE	gkaguirrelab
 RESEARCH^ClearPoint
-Research^HYUNEOL
+Research^HYUNEOL LEE	
 Research^Kineticor	kneticor
 Research^Neil		neil
 RESEARCH^Verma		verma
