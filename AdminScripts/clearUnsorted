@@ -42,7 +42,7 @@ function sys {
 }
 
 function getDestGroup {
-	 local StudyDescription="$(echo $1 | sed 's/\^/\\^/')"
+	 local StudyDescription="$(echo $1 | sed 's/\^/\\^/; s/Copy of //')"
 	 local res
 	 local n
 

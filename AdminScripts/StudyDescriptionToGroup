@@ -3,6 +3,7 @@ CAMRIS^Bassett		bassett
 CAMRIS^Brannon		brannon
 CAMRIS^Chatterjee	chatterjee
 CAMRIS^CHOP		chop
+CAMRIS^Detre		detre_group
 CAMRIS^Epperson		epperson
 CAMRIS^Falk		falklab
 CAMRIS^Franklin		franklin
@@ -18,6 +19,7 @@ CAMRIS^Medaglia		medaglia
 CAMRIS^Oathes		oathes_lab
 CAMRIS^Phantom_QA	nncadim/sc3t_fbirn
 CAMRIS^Satterthwaite	bbl
+CAMRIS^SCHINDLER	cnet
 CAMRIS^Sheikh		sheikh
 CAMRIS^Sheline		cnds
 CAMRIS^ThompsonSchill	stslab
@@ -26,9 +28,11 @@ CAMRIS^Wolk		dwolklab
 CAMRIS^Woo		woo
 RESEARCH^AGUIRRE	gkaguirrelab
 RESEARCH^ClearPoint
-Research^HYUNEOL LEE	
+RESEARCH^Tisdall	huntington
+Research^HYUNEOL LEE	wehrli
 Research^Kineticor	kneticor
 Research^Neil		neil
+BRAIN RESEARCH^SATTERTHWAITE bbl
 RESEARCH^Verma		verma
 RESEARCH^Wehrli		lcns
 
