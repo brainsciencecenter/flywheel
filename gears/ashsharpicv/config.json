@@ -1,0 +1,43 @@
+{
+	"config": {
+		"Age": "4000",
+		"ITKSnapToken": "aa6b16e37f1687d324db7d9de046f67e3f61bb94a42f4595",
+		"ProjectName": "NACC-SA",
+		"ScanID": "22",
+		"SessionID": "123304_20190123_3T"
+	},
+	"destination": {
+		"id": "aex",
+		"type": "acquisition"
+	},
+	"inputs": {
+		"api-key": {
+			"base": "api-key",
+			"key": "upenn.flywheel.io:L3dqtPiM2XDsfjC7jF"
+		},
+		"dicom": {
+			"base": "file",
+			"hierarchy": {
+				"id": "aex",
+				"type": "acquisition"
+			},
+			"location": {
+				"name": "1.3.12.2.1107.5.2.43.66044.2019032808005923555744765.0.0.0.dicom.zip",
+				"path": "/flywheel/v0/input/dicom/1.3.12.2.1107.5.2.43.66044.2019032808005923555744765.0.0.0.dicom.zip"
+			},
+			"object": {
+				"classification": {
+					"Intent": [],
+					"Measurement": []
+				},
+				"info": {},
+				"measurements": [],
+				"mimetype": "",
+				"modality": "",
+				"size": 24588950,
+				"tags": [],
+				"type": ""
+			}
+		}
+	}
+}

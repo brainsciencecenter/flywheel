@@ -1,0 +1,67 @@
+{
+	"name": "ashsharpicv",
+	"label": "AshsHarpIcv",
+	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
+	"version": "0",
+	"inputs": {
+		"api-key": {
+			"base": "api-key"
+		},
+		"dicom": {
+			"base": "file",
+			"description": "Any dicom file.",
+			"optional": true,
+			"type": {
+				"enum": [
+					"dicom"
+				]
+			}
+		}
+	},
+	"config": {
+		"Age": {
+			"description": "Age of subject in years",
+			"type": "string"
+		},
+		"ITKSnapToken": {
+			"description": "ITKSnap login token",
+			"type": "string"
+		},
+		"ProjectName": {
+			"description": "Project Name",
+			"type": "string"
+		},
+		"ScanID": {
+			"description": "Scan ID",
+			"type": "string"
+		},
+		"SessionID": {
+			"description": "Session ID",
+			"type": "string"
+		}
+	},
+	"environment": {
+		"FLYWHEEL": "/flywheel/v0",
+		"GPG_KEY": "C01E1CAD5EA2C4F0B8E3571504C367C218ADD4FF",
+		"LANG": "C.UTF-8",
+		"PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PYTHONIOENCODING": "UTF-8",
+		"PYTHON_PIP_VERSION": "19.0.2",
+		"PYTHON_VERSION": "2.7.15",
+		"WORKDIR": "/app"
+	},
+	"command": "./run",
+	"author": "Gaylord Holder",
+	"maintainer": "Gaylord Holder",
+	"cite": "List citations here.",
+	"license": "Other",
+	"source": "",
+	"url": "",
+	"custom": {
+		"gear-builder": {
+			"category": "analysis",
+			"container": "223e2eacd7c98d83f48bbe9a2ef93b82639dccdb494acf11161e16f8c92c09e6",
+			"image": "gear-builder-yzkxzilqgk-20190402173721"
+		}
+	}
+}

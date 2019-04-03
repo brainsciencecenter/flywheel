@@ -1,0 +1,57 @@
+#/bin/bash -x
+
+# Unpack the dicom/nifti image
+
+export FLYWHEEL=${FLYWHEEL:=/flywheel/v0}
+export PATH=${FLYWHEEL}:$PATH
+
+export FLYWHEEL_INPUTDIR="${FLYWHEEL}/input"
+export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
+
+CONFIG_FILE=${FLYWHEEL}/config.json
+
+cat "$CONFIG_FILE"
+
+ProjectName=$(jq -r '.["config"]["ProjectName"]' "$CONFIG_FILE")
+SessionID=$(jq -r '.["config"]["SessionID"]' "$CONFIG_FILE")
+ScanID=$(jq -r '.["config"]["ScanID"]' "$CONFIG_FILE")
+Age=$(jq -r '.["config"]["Age"]' "$CONFIG_FILE")
+
+if [ -n "$1" ]
+then
+	ITKSnapToken="$1"
+else
+	ITKSnapToken=$(jq -r '.["config"]["ITKSnapToken"]' "$CONFIG_FILE")
+fi
+
+# Create the auth itksnap token file
+
+echo "echo '$ITKSnapToken' | itksnap-wt -dss-auth https://dss.itksnap.org"
+
+if ! echo "$ITKSnapToken" | itksnap-wt -dss-auth https://dss.itksnap.org
+then
+	echo "$cmd : login to dss.itksnap.org with token '$ITKSnapToken' failed" 1>&2
+	exit
+fi
+
+itksnap-wt -dss-tickets-list
+
+echo Zipfiles in $FLYWHEEL_INPUTDIR:
+find ${FLYWHEEL_INPUTDIR} -type f | grep '.zip$'
+
+while read line
+do
+	dirname=$(dirname "$line")
+	basename=$(basename "$line")
+	(echo cd "$dirname"; cd "$dirname"; echo "unzip $basename"; unzip "$basename")
+done < <(find ${FLYWHEEL_INPUTDIR} -type f | grep '.zip$')
+
+
+# Run the pipeline
+
+while read line
+do
+	run_pipeline.sh -s "$SessionID" -n "$ScanID" -p "$ProjectName" -a "$Age" "$line" "$FLYWHEEL_OUTPUTDIR"
+done < <(find ${FLYWHEEL_INPUTDIR} -type d | grep '\.dicom$')
+
+

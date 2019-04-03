@@ -1,0 +1,367 @@
+---
+title: "Automatic Segmentation of Hippocampal Subfields"
+subtitle: "H.A.R.P - Harmonized Hippocampal Protocol"
+author: "Penn Image Computing and Science Laboratory"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output: 
+  pdf_document
+params:
+  PID: "" # Patient's ID 
+  PAGE: !r as.double("") # Patient's age
+  PICV: !r as.double("") # Patient's intracranial volume
+  PHVL: !r as.double("") # Patient's left hippocampal volume
+  PHVR: !r as.double("") # Patient's right hippocampal volume
+  NDF: "" # Normative data file path
+  QAICV: "" # ICV QA image path (qa_seg_bootstrap_corr_usegray)
+  QAHVL: "" # HVL QA image path (qa_seg_bootstrap_corr_usegray)
+  QAHVR: "" # HVR QA image path (qa_seg_bootstrap_corr_usegray)
+---
+  
+# Patient's information
+  
+```{r PatientInformation, echo = FALSE, warning=FALSE, message=FALSE, error=FALSE}
+library(kableExtra)
+library(knitr)
+library(latex2exp)
+
+attach(params)
+
+# Creates a table from the patient's information given as parameters
+information=c("ID","Age","Intracranial Volume","Left Hippocampal Volume","Right Hippocampal Volume")
+values=c(PID,PAGE,PICV,PHVL,PHVR)
+patient_data=data.frame(information,values)
+patient_data=t(patient_data)
+rownames(patient_data) <- NULL
+
+# Displays the patient's information table
+options(knitr.table.format = "latex") 
+patient_data %>%
+  kable("latex") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F, position = "center")
+
+```
+
+# Segmentation results
+
+## **Left Hippocampus automatic segmentation result**
+
+![Image1](`r params$QAHVL`)
+\newline
+
+## **Right Hippocampus automatic segmentation result**
+
+![Image2](`r params$QAHVR`)
+\newline
+
+## **Intracranial volume automatic segmentation result**
+
+![Image3](`r params$QAICV`)
+\newline
+
+# Patient's diagnosis 
+
+```{r NormativeData1, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
+library(nlme) 
+library(ggplot2)
+library(scales)
+library(ggthemes)
+library(RColorBrewer)
+library(wesanderson)
+library(extrafont)
+library(fontcm)
+library(extrafontdb)
+library(Rttf2pt1)
+library(latex2exp)
+library(gridExtra)
+library(grid)
+library(ggpubr)
+
+# Reads the normative data provided in a csv file
+all_normative_data=read.csv('ADNI_metadata_for_R.csv')
+attach(all_normative_data)
+
+# Select interesting data from the dataset (CTRL -, Early MCI +, Late MCI +, DEM+) and merge Early/Late MCI into one group
+normative_data = all_normative_data[(Diagnosis=="CONTROL" & Amyloid.Status=="NEG") | 
+                                      (Diagnosis=="EARLY MCI" & Amyloid.Status=="POS") | 
+                                      (Diagnosis=="LATE MCI" & Amyloid.Status=="POS") | 
+                                      (Diagnosis=="DEMENTIA" & Amyloid.Status=="POS"), ]
+normative_data$Diagnosis = sub(pattern="EARLY MCI", replacement="MCI", x=normative_data$Diagnosis) 
+normative_data$Diagnosis = sub(pattern="LATE MCI", replacement="MCI", x=normative_data$Diagnosis) 
+attach(normative_data)
+
+# Compute normalized volumes
+ICV.mean = mean(normative_data$ICV)
+volume = ICV.mean*(normative_data$HVleft+normative_data$HVright)/normative_data$ICV
+age = normative_data$Age
+
+amax = max(age)
+amin = min(age)
+vmax = max(volume)
+vmin = min(volume)
+
+# Add the volumes to the data table
+normative_data = cbind(normative_data,volume)
+
+# Patient's information
+PAGE=PAGE
+PVOL=ICV.mean*(PHVL+PHVR)/PICV
+
+# Extract each group of the data table
+find.CTRL = normative_data$Diagnosis == "CONTROL"
+find.MCI = normative_data$Diagnosis == "MCI"
+find.DEM = normative_data$Diagnosis == "DEMENTIA"
+
+CTRL = normative_data[find.CTRL,]
+MCI = normative_data[find.MCI,]
+DEM = normative_data[find.DEM,]
+
+
+# Compute percentiles
+
+# Algorithm paramters
+win = 5
+nbdatamin=16
+lborder = 0
+rborder = 0
+levels = c(0.90,0.75,0.50,0.25)
+tablenames = c("age","nsub","Q90","Q75","Q50","Q25")
+ntnames = length(tablenames)
+nr = amax-amin+1
+nc = length(tablenames) 
+
+DEM.table = data.frame(matrix(0, ncol=nc, nrow=nr))
+colnames(DEM.table) <- tablenames
+
+CTRL.table = data.frame(matrix(0, ncol=nc, nrow=nr))
+colnames(CTRL.table) <- tablenames
+
+MCI.table = data.frame(matrix(0, ncol=nc, nrow=nr))
+colnames(MCI.table) <- tablenames
+
+for(k in amin:amax){ 
+  
+  if(k-win < amin){
+    DEM.sub <- data.frame(DEM[DEM$Age >= amin & DEM$Age <= amin+2*win-lborder, ])
+    CTRL.sub <- data.frame(CTRL[CTRL$Age >= amin & CTRL$Age <= amin+2*win-lborder, ])
+    MCI.sub <- data.frame(MCI[MCI$Age >= amin & MCI$Age <= amin+2*win-lborder, ])
+    lborder = lborder+1
+  }
+  else if(k+win > amax){
+    DEM.sub <- data.frame(DEM[DEM$Age >= amax-2*win+rborder & DEM$Age <= amax, ])
+    CTRL.sub <- data.frame(CTRL[CTRL$Age >= amax-2*win+rborder & CTRL$Age <= amax, ])
+    MCI.sub <- data.frame(MCI[MCI$Age >= amax-2*win+rborder & MCI$Age <= amax, ])
+    rborder = rborder+1
+  }
+  else{
+    DEM.sub <- data.frame(DEM[DEM$Age >=k-win & DEM$Age <= k+win, ])
+    CTRL.sub <- data.frame(CTRL[CTRL$Age >= k-win & CTRL$Age <= k+win, ])
+    MCI.sub <- data.frame(MCI[MCI$Age >= k-win & MCI$Age <= k+win, ])
+  }
+  
+  DEM.n = nrow(DEM.sub)
+  DEM.y = DEM.sub$volume
+  DEM.x = DEM.sub$Age
+  DEM.v <- c(k,DEM.n)
+  
+  CTRL.n = nrow(CTRL.sub)
+  CTRL.y = CTRL.sub$volume
+  CTRL.x = CTRL.sub$Age
+  CTRL.v <- c(k,CTRL.n)
+  
+  MCI.n = nrow(MCI.sub)
+  MCI.y = MCI.sub$volume
+  MCI.x = MCI.sub$Age
+  MCI.v <- c(k,MCI.n)
+  
+  for (l in levels) 
+  {
+    
+    DEM.q <- quantile(DEM.y,l)
+    DEM.v <- c(DEM.v,DEM.q[[1]])
+    
+    CTRL.q <- quantile(CTRL.y,l)
+    CTRL.v <- c(CTRL.v,CTRL.q[[1]])
+    
+    MCI.q <- quantile(MCI.y,l)
+    MCI.v <- c(MCI.v,MCI.q[[1]])
+  }
+  
+  DEM.table[k-amin+1, ] = DEM.v
+  CTRL.table[k-amin+1, ] = CTRL.v
+  MCI.table[k-amin+1, ] = MCI.v
+}
+
+# Exclude values for which there's not enough data in the subset
+r=0
+while (r != nrow(DEM.table)){
+  r=r+1
+  if(DEM.table$nsub[r]< nbdatamin){
+    DEM.table=DEM.table[-r,]
+    r=r-1
+  }
+}
+r=0
+while (r != nrow(CTRL.table)){
+  r=r+1
+  if(CTRL.table$nsub[r]< nbdatamin){
+    CTRL.table=CTRL.table[-r,]
+    r=r-1
+  }
+}
+r=0
+while (r != nrow(MCI.table)){
+  r=r+1
+  if(MCI.table$nsub[r]< nbdatamin)
+  {
+    MCI.table=MCI.table[-r,]
+    r=r-1
+  }
+}
+
+# Set plot parameters
+
+# Normative data points
+ggcolors=c("#4DAF4A","#377EB8","#E41A1C")
+ggfills=c("#4DAF4A","#377EB8","#E41A1C")
+ggshapes=c(16,16,16)
+ggsizes=c(0.7,0.7,0.7)
+ggalphas=c(0.60,0.60,0.60)
+ggpointsize=1
+ggpointshape=16
+ggregsize=1
+ggregalpha=0.40
+
+# Patient point
+ppointcolor="black"
+ppointshape=16
+ppointfill="black"
+ppointsize=1.5
+psegcolor="black"
+psegtype="dashed"
+psegsize=0.5
+
+# Curves
+gglinetypes=c("solid","dotted","solid","dotted")
+ltypes=c("L1","L2","L3","L4")
+nltypes=length(ltypes)
+ggpercentiles=c("90%","75%","50%","25%")
+gglinesize=0.70
+regmethod="loess"
+
+# Legend
+legend_factor=normative_data$Diagnosis
+legend_levels=c("CONTROL", "MCI", "DEMENTIA")
+legend_labels=c("CONTROL AM-", "MCI AM+", "AD AM+")
+
+
+# Create the plot
+gg <- ggplot() + geom_point(data=normative_data,mapping=aes(x=age,y=volume,color=factor(legend_factor, levels=legend_levels),
+                                                            size=factor(legend_factor, level=legend_levels), fill=factor(legend_factor, levels=legend_levels), 
+                                                            alpha=factor(legend_factor, level=legend_levels)))
+
+
+gg  <- gg + geom_smooth(data=CTRL.table, aes(x=CTRL.table$age, y=as.numeric(unlist(CTRL.table[tablenames[ntnames]])), linetype=ltypes[nltypes], color="black"), method=regmethod, se=FALSE, color=ggcolors[1], size = gglinesize) +
+  geom_smooth(data=CTRL.table, aes(x=CTRL.table$age, y=as.numeric(unlist(CTRL.table[tablenames[ntnames-1]])), linetype=ltypes[nltypes-1], color="black"), method=regmethod, se=FALSE, color=ggcolors[1], size = gglinesize) +
+  geom_smooth(data=CTRL.table, aes(x=CTRL.table$age, y=as.numeric(unlist(CTRL.table[tablenames[ntnames-2]])), linetype=ltypes[nltypes-2], color="black"), method=regmethod, se=FALSE, color=ggcolors[1], size = gglinesize) 
+
+gg  <- gg + geom_smooth(data=MCI.table, aes(x=MCI.table$age, y=as.numeric(unlist(MCI.table[tablenames[ntnames]])), linetype=ltypes[nltypes], color="black"), method=regmethod, se=FALSE, color=ggcolors[2], size = gglinesize) +
+  geom_smooth(data=MCI.table, aes(x=MCI.table$age, y=as.numeric(unlist(MCI.table[tablenames[ntnames-1]])), linetype=ltypes[nltypes-1], color="black"), method=regmethod, se=FALSE, color=ggcolors[2], size = gglinesize) +
+  geom_smooth(data=MCI.table, aes(x=MCI.table$age, y=as.numeric(unlist(MCI.table[tablenames[ntnames-2]])), linetype=ltypes[nltypes-2], color="black"), method=regmethod, se=FALSE, color=ggcolors[2], size = gglinesize) 
+
+gg  <- gg + geom_smooth(data=DEM.table, aes(x=DEM.table$age, y=as.numeric(unlist(DEM.table[tablenames[ntnames]])), linetype=ltypes[nltypes], color="black"), method=regmethod, se=FALSE, color=ggcolors[3], size = gglinesize) +
+  geom_smooth(data=DEM.table, aes(x=DEM.table$age, y=as.numeric(unlist(DEM.table[tablenames[ntnames-1]])), linetype=ltypes[nltypes-1], color="black"), method=regmethod, se=FALSE, color=ggcolors[3], size = gglinesize) +
+  geom_smooth(data=DEM.table, aes(x=DEM.table$age, y=as.numeric(unlist(DEM.table[tablenames[ntnames-2]])), linetype=ltypes[nltypes-2], color="black"), method=regmethod, se=FALSE, color=ggcolors[3], size = gglinesize) +
+  geom_smooth(data=DEM.table, aes(x=DEM.table$age, y=as.numeric(unlist(DEM.table[tablenames[ntnames-3]])), linetype=ltypes[nltypes-3], color="black"), method=regmethod, se=FALSE, color=ggcolors[3], size = gglinesize) 
+
+
+gg <- gg + theme_few() +
+      theme(plot.title=element_text(size = 13, face=c("bold"), color="Black",hjust=0.5),
+            plot.subtitle=element_text(size = 10,color="gray25",hjust=0.5),
+            plot.caption=element_text(size = 10, face=c("italic","bold"), color="black"),
+            axis.title.x=element_text(size = 10, color="gray25"),
+            axis.title.y=element_text(size = 10, color="gray25"),
+            axis.ticks = element_line(size = (0.2), colour="grey25"),
+            legend.title = element_text(size = 13, color="black", face="bold"),
+            legend.text = element_text(size = 10,color="gray25"),
+            legend.position = "right",
+            panel.grid = element_blank(),
+            panel.border =element_rect(size = (0.2), colour="grey25")) +
+  guides(size = guide_legend(override.aes = list(size=5)), alpha = guide_legend(override.aes = list(alpha=0.6)), 
+         linetype = guide_legend(override.aes = list(color="gray25"))) +
+  labs(title="Hippocampal volume evolution with dementia stages", 
+       subtitle="H.A.R.P - Harmonized Hippocampal Protocol",
+       y="Normalized Hippocampal Volume", x="Age", caption="Normative Data") +
+  annotation_custom(grob = textGrob(TeX("\\textit{Volume =  $\\frac{ \\sigma(ICV) $\\times$ (HV_{L]+HV_{R})}{ICV}$}"), 
+                                    gp = gpar(col="black", fontsize=8)), xmin=amax-0.16*amax, xmax=amax, ymin=vmax-0.05*vmax, ymax=vmax) +
+  scale_color_manual(name = "Diagnosis",values = ggcolors, labels = legend_labels) +
+  scale_fill_manual(name = "Diagnosis",values = ggcolors, labels = legend_labels) +
+  scale_size_manual(name = "Diagnosis",values = ggsizes, labels = legend_labels) +
+  scale_alpha_manual(name = "Diagnosis",values = ggalphas, labels = legend_labels) +
+  scale_linetype_manual(name = "Percentiles",labels=ggpercentiles,values=gglinetypes)
+
+# Displays the patient's position among the normative data
+gg <- gg + geom_point(aes(x=PAGE, y=PVOL), color=ppointcolor, fill =ppointcolor, shape = ppointshape, size = ppointsize, show.legend = FALSE) +
+           geom_segment(aes(x = amin, y = PVOL, xend = PAGE, yend = PVOL),color=psegcolor,linetype=psegtype,size=psegsize,show.legend = FALSE) +
+           geom_segment(aes(x = PAGE, y = vmin, xend = PAGE, yend = PVOL),color=psegcolor,linetype=psegtype,size=psegsize,show.legend = FALSE) +
+           geom_text(aes(x=PAGE-0.01*PAGE, y=PVOL+0.025*PVOL), label='P',color=ppointcolor,size=ppointsize+2.5) 
+
+# Shades the bands
+gg2 <- gg + geom_ribbon(aes(ymin=ggplot_build(gg)$data[[2]]$y, ymax=ggplot_build(gg)$data[[4]]$y, x=ggplot_build(gg)$data[[4]]$x), fill = ggcolors[1], alpha = 0.1) +
+            geom_ribbon(aes(ymin=ggplot_build(gg)$data[[5]]$y, ymax=ggplot_build(gg)$data[[7]]$y, x=ggplot_build(gg)$data[[5]]$x), fill = ggcolors[2], alpha = 0.1) +
+            geom_ribbon(aes(ymin=ggplot_build(gg)$data[[8]]$y, ymax=ggplot_build(gg)$data[[10]]$y, x=ggplot_build(gg)$data[[8]]$x), fill = ggcolors[3], alpha = 0.1)
+
+plot(gg2)
+
+```
+
+```{r NormativeData2, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
+
+# Create the plot
+gg <- ggplot() + geom_point(data=normative_data,mapping=aes(x=age,y=volume), color="white")
+
+gg  <- gg + geom_smooth(data=CTRL.table, aes(x=CTRL.table$age, y=as.numeric(unlist(CTRL.table[tablenames[ntnames]])), linetype=ltypes[nltypes], color="black"), method=regmethod, se=FALSE, color=ggcolors[1], size = gglinesize) +
+  geom_smooth(data=CTRL.table, aes(x=CTRL.table$age, y=as.numeric(unlist(CTRL.table[tablenames[ntnames-1]])), linetype=ltypes[nltypes-1], color="black"), method=regmethod, se=FALSE, color=ggcolors[1], size = gglinesize) +
+  geom_smooth(data=CTRL.table, aes(x=CTRL.table$age, y=as.numeric(unlist(CTRL.table[tablenames[ntnames-2]])), linetype=ltypes[nltypes-2], color="black"), method=regmethod, se=FALSE, color=ggcolors[1], size = gglinesize) 
+
+gg  <- gg + geom_smooth(data=MCI.table, aes(x=MCI.table$age, y=as.numeric(unlist(MCI.table[tablenames[ntnames]])), linetype=ltypes[nltypes], color="black"), method=regmethod, se=FALSE, color=ggcolors[2], size = gglinesize) +
+  geom_smooth(data=MCI.table, aes(x=MCI.table$age, y=as.numeric(unlist(MCI.table[tablenames[ntnames-1]])), linetype=ltypes[nltypes-1], color="black"), method=regmethod, se=FALSE, color=ggcolors[2], size = gglinesize) +
+  geom_smooth(data=MCI.table, aes(x=MCI.table$age, y=as.numeric(unlist(MCI.table[tablenames[ntnames-2]])), linetype=ltypes[nltypes-2], color="black"), method=regmethod, se=FALSE, color=ggcolors[2], size = gglinesize) 
+
+gg  <- gg + geom_smooth(data=DEM.table, aes(x=DEM.table$age, y=as.numeric(unlist(DEM.table[tablenames[ntnames]])), linetype=ltypes[nltypes], color="black"), method=regmethod, se=FALSE, color=ggcolors[3], size = gglinesize) +
+  geom_smooth(data=DEM.table, aes(x=DEM.table$age, y=as.numeric(unlist(DEM.table[tablenames[ntnames-1]])), linetype=ltypes[nltypes-1], color="black"), method=regmethod, se=FALSE, color=ggcolors[3], size = gglinesize) +
+  geom_smooth(data=DEM.table, aes(x=DEM.table$age, y=as.numeric(unlist(DEM.table[tablenames[ntnames-2]])), linetype=ltypes[nltypes-2], color="black"), method=regmethod, se=FALSE, color=ggcolors[3], size = gglinesize) +
+  geom_smooth(data=DEM.table, aes(x=DEM.table$age, y=as.numeric(unlist(DEM.table[tablenames[ntnames-3]])), linetype=ltypes[nltypes-3], color="black"), method=regmethod, se=FALSE, color=ggcolors[3], size = gglinesize) 
+
+gg <- gg + theme_few() +
+  theme(plot.title=element_text(size = 13, face=c("bold"), color="Black",hjust=0.5),
+        plot.subtitle=element_text(size = 10,color="gray25",hjust=0.5),
+        plot.caption=element_text(size = 10, face=c("italic","bold"), color="black"),
+        axis.title.x=element_text(size = 10, color="gray25"),
+        axis.title.y=element_text(size = 10, color="gray25"),
+        axis.ticks = element_line(size = (0.2), colour="grey25"),
+        legend.title = element_text(size = 13, color="black", face="bold"),
+        legend.text = element_text(size = 10,color="gray25"),
+        legend.position = "right",
+        panel.grid = element_blank(),
+        panel.border =element_rect(size = (0.2), colour="grey25")) +
+  guides(size = guide_legend(override.aes = list(size=5)), alpha = guide_legend(override.aes = list(alpha=0.6)), 
+         linetype = guide_legend(override.aes = list(color="gray25"))) +
+  labs(title="Hippocampal volume evolution with age", 
+       subtitle="H.A.R.P - Harmonized Hippocampal Protocol",
+       y="Normalized Hippocampal Volume", x="Age") +
+  scale_linetype_manual(name = "Percentiles",labels=ggpercentiles,values=gglinetypes)
+
+# Displays the patient's position among the normative data
+gg <- gg + geom_point(aes(x=PAGE, y=PVOL), color=ppointcolor, fill =ppointcolor, shape = ppointshape, size = ppointsize, show.legend = FALSE) +
+  geom_segment(aes(x = amin, y = PVOL, xend = PAGE, yend = PVOL),color=psegcolor,linetype=psegtype,size=psegsize,show.legend = FALSE) +
+  geom_segment(aes(x = PAGE, y = vmin, xend = PAGE, yend = PVOL),color=psegcolor,linetype=psegtype,size=psegsize,show.legend = FALSE) +
+  geom_text(aes(x=PAGE-0.01*PAGE, y=PVOL+0.025*PVOL), label='P',color=ppointcolor,size=ppointsize+2.5) 
+
+# Shades the bands
+gg2 <- gg + geom_ribbon(aes(ymin=ggplot_build(gg)$data[[2]]$y, ymax=ggplot_build(gg)$data[[4]]$y, x=ggplot_build(gg)$data[[4]]$x), fill = ggcolors[1], alpha = 0.1) +
+  geom_ribbon(aes(ymin=ggplot_build(gg)$data[[5]]$y, ymax=ggplot_build(gg)$data[[7]]$y, x=ggplot_build(gg)$data[[5]]$x), fill = ggcolors[2], alpha = 0.1) +
+  geom_ribbon(aes(ymin=ggplot_build(gg)$data[[8]]$y, ymax=ggplot_build(gg)$data[[10]]$y, x=ggplot_build(gg)$data[[8]]$x), fill = ggcolors[3], alpha = 0.1)
+
+plot(gg2)
+
+```
