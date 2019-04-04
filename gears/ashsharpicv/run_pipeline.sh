@@ -52,7 +52,7 @@ shift $(($OPTIND - 1))
 
 INPUTDIR="$1"
 OUTPUTDIR="$2"
-TMPDIR=$(mktemp -d /tmp/pipline-XXXXX)
+TMPDIR=$(mktemp -d /tmp/pipeline-XXXXX)
 
 full_id=${session_id}_${scan_id}
 
@@ -134,7 +134,7 @@ itksnap-wt -i $ticket_workspace \
 	        -layers-pick $harp_layer -props-rename-file $TMPDIR/${full_id}_harp.nii.gz \
 		-o $xnat_workspace
 
-cp "$ticket_workspace" "${TMPDIR}/${full_id}"_{mir,icv,harp}_nii.gz "$OUTPUTDIR"
+cp "$ticket_workspace" "${TMPDIR}/${full_id}"_{mri,icv,harp}.nii.gz "$OUTPUTDIR"
 cp clinical_report.Rmd ADNI_metadata_for_R.csv "$TMPDIR"
 
 make_report.sh -s $session_id \
@@ -144,4 +144,4 @@ make_report.sh -s $session_id \
 			  -i "$TMPDIR" \
 			  -w "$OUTPUTDIR"
 
-itksnap-wt -dss-ticket-delete "$ticket_number"
+itksnap-wt -dss-tickets-delete "$ticket_number"

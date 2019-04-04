@@ -1,6 +1,6 @@
 #!/bin/bash -x
 
-set -x -e 
+set -x 
 
 export PATH=$FLYWHEEL:$PATH
 
@@ -78,21 +78,21 @@ harp_layer=$INPUTDIR/${full_id}_harp.nii.gz
 extent=$(c3d $icv_layer -dup -lstat | awk -v id=101 '$1 == id {print $10}')
 if [[ $extent ]] ; then
         icv=$(c3d $icv_layer -dup -lstat | awk -v id=101 '$1 == id {print $7}')
-	echo "$session_id ICV $extent $icv" > $OUTPUTDIR/${full_id}_icv_volumes.txt
+	echo "$session_id ICV $extent $icv" > $INPUTDIR/${full_id}_icv_volumes.txt
 fi 
 
 # Generate the HARP Left volumes out of the segmentation file
 extent=$(c3d $harp_layer -dup -lstat | awk -v id=102 '$1 == id {print $10}')
 if [[ $extent ]] ; then
 	hvl=$(c3d $harp_layer -dup -lstat | awk -v id=102 '$1 == id {print $7}')
-        echo "$session_id HVL $extent $hvl" > $OUTPUTDIR/${full_id}_harp_left_volumes.txt
+        echo "$session_id HVL $extent $hvl" > $INPUTDIR/${full_id}_harp_left_volumes.txt
 fi
 
 # Generate the HARP Right volumes out of the segmentation file
 extent=$(c3d $harp_layer -dup -lstat | awk -v id=103 '$1 == id {print $10}')
 if [[ $extent ]] ; then
 	hvr=$(c3d $harp_layer -dup -lstat | awk -v id=103 '$1 == id {print $7}')
-        echo "$session_id HVR $extent $hvr" > $OUTPUTDIR/${full_id}_harp_right_volumes.txt
+        echo "$session_id HVR $extent $hvr" > $INPUTDIR/${full_id}_harp_right_volumes.txt
 fi
 
 # Get the HARP and ICV segmentation files from source directories
@@ -112,9 +112,9 @@ wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep HARP | grep bootstrap 
 echo "$OUTPUTDIR"
 
 # Cut the QA images to extract only interesting part
-qaicv_croped=$OUTPUTDIR/${full_id}_qa_icv.png
-qahvl_croped=$OUTPUTDIR/${full_id}_qa_harp_left.png
-qahvr_croped=$OUTPUTDIR/${full_id}_qa_harp_right.png
+qaicv_croped=$INPUTDIR/${full_id}_qa_icv.png
+qahvl_croped=$INPUTDIR/${full_id}_qa_harp_left.png
+qahvr_croped=$INPUTDIR/${full_id}_qa_harp_right.png
 
 w=$(c3d $qaicv -info-full | grep "Image Dimensions" | awk '{print $4}' | sed 's/[[,]//g')
 h=$(c3d $qaicv -info-full | grep "Image Dimensions" | awk '{print $5}' | sed 's/[[,]//g')
@@ -146,6 +146,8 @@ echo -e "QA:\n $(basename $qaicv_croped) \n $(basename $qahvl_croped) \n $(basen
 
 # Call R to create the report with correct parameters
 R -e "rmarkdown::render('$rmdf',output_file = '$report', params = list( PID = '$session_id', PAGE = $age, PICV = as.double($icv), PHVL = as.double($hvl), PHVR = as.double($hvr), NDF = '$ndf', QAICV = '$qaicv_croped', QAHVL = '$qahvl_croped', QAHVR = '$qahvr_croped'))"
+
+cp "$INPUTDIR"/"$report" "$OUTPUTDIR"
 
 ls -l $INPUTDIR
 
