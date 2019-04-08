@@ -1,10 +1,10 @@
 {
 	"config": {
-		"Age": "4000",
-		"ITKSnapToken": "aa6b16e37f1687d324db7d9de046f67e3f61bb94a42f4595",
+		"Age": "47.2",
+		"ITKSnapToken": "bbee5be886851f626eef76087e78019748441685a009ed83",
 		"ProjectName": "NACC-SA",
-		"ScanID": "22",
-		"SessionID": "123304_20190123_3T"
+		"ScanID": "T1_3D_0.8x0.8x0.8",
+		"SessionID": "CAMRIS-Wolk"
 	},
 	"destination": {
 		"id": "aex",
@@ -22,8 +22,8 @@
 				"type": "acquisition"
 			},
 			"location": {
-				"name": "1.3.12.2.1107.5.2.43.66044.2019032808005923555744765.0.0.0.dicom.zip",
-				"path": "/flywheel/v0/input/dicom/1.3.12.2.1107.5.2.43.66044.2019032808005923555744765.0.0.0.dicom.zip"
+				"name": "1.3.12.2.1107.5.2.43.66044.2019040411022267939668254.0.0.0.dicom.zip",
+				"path": "/flywheel/v0/input/dicom/1.3.12.2.1107.5.2.43.66044.2019040411022267939668254.0.0.0.dicom.zip"
 			},
 			"object": {
 				"classification": {

@@ -10,6 +10,9 @@ export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
 
 CONFIG_FILE=${FLYWHEEL}/config.json
 
+echo "/flywheel/v0"
+ls -lR /flywheel/v0
+
 cat "$CONFIG_FILE"
 
 ProjectName=$(jq -r '.["config"]["ProjectName"]' "$CONFIG_FILE")
@@ -54,4 +57,7 @@ do
 	run_pipeline.sh -s "$SessionID" -n "$ScanID" -p "$ProjectName" -a "$Age" "$line" "$FLYWHEEL_OUTPUTDIR"
 done < <(find ${FLYWHEEL_INPUTDIR} -type d | grep '\.dicom$')
 
+
+echo "/flywheel/v0"
+ls -lR /flywheel/v0
 
