@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import os
+import flywheel
+import json
+import argparse
+
+from getFlywheelApiKey import getApiKey, getConfigJson
+from flywheelLibs import decode, decodeKeys
+
+
+if __name__ == '__main__':
+
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-a', '--apikeyfile', type=str, default='~/.config/flywheel/api.key', dest="apikeyfile", help='Full path to the file containing the apikey.')
+    ap.add_argument('-c', '--config-json', type=str, default='/flywheel/v0/config.json', dest="config_json", help='Full path to the input config.json file.')
+    ap.add_argument('-g', '--group', action='store_true', dest="groupjson", help='print only the group context')
+    ap.add_argument('-k', '--apikey', type=str, default=None, dest="apikey", help='apikey')
+    ap.add_argument('-p', '--project', action='store_true', dest="projectjson", help='print only the project context')
+    ap.add_argument('-s', '--site', action='store_true', dest="sitejson", help='print only the site context')
+    ap.add_argument('project', nargs=1, type=str, default=None, help='group/project')
+
+    args = ap.parse_args()
+
+    ApiKey = getApiKey(args)
+
+    try:
+        fw = flywheel.Client()
+    except (OSError, Exception) as e:
+        try:
+            fw = flywheel.Client(ApiKey,root=True)
+        
+        except (OSError, Exception) as e2:
+            print("e2",e2)
+            print("e",e)
+
+    if (args.project):
+       try:
+          project = fw.lookup(args.project[0])
+
+       except flywheel.rest.ApiException as e:
+          print('API Error: %d -- %s' % (e.status, e.reason))
+          sys.exit(1)
+    
+    context = decodeKeys(project.info['context'])
+
+    if (args.sitejson):
+       print(json.dumps(context['site']))
+    elif (args.groupjson):
+       print(json.dumps(context['group']))
+    elif (args.projectjson):
+       print(json.dumps(context['project']))
+    else:
+       print(json.dumps(context))
+

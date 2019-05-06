@@ -24,7 +24,9 @@
 			"type": "string"
 		},
 		"ITKSnapToken": {
+			"optional": true,
 			"description": "ITKSnap login token",
+			"default": null,
 			"type": "string"
 		},
 		"ProjectName": {

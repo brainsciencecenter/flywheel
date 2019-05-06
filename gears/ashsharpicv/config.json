@@ -1,43 +1,206 @@
 {
-	"config": {
-		"Age": "47.2",
-		"ITKSnapToken": "bbee5be886851f626eef76087e78019748441685a009ed83",
-		"ProjectName": "NACC-SA",
-		"ScanID": "T1_3D_0.8x0.8x0.8",
-		"SessionID": "CAMRIS-Wolk"
-	},
-	"destination": {
-		"id": "aex",
-		"type": "acquisition"
-	},
-	"inputs": {
-		"api-key": {
-			"base": "api-key",
-			"key": "upenn.flywheel.io:L3dqtPiM2XDsfjC7jF"
-		},
-		"dicom": {
-			"base": "file",
-			"hierarchy": {
-				"id": "aex",
-				"type": "acquisition"
-			},
-			"location": {
-				"name": "1.3.12.2.1107.5.2.43.66044.2019040411022267939668254.0.0.0.dicom.zip",
-				"path": "/flywheel/v0/input/dicom/1.3.12.2.1107.5.2.43.66044.2019040411022267939668254.0.0.0.dicom.zip"
-			},
-			"object": {
-				"classification": {
-					"Intent": [],
-					"Measurement": []
-				},
-				"info": {},
-				"measurements": [],
-				"mimetype": "",
-				"modality": "",
-				"size": 24588950,
-				"tags": [],
-				"type": ""
-			}
-		}
-	}
+    "config": {
+        "Age": "4000",
+        "ITKSnapToken": "ee31229390eede663ed0fb177a2ee534adf2216e783405fc",
+        "ProjectName": "NACC-SC",
+        "ScanID": "thescanid",
+        "SessionID": "thesessionid"
+    },
+    "destination": {
+        "id": "5ccc417b90b9a300469d13c0",
+        "type": "analysis"
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key",
+            "key": "upenn.flywheel.io:NoPqgPx1wPtY2PTjtQ"
+        },
+        "dicom": {
+            "base": "file",
+            "hierarchy": {
+                "id": "5c9a910df546b60039ef01af",
+                "type": "acquisition"
+            },
+            "location": {
+                "name": "T1_3D_0.8x0.8x0.8.dicom.zip",
+                "path": "/flywheel/v0/input/dicom/T1_3D_0.8x0.8x0.8.dicom.zip"
+            },
+            "object": {
+                "classification": {
+                    "Intent": [
+                        "Structural"
+                    ],
+                    "Measurement": [
+                        "T1"
+                    ]
+                },
+                "info": {
+                    "AccessionNumber": "31393005",
+                    "AcquisitionDate": "20190315",
+                    "AcquisitionMatrix": [
+                        0,
+                        320,
+                        300,
+                        0
+                    ],
+                    "AcquisitionNumber": 1,
+                    "AcquisitionTime": "125932.315000",
+                    "AngioFlag": "N",
+                    "BitsAllocated": 16,
+                    "BitsStored": 12,
+                    "BodyPartExamined": "BRAIN",
+                    "Columns": 300,
+                    "ContentDate": "20190315",
+                    "ContentTime": "130615.202000",
+                    "DataSetTrailingPadding": "",
+                    "DeidentificationMethod": "CR common deidentification v001 - site-wide",
+                    "DeidentificationMethodCodeSequence": {
+                        "CodeMeaning": "XNAT DicomEdit 4 Script",
+                        "CodeValue": "31",
+                        "CodingSchemeDesignator": "XNAT",
+                        "CodingSchemeVersion": "1.0"
+                    },
+                    "DeviceSerialNumber": "167024",
+                    "EchoNumbers": 1,
+                    "EchoTime": 2.24,
+                    "EchoTrainLength": 1,
+                    "FlipAngle": 8,
+                    "FrameOfReferenceUID": "1.3.12.2.1107.5.2.43.167024.1.20190315125559458.0.0.0",
+                    "HighBit": 11,
+                    "ImageOrientationPatient": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "ImagePositionPatient": [
+                        -92,
+                        -112,
+                        136
+                    ],
+                    "ImageType": [
+                        "ORIGINAL",
+                        "PRIMARY",
+                        "M",
+                        "ND",
+                        "NORM"
+                    ],
+                    "ImagedNucleus": "1H",
+                    "ImagingFrequency": 123.261801,
+                    "InPlanePhaseEncodingDirection": "ROW",
+                    "InstanceCreationDate": "20190315",
+                    "InstanceCreationTime": "130615.202000",
+                    "InstanceNumber": 2,
+                    "InstitutionAddress": "Spruce Street 3400,Philadelphia,Pennsylvania,US,19104",
+                    "InstitutionName": "HUP",
+                    "InstitutionalDepartmentName": "Department",
+                    "InversionTime": 1060,
+                    "LargestImagePixelValue": 71,
+                    "MRAcquisitionType": "3D",
+                    "MagneticFieldStrength": 3,
+                    "Manufacturer": "SIEMENS",
+                    "ManufacturerModelName": "Prisma_fit",
+                    "Modality": "MR",
+                    "NumberOfAverages": 1,
+                    "NumberOfPhaseEncodingSteps": 299,
+                    "OperatorsName": "JZ",
+                    "PatientPosition": "HFS",
+                    "PatientSex": "F",
+                    "PatientSize": 1.753,
+                    "PatientWeight": 84.823,
+                    "PercentPhaseFieldOfView": 93.75,
+                    "PercentSampling": 100,
+                    "PerformedProcedureStepDescription": "MR HEAD WO IV CONTRAST",
+                    "PerformedProcedureStepID": "E4695672",
+                    "PerformedProcedureStepStartDate": "20190315",
+                    "PerformedProcedureStepStartTime": "124336.283000",
+                    "PhotometricInterpretation": "MONOCHROME2",
+                    "PhysiciansOfRecord": "GOONERATNE^NALAKA^S^^MD",
+                    "PixelBandwidth": 210,
+                    "PixelRepresentation": 0,
+                    "PixelSpacing": [
+                        0,
+                        0
+                    ],
+                    "ProcedureCodeSequence": {
+                        "CodeMeaning": "MR HEAD WO IV CONTRAST",
+                        "CodeValue": "MRHDUZ",
+                        "CodingSchemeDesignator": "L"
+                    },
+                    "ProtocolName": "T1_3D_0.8x0.8x0.8",
+                    "ReferringPhysicianName": "GOONERATNE^NALAKA^S^^",
+                    "RepetitionTime": 2400,
+                    "RequestAttributesSequence": {
+                        "RequestedProcedureID": "354355239",
+                        "ScheduledProcedureStepDescription": "MR HEAD WO IV CONTRAST",
+                        "ScheduledProcedureStepID": "E4695672",
+                        "ScheduledProtocolCodeSequence": {
+                            "CodeMeaning": "MR HEAD WO IV CONTRAST",
+                            "CodeValue": "5686",
+                            "CodingSchemeDesignator": "L"
+                        }
+                    },
+                    "RequestedProcedureCodeSequence": {
+                        "CodeMeaning": "MR HEAD WO IV CONTRAST",
+                        "CodeValue": "MRHDUZ",
+                        "CodingSchemeDesignator": "L"
+                    },
+                    "RequestedProcedureDescription": "MR HEAD WO IV CONTRAST",
+                    "RequestingPhysician": "GOONERATNE^NALAKA^S^^MD",
+                    "Rows": 320,
+                    "SAR": 0.03570948448626,
+                    "SOPClassUID": "MR Image Storage",
+                    "SOPInstanceUID": "1.3.12.2.1107.5.2.43.167024.2019031513061490411215934",
+                    "SamplesPerPixel": 1,
+                    "ScanOptions": [
+                        "IR",
+                        "WE"
+                    ],
+                    "ScanningSequence": [
+                        "GR",
+                        "IR"
+                    ],
+                    "SequenceName": "*tfl3d1_16ns",
+                    "SequenceVariant": [
+                        "SK",
+                        "SP",
+                        "MP"
+                    ],
+                    "SeriesDate": "20190315",
+                    "SeriesDescription": "T1_3D_0.8x0.8x0.8",
+                    "SeriesInstanceUID": "1.3.12.2.1107.5.2.43.167024.2019031512590820167015706.0.0.0",
+                    "SeriesNumber": 7,
+                    "SeriesTime": "130615.165000",
+                    "SliceLocation": -83.361367041062,
+                    "SliceThickness": 0.79999995231628,
+                    "SmallestImagePixelValue": 0,
+                    "SoftwareVersions": "syngo MR E11",
+                    "SpecificCharacterSet": "ISO_IR 100",
+                    "StationName": "HUP FNDBA MR2",
+                    "StudyDate": "20190315",
+                    "StudyDescription": "MEMORIES-2",
+                    "StudyID": "354355239",
+                    "StudyInstanceUID": "1.2.840.114350.2.87.2.798268.2.354355236.1",
+                    "StudyTime": "124336.142000",
+                    "TransmitCoilName": "Body",
+                    "VariableFlipAngleFlag": "N",
+                    "WindowCenter": 609,
+                    "WindowCenterWidthExplanation": "WINDOW1",
+                    "WindowWidth": 1258,
+                    "dBdt": 0
+                },
+                "measurements": [
+                    "Structural",
+                    "T1"
+                ],
+                "mimetype": "application/zip",
+                "modality": "MR",
+                "size": 26187399,
+                "tags": [],
+                "type": "dicom"
+            }
+        }
+    }
 }

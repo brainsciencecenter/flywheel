@@ -20,21 +20,26 @@ SessionID=$(jq -r '.["config"]["SessionID"]' "$CONFIG_FILE")
 ScanID=$(jq -r '.["config"]["ScanID"]' "$CONFIG_FILE")
 Age=$(jq -r '.["config"]["Age"]' "$CONFIG_FILE")
 
-if [ -n "$1" ]
+if [ -e "/root/.alfabis/server" -a -e "/root/.alfabis/cookie_"*".jar" ]
 then
-	ITKSnapToken="$1"
+	echo "Found itksnap cookie jar"
 else
-	ITKSnapToken=$(jq -r '.["config"]["ITKSnapToken"]' "$CONFIG_FILE")
-fi
-
-# Create the auth itksnap token file
-
-echo "echo '$ITKSnapToken' | itksnap-wt -dss-auth https://dss.itksnap.org"
-
-if ! echo "$ITKSnapToken" | itksnap-wt -dss-auth https://dss.itksnap.org
-then
-	echo "$cmd : login to dss.itksnap.org with token '$ITKSnapToken' failed" 1>&2
-	exit
+	if [ -n "$1" ]
+	then
+		ITKSnapToken="$1"
+	else
+		ITKSnapToken=$(jq -r '.["config"]["ITKSnapToken"]' "$CONFIG_FILE")
+	fi
+	
+	# Create the auth itksnap token file
+	
+	echo "echo '$ITKSnapToken' | itksnap-wt -dss-auth https://dss.itksnap.org"
+	
+	if ! echo "$ITKSnapToken" | itksnap-wt -dss-auth https://dss.itksnap.org
+	then
+		echo "$cmd : login to dss.itksnap.org with token '$ITKSnapToken' failed" 1>&2
+		exit
+	fi
 fi
 
 itksnap-wt -dss-tickets-list

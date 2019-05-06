@@ -17,6 +17,8 @@ COPY Rprofile.site /etc/R/
 RUN for i in  rmarkdown xml2 rvest latex2exp kableExtra ggplot2 ggthemes wesanderson extrafont fontcm gridExtra ggpubr tinytex; do R --quiet -e "install.packages('$i')"; done
 
 RUN mkdir /root/.alfabis
+COPY server cookie_305dad76e49b37979abd9da422169312.jar /root/.alfabis/
+
 COPY ADNI_metadata_for_R.csv clinical_report.Rmd run run_pipeline.sh make_report.sh trim_neck.sh ${FLYWHEEL}/
 RUN echo 35.184.111.29 dss.itksnap.org >> /etc/hosts
 
