@@ -6,16 +6,14 @@ import os
 import flywheel
 import json
 import argparse
-
-from getFlywheelApiKey import getApiKey, getConfigJson
-from flywheelLibs import decode, decodeKeys
+import fwgearutils
 
 
 if __name__ == '__main__':
 
     import argparse
 
-    CmdName = sys.argv[0]
+    CmdName = os.path.basename(sys.argv[0])
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-a', '--apikeyfile', type=str, default='~/.config/flywheel/api.key', dest="apikeyfile", help='Full path to the file containing the apikey.')
@@ -28,7 +26,7 @@ if __name__ == '__main__':
 
     args = ap.parse_args()
 
-    ApiKey = getApiKey(args)
+    ApiKey = fwgearutils.getApiKey(args)
 
     try:
         fw = flywheel.Client()
@@ -59,7 +57,7 @@ if __name__ == '__main__':
     else:
        sys.exit(0)
        
-    context = decodeKeys(project.info['context'])
+    context = fwgearutils.decodeKeys(project.info['context'])
 
     if (args.sitejson):
        print(json.dumps(context['site']))

@@ -59,18 +59,26 @@ def getConfigJson(args):
 
 def getApiKey(args):
     ApiKey = None
-    ApiKeyFile = expanduser(args.apikeyfile)
+    ApiKeyFile = '~/.config/flywheel/api.key'
+    ConfigJson = '/flywheel/v0'
 
-    if (args.apikey):
+    if (hasattr(args,'apikeyfile') and args.apikeyfile):
+       ApiKeyFile = expanduser(args.apikeyfile)
+
+    if (hasattr(args,'apikey') and args.apikey):
         ApiKey = args.apikey
     elif (os.path.isfile(ApiKeyFile)):
         with open(ApiKeyFile) as x: ApiKey = x.read().rstrip()
     else:
-        config = getConfigJson(args)
-        if (config):
-            ApiKey = config['inputs']['api-key']['key']
-        else:
-            raise SystemExit("No apikey file '%s', or config.json file '%s'. " % (ApiKeyFile, args.config_json))
+       if (hasattr(args,'config_json') and args.config_json):
+          ConfigJson = args.config_json
+
+       if (os.path.isfile(ConfigJson)):
+          config = getConfigJson(ConfigJson)
+          if (config):
+             ApiKey = config['inputs']['api-key']['key']
+          else:
+             raise SystemExit("No apikey file '%s', or config.json file '%s'. " % (ApiKeyFile, args.config_json))
 
     return(ApiKey)
 

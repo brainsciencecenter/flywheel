@@ -7,7 +7,7 @@ import flywheel
 import json
 import argparse
 
-from flywheelLibs import getApiKey, getConfigJson
+import fwgearutils
 
 if __name__ == '__main__':
 
@@ -18,6 +18,6 @@ if __name__ == '__main__':
     ap.add_argument('--apikey', type=str, default=None, dest="apikey", help='apikey.')
     args = ap.parse_args()
 
-    ApiKey = getApiKey(args)
+    ApiKey = fwgearutils.getApiKey(args)
 
     print(ApiKey)
