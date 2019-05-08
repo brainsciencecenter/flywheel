@@ -27,8 +27,8 @@ if __name__ == '__main__':
 
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument('-C', '--change-dir', default='.', help='change to dir before processing path')
-    ap.add_argument('path', nargs=1, help='directory path to convert to json')
+    ap.add_argument('-C', '--change-dir', default=None, help='change to dir before processing path')
+    ap.add_argument('path', nargs='?', default='.', help='directory path to convert to json')
 
     args = ap.parse_args()
 
@@ -37,9 +37,9 @@ if __name__ == '__main__':
     if (args.change_dir):
         os.chdir(args.change_dir)
 
-    path = args.path[0]
-    d = dir2json(path)
+    path = args.path
 
+    d = dir2json(path)
     print(json.dumps(d, indent=2, sort_keys=True))
 
 

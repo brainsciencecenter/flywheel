@@ -17,7 +17,7 @@ def json2dir(d,path):
             if (not os.path.isdir(DirPath)):
                 if (Noop or Verbose):
                     print("mkdir -p '%s'" % DirPath, file=sys.stderr)
-                if (Noop):
+                if (not Noop):
                     os.makedirs(DirPath)
 
             json2dir(d[e],DirPath)
@@ -27,7 +27,7 @@ def json2dir(d,path):
                 print("create file '%s':" % (FilePath), file=sys.stderr)
                 print(d[e], file=sys.stderr)
             
-            if (Noop):
+            if (not Noop):
                 with open(FilePath, 'w') as f:
                     f.write(d[e])
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
         Noop = True
 
     if (args.verbose):
-        Noop = True
+        Verbose = True
 
     try:
         with open(args.jsonfile, 'r') if args.jsonfile else sys.stdin as jsonfile:

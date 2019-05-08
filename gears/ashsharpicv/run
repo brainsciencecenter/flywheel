@@ -15,6 +15,8 @@ ls -lR /flywheel/v0
 
 cat "$CONFIG_FILE"
 
+installFWSupportFiles
+
 ProjectName=$(jq -r '.["config"]["ProjectName"]' "$CONFIG_FILE")
 SessionID=$(jq -r '.["config"]["SessionID"]' "$CONFIG_FILE")
 ScanID=$(jq -r '.["config"]["ScanID"]' "$CONFIG_FILE")
@@ -59,6 +61,12 @@ done < <(find ${FLYWHEEL_INPUTDIR} -type f | grep '.zip$')
 
 while read line
 do
+	Age=UnknownAge
+	ProjectName=UnknownProject
+	SessionID=UnknownSessionID
+	ScanID=UnknownScanID
+	
+	jq 
 	run_pipeline.sh -s "$SessionID" -n "$ScanID" -p "$ProjectName" -a "$Age" "$line" "$FLYWHEEL_OUTPUTDIR"
 done < <(find ${FLYWHEEL_INPUTDIR} -type d | grep '\.dicom$')
 

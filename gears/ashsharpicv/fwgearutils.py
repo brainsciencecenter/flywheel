@@ -5,9 +5,40 @@ import re
 import os
 import flywheel
 import json
-import argparse
 
 from os.path import expanduser
+
+def encode(s):
+   r = re.sub('\_','_dash_',s)
+   r = re.sub('\.','_dot_',r)
+   return(r)
+
+def decode(s):
+   r = re.sub('_dash_','_',s)
+   r = re.sub('_dot_','.',r)
+   return(r)
+
+def encodeKeys(d):
+   rd = {}
+   
+   if (type(d) is dict):
+      for k in d.keys():
+         rd[encode(k)] = encodeKeys(d[k])
+   else:
+      rd = d
+
+   return(rd)
+
+def decodeKeys(d):
+   rd = {}
+   
+   if (type(d) is dict):
+      for k in d.keys():
+         rd[decode(k)] = decodeKeys(d[k])
+   else:
+      rd = d
+
+   return(rd)
 
 # command line arg for the api key itself
 # command line arg for the api key file
@@ -36,7 +67,6 @@ def getApiKey(args):
         with open(ApiKeyFile) as x: ApiKey = x.read().rstrip()
     else:
         config = getConfigJson(args)
-        print("config file = ", config)
         if (config):
             ApiKey = config['inputs']['api-key']['key']
         else:
@@ -44,15 +74,4 @@ def getApiKey(args):
 
     return(ApiKey)
 
-if __name__ == '__main__':
 
-    import argparse
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--config-json', type=str, default='/flywheel/v0/config.json', dest="config_json", help='Full path to the input config.json file.')
-    ap.add_argument('--apikeyfile', type=str, default='~/.config/flywheel/api.key', dest="apikeyfile", help='Full path to the file containing the apikey.')
-    ap.add_argument('--apikey', type=str, default=None, dest="apikey", help='apikey.')
-    args = ap.parse_args()
-
-    ApiKey = getApiKey(args)
-
-    print(ApiKey)

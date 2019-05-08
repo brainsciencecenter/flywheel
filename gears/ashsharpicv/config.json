@@ -13,7 +13,7 @@
     "inputs": {
         "api-key": {
             "base": "api-key",
-            "key": "upenn.flywheel.io:NoPqgPx1wPtY2PTjtQ"
+            "key": "upenn.flywheel.io:L3dqtPiM2XDsfjC7jF"
         },
         "dicom": {
             "base": "file",
