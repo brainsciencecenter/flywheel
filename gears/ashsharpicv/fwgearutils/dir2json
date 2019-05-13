@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+
+import os
+import errno
+import json
+
+def dir2json(path):
+
+    tree = {}
+
+    for e in os.listdir(path):
+        try:
+            if (os.path.isfile(path + "/" + e)):
+                with open(path + "/" + e) as x: contents = x.read()
+                tree[e] = contents
+            else:
+                tree[e] = dir2json(path + "/" + e)
+        except IOError as E:
+                print("dir2json: dir",e,E.args, file=sys.stderr)
+        except UnicodeDecodeError as E:
+                print("dir2json: dir",e,"bad encoding", file=sys.stderr)
+
+    return(tree)
+
+if __name__ == '__main__':
+    import sys
+
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-C', '--change-dir', default=None, help='change to dir before processing path')
+    ap.add_argument('path', nargs='?', default='.', help='directory path to convert to json')
+
+    args = ap.parse_args()
+
+    # syntax = dir2json [-C dir] [json path]
+
+    if (args.change_dir):
+        os.chdir(args.change_dir)
+
+    path = args.path
+
+    d = dir2json(path)
+    print(json.dumps(d, indent=2, sort_keys=True))
+
+

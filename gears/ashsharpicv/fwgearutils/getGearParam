@@ -1,0 +1,51 @@
+#!/bin/bash
+
+cmd=$(basename "$0")
+
+syntax="${cmd} [-c configfile] ConfigParam DicomParam [default]"
+
+ConfigFile=/flywheel/v0/config.json
+
+while getopts c: args
+do
+	case "$args" in
+	     c)
+		eval "opt_${args}=${OPTARG:=1}"
+		;;
+	esac	
+done
+
+shift $(($OPTIND - 1))
+
+if [ -n "$opt_c" ]
+then
+	ConfigFile="$opt_c"
+fi
+
+if [ ! -e "$ConfigFile" ]
+then
+	echo "$cmd : no such file '$ConfigFile'" 1>&2
+	exit 1
+fi
+
+ConfigParam=$(jq -r '.["config"]["'$1'"]' "$ConfigFile")
+if [ -n "$ConfigParam" -a "$ConfigParam" != 'null' -a "$ConfigParam" != 'default' ]
+then
+	echo "$ConfigParam"
+	exit 0
+fi
+
+DicomParam=$(jq -r '.["inputs"]["dicom"]["object"]["info"]["'$2'"]' "$ConfigFile")
+if [ -n "$DicomParam" -a "$DicomParam" != 'null' -a "$ConfigParam" != 'default' ]
+then
+	echo "$DicomParam"
+	exit 0
+fi
+
+if [ -n "$3" ]
+then
+	echo "$3"
+	exit 0
+fi
+
+exit 1

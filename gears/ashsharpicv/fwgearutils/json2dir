@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+
+import os
+import errno
+import json
+
+Noop = None
+Verbose = None
+
+def json2dir(d,path):
+    global Noop
+    global Verbose
+
+    for e in d.keys():
+        if (type(d[e]) is dict):
+            DirPath = path + "/" + e
+            if (not os.path.isdir(DirPath)):
+                if (Noop or Verbose):
+                    print("mkdir -p '%s'" % DirPath, file=sys.stderr)
+                if (not Noop):
+                    os.makedirs(DirPath)
+
+            json2dir(d[e],DirPath)
+        else:
+            FilePath = path + "/" + e
+            if (Noop or Verbose):
+                print("create file '%s':" % (FilePath), file=sys.stderr)
+                print(d[e], file=sys.stderr)
+            
+            if (not Noop):
+                with open(FilePath, 'w') as f:
+                    f.write(d[e])
+
+def getNestedDict(d, keypath):
+    if (len(keypath) <= 0):
+        try:
+            return(d)
+        except KeyError:
+            return(None)
+    else:
+        try:
+            return(getNestedDict(d[keypath[0]],keypath[1:]))
+        except KeyError:
+            return(None)
+
+
+if __name__ == '__main__':
+    import argparse
+    import sys
+
+    CmdName = sys.argv[0]
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-C', '--change-dir', help='change to dir before processing path')
+    ap.add_argument('-l', '--leaf-path',action='store', nargs=1, help='space separated path to left to update')
+    ap.add_argument('-n', '--no-op', action='store_true', help='do not do anything, just tell me what you would do')
+    ap.add_argument('-v', '--verbose', action='store_true', help='tell me what you would do')
+    ap.add_argument('jsonfile', nargs='?', help='jsonfile to convert to directory structure')
+
+    args = ap.parse_args()
+
+    # syntax = json2dir [-C dir] [jsonfile]
+
+    if (args.no_op):
+        Noop = True
+
+    if (args.verbose):
+        Verbose = True
+
+    try:
+        with open(args.jsonfile, 'r') if args.jsonfile else sys.stdin as jsonfile:
+            Json = json.load(jsonfile)
+
+    except (IOError) as e:
+        print("%s : Cannot open '%s' : %s" % (CmdName, args.jsonfile, e.args[1]), file=sys.stderr)
+        sys.exit(e.args[0])
+
+    if (args.change_dir):
+        TopDir = args.change_dir
+    else:
+        TopDir = '.'
+        
+    if (args.leaf_path):
+        TopDir += '/' + '/'.join(args.leaf_path[0].split())
+
+    if (Noop or Verbose):
+        print(CmdName, ": change directory to ", TopDir)
+
+    try:
+        os.chdir(TopDir)
+    except (IOError) as e:
+        print("%s : chdir to '%s' failed : %s" % (CmdName, TopDir, e.args[1]))
+        sys.exit(e.args[0])
+
+    keypath = []
+    if (args.leaf_path):
+        keypath += args.leaf_path[0].split()
+
+    json2dir(getNestedDict(Json,keypath),".")
+
+
