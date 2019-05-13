@@ -9,7 +9,7 @@ if [[ $# -lt 1 || $1 == "h" || $1 == "-help" || $1 == "--help" ]] ; then
                          HARP-ICV segmentation service and generates a pdf report 
     	                 out of the results.
     	usage: 
-      		run_pipeline.sh [options] [DICOMDIR]
+      		run_pipeline.sh [options] [DICOMDIR|nifti-file.gz]
    	options:
 		-p  <str>         : Project's name
 		-s  <str>         : MR session ID number
@@ -61,7 +61,10 @@ input_image=${full_id}_mri.nii.gz
 
 if [ ! -d $TMPDIR ] ; then mkdir -p $TMPDIR ; fi
 
-if [ -d $SOURCEDIR ] ; then 
+if [ -f "$INPUTDIR" ]
+then
+	cp "$INPUTDIR" "$TMPDIR/$native_image"
+elif [ -d "$INPUTDIR" ] ; then 
 	c3d -dicom-series-list $INPUTDIR 
 	series_id=$(c3d -dicom-series-list $INPUTDIR | grep 2 | awk '{ print $NF }')
 	c3d -dicom-series-read $INPUTDIR $series_id -o $TMPDIR/$native_image

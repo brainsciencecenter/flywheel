@@ -1,4 +1,4 @@
-#/bin/bash -x
+#!/bin/bash -x
 
 # Unpack the dicom/nifti image
 
@@ -17,31 +17,12 @@ cat "$CONFIG_FILE"
 
 installFWSupportFiles
 
-ProjectName=$(jq -r '.["config"]["ProjectName"]' "$CONFIG_FILE")
-SessionID=$(jq -r '.["config"]["SessionID"]' "$CONFIG_FILE")
-ScanID=$(jq -r '.["config"]["ScanID"]' "$CONFIG_FILE")
-Age=$(jq -r '.["config"]["Age"]' "$CONFIG_FILE")
-
 if [ -e "/root/.alfabis/server" -a -e "/root/.alfabis/cookie_"*".jar" ]
 then
 	echo "Found itksnap cookie jar"
 else
-	if [ -n "$1" ]
-	then
-		ITKSnapToken="$1"
-	else
-		ITKSnapToken=$(jq -r '.["config"]["ITKSnapToken"]' "$CONFIG_FILE")
-	fi
-	
-	# Create the auth itksnap token file
-	
-	echo "echo '$ITKSnapToken' | itksnap-wt -dss-auth https://dss.itksnap.org"
-	
-	if ! echo "$ITKSnapToken" | itksnap-wt -dss-auth https://dss.itksnap.org
-	then
-		echo "$cmd : login to dss.itksnap.org with token '$ITKSnapToken' failed" 1>&2
-		exit
-	fi
+	echo "No itksnap cookie found.  Bailing"
+	exit 1
 fi
 
 itksnap-wt -dss-tickets-list
@@ -49,26 +30,44 @@ itksnap-wt -dss-tickets-list
 echo Zipfiles in $FLYWHEEL_INPUTDIR:
 find ${FLYWHEEL_INPUTDIR} -type f | grep '.zip$'
 
-while read line
-do
-	dirname=$(dirname "$line")
-	basename=$(basename "$line")
-	(echo cd "$dirname"; cd "$dirname"; echo "unzip $basename"; unzip "$basename")
-done < <(find ${FLYWHEEL_INPUTDIR} -type f | grep '.zip$')
-
-
 # Run the pipeline
 
 while read line
 do
-	Age=UnknownAge
-	ProjectName=UnknownProject
-	SessionID=UnknownSessionID
-	ScanID=UnknownScanID
-	
-	jq 
-	run_pipeline.sh -s "$SessionID" -n "$ScanID" -p "$ProjectName" -a "$Age" "$line" "$FLYWHEEL_OUTPUTDIR"
-done < <(find ${FLYWHEEL_INPUTDIR} -type d | grep '\.dicom$')
+    ExtractDir=$(mktemp -d /tmp/ashsharpicv-XXXXXX)
+    
+    if echo "$line" | grep -q '.nii.gz$'
+    then
+	ExtractDir="$line"
+    else
+	dirname=$(dirname "$line")
+	basename=$(basename "$line")
+	(echo cd "$dirname"; cd "$dirname"; echo unzip -j $basename -d "${ExtractDir}"; unzip -j "$basename" -d "$ExtractDir")
+    fi
+
+    ProjectName=$(getGearParam ProjectName ImageComments UnknownProjectName)
+    if [ "$ProjectName" == "UnknownProjectName" ]
+    then
+	ProjectID=$(jq -r '.["destination"]["id"]' "$CONFIG_FILE")
+	ProjectName=$(getFWParent "$ProjectID")
+    fi
+
+    Age=$(getGearParam Age PatientAge UnknownAge)
+    SessionID=$(getGearParam SessionID StudyDescription UnknownSessionID)
+    ScanID=$(getGearParam ScanID SeriesDescription UnknownScanID)
+    
+    if ! ( echo "$Age" | grep -q '^[0-9][0-9]*$' )
+    then
+	# R markdown will fail if Age is not a number
+	echo "Age '$Age' for '$ProjectName/$SessionID/$ScanID' is not a number.  Skipping." 1>&2
+	continue
+    fi
+
+    # R markdown boofs if the SessionID has a ^ in it.
+    SessionID=$(echo "$SessionID" | sed 's/^/-/g')
+
+    run_pipeline.sh -s "$SessionID" -n "$ScanID" -p "$ProjectName" -a "$Age" "$ExtractDir" "$FLYWHEEL_OUTPUTDIR"
+done < <(find ${FLYWHEEL_INPUTDIR} -type f | grep -P '(\.zip|.gz)$')
 
 
 echo "/flywheel/v0"
