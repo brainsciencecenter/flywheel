@@ -29,14 +29,14 @@ then
 fi
 
 ConfigParam=$(jq -r '.["config"]["'$1'"]' "$ConfigFile")
-if [ -n "$ConfigParam" -a "$ConfigParam" != 'null' -a "$ConfigParam" != 'default' ]
+if [ -n "$ConfigParam" -a "$ConfigParam" != 'null' -a "$ConfigParam" != '' ]
 then
 	echo "$ConfigParam"
 	exit 0
 fi
 
 DicomParam=$(jq -r '.["inputs"]["dicom"]["object"]["info"]["'$2'"]' "$ConfigFile")
-if [ -n "$DicomParam" -a "$DicomParam" != 'null' -a "$ConfigParam" != 'default' ]
+if [ -n "$DicomParam" -a "$DicomParam" != 'null' -a "$ConfigParam" != '' ]
 then
 	echo "$DicomParam"
 	exit 0

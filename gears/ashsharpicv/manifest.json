@@ -1,0 +1,67 @@
+{
+	"name": "ashsharpicv",
+	"label": "AshsHarpIcv",
+	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
+	"version": "0.2.15",
+	"inputs": {
+		"api-key": {
+			"base": "api-key"
+		},
+		"dicom": {
+			"base": "file",
+			"description": "Any dicom file.",
+			"optional": true,
+			"type": {
+				"enum": [
+					"dicom"
+				]
+			}
+		}
+	},
+	"config": {
+		"Age": {
+			"description": "Age of subject in years. Default found in dicom headers.",
+			"type": "number"
+		},
+		"ProjectName": {
+			"default": "",
+			"description": "Project Name. Default found from gear manifest.",
+			"type": "string"
+		},
+		"ScanID": {
+			"default": "",
+			"description": "Scan ID. Default found from dicom headers.",
+			"type": "string"
+		},
+		"SessionID": {
+			"default": "",
+			"description": "Session ID. Default found from dicom headers.",
+			"type": "string"
+		}
+	},
+	"environment": {
+		"FLYWHEEL": "/flywheel/v0",
+		"FLYWHEEL_INPUT": "/flywheel/v0/input",
+		"FLYWHEEL_OUTPUT": "/flywheel/v0/output",
+		"GPG_KEY": "C01E1CAD5EA2C4F0B8E3571504C367C218ADD4FF",
+		"LANG": "C.UTF-8",
+		"PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PYTHONIOENCODING": "UTF-8",
+		"PYTHON_PIP_VERSION": "19.0.2",
+		"PYTHON_VERSION": "2.7.15",
+		"WORKDIR": "/app"
+	},
+	"command": "./run",
+	"author": "Gaylord Holder",
+	"maintainer": "Gaylord Holder",
+	"cite": "List citations here.",
+	"license": "Other",
+	"source": "",
+	"url": "",
+	"custom": {
+		"gear-builder": {
+			"category": "analysis",
+			"image": "ashs/itksnap:latest"
+		}
+	}
+}
