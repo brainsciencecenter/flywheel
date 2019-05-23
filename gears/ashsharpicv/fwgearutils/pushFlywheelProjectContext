@@ -11,7 +11,9 @@ import fwgearutils
 from os.path import expanduser
 
 def updateNestedDict(d, keypath, ud):
-    if (len(keypath) == 1):
+    if (len(d.keys()) == 0):
+        d.update(ud)
+    elif (len(keypath) == 1):
         try:
             d[keypath[0]].update(ud)
         except KeyError:
@@ -32,13 +34,15 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
 
     group = ap.add_mutually_exclusive_group()
-    group.add_argument("-a", "--all", action='store_const', dest='context', const='context')
+    group.add_argument("-a", "--all", action='store_const', dest='context', const='all')
     group.add_argument("-g", "--group", action='store_const', dest='context', const='group')
     group.add_argument("-p", "--project", action='store_const', dest='context', const='project')
     group.add_argument("-s", "--site", action='store_const', dest='context', const='site')
 
     ap.set_defaults(context='project')
 
+    ap.add_argument('-d', '--debug', action='store_true', dest='debug', help='print additional debugging info')
+    ap.add_argument('-n', '--noop', action='store_true', help='do not update the context')
     ap.add_argument('-l', '--leaf-path',action='store', nargs=1, help='space separated path to left to update')
     ap.add_argument('project', nargs=1, help='group/project')
     ap.add_argument('jsonfile', nargs='?', help='path to json file to upload to context, defaults to stdin')
@@ -105,17 +109,21 @@ if __name__ == '__main__':
         
     keypath = []
 
-    if (args.context == 'context'):
-        pass
-    else:
+    if (args.context != 'all'):
         keypath.append(args.context)
 
     if (args.leaf_path):
         keypath += args.leaf_path[0].split()
     
-    updateNestedDict(ProjectContextDict,keypath, Json)
+    if (args.debug):
+        print("ProjectContextDict", json.dumps(ProjectContextDict))
+        print("keypath", keypath)
+        print("Json", json.dumps(Json))
 
-#    project.update_info({'context': fwgearutils.encodeKeys(ProjectContextDict)})
+    if (not args.noop):
+        updateNestedDict(ProjectContextDict,keypath, Json)
+
+    project.update_info({'context': fwgearutils.encodeKeys(ProjectContextDict)})
 
     print("%s : Updated context" % (CmdName), file=sys.stderr)
     print("  Run '%s -a %s %s' to restore the previous context" % (CmdName, args.project[0], temp.name), file=sys.stderr)

@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import os
+import flywheel
+import json
+import argparse
+import fwgearutils
+
+
+if __name__ == '__main__':
+
+    import argparse
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-k', '--apikey', type=str, default=None, dest="apikey", help='apikey')
+    ap.add_argument('-g', '--gear', type=str, default=None, dest="gear", help='gear')
+    ap.add_argument('project', nargs=1, type=str, default=None, help='group/project|ProjectID')
+
+    args = ap.parse_args()
+
+    ApiKey = fwgearutils.getApiKey(args)
+
+    try:
+        fw = flywheel.Client()
+    except (OSError, Exception) as e:
+        try:
+            fw = flywheel.Client(ApiKey,root=True)
+        
+        except (OSError, Exception) as e2:
+            print("e2",e2, file=sys.stderr)
+            print("e",e, file=sys.stderr)
+            sys.exit(1)
+
+    if (args.project):
+        (group, ProjectName) = args.project[0].split("/") 
+   
+        try:
+            container = fw.get(args.project[0])
+            if ('gear_info' in container.keys()):
+                ProjectID = container.parents.project
+                project = fw.get(ProjectID)
+
+        except flywheel.rest.ApiException as e:
+            try:
+                project = fw.lookup(args.project[0])
+                ProjectID = project.id
+                #print(project)
+
+            except flywheel.rest.ApiException as e:
+                print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
+                sys.exit(e.status)
+
+    else:
+        sys.exit(0)
+
+    Analyses = []
+
+    for c in project.sessions():
+        for analysis in fw.get(c.id).analyses:
+            if (analysis.gear_info):
+                if (analysis.gear_info.name == 'ashsharpicv'):
+                    # print("session:",c)
+                    Analyses.append(analysis)
+
+    for c in fw.projects.find("group=%s" % (group), "label=%s" % (ProjectName)):
+        for analysis in fw.get(c.id).analyses:
+            if (analysis.gear_info):
+                if (analysis.gear_info.name == 'ashsharpicv'):
+                    Analyses.append(analysis)
+
+
+    for analysis in Analyses:
+        print(analysis.label)
+        for f in analysis.files:
+            print("	%s %s" % (f.id,f.name))

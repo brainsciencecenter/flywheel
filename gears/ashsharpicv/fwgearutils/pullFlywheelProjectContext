@@ -21,6 +21,7 @@ if __name__ == '__main__':
     ap.add_argument('-g', '--group', action='store_true', dest="groupjson", help='print only the group context')
     ap.add_argument('-k', '--apikey', type=str, default=None, dest="apikey", help='apikey')
     ap.add_argument('-p', '--project', action='store_true', dest="projectjson", help='print only the project context')
+    ap.add_argument('-q', '--quiet', action='store_true', dest="quiet", help='do not print error output')
     ap.add_argument('-s', '--site', action='store_true', dest="sitejson", help='print only the site context')
     ap.add_argument('project', nargs=1, type=str, default=None, help='group/project|ProjectID')
 
@@ -32,7 +33,7 @@ if __name__ == '__main__':
         fw = flywheel.Client()
     except (OSError, Exception) as e:
         try:
-            fw = flywheel.Client(ApiKey,root=True)
+            fw = flywheel.Client(ApiKey)
         
         except (OSError, Exception) as e2:
             print("e2",e2, file=sys.stderr)
@@ -48,11 +49,13 @@ if __name__ == '__main__':
 
        except flywheel.rest.ApiException as e:
           try:
-             project = fw.lookup(args.project[0])
+            project = fw.lookup(args.project[0])
 
           except flywheel.rest.ApiException as e:
-             print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
-             sys.exit(e.status)
+            if (not args.quiet):
+                print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
+
+            sys.exit(e.status)
 
     else:
        sys.exit(0)

@@ -19,7 +19,7 @@ COPY Rprofile.site /etc/R/
 RUN for i in  rmarkdown xml2 rvest latex2exp kableExtra ggplot2 ggthemes wesanderson extrafont fontcm gridExtra ggpubr tinytex; do R --quiet -e "install.packages('$i')"; done
 
 RUN apt install -y python3 python3-pip jq 
-RUN pip3 install flywheel-sdk~=6.3.0
+RUN pip3 install flywheel-sdk~=8.0.0
 RUN pip3 install requests
 COPY fwgearutils/ /usr/local/bin/ 
 

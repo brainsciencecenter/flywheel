@@ -11,6 +11,9 @@ def json2dir(d,path):
     global Noop
     global Verbose
 
+    if (d is None):
+        return
+
     for e in d.keys():
         if (type(d[e]) is dict):
             DirPath = path + "/" + e

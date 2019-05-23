@@ -119,7 +119,7 @@ ticket_code=$(printf %08d $ticket_number)
 
 # Check the processing of the ticket
 sleep 30s
-itksnap-wt -dss-tickets-wait $ticket_number 7200
+itksnap-wt -dss-tickets-wait $ticket_number 86400
 sleep 30s
 
 # Rename result files
