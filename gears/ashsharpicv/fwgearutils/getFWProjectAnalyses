@@ -62,16 +62,17 @@ if __name__ == '__main__':
     for c in project.sessions():
         for analysis in fw.get(c.id).analyses:
             if (analysis.gear_info):
-                if (analysis.gear_info.name == 'ashsharpicv'):
-                    # print("session:",c)
-                    Analyses.append(analysis)
+                if (args.gear and analysis.gear_info.name != args.gear):
+                    continue
+                Analyses.append(analysis)
 
     for c in fw.projects.find("group=%s" % (group), "label=%s" % (ProjectName)):
         for analysis in fw.get(c.id).analyses:
             if (analysis.gear_info):
-                if (analysis.gear_info.name == 'ashsharpicv'):
-                    Analyses.append(analysis)
-
+                if (args.gear and analysis.gear_info.name != args.gear):
+                    continue
+                Analyses.append(analysis)
+                        
 
     for analysis in Analyses:
         print(analysis.label)
