@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import os
+import flywheel
+import json
+import argparse
+import fwgearutils
+
+from subprocess import PIPE, Popen 
+
+'''
+/tmp/mktemp -d
+
+./acquisition#/filename.zip
+./acquisition#/filename/unzipped.dcm
+
+json = { acquisition# : [
+         { filename : SOPInstanceID },
+         { filename : SOPInstanceID },
+       ]}
+
+Update the SOPInstanceUID and the zip_member_count for each acquisition file
+
+'''
+
+def mysys(command,working_dir=''):
+        '''
+        sys - run a command line program. -n = no-op, -v = verbose 
+
+        prints the command to stderr if either -n or -v are set.  
+        executes the command if -n is not set.
+        '''
+
+        global args
+        
+        if (args.noop or args.verbose):
+            print(command,file=sys.stderr) 
+
+        if (args.noop):
+            return('')
+        else:
+            if(len(working_dir) > 0):
+                res = Popen([command], cwd=working_dir, shell=True, stdout=PIPE, universal_newlines=True).communicate()[0]
+            else:
+                res = Popen([command], shell=True, stdout=PIPE, universal_newlines=True).communicate()[0]
+
+            return(res)
+
+
+if __name__ == '__main__':
+
+    import argparse
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-u', '--newuid', nargs=1, type=str, default=None, help='New SOPInstanceUIDs in json format')
+    ap.add_argument('-d', '--download', action='store_true', help='download acquisition files')
+    ap.add_argument('-D', '--DownloadDir', dest='downloaddir', nargs=1, type=str, default=[ '/tmp/flywheel' ], help='directory to put download files in')
+    ap.add_argument('-n', '--noop', action='store_true', help='do not do anything, just show what would be done')
+    ap.add_argument('-v', '--verbose', action='store_true', help='show what is being done')
+    ap.add_argument('id', nargs=1, type=str, default=None, help='group/project|ProjectID')
+
+    args = ap.parse_args()
+
+    ApiKey = fwgearutils.getApiKey(args)
+
+    try:
+        fw = flywheel.Client()
+    except (OSError, Exception) as e:
+        try:
+            fw = flywheel.Client(ApiKey,root=True)
+        
+        except (OSError, Exception) as e2:
+            print("e2",e2, file=sys.stderr)
+            print("e",e, file=sys.stderr)
+            sys.exit(1)
+
+    a = fw.get(args.id[0])
+    if (args.newuid):
+        a.files[0].update_info(SOPInstanceUID=args.newuid[0])
+    elif (args.download):
+        BaseDir = args.downloaddir[0]
+
+        for f in a.files:
+            if (re.search('.dicom.zip', f.name)):
+                AcquisitionDir = '%s/%s' % (BaseDir, a.id)
+                ZipName = '%s/%s' % (AcquisitionDir, f.name)
+                DicomDir = re.sub('.zip$', '', ZipName)
+
+                mysys("mkdir -p '%s'" % (AcquisitionDir))
+                if (not args.noop):
+                    print("Downloading '%s' to '%s'" % (f.name, ZipName))
+                    f.download(ZipName)
+
+    else:
+        print(a.files[0].info["SOPInstanceUID"])

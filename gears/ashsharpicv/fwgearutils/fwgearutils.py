@@ -5,6 +5,7 @@ import re
 import os
 import flywheel
 import json
+import datetime
 
 from os.path import expanduser
 
@@ -82,4 +83,41 @@ def getApiKey(args):
 
     return(ApiKey)
 
+def sloppyCopy(d):
+    '''
+    serializes a object, ignoring all the stuff it cant easily serialize, but will give you something
+    '''
+    
+    # print("sloppyCopy: ", d, file=sys.stderr)
+    try:
+        json.dumps(d)
+        #print("sloppyCopy d is serializable", file=sys.stderr)
+        return(d)
+
+    except (TypeError, OverflowError) as e:
+       if (hasattr(d,'keys')):
+            nd = {}
+            for k in d.keys():
+                try:
+                    json.dumps(d[k])
+                    nd[k] = d[k]
+                except (TypeError, OverflowError) as e2:
+                    #print("Object '%s' key '%s' not json serialable" % (type(d[k]),k), file=sys.stderr)
+                    nd[k] = sloppyCopy(d[k])
+
+            # print("sloppyCopy: d is sorta dict", nd.copy(), file=sys.stderr)
+            return(nd.copy())
+
+       if (type(d) is list):
+            nd = []
+            for i in d:
+                nd.append(sloppyCopy(i))
+
+            # print("sloppyCopy: d is list", nd.copy(), file=sys.stderr)
+            return(nd.copy())
+       if (type(d) is datetime.datetime):
+            return(d.strftime("%Y%m%d"))
+
+        # print("sloppyCopy: d is type ", type(d), file=sys.stderr)
+ 
 

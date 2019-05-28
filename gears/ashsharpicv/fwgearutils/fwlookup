@@ -8,7 +8,6 @@ import json
 import argparse
 import fwgearutils
 
-
 if __name__ == '__main__':
 
     import argparse
@@ -16,7 +15,7 @@ if __name__ == '__main__':
     CmdName = os.path.basename(sys.argv[0])
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('id', nargs=1, type=str, default=None, help='group/project|ProjectID')
+    ap.add_argument('path', nargs=1, type=str, default=None, help='group/project')
 
     args = ap.parse_args()
 
@@ -33,4 +32,27 @@ if __name__ == '__main__':
             print("e",e, file=sys.stderr)
             sys.exit(1)
 
-    print(json.dumps(fwgearutils.sloppyCopy(fw.get(args.id[0]))))
+
+    c = fw.lookup(args.path[0])
+
+    j = fwgearutils.sloppyCopy(c)
+
+    Sessions = []
+    for s in c.sessions():
+        session = fw.get(s.id)
+        Session = fwgearutils.sloppyCopy(session)
+        Acquisitions = []
+        for a in session.acquisitions():
+            acquisition = fw.get(a.id)
+
+            Acquisitions.append(fwgearutils.sloppyCopy(acquisition))
+            
+        Session['acquisitions'] = Acquisitions.copy()
+
+
+        Sessions.append(Session.copy())
+
+    j['sessions'] = Sessions
+
+    print(json.dumps(j))
+
