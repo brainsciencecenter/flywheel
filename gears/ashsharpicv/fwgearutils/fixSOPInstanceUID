@@ -61,7 +61,7 @@ if __name__ == '__main__':
     ap.add_argument('-D', '--DownloadDir', dest='downloaddir', nargs=1, type=str, default=[ '/tmp/flywheel' ], help='directory to put download files in')
     ap.add_argument('-n', '--noop', action='store_true', help='do not do anything, just show what would be done')
     ap.add_argument('-v', '--verbose', action='store_true', help='show what is being done')
-    ap.add_argument('id', nargs=1, type=str, default=None, help='group/project|ProjectID')
+    ap.add_argument('id', nargs='*', type=str, default=None, help='group/project|ProjectID')
 
     args = ap.parse_args()
 
@@ -78,22 +78,61 @@ if __name__ == '__main__':
             print("e",e, file=sys.stderr)
             sys.exit(1)
 
-    a = fw.get(args.id[0])
     if (args.newuid):
-        a.files[0].update_info(SOPInstanceUID=args.newuid[0])
-    elif (args.download):
-        BaseDir = args.downloaddir[0]
+        # newuid could be json from stdin, from a file, as arg, or just a UID
+        if (re.search('^[\.0-9]+$', args.newuid[0])):
+            # newuid is the new uid
+            a.files[0].update_info(SOPInstanceUID=args.newuid[0])
 
-        for f in a.files:
-            if (re.search('.dicom.zip', f.name)):
-                AcquisitionDir = '%s/%s' % (BaseDir, a.id)
-                ZipName = '%s/%s' % (AcquisitionDir, f.name)
-                DicomDir = re.sub('.zip$', '', ZipName)
+        else:
+            try:
+                if (os.path.exists(args.newuid[0])):
+                    # newuid is a file with json in it
+                    with open(args.newuid[0], 'r') as myfile:
+                        data=myfile.read()
+                        Json = json.loads(data)
+                elif (re.search('^-$', args.newuid[0])):
+                    # newuid is '-', meaning to read json from stdin
+                    with sys.stdin as myfile:
+                        data = myfile.read()
+                    Json = json.loads(data)
+                else:
+                    Json = json.loads(args.newuid[0])
 
-                mysys("mkdir -p '%s'" % (AcquisitionDir))
-                if (not args.noop):
-                    print("Downloading '%s' to '%s'" % (f.name, ZipName))
-                    f.download(ZipName)
+            except (json.decoder.JSONDecodeError) as e:
+                print("'%s : can not parse '%s' as json : %s" % (CmdName, args.newuid[0],e), file=sys.stderr)
 
-    else:
-        print(a.files[0].info["SOPInstanceUID"])
+            for aid, d in Json.items():
+                try:
+                    a = fw.get(aid)
+                except (OSError, Exception) as e:
+                    print("%s : '%s' %s" % (CmdName, aid, e), file=sys.stderr)
+                
+
+                a.files[0].update_info(SOPInstanceUID=d["SOPInstanceUID"],zip_member_count=d["zip_member_count"])
+
+        sys.exit(0)
+
+    for aid in args.id:
+        try:
+            a = fw.get(aid)
+        except (OSError, Exception) as e:
+            print("'%s' %s" % (aid,e), file=sys.stderr)
+            continue
+
+        if (args.download):
+            BaseDir = args.downloaddir[0]
+
+            for f in a.files:
+                if (re.search('.dicom.zip', f.name)):
+                    AcquisitionDir = '%s/%s' % (BaseDir, a.id)
+                    ZipName = '%s/%s' % (AcquisitionDir, f.name)
+                    DicomDir = re.sub('.zip$', '', ZipName)
+
+                    mysys("mkdir -p '%s'" % (AcquisitionDir))
+                    if (not args.noop):
+                        print("Downloading '%s' to '%s'" % (f.name, ZipName))
+                        f.download(ZipName)
+
+        else:
+            print(a.files[0].info["SOPInstanceUID"])
