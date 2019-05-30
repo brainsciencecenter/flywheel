@@ -9,6 +9,11 @@ import argparse
 import fwgearutils
 import datetime
 
+def session2INDDName (session):
+    subject = fw.get(session.subject.id)
+    a = fw.get(session.acquisitions()[0].id)
+    return('%s_%s_%s' %(subject.label, subject.created.strftime("%Y%m%d"), a.files[0].info['InstitutionName']))
+
 if __name__ == '__main__':
 
     import argparse
@@ -59,25 +64,7 @@ if __name__ == '__main__':
         if (project.label != ProjectName):
             continue
         session = fw.get(c.id)
-        subject = fw.get(session.subject.id)
-        a = fw.get(session.acquisitions()[0].id)
+        print("	mv '%s' '%s'" % (session.label, session2INDDName(session)))
+        session.update(label=session2INDDName(session))
         
-        print("	mv '%s' '%s_%s_%s" % (session.label, subject.label, subject.created.strftime("%Y%m%d"), a.files[0].info['InstitutionName']))
-
-    sys.exit(0)
-    for acquisition in fw.acquisitions.find('parents.group=dwolklab'):
-        a = fw.get(acquisition.id)
-
-        s = fw.get(a.parents.subject)
-        print(s.label)
-
-        for f in a.files:
-            if (re.search('.dicom.zip$',f.name)):
-                try:
-                    print("	mv '%s' '%s_%s_%s" % (f.name, s.label, f.info['StudyDate'], f.info['InstitutionName']))
-                    #print(f.name, f.info['StudyDate'], f.info['InstitutionName'])
-                except (KeyError) as e:
-                    print(f)
-                    sys.exit(1)
-            else:
-                continue
+        sys.exit(0)

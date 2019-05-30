@@ -45,6 +45,17 @@ if __name__ == '__main__':
         for a in session.acquisitions():
             acquisition = fw.get(a.id)
 
+            Files = []
+            for f in a.files:
+                File = fwgearutils.sloppyCopy(f)
+                if (re.search('.zip$', f.name)):
+                    File['zip_info'] = fwgearutils.sloppyCopy(a.get_file_zip_info(f.name))
+                    File['zip_member_count'] = len(File['zip_info']['members'])
+                
+                Files.append(File.copy())
+
+            acquisition.files = Files
+
             Acquisitions.append(fwgearutils.sloppyCopy(acquisition))
             
         Session['acquisitions'] = Acquisitions.copy()

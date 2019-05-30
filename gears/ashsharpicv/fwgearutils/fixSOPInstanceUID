@@ -125,6 +125,10 @@ if __name__ == '__main__':
 
             for f in a.files:
                 if (re.search('.dicom.zip', f.name)):
+                    info = a.get_file_zip_info(f.name)
+                    print(info)
+                    sys.exit(0)
+
                     AcquisitionDir = '%s/%s' % (BaseDir, a.id)
                     ZipName = '%s/%s' % (AcquisitionDir, f.name)
                     DicomDir = re.sub('.zip$', '', ZipName)

@@ -8,6 +8,33 @@ import json
 import argparse
 import fwgearutils
 
+def listGearFiles(project):
+    Analyses = []
+
+    for c in project.sessions():
+        for analysis in fw.get(c.id).analyses:
+            if (analysis.gear_info):
+                if (args.gear and analysis.gear_info.name != args.gear):
+                    continue
+                Analyses.append(analysis)
+
+    for c in fw.projects.find("group=%s" % (project.group), "label=%s" % (project.label)):
+        for analysis in fw.get(c.id).analyses:
+            if (analysis.gear_info):
+                if (args.gear and analysis.gear_info.name != args.gear):
+                    continue
+                Analyses.append(analysis)
+                        
+
+    for analysis in Analyses:
+        for f in analysis.files:
+            print("%s/%s %s" % (analysis.id,f.id,f.name))
+
+def downloadGearFile(analysis,file):
+    print(analysis.download_file.__doc__)
+    print(file)
+    analysis.download_file(file.name,file.name)
+    
 
 if __name__ == '__main__':
 
@@ -15,10 +42,16 @@ if __name__ == '__main__':
 
     CmdName = os.path.basename(sys.argv[0])
 
+    '''
+    {group/project|ProjectID}
+    {AnalysisID/FileID [[AnalysisID/FileID] ...]}
+    '''
+
     ap = argparse.ArgumentParser()
     ap.add_argument('-k', '--apikey', type=str, default=None, dest="apikey", help='apikey')
+    ap.add_argument('-d', '--downloaddir', type=str, nargs=1, default=None, help='download switch')
     ap.add_argument('-g', '--gear', type=str, default=None, dest="gear", help='gear')
-    ap.add_argument('project', nargs=1, type=str, default=None, help='group/project|ProjectID')
+    ap.add_argument('ids', nargs='+', type=str, default=None, help='group/project|ProjectID')
 
     args = ap.parse_args()
 
@@ -35,46 +68,40 @@ if __name__ == '__main__':
             print("e",e, file=sys.stderr)
             sys.exit(1)
 
-    if (args.project):
-        (group, ProjectName) = args.project[0].split("/") 
-   
+    if (args.downloaddir):
+        #print("chdir to %s" % (args.downloaddir[0]))
+        os.chdir(args.downloaddir[0])
+
+
+    for id in args.ids:
         try:
-            container = fw.get(args.project[0])
-            if ('gear_info' in container.keys()):
-                ProjectID = container.parents.project
-                project = fw.get(ProjectID)
+            container = fw.get(id)
 
         except flywheel.rest.ApiException as e:
             try:
-                project = fw.lookup(args.project[0])
-                ProjectID = project.id
-                #print(project)
+                container = fw.lookup(id)
 
             except flywheel.rest.ApiException as e:
-                print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
-                sys.exit(e.status)
+                try:
+                    (aid, fid) = re.split('/',id)
+                    container = fw.get(aid)
+                    
+                except flywheel.rest.ApiException as e:
+                    print("%s : Cannot find project or analysis by '%s' : %s" % (CmdName, id, e.reason), file=sys.stderr)
+                    sys.exit(e.status)
+
+        if (type(container) == flywheel.models.container_project_output.ContainerProjectOutput):
+            project = fw.get(container.parents.project)
+            listGearFiles(project)
+        elif (type(container) == flywheel.models.resolver_project_node.ResolverProjectNode):
+            project = container
+            listGearFiles(project)
+        elif (type(container) == flywheel.models.container_analysis_output.ContainerAnalysisOutput):
+            (aid, fid) = re.split('/',id)
+            analysis = fw.get(aid)
+            [ file ] = list(filter(lambda x: x.id == fid, analysis.files))
+            downloadGearFile(analysis,file)
 
     else:
         sys.exit(0)
 
-    Analyses = []
-
-    for c in project.sessions():
-        for analysis in fw.get(c.id).analyses:
-            if (analysis.gear_info):
-                if (args.gear and analysis.gear_info.name != args.gear):
-                    continue
-                Analyses.append(analysis)
-
-    for c in fw.projects.find("group=%s" % (group), "label=%s" % (ProjectName)):
-        for analysis in fw.get(c.id).analyses:
-            if (analysis.gear_info):
-                if (args.gear and analysis.gear_info.name != args.gear):
-                    continue
-                Analyses.append(analysis)
-                        
-
-    for analysis in Analyses:
-        print(analysis.label)
-        for f in analysis.files:
-            print("	%s %s" % (f.id,f.name))
