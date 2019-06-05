@@ -114,7 +114,7 @@ function getSessionsDiff {
         local FWProject="$2"
 	local FWSessions=""
 
-	FWSessions = $(getFWSessions "$FWGroupID" "$FWProject")
+	FWSessions=$(getFWSessions "$FWGroupID" "$FWProject")
 	diff <(getXNATSessions "$XNATProject") <(echo "$FWSessions" | sed 's/_MRI//')
 }
 
