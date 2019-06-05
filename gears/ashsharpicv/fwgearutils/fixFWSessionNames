@@ -9,11 +9,6 @@ import argparse
 import fwgearutils
 import datetime
 
-def session2INDDName (session):
-    subject = fw.get(session.subject.id)
-    a = fw.get(session.acquisitions()[0].id)
-    return('%s_%s_%s' %(subject.label, subject.created.strftime("%Y%m%d"), a.files[0].info['InstitutionName']))
-
 if __name__ == '__main__':
 
     import argparse
@@ -22,6 +17,8 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-k', '--apikey', type=str, default=None, dest="apikey", help='apikey')
+    ap.add_argument('-n', '--noop', action='store_true', help='show what the program would do, but do not do it')
+    ap.add_argument('-v', '--verbose', action='store_true', help='show what the program is doing')
     ap.add_argument('project', nargs=1, type=str, default=None, help='group/project|ProjectID')
 
     args = ap.parse_args()
@@ -41,14 +38,18 @@ if __name__ == '__main__':
 
     if (args.project):
        try:
-          container = fw.get(args.project[0])
-          if ('gear_info' in container.keys()):
-             ProjectID = container.parents.project
-             project = fw.get(ProjectID)
+           container = fw.get(args.project[0])
+           if ('gear_info' in container.keys()):
+               ProjectID = container.parents.project
+               project = fw.get(ProjectID)
+           if (args.verbose or args.noop):
+               print("%s : Got project '%s' via project ID '%s'" % (CmdName, project.label, args.project[0]), file=sys.stderr)
 
        except flywheel.rest.ApiException as e:
           try:
              project = fw.lookup(args.project[0])
+             if (args.verbose or args.noop):
+                 print("%s : Got project '%s' via project path '%s'" % (CmdName, project.label, args.project[0]), file=sys.stderr)
 
           except flywheel.rest.ApiException as e:
              print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
@@ -57,14 +58,48 @@ if __name__ == '__main__':
     else:
        sys.exit(0)
 
-    (group, ProjectName) = args.project[0].split("/")
-    
-    for c in fw.sessions.find("group=%s" % (group)):
-        project = fw.get(c.project)
-        if (project.label != ProjectName):
+    for line in sys.stdin:
+        LineList = line.rstrip().split()
+
+        try:
+            session = fw.get(LineList[0])
+            if (args.verbose or args.noop):
+                print("%s : Got project '%s' session '%s'" % (CmdName, project.label, session.label), file=sys.stderr)
+
+
+        except (flywheel.rest.ApiException) as e:
+            print("%s : Cannot find session by '%s' : %s" % (CmdName, LineList[0], e.reason), file=sys.stderr)
             continue
-        session = fw.get(c.id)
-        print("	mv '%s' '%s'" % (session.label, session2INDDName(session)))
-        session.update(label=session2INDDName(session))
-        
-        sys.exit(0)
+
+        NewLabel = LineList[-1]
+        OldLabel = session.label
+
+        if (OldLabel == NewLabel):
+            if (args.noop or args.verbose):
+                print("%s : OldLabel '%s' == NewLabel '%s'. Skipping" % (CmdName, OldLabel, NewLabel), file=sys.stderr)
+        else:
+            MvString = "mv %s => %s" % (LineList[0], NewLabel)
+
+            if (args.noop or args.verbose):
+                print("%s : %s" % (CmdName, MvString))
+
+            try:
+                if (args.noop or args.verbose):
+                    print("%s : Adding note '%s'" % (CmdName, MvString), file=sys.stderr)
+                if (not args.noop):
+                    session.add_note(MvString)
+
+            except (flywheel.rest.ApiException) as e:
+                print("%s : Cannot add note '%s' to session '%s' : %s" % (CmdName, MvString, session._id, e.reason), file=sys.stderr)
+                continue
+
+            try:
+                if (args.noop or args.verbose):
+                    print("%s : Changing session label from '%s' to '%s'" % (CmdName, OldLabel, NewLabel), file=sys.stderr)
+                if (not args.noop):
+                    session.update(label=LineList[-1])
+
+            except (flywheel.rest.ApiException) as e:
+                print("%s : Cannot update session '%s' with new label '%s'" % (CmdName, OldLabel, NewLabel), file=sys.stderr)
+                continue
+

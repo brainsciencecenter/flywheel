@@ -15,6 +15,7 @@ if __name__ == '__main__':
     CmdName = os.path.basename(sys.argv[0])
 
     ap = argparse.ArgumentParser()
+    ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
     ap.add_argument('path', nargs=1, type=str, default=None, help='group/project')
 
     args = ap.parse_args()
@@ -46,13 +47,14 @@ if __name__ == '__main__':
             acquisition = fw.get(a.id)
 
             Files = []
-            for f in a.files:
-                File = fwgearutils.sloppyCopy(f)
-                if (re.search('.zip$', f.name)):
-                    File['zip_info'] = fwgearutils.sloppyCopy(a.get_file_zip_info(f.name))
-                    File['zip_member_count'] = len(File['zip_info']['members'])
+            if (args.zip_info):
+                for f in a.files:
+                    File = fwgearutils.sloppyCopy(f)
+                    if (re.search('.zip$', f.name)):
+                        File['zip_info'] = fwgearutils.sloppyCopy(a.get_file_zip_info(f.name))
+                        File['zip_member_count'] = len(File['zip_info']['members'])
                 
-                Files.append(File.copy())
+                    Files.append(File.copy())
 
             acquisition.files = Files
 
