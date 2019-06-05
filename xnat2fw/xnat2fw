@@ -89,7 +89,7 @@ function sys {
 	[ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
 	[ -z "$opt_n" ] && "$@"
 }
-e
+
 #
 # /data/XNAT/archive/MEMORIES-2/arc001: has directories of the form DD_DDDDD_YYYYMMDD -- mostly.  Some of them have _PET extension.
 # 
