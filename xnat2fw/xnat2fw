@@ -114,6 +114,8 @@ function getFWSessions {
 function getSessionsDiff {
         local FWGroupID="$1"
         local FWProject="$2"
+        local XNATProject="$3"
+
 	local FWSessions=""
 
 	FWSessions=$(getFWSessions "$FWGroupID" "$FWProject")
@@ -123,8 +125,9 @@ function getSessionsDiff {
 function getSessionsStill2Import {
         local FWGroupID=$1
         local FWProject="$2"
+        local XNATProject="$3"
 
-	getSessionsDiff "$FWGroupID" "$FWProject" | grep '<' | awk '{print $2}'
+	getSessionsDiff "$FWGroupID" "$FWProject" "$XNATProject" | grep '<' | awk '{print $2}'
 }
 
 function session2Subject {
@@ -251,7 +254,7 @@ if [ -n "$1" ]
 then
 	Sessions=("$@")
 else
-	Sessions=($(getSessionsStill2Import "$FWGroupID" "$FWProject"))
+	Sessions=($(getSessionsStill2Import "$FWGroupID" "$FWProject" "$XNATProject"))
 fi
 
 if [ -n "$opt_l" ]
