@@ -94,6 +94,8 @@ function sys {
 # /data/XNAT/archive/MEMORIES-2/arc001: has directories of the form DD_DDDDD_YYYYMMDD -- mostly.  Some of them have _PET extension.
 # 
 function getXNATSessions {
+	 local XNATProject="$1"
+	 
 	 (cd "$XNATBaseDir/$XNATProject/arc001"; ls | sort -n)
 }
 
