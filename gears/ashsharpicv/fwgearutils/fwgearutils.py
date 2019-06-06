@@ -6,6 +6,7 @@ import os
 import flywheel
 import json
 import datetime
+import pytz
 
 from os.path import expanduser
 
@@ -22,10 +23,10 @@ def decode(s):
 def encodeKeys(d):
    rd = {}
    
-   if (type(d) is dict):
+   try:
       for k in d.keys():
          rd[encode(k)] = encodeKeys(d[k])
-   else:
+   except (AttributeError,KeyError):
       rd = d
 
    return(rd)
@@ -33,10 +34,10 @@ def encodeKeys(d):
 def decodeKeys(d):
    rd = {}
    
-   if (type(d) is dict):
+   try:
       for k in d.keys():
          rd[decode(k)] = decodeKeys(d[k])
-   else:
+   except (AttributeError,KeyError):
       rd = d
 
    return(rd)
@@ -116,7 +117,9 @@ def sloppyCopy(d):
             # print("sloppyCopy: d is list", nd.copy(), file=sys.stderr)
             return(nd.copy())
        if (type(d) is datetime.datetime):
-            return(d.strftime("%Y%m%d"))
+          timezone = pytz.timezone("America/New_York")
+          d_localtz = d.astimezone(pytz.timezone("America/New_York"))
+          return(d_localtz.strftime("%Y%m%d %X"))
 
         # print("sloppyCopy: d is type ", type(d), file=sys.stderr)
  

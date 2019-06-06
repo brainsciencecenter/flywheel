@@ -111,7 +111,7 @@ function getFWSessions {
 	done
 }
 
-function getSessionsDiff {
+function getSessionsDiff {p
         local FWGroupID="$1"
         local FWProject="$2"
         local XNATProject="$3"
