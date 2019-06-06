@@ -35,12 +35,14 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
 
     ap.add_argument('-d', '--debug', action='store_true', dest='debug', help='print additional debugging info')
-    ap.add_argument('-n', '--noop', action='store_true', help='do not update the context')
-    ap.add_argument('-P', '--path',action='store', nargs=1, default=['.context.project'], help='jq path specification for project info.  default is .context.project. Use "-P ." to get the entire info')
+    ap.add_argument('-n', '--noop', action='store_true', help='do not actually update the info')
+    ap.add_argument('-v', '--verbose', action='store_true', help='show what is being done')
     ap.add_argument('project', nargs=1, help='group/project')
+    ap.add_argument('jsonfile', nargs='?', help='path to json file to upload to context, defaults to stdin')
     args = ap.parse_args()
 
     #print("project = '%s'" % (args.project))
+    #print("jsonfile = '%s'" % (args.jsonfile))
 
     ApiKey = fwgearutils.getApiKey(args)
 
@@ -75,6 +77,17 @@ if __name__ == '__main__':
                 print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
                 sys.exit(e.status)
 
-    ProjectInfoDict = fwgearutils.decodeKeys(project.info)
+    try:
+        with open(args.jsonfile, 'r') if args.jsonfile else sys.stdin as jsonfile:
+            Json = json.load(jsonfile)
 
-    print(json.dumps(pyjq.all(args.path[0], ProjectInfoDict)[0]))
+    except IOError as e:
+        print("%s : Cannot open '%s' : %s" % (CmdName, args.jsonfile, e.args[1]), file=sys.stderr)
+        exit(e.args[0])
+        
+    if (args.debug):
+        print("Json", json.dumps(Json))
+
+    if (not args.noop):
+        project.update_info(fwgearutils.encodeKeys(Json))
+
