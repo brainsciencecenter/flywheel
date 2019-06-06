@@ -18,11 +18,34 @@ Project="$1"
 
 ScanDatesJson=$(pullFWProjectContext "$Project" | jq .Scandates_CINRA)
 
-jq -r ".sessions[] | (\"\(._id) \(.timestamp) \(.subject.label) \(.label)\")" /tmp/loughead_lab/NBR_824061.json | while read SessionID MachineScanDate StartTime SubjectLabel SessionLabel
+if [ -e "$2" ]
+then
+	ProjectJsonFile="$2"
+else
+	ProjectJsonFile=$(mktemp "/tmp/${cmd}-XXXXXX.json")
+	RemoveTmpFile=true
+
+	fwlookup "$Project" > "$ProjectJsonFile"
+fi
+
+ProjectJson=$(jq -r ".sessions | sort_by(.timestamp) | .[] | (\"\(._id) \(.timestamp) \(.subject.label) \(.label)\")" "$ProjectJsonFile")
+
+PrevUsScanDate=""
+
+echo "$ProjectJson" | while read SessionID MachineScanDate StartTime SubjectLabel SessionLabel
 do
 	UsScanDate=$(yyyymmdd2us $MachineScanDate)
 	
-	read Asid Stid <<< $(echo "$ScanDatesJson" | jq -r ".[]|select(.ScanDate == \"$UsScanDate\") | \"\(.ASID) \(.STID)\"")
+	ScanDateAndTimeJson=$(echo "$ScanDatesJson" | jq -r "[ .[]|select(.ScanDate == \"$UsScanDate\") ] | sort_by(.StartTimme)")
+	if [ "$UsScanDate" != "$PrevUsScanDate" ]
+	then
+		n=0
+	else
+		PrevUsScanDate="$UsScanDate"
+		n=$(($n + 1))
+	fi
+
+	read Asid Stid <<< $(echo "$ScanDateAndTimeJson" | jq ".[$n] | \"\(.ASID) \(.STID)\"")	
 	if [ -z "$Stid" ]
 	then
 		Stid=MissingData
@@ -32,4 +55,9 @@ do
 
 	echo "mv '$SessionID' '$MachineScanDate' '$StartTime' '$SubjectLabel' '$SessionLabel' => '$PaddedAsid' '$Stid'"
 done
+
+if [ -n "$RemoveTmpFile" ]
+then
+	rm -f "$ProjectJsonFile"
+fi
 
