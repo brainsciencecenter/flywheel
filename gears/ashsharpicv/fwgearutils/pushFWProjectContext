@@ -34,7 +34,11 @@ fi
 
 Project="$1"
 OldProjectInfo=$(pullFWProjectInfo "$Project" | jq .)
-echo "$OldProjectInfo"
+
+if [ -n "${opt_n}${opt_v}" ]
+then
+    echo "$OldProjectInfo" 1>&2
+fi
 
 if [ -n "$2" ]
 then
@@ -60,7 +64,7 @@ NewProjectJson=$(echo "$OldProjectInfo" | jq "${JQExpr} = ${Json}")
 
 if [ -n "${opt_n}${opt_v}" ]
 then
-	echo "$NewProjectJson" | pushFWProjectInfo "$Project"
+	echo "$NewProjectJson" 1>&2
 fi
 
 if [ -z "$opt_n" ]
