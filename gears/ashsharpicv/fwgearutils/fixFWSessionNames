@@ -8,6 +8,57 @@ import json
 import argparse
 import fwgearutils
 import datetime
+import csv
+
+'''
+Input format
+[mv ]SessionID Timestamp SubjectLabel SessionLabel => NewSessionLabel [NewSubjectLabel]
+
+'''
+OldSubjectLabelIndex = 3
+OldSessionLabelIndex = 4
+ImplyIndex = 5
+NewSessionLabelIndex = ImplyIndex + 1
+NewSubectLabelIndex = ImplyIndex + 2
+
+def renameContainer(CmdName, args, ContainerId, NewLabel):
+    try:
+        container = fw.get(ContainerId)
+        if (args.verbose or args.noop):
+            print("%s : Got Container '%s'" % (CmdName, ContainerId), file=sys.stderr)
+
+    except (flywheel.rest.ApiException) as e:
+        return(None, "%s : Cannot find container by '%s' : %s" % (CmdName, ContainerId, e.reason))
+
+    OldLabel = container.label
+    MvString = "mv %s(%s) => %s" % (OldLabel, ContainerId, NewLabel)
+
+    if (OldLabel == NewLabel):
+        return(container, "%s : OldLabel '%s' == NewLabel '%s'. Skipping" % (CmdName, OldLabel, NewLabel))
+    
+    if (args.noop or args.verbose):
+        print("%s : %s" % (CmdName, MvString))
+
+    try:
+        if (args.noop or args.verbose):
+            print("%s : Adding note '%s'" % (CmdName, MvString), file=sys.stderr)
+        if (not args.noop):
+            container.add_note(MvString)
+
+    except (flywheel.rest.ApiException) as e:
+        return(None, "%s : Cannot add note '%s' to container '%s' : %s" % (CmdName, MvString, ContainerId, e.reason))
+            
+    try:
+        if (args.noop or args.verbose):
+            print("%s : Changing container label from '%s' to '%s'" % (CmdName, OldLabel, NewLabel), file=sys.stderr)
+        if (not args.noop):
+            container.update(label=NewLabel)
+
+        return(container, None)
+
+    except (flywheel.rest.ApiException) as e:
+        return(None, "%s : Cannot update container '%s' with new label '%s'. '%s'" % (CmdName, ContainerId, NewLabel, e.reason))
+
 
 if __name__ == '__main__':
 
@@ -20,6 +71,7 @@ if __name__ == '__main__':
     ap.add_argument('-n', '--noop', action='store_true', help='show what the program would do, but do not do it')
     ap.add_argument('-v', '--verbose', action='store_true', help='show what the program is doing')
     ap.add_argument('project', nargs=1, type=str, default=None, help='group/project|ProjectID')
+    ap.add_argument('renamefile', nargs='*', type=str, default=None, help='rename file : format of [mv ] SessionID TimeStamp SubjectLabel SessionLabel => NewSessionLabel[ NewSubjectLabel]')
 
     args = ap.parse_args()
 
@@ -58,48 +110,36 @@ if __name__ == '__main__':
     else:
        sys.exit(0)
 
-    for line in sys.stdin:
-        LineList = line.rstrip().split()
+    with open(args.renamefile[0], 'r') if len(args.renamefile) > 0 else sys.stdin as csvfile:
+       csvreader = csv.reader(csvfile, delimiter=' ') 
+       for LineList in csvreader:
+            if (LineList[0] == 'mv'):
+               LineList.pop(0)
 
-        try:
-            session = fw.get(LineList[0])
-            if (args.verbose or args.noop):
-                print("%s : Got project '%s' session '%s'" % (CmdName, project.label, session.label), file=sys.stderr)
+            SessionID = LineList[0]
 
-
-        except (flywheel.rest.ApiException) as e:
-            print("%s : Cannot find session by '%s' : %s" % (CmdName, LineList[0], e.reason), file=sys.stderr)
-            continue
-
-        NewLabel = LineList[-1]
-        OldLabel = session.label
-
-        if (OldLabel == NewLabel):
-            if (args.noop or args.verbose):
-                print("%s : OldLabel '%s' == NewLabel '%s'. Skipping" % (CmdName, OldLabel, NewLabel), file=sys.stderr)
-        else:
-            MvString = "mv %s => %s" % (LineList[0], NewLabel)
-
-            if (args.noop or args.verbose):
-                print("%s : %s" % (CmdName, MvString))
-
-            try:
-                if (args.noop or args.verbose):
-                    print("%s : Adding note '%s'" % (CmdName, MvString), file=sys.stderr)
-                if (not args.noop):
-                    session.add_note(MvString)
-
-            except (flywheel.rest.ApiException) as e:
-                print("%s : Cannot add note '%s' to session '%s' : %s" % (CmdName, MvString, session._id, e.reason), file=sys.stderr)
+            if (LineList[ImplyIndex] == '=>'):
+                NewSessionLabel = LineList[ImplyIndex+1]
+            else:
+                print("%s : bad rename line '%s' : Skipping" % (CmdName, ' '.join(LineList)), file=sys.stderr)
                 continue
 
-            try:
-                if (args.noop or args.verbose):
-                    print("%s : Changing session label from '%s' to '%s'" % (CmdName, OldLabel, NewLabel), file=sys.stderr)
-                if (not args.noop):
-                    session.update(label=LineList[-1])
+            (session, emesg) = renameContainer(CmdName, args, SessionID, NewSessionLabel)
+            if (emesg):
+                print(emesg, file=sys.stderr)
 
-            except (flywheel.rest.ApiException) as e:
-                print("%s : Cannot update session '%s' with new label '%s'" % (CmdName, OldLabel, NewLabel), file=sys.stderr)
-                continue
+            if ((len(LineList) - ImplyIndex) > 1):
+                OldSubjectLabel = LineList[OldSubjectLabelIndex]
+                NewSubjectLabel = LineList[ImplyIndex+2]
+                SubjectID = session.subject._id
 
+                if (OldSubjectLabel == NewSubjectLabel):
+                    print(container, "%s : OldSubjectLabel '%s' == NewSubjectLabel '%s'. Skipping" % (CmdName, OldSubjectLabel, NewSubjectLabel))
+                else:
+                    (subject, emesg) = renameContainer(CmdName, args, SubjectID, NewSubjectLabel)
+                    if (emesg):
+                        print(emesg, file=sys.stderr)
+
+                    
+
+            

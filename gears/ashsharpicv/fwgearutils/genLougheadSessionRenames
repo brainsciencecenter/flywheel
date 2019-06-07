@@ -45,7 +45,7 @@ do
 		n=$(($n + 1))
 	fi
 
-	read Asid Stid <<< $(echo "$ScanDateAndTimeJson" | jq ".[$n] | \"\(.ASID) \(.STID)\"")	
+	read Asid Stid <<< $(echo "$ScanDateAndTimeJson" | jq -r ".[$n] | \"\(.ASID) \(.STID)\"")	
 	if [ -z "$Stid" ]
 	then
 		Stid=MissingData
@@ -53,7 +53,7 @@ do
 
 	PaddedAsid=$(printf "%06d" $Asid)
 
-	echo "mv '$SessionID' '$MachineScanDate' '$StartTime' '$SubjectLabel' '$SessionLabel' => '$PaddedAsid' '$Stid'"
+	echo "mv \"$SessionID\" \"$MachineScanDate\" \"$StartTime\" \"$SubjectLabel\" \"$SessionLabel\" => \"$Stid\" \"$PaddedAsid\""
 done
 
 if [ -n "$RemoveTmpFile" ]
