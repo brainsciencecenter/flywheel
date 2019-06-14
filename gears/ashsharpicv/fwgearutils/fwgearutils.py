@@ -61,12 +61,12 @@ def getConfigJson(config_json):
 
 def getApiKey(args):
     ApiKey = None
-    ApiKeyFile = '~/.config/flywheel/api.key'
+    ApiKeyFile = expanduser('~/.config/flywheel/api.key')
     ConfigJson = '/flywheel/v0/config.json'
 
     if (hasattr(args,'apikeyfile') and args.apikeyfile):
        ApiKeyFile = expanduser(args.apikeyfile)
-
+       
     if (hasattr(args,'apikey') and args.apikey):
         ApiKey = args.apikey
     elif (os.path.isfile(ApiKeyFile)):
@@ -83,6 +83,22 @@ def getApiKey(args):
              raise SystemExit("No apikey file '%s', or config.json file '%s'. " % (ApiKeyFile, args.config_json))
 
     return(ApiKey)
+
+def getFW(args):
+   
+    ApiKey = getApiKey(args)
+
+    try:
+        fw = flywheel.Client()
+    except (OSError, Exception) as e:
+        try:
+            fw = flywheel.Client(ApiKey,root=True)
+            return(fw)
+        
+        except (OSError, Exception) as e2:
+            print("e2",e2, file=sys.stderr)
+            print("e",e, file=sys.stderr)
+            sys.exit(1)
 
 def sloppyCopy(d):
     '''

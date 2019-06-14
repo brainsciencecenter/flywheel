@@ -75,6 +75,8 @@ if __name__ == '__main__':
 
     args = ap.parse_args()
 
+    fw = fwgearutils.getFW(args)
+    '''
     ApiKey = fwgearutils.getApiKey(args)
 
     try:
@@ -87,7 +89,7 @@ if __name__ == '__main__':
             print("e2",e2, file=sys.stderr)
             print("e",e, file=sys.stderr)
             sys.exit(1)
-
+    '''
     if (args.project):
        try:
            container = fw.get(args.project[0])
@@ -137,9 +139,15 @@ if __name__ == '__main__':
                     print(container, "%s : OldSubjectLabel '%s' == NewSubjectLabel '%s'. Skipping" % (CmdName, OldSubjectLabel, NewSubjectLabel))
                 else:
                     (subject, emesg) = renameContainer(CmdName, args, SubjectID, NewSubjectLabel)
-                    if (emesg):
+                    NewSubject = fw.subjects.find_one('code="{}"'.format(NewSubjectLabel))
+                    if (NewSubject.id != SubjectID):
+                        if (args.noop or args.verbose):
+                            print("%s : Updating session's subject from '%s' to '%s'" % (CmdName, OldSubjectLabel, NewSubjectLabel), file=sys.stderr)
+                        if (not args.noop):
+                            session.update({'subject': {'_id': NewSubject.id}})
+                    elif (emesg):
                         print(emesg, file=sys.stderr)
 
-                    
+
 
             

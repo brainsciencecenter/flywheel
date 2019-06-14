@@ -96,7 +96,7 @@ function sys {
 function getXNATSessions {
 	 local XNATProject="$1"
 	 
-	 (cd "$XNATBaseDir/$XNATProject/arc001"; ls | sort -n)
+	 (cd "$XNATBaseDir/$XNATProject/arc001"; ls | sort)
 }
 
 function getFWSessions {
@@ -105,13 +105,13 @@ function getFWSessions {
 
 	# *** just because we're authenticated to fw doesn't mean we
 	#     have authorization to this group/project
-	for Subject in $( fw ls "${FWGroupID}/${FWProject}" | awk '{print $2}' | sort -n)
+	for Subject in $( fw ls "${FWGroupID}/${FWProject}" | awk '{print $2}')
 	do
 		sys fw ls "${FWGroupID}/${FWProject}/${Subject}" | awk '{print $NF}'
-	done
+	done | sort
 }
 
-function getSessionsDiff {p
+function getSessionsDiff {
         local FWGroupID="$1"
         local FWProject="$2"
         local XNATProject="$3"
@@ -190,7 +190,6 @@ function cleanup {
 #
 opt_t=4
 opt_w=2
-
 
 while getopts Fg:lnP:p:qt:w:v arg
 do

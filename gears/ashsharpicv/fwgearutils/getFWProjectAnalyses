@@ -9,6 +9,9 @@ import argparse
 import fwgearutils
 
 def listGearFiles(project):
+    global CmdName
+    global args
+
     Analyses = []
 
     for c in project.sessions():
@@ -16,25 +19,30 @@ def listGearFiles(project):
             if (analysis.gear_info):
                 if (args.gear and analysis.gear_info.name != args.gear):
                     continue
-                Analyses.append(analysis)
+                for f in analysis.files:
+                    Analyses.append({ 'analysis': analysis, 'file': f})
 
     for c in fw.projects.find("group=%s" % (project.group), "label=%s" % (project.label)):
         for analysis in fw.get(c.id).analyses:
             if (analysis.gear_info):
                 if (args.gear and analysis.gear_info.name != args.gear):
                     continue
-                Analyses.append(analysis)
-                        
 
-    for analysis in Analyses:
-        for f in analysis.files:
-            print("%s/%s %s" % (analysis.id,f.id,f.name))
+                for f in analysis.files:
+                    Analyses.append({ 'analysis': analysis, 'file': f})
 
-def downloadGearFile(analysis,file):
-    print(analysis.download_file.__doc__)
-    print(file)
-    analysis.download_file(file.name,file.name)
-    
+
+    return(Analyses)
+
+def downloadGearFile(analysis,File):
+    global CmdName
+    global args
+
+    if (args.noop or args.verbose):
+        print("Downloading file '%s'" % (File.name), file=sys.stderr)
+
+    if (not args.noop):
+        analysis.download_file(File.name,File.name)
 
 if __name__ == '__main__':
 
@@ -49,13 +57,19 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-k', '--apikey', type=str, default=None, dest="apikey", help='apikey')
+    ap.add_argument('-D', '--download', action='store_true', help='download requested analysis files')
     ap.add_argument('-d', '--downloaddir', type=str, nargs=1, default=None, help='download switch')
     ap.add_argument('-g', '--gear', type=str, default=None, dest="gear", help='gear')
+    ap.add_argument('-n', '--noop', action='store_true', help='show what the program would do, but do not do it')
+    ap.add_argument('-v', '--verbose', action='store_true', help='show what the program is doing')
     ap.add_argument('ids', nargs='+', type=str, default=None, help='group/project|ProjectID')
 
     args = ap.parse_args()
 
-    ApiKey = fwgearutils.getApiKey(args)
+    if (args.apikey):
+        ApiKey = args.apikey
+    else:
+        ApiKey = fwgearutils.getApiKey(args)
 
     try:
         fw = flywheel.Client()
@@ -70,6 +84,9 @@ if __name__ == '__main__':
 
     if (args.downloaddir):
         #print("chdir to %s" % (args.downloaddir[0]))
+        if (args.noop or args.verbose):
+            print("%s : change directory to '%s'" % (CmdName, args.downloaddir[0]))
+
         os.chdir(args.downloaddir[0])
 
 
@@ -92,15 +109,21 @@ if __name__ == '__main__':
 
         if (type(container) == flywheel.models.container_project_output.ContainerProjectOutput):
             project = fw.get(container.parents.project)
-            listGearFiles(project)
+            Analyses = listGearFiles(project)
         elif (type(container) == flywheel.models.resolver_project_node.ResolverProjectNode):
             project = container
-            listGearFiles(project)
+            Analyses = listGearFiles(project)
         elif (type(container) == flywheel.models.container_analysis_output.ContainerAnalysisOutput):
             (aid, fid) = re.split('/',id)
             analysis = fw.get(aid)
             [ file ] = list(filter(lambda x: x.id == fid, analysis.files))
-            downloadGearFile(analysis,file)
+            Analysis = [{ 'analysis': analysis, 'file': file }]
+
+        for analysis in Analyses:
+            print("%s/%s %s" % (analysis['analysis'].id, analysis['file'].id, analysis['file'].name ))
+
+            if (args.download):
+                downloadGearFile(analysis['analysis'], analysis['file'])
 
     else:
         sys.exit(0)

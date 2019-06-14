@@ -1,6 +1,6 @@
 {
 	"name": "ashsharpicv",
-	"label": "AshsHarpIcv",
+	"label": "Penn Memory Center Hippocampus Volumetry Pipeline",
 	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
 	"version": "0.2.22",
 	"inputs": {

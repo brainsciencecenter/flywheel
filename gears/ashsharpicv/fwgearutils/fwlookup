@@ -44,21 +44,21 @@ if __name__ == '__main__':
         Session = fwgearutils.sloppyCopy(session)
         Acquisitions = []
         for a in session.acquisitions():
-            acquisition = fw.get(a.id)
+            aprime = fw.get(a.id)
 
             Files = []
             if (args.zip_info):
-                for f in a.files:
+                for f in aprime.files:
                     File = fwgearutils.sloppyCopy(f)
                     if (re.search('.zip$', f.name)):
-                        File['zip_info'] = fwgearutils.sloppyCopy(a.get_file_zip_info(f.name))
+                        File['zip_info'] = fwgearutils.sloppyCopy(aprime.get_file_zip_info(f.name))
                         File['zip_member_count'] = len(File['zip_info']['members'])
                 
                     Files.append(File.copy())
 
-            acquisition.files = Files
-
-            Acquisitions.append(fwgearutils.sloppyCopy(acquisition))
+            acquisition = fwgearutils.sloppyCopy(aprime)
+            acquisition['files'] = Files
+            Acquisitions.append((acquisition))
             
         Session['acquisitions'] = Acquisitions.copy()
 
