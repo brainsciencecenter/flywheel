@@ -15,6 +15,8 @@ cmd=$(basename $0)
 
 syntax="$cmd [-F]{-g FWGroupID}[-l][-n][-P XNATProject]{-p FlyWheelProject}[-q][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[XNATSession] ...]"
 
+XNATBaseDir=/data/XNAT/archive
+
 : <<=cut
 =pod
 
@@ -142,13 +144,13 @@ function xnat2fw {
 
 	shift 2
 
-	local cmd
+	local FWCmd
 
 	for Session in "$@"
 	do
 		if [ ! -e "$Session" ]
 		then
-			echo "$cmd : No such file or direcotry for session '$Session' : skipping" 1>&2
+			echo "$cmd : No such file or directory for session '$Session' : skipping" 1>&2
 			continue
 		fi
 
@@ -162,12 +164,12 @@ function xnat2fw {
 		#
 		# fw -q doesn't seem to do anything  Force it.
 		#	
-		cmd=(fw import dicom -y --quiet --de-identify --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Session" "$FWGroupID" "$FWProject")
+		FWCmd=(fw import dicom -y --quiet --de-identify --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Session" "$FWGroupID" "$FWProject")
 		if [ -n "$opt_q" ]
 		then
-			sys "${cmd[@]}" > /dev/null
+			sys "${FWCmd[@]}" > /dev/null
 		else
-			sys "${cmd[@]}"
+			sys "${FWCmd[@]}"
 		fi	  
 	done
 }
@@ -229,7 +231,6 @@ else
 	XNATProject="$opt_p"
 fi
 
-XNATBaseDir=/data/XNAT/archive
 if [ ! -e "${XNATBaseDir}/${XNATProject}" ]
 then
 	echo "$cmd : No such file or directory '${XNATBaseDir}/${XNATProject}'" 1>&2
