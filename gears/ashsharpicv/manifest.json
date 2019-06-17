@@ -59,6 +59,9 @@
 	"source": "",
 	"url": "",
 	"custom": {
+		"vlywheel": {
+			"suite": BrainScienceCenter"
+		}
 		"gear-builder": {
 			"category": "analysis",
 			"image": "ashs/itksnap:latest"
