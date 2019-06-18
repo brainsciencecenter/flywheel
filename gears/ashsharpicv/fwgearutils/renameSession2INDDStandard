@@ -3,7 +3,7 @@
 
 #'.sessions[] | "mv \(.timestamp) \(.subject.label) \(.label) => \(.subject.label)_\(.timestamp|strptime("%Y%m%d %H:%M:%S")|strftime("%Y%0m%0d"))_\(if (.acquisitions[0].files[0].info.ManufacturerModelName | test("Prisma")) then "3T" elif (.acquisitions[0].files[0].info.ManufacturerModelName | test("Ingenuity TF PET/CT")) then "PETMR" elif (.acquisitions[0].files[0].info.ManufacturerModelName | test("Investigational_Device_7T")) then "7T" else .acquisitions[0].files[0].info.ManufacturerModelName end)"' /tmp/nacc-sc.json 
 
-foo='.sessions[] | 
+JQFilter='.sessions[] | 
 	"mv \(.timestamp) \(.subject.label) \(.label) => \(.subject.label|sub("\\.";"_"))_\(.timestamp|strptime("%Y%m%d %H:%M:%S")|strftime("%Y%0m%0d"))_\(
 if (.acquisitions[0].files[0].info.ManufacturerModelName | test("Prisma")) then
 	"3T"
@@ -16,5 +16,5 @@ else
 end)"
 '
 
-jq  -r -f <(echo "$foo") "$1" | awk '{if (seen[$NF]) { printf "%s_dup%d\n", $0, seen[$NF]} else { print $0} ++seen[$NF] }'
+jq  -r -f <(echo "$JQFilter") "$1" | awk '{if (seen[$NF]) { printf "%s_dup%d\n", $0, seen[$NF]} else { print $0} ++seen[$NF] }'
 
