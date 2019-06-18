@@ -1,0 +1,28 @@
+#!/bin/bash
+
+AcquisitionDir="$1"
+
+echo "{"
+
+NeedAcqComma=""
+for ad in $(find "$AcquisitionDir" -mindepth 1 -maxdepth 1 -type d)
+do
+	if [ "$NeedAcqComma" ]
+	then
+		echo ","
+	else
+		NeedAcqComma=true
+	fi
+
+	AcquisitionID=$(basename "$ad")
+
+	echo "\"$AcquisitionID\": { \"SOPInstanceUID\": ["
+
+	SOPInstanceUIDs=$(unzip -l /tmp/flywheel/5c9a910df546b60039ef01af/T1_3D_0.8x0.8x0.8.dicom.zip | grep '.dcm$' | awk '{print $4}' | sed -r 's/^([\.0-9]*)([.A-Za-z]+)/\1/; s/\.$//')
+	ZipMemberCount=$(echo "$SOPInstanceUIDs" | wc -l)
+	echo $SOPInstanceUIDs | sed 's/^/"/; s/$/"/; s/ /", "/g'
+
+	echo "], \"zip_member_count\": $ZipMemberCount }"
+
+done
+echo "}"	
