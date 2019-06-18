@@ -35,5 +35,3 @@ fi
 Project="$1"
 pullFWProjectInfo "$Project" | jq "$JQExpr"
 
-
-
