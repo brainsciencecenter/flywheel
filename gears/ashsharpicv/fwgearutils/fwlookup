@@ -50,11 +50,19 @@ if __name__ == '__main__':
             if (args.zip_info):
                 for f in aprime.files:
                     File = fwgearutils.sloppyCopy(f)
-                    if (re.search('.zip$', f.name)):
-                        File['zip_info'] = fwgearutils.sloppyCopy(aprime.get_file_zip_info(f.name))
-                        File['zip_member_count'] = len(File['zip_info']['members'])
+                    if (re.search('\.zip$', f.name)):
+                        if (f.size > 0):
+                            try:
+                                File['zip_info'] = fwgearutils.sloppyCopy(aprime.get_file_zip_info(f.name))
+                                File['zip_member_count'] = len(File['zip_info']['members'])
                 
-                    Files.append(File.copy())
+                                Files.append(File.copy())
+                            except (flywheel.rest.ApiException) as e:
+                                print("%s : %s/%s(%s).get_file_zip_info failed on '%s' : %s - %s\n" % (CmdName, s.label, a.label, aprime.id, f.name, e.status, e.reason), file=sys.stderr)
+                                continue
+                        else:
+                                print("%s : Size of '%s/%s(%s)/%s' is 0 : Skipping\n" % (CmdName, s.label, a.label, aprime.id, f.name), file=sys.stderr)
+                                continue
 
             acquisition = fwgearutils.sloppyCopy(aprime)
             acquisition['files'] = Files
