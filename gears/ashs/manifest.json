@@ -1,15 +1,25 @@
 {
-	"name": "ashsharpicv",
+	"name": "ashs",
 	"label": "Penn Memory Center Hippocampus Volumetry Pipeline",
 	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
-	"version": "0.2.22",
+	"version": "0.0.1",
 	"inputs": {
 		"api-key": {
 			"base": "api-key"
 		},
-		"dicom": {
+		"t1": {
 			"base": "file",
-			"description": "Any dicom file.",
+			"description": "T1 weighted dicom or nifti file.",
+			"optional": true,
+			"type": {
+				"enum": [
+					"dicom"
+				]
+			}
+		},
+		"t2": {
+			"base": "file",
+			"description": "T2 weighted dicom or nifti file.",
 			"optional": true,
 			"type": {
 				"enum": [
@@ -19,9 +29,19 @@
 		}
 	},
 	"config": {
-		"Age": {
-			"description": "Age of subject in years. Default found in dicom headers.",
-			"type": "number"
+		"DSSService": {
+			"description": "Segmentation service to use.  defaults to ASHS-HarP(1). May be one of ASHS-Magdeburg(2), ASHS-PMC-T1(3), ASHS-PMC-T2(4), ASHS-Princeton(5), ASHS-Utrect(6)",
+			"enum": [
+			      "1 - ASHS-HarP",
+			      "2 - ASHS-Magdeburg",
+			      "3 - ASHS-PMC-T1",
+			      "4 - ASHS-PMC-T2",
+			      "5 - ASHS-Princeton",
+			      "6 - ASHS-Utrecht"
+			],
+			"default": "ASHS",
+		    
+		        "type": "string"
 		},
 		"ProjectName": {
 			"default": "",
@@ -59,9 +79,6 @@
 	"source": "",
 	"url": "",
 	"custom": {
-		"flywheel": {
-			"suite": "BrainScienceCenter"
-		},
 		"gear-builder": {
 			"category": "analysis",
 			"image": "ashs/itksnap:latest"

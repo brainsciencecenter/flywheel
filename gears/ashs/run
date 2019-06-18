@@ -1,0 +1,70 @@
+#!/bin/bash -x
+
+# updated 16:04
+
+# Unpack the dicom/nifti image
+
+export FLYWHEEL=${FLYWHEEL:=/flywheel/v0}
+export PATH=${FLYWHEEL}:$PATH
+
+export FLYWHEEL_INPUTDIR="${FLYWHEEL}/input"
+export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
+
+CONFIG_FILE=${FLYWHEEL}/config.json
+GearName=ashs
+
+echo "/flywheel/v0"
+ls -lR /flywheel/v0
+
+cat "$CONFIG_FILE"
+
+installFWSupportFiles
+
+if [ -e "/root/.alfabis/server" -a -e "/root/.alfabis/cookie_"*".jar" ]
+then
+	echo "Found itksnap cookie jar"
+else
+	echo "No itksnap cookie found.  Bailing"
+	exit 1
+fi
+
+itksnap-wt -dss-tickets-list
+
+echo Zipfiles in $FLYWHEEL_INPUTDIR:
+find ${FLYWHEEL_INPUTDIR} -type f | grep '.zip$'
+
+# Run the pipeline
+
+while read line
+do
+    ExtractDir=$(mktemp -d /tmp/${GearName}-XXXXXX)
+    
+    if echo "$line" | grep -q '.nii.gz$'
+    then
+	ExtractDir="$line"
+    else
+	dirname=$(dirname "$line")
+	basename=$(basename "$line")
+	(echo cd "$dirname"; cd "$dirname"; echo unzip -j $basename -d "${ExtractDir}"; unzip -j "$basename" -d "$ExtractDir")
+    fi
+
+    ProjectName=$(getGearParam ProjectName ImageComments UnknownProjectName)
+    if [ "$ProjectName" == "UnknownProjectName" ]
+    then
+	ProjectID=$(jq -r '.["destination"]["id"]' "$CONFIG_FILE")
+	ProjectName=$(getFWParent "$ProjectID")
+    fi
+
+    SessionID=$(getGearParam SessionID StudyDescription UnknownSessionID)
+    ScanID=$(getGearParam ScanID SeriesDescription UnknownScanID)
+    
+    # R markdown boofs if the SessionID has a ^ in it.
+    SessionID=$(echo "$SessionID" | sed 's/\^/-/g')
+
+    run_pipeline.sh -s "$SessionID" -n "$ScanID" -p "$ProjectName" -S "$DSSService" "$ExtractDir" "$FLYWHEEL_OUTPUTDIR"
+done < <(find ${FLYWHEEL_INPUTDIR} -type f | grep -P '(\.zip|.gz)$')
+
+
+echo "/flywheel/v0"
+ls -lR /flywheel/v0
+
