@@ -18,7 +18,7 @@ ls -lR /flywheel/v0
 
 cat "$CONFIG_FILE"
 
-installFWSupportFiles
+bash -x installFWSupportFiles
 
 if [ -e "/root/.alfabis/server" -a -e "/root/.alfabis/cookie_"*".jar" ]
 then
