@@ -1,20 +1,41 @@
 #!/bin/bash
 
-
-#'.sessions[] | "mv \(.timestamp) \(.subject.label) \(.label) => \(.subject.label)_\(.timestamp|strptime("%Y%m%d %H:%M:%S")|strftime("%Y%0m%0d"))_\(if (.acquisitions[0].files[0].info.ManufacturerModelName | test("Prisma")) then "3T" elif (.acquisitions[0].files[0].info.ManufacturerModelName | test("Ingenuity TF PET/CT")) then "PETMR" elif (.acquisitions[0].files[0].info.ManufacturerModelName | test("Investigational_Device_7T")) then "7T" else .acquisitions[0].files[0].info.ManufacturerModelName end)"' /tmp/nacc-sc.json 
-
-foo='.sessions[] | 
+JQExpr='.sessions[] | 
 	"mv \(.timestamp) \(.subject.label) \(.label) => \(.subject.label|sub("\\.";"_"))_\(.timestamp|strptime("%Y%m%d %H:%M:%S")|strftime("%Y%0m%0d"))_\(
 if (.acquisitions[0].files[0].info.ManufacturerModelName | test("Prisma")) then
 	"3T"
-elif (.acquisitions[0].files[0].info.ManufacturerModelName | test("Ingenuity TF PET/CT")) then
-	"PETMR"
 elif (.acquisitions[0].files[0].info.ManufacturerModelName | test("Investigational_Device_7T")) then
 	"7T"
+elif ((.acquisitions[0].files[0].info.ManufacturerModelName | test("Ingenuity TF PET/CT")) or (.acquisitions[0].files[0].info.ManufacturerModelName | test("GEMINI TF TOF 16"))) then
+  if (.label | test("AV1451")) then
+    "AV1451PET"
+  elif (.label | test("FlorbetabenAmyloid")) then
+    "FBAPET"
+  elif (.label | test("Florbetaben")) then
+    "FBBPET"
+  else
+    "Unknown"
+  end
 else
-	.acquisitions[0].files[0].info.ManufacturerModelName
+  .acquisitions[0].files[0].info.ManufacturerModelName
 end)"
 '
 
-jq  -r -f <(echo "$foo") "$1" | awk '{if (seen[$NF]) { printf "%s_dup%d\n", $0, seen[$NF]} else { print $0} ++seen[$NF] }'
+jq  -r -f <(echo "$JQExpr") "$1" | awk '{if (seen[$NF]) { printf "%s_dup%d\n", $0, seen[$NF]} else { print $0} ++seen[$NF] }'
 
+ scanner=$(dicom_hdr $dicom_file | grep "Model Name" | awk 'BEGIN { FS = "//" } ; { print $NF }' )
+  scandate=$(echo $session | awk -F"_" '{for(i=1;i<=NF;i++){if ($i ~ /^201*/){print $i}}}' )
+  PETtype=$(echo $session | awk -F"_" '{for(i=1;i<=NF;i++){if ($i ~ /PET*/){print $i}}}' )
+  echo /$session/$id/\"$scanner\"/$scandate/
+  if [[ "$scanner" == *"Prisma"* ]]; then
+    scanid=MRI3T
+  elif [[ "$scanner" == *"Investigational_Device_7T "* ]]; then
+    scanid=MRI7T
+  elif [[ "$scanner" == *"Ingenuity TF PET/CT "* ]] || [[ "$scanner" == *"GEMINI TF TOF 16"* ]] ; then
+    if [[ $PETtype == *"AV1451"* ]]; then
+      scanid=TauPET
+    else
+      scanid=AmyloidPET
+    fi
+  else
+    scanid=Unknown
