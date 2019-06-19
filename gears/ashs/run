@@ -28,41 +28,14 @@ else
 	exit 1
 fi
 
+DSSService=$(getGearParam "DSSService" ImageComments UnknownServiceName)
+T1Path=$(getGearParam "t1 path" ImageComments UnknownProjectName)
+T2Path=$(getGearParam "t2 path" ImageComments UnknownProjectName)
+
 itksnap-wt -dss-tickets-list
 
-echo Zipfiles in $FLYWHEEL_INPUTDIR:
-find ${FLYWHEEL_INPUTDIR} -type f | grep '.zip$'
 
-# Run the pipeline
-
-while read line
-do
-    ExtractDir=$(mktemp -d /tmp/${GearName}-XXXXXX)
-    
-    if echo "$line" | grep -q '.nii.gz$'
-    then
-	ExtractDir="$line"
-    else
-	dirname=$(dirname "$line")
-	basename=$(basename "$line")
-	(echo cd "$dirname"; cd "$dirname"; echo unzip -j $basename -d "${ExtractDir}"; unzip -j "$basename" -d "$ExtractDir")
-    fi
-
-    ProjectName=$(getGearParam ProjectName ImageComments UnknownProjectName)
-    if [ "$ProjectName" == "UnknownProjectName" ]
-    then
-	ProjectID=$(jq -r '.["destination"]["id"]' "$CONFIG_FILE")
-	ProjectName=$(getFWParent "$ProjectID")
-    fi
-
-    SessionID=$(getGearParam SessionID StudyDescription UnknownSessionID)
-    ScanID=$(getGearParam ScanID SeriesDescription UnknownScanID)
-    
-    # R markdown boofs if the SessionID has a ^ in it.
-    SessionID=$(echo "$SessionID" | sed 's/\^/-/g')
-
-    run_pipeline.sh -s "$SessionID" -n "$ScanID" -p "$ProjectName" -S "$DSSService" "$ExtractDir" "$FLYWHEEL_OUTPUTDIR"
-done < <(find ${FLYWHEEL_INPUTDIR} -type f | grep -P '(\.zip|.gz)$')
+run_pipeline.sh -s "$DSSService" -d "$FLYWHEEL_OUTPUTDIR" -T "$T1Path" -t "$T2Path"
 
 
 echo "/flywheel/v0"

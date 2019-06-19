@@ -35,7 +35,7 @@ fi
 Project="$1"
 Json=$(pullFWProjectInfo "$Project")
 rc=$?
-if [ "$?" == 0 ]
+if [ "$rc" == 0 ]
 then
     echo "$Json"| jq "$JQExpr"
     rc=$?

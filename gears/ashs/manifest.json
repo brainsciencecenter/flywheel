@@ -17,7 +17,7 @@
 				]
 			}
 		},
-		"t2": {
+		"t2": { 
 			"base": "file",
 			"description": "T2 weighted dicom or nifti file.",
 			"optional": true,
@@ -30,7 +30,7 @@
 	},
 	"config": {
 		"DSSService": {
-			"default": "ASHS",
+			"default": "ASHS-HarP",
 			"description": "Segmentation service to use.  defaults to ASHS-HarP(1). May be one of ASHS-Magdeburg(2), ASHS-PMC-T1(3), ASHS-PMC-T2(4), ASHS-Princeton(5), ASHS-Utrect(6)",
 			"enum": [
 				"1 - ASHS-HarP",
