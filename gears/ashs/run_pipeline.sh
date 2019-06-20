@@ -40,6 +40,37 @@ function niftiIfNeeded {
     echo "$NiftiFile"
 }
 
+#
+# User input is used to select which valid input to return.
+# Do not return user input under any circumstances
+#
+function checkDSSService {
+    local Service="$1"
+    
+    if echo -q "$Service" | grep -q ASHS-PMC-T2
+    then
+	Service=ASHS-PMC
+    fi
+
+    ValidServices=(ASHS-HarP ASHS-Magdeburg ASHS-PMC-T1 ASHS-PMC ASHS-Princeton ASHS-Utrecht)
+    for i in "${ValidServices[@]}"
+    do
+	if echo "$Service" | grep -i -q "^$i$"
+	then
+	    echo "$i"
+	    return 0
+	fi
+    done
+
+    if echo "$Service" | grep -q '^[0-9][0-9]*$' &&  [ -n "${ValidServices[$Service]}" ]
+    then
+	echo "${ValidServices[$Service]}"
+	return 0
+    fi
+
+    return 1
+}
+
 while getopts "d:s:T:t:" arg
 do
 	case "$arg" in
@@ -58,16 +89,12 @@ then
     exit 1
 fi
 
-if (! echo "$opt_s" | grep -qi -P "(ASHS-HarP)|(ASHS-Magdeburg)|(ASHS-PMC-T1)|(ASHS-PMC-T2)|(ASHS-Princeton)|(ASHS-Utrecht)")
+Service=$(checkDSSService "$opt_s")
+if [ -z "$Service" ]
 then
     echo "$cmd : bad service '$opt_s'" 1>&2
     echo "$syntax" 1>&2
     exit 1
-fi
-
-if echo -q "$opt_s" | grep -q ASHS-PMC-T2
-then
-    opt_s=ASHS-PMC
 fi
 
 if [ -z "$opt_T" ]
@@ -101,9 +128,16 @@ T2NiftiFile=$(niftiIfNeeded "$opt_t")
 # Authorization token is in ~/.alfabis/cookie*.jar
 # -o is a file
 # -i looks like it needs to be .nii.gz
-itksnap-wt -layers-add-anat "$T1NiftiFile" -tags-add "T1-MRI" -layers-add-anat "$T2NiftiFile" -tags-add "T2-MRI" -layers-list -o "$WorkspaceFile"
+if [ "$Service" == "ASHS-HarP" ]
+then
+    T1Tag=T1
+else
+    T1Tag=T1-MRI
+fi
 
-itksnap-wt -i "$WorkspaceFile" -dss-tickets-create "$opt_s" > "$TicketFile"
+itksnap-wt -layers-add-anat "$T1NiftiFile" -tags-add "$T1Tag" -layers-add-anat "$T2NiftiFile" -tags-add "T2-MRI" -layers-list -o "$WorkspaceFile"
+
+itksnap-wt -i "$WorkspaceFile" -dss-tickets-create "$Service" > "$TicketFile"
 
 TicketNumber=$(awk '/2>/ {printf "%08d\n", $2}' "$TicketFile")
 if [ -z "$TicketNumber" ]
@@ -135,6 +169,6 @@ do
 done
 cp "$ITKSnapFile" $OutputDir
 
-#itksnap-wt -dss-tickets-delete "$TicketNumber"
+itksnap-wt -dss-tickets-delete "$TicketNumber"
 
 # rm -rf "$Tmpdir"

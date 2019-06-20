@@ -2,8 +2,6 @@
 
 # updated 16:04
 
-# Unpack the dicom/nifti image
-
 export FLYWHEEL=${FLYWHEEL:=/flywheel/v0}
 export PATH=${FLYWHEEL}:$PATH
 
@@ -12,6 +10,8 @@ export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
 
 CONFIG_FILE=${FLYWHEEL}/config.json
 GearName=ashs
+
+echo 35.184.111.29 dss.itksnap.org >> /etc/hosts
 
 echo "/flywheel/v0"
 ls -lR /flywheel/v0
