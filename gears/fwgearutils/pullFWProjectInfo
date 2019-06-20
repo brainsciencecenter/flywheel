@@ -50,9 +50,15 @@ if __name__ == '__main__':
     if (args.project):
         try:
             container = fw.get(args.project[0])
-            if ('gear_info' in container.keys()):
+            if (type(container) == flywheel.models.container_project_output.ContainerProjectOutput):
+                project = container
+            elif ('gear_info' in container.keys()):
                 ProjectID = container.parents.project
                 project = fw.get(ProjectID)
+            else:
+                print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
+                sys.exit(e.status)
+
 
         except flywheel.rest.ApiException as e:
             try:
@@ -62,6 +68,6 @@ if __name__ == '__main__':
                 print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
                 sys.exit(e.status)
 
-    ProjectInfoDict = fwgearutils.decodeKeys(project.info)
+        ProjectInfoDict = fwgearutils.decodeKeys(project.info)
+        print(json.dumps(ProjectInfoDict))
 
-    print(json.dumps(ProjectInfoDict))

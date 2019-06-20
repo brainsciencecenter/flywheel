@@ -1,0 +1,43 @@
+#!/bin/bash -x
+
+# updated 16:04
+
+export FLYWHEEL=${FLYWHEEL:=/flywheel/v0}
+export PATH=${FLYWHEEL}:$PATH
+
+export FLYWHEEL_INPUTDIR="${FLYWHEEL}/input"
+export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
+
+CONFIG_FILE=${FLYWHEEL}/config.json
+GearName=ashs
+
+echo 35.184.111.29 dss.itksnap.org >> /etc/hosts
+
+echo "/flywheel/v0"
+ls -lR /flywheel/v0
+
+cat "$CONFIG_FILE"
+
+bash -x installFWSupportFiles
+
+if [ -e "/root/.alfabis/server" -a -e "/root/.alfabis/cookie_"*".jar" ]
+then
+	echo "Found itksnap cookie jar"
+else
+	echo "No itksnap cookie found.  Bailing"
+	exit 1
+fi
+
+DSSService=$(getGearParam "DSSService" ImageComments UnknownServiceName)
+T1Path=$(getGearParam "t1 path" ImageComments UnknownProjectName)
+T2Path=$(getGearParam "t2 path" ImageComments UnknownProjectName)
+
+itksnap-wt -dss-tickets-list
+
+
+run_pipeline.sh -s "$DSSService" -d "$FLYWHEEL_OUTPUTDIR" -T "$T1Path" -t "$T2Path"
+
+
+echo "/flywheel/v0"
+ls -lR /flywheel/v0
+

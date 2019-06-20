@@ -1,0 +1,25 @@
+#!/bin/bash
+
+JQExpr='.sessions[] | 
+	"mv \(.timestamp) \(.subject.label) \(.label) => \(.subject.label|sub("\\.";"_"))_\(.timestamp|strptime("%Y%m%d %H:%M:%S")|strftime("%Y%0m%0d"))_\(
+if (.acquisitions[0].files[0].info.ManufacturerModelName | test("Prisma")) then
+	"3T"
+elif (.acquisitions[0].files[0].info.ManufacturerModelName | test("Investigational_Device_7T")) then
+	"7T"
+elif ((.acquisitions[0].files[0].info.ManufacturerModelName | test("Ingenuity TF PET/CT")) or (.acquisitions[0].files[0].info.ManufacturerModelName | test("GEMINI TF TOF 16"))) then
+  if (.label | test("AV1451")) then
+    "FTPPET"
+  elif (.label | test("FlorbetabenAmyloid")) then
+    "FBPPET"
+  elif (.label | test("Florbetaben")) then
+    "FBBPET"
+  else
+    "Unknown"
+  end
+else
+  .acquisitions[0].files[0].info.ManufacturerModelName
+end)"
+'
+
+jq  -r -f <(echo "$JQExpr") "$1" | awk '{if (seen[$NF]) { printf "%s_dup%d\n", $0, seen[$NF]} else { print $0} ++seen[$NF] }'
+

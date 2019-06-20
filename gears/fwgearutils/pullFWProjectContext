@@ -33,7 +33,14 @@ then
 fi
 
 Project="$1"
-pullFWProjectInfo "$Project" | jq "$JQExpr"
+Json=$(pullFWProjectInfo "$Project")
+rc=$?
+if [ "$rc" == 0 ]
+then
+    echo "$Json"| jq "$JQExpr"
+    rc=$?
+fi
 
+exit "$rc"
 
 

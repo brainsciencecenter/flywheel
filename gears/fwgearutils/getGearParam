@@ -28,7 +28,8 @@ then
 	exit 1
 fi
 
-ConfigParam=$(jq -r '.["config"]["'$1'"]' "$ConfigFile")
+JQExpr=$(echo "$1" | sed -r 's/ / | /g; s/(\w+)/..|select(.\1)?|.\1/g')
+ConfigParam=$(jq -r "$JQExpr" "$ConfigFile")
 if [ -n "$ConfigParam" -a "$ConfigParam" != 'null' -a "$ConfigParam" != '' ]
 then
 	echo "$ConfigParam"
