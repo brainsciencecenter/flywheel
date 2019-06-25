@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# syncs NACC-SC AshsHarP reports to INDD
+
+cmd=$(basename "$0")
+
+#FWReports=$(getFWProjectAnalyses -g ashsharpicv dwolklab/NACC-SC | grep .pdf | grep _3T_)
+FWReports=$(cat /tmp/nacc-sc.outputs | grep .pdf | grep _3T_)
+
+FWINDDColumn=$(echo "$FWReports" | cut -f 2 -d ' ' | ashsharp2INDDReportName)
+
+FWFullReportInfo=$(paste <(echo "$FWReports") <(echo "$FWINDDColumn") | sort -k +3)
+
+ReportsToDownload=$(diff <(echo "$FWFullReportInfo" | awk '{print $3}') /tmp/indd.toc | grep '<' | cut -f 2 -d ' ')
+
+if [ -n "$ReportsToDownload" ]
+then
+	tmpdir=$(mktemp -d /tmp/${cmd}-XXXXXX)
+	cd "$tmpdir"
+
+	AidFids=()
+	for i in $ReportsToDownload
+	do
+		AidFid=$(echo "$FWFullReportInfo" | grep "$i$" | cut -f 1 -d ' ' | head -n 1)
+		AidFids+=("$AidFid")
+	done
+	
+	getFWProjectAnalyses -v -D -d "$tmpdir" "${AidFids[@]}"
+
+	for i in *.pdf
+	do
+		InddName=$(echo "$i" | ashsharp2INDDReportName)
+		echo ssh cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c 'put - $InddName' " 
+	done
+
+	rm -rf "$tmpdir"
+fi
+

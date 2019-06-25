@@ -19,8 +19,10 @@ def listGearFiles(project):
             if (analysis.gear_info):
                 if (args.gear and analysis.gear_info.name != args.gear):
                     continue
-                for f in analysis.files:
-                    Analyses.append({ 'analysis': analysis, 'file': f})
+
+                if (analysis.files):
+                    for f in analysis.files:
+                        Analyses.append({ 'analysis': analysis, 'file': f})
 
     for c in fw.projects.find("group=%s" % (project.group), "label=%s" % (project.label)):
         for analysis in fw.get(c.id).analyses:
@@ -108,22 +110,26 @@ if __name__ == '__main__':
                     sys.exit(e.status)
 
         if (type(container) == flywheel.models.container_project_output.ContainerProjectOutput):
+            # AcquisitionID eg: 5d01594ca550c600466fccf7
             project = fw.get(container.parents.project)
             Analyses = listGearFiles(project)
         elif (type(container) == flywheel.models.resolver_project_node.ResolverProjectNode):
+            # group/project eg: dwolklab/NACC-SC
             project = container
             Analyses = listGearFiles(project)
         elif (type(container) == flywheel.models.container_analysis_output.ContainerAnalysisOutput):
+            # AcquisitionID/FileID eg: 5d0a9dcaa550c600396fc61e/0a3f5b45-133f-467a-bba1-c4647650cbbf
             (aid, fid) = re.split('/',id)
             analysis = fw.get(aid)
             [ file ] = list(filter(lambda x: x.id == fid, analysis.files))
-            Analysis = [{ 'analysis': analysis, 'file': file }]
+            Analyses = [{ 'analysis': analysis, 'file': file }]
 
-        for analysis in Analyses:
-            print("%s/%s %s" % (analysis['analysis'].id, analysis['file'].id, analysis['file'].name ))
+        if (Analyses):
+            for analysis in Analyses:
+                print("%s/%s %s" % (analysis['analysis'].id, analysis['file'].id, analysis['file'].name ))
 
-            if (args.download):
-                downloadGearFile(analysis['analysis'], analysis['file'])
+                if (args.download):
+                    downloadGearFile(analysis['analysis'], analysis['file'])
 
     else:
         sys.exit(0)
