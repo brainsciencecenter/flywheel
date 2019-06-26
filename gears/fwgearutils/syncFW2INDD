@@ -4,14 +4,20 @@
 
 cmd=$(basename "$0")
 
-#FWReports=$(getFWProjectAnalyses -g ashsharpicv dwolklab/NACC-SC | grep .pdf | grep _3T_)
-FWReports=$(cat /tmp/nacc-sc.outputs | grep .pdf | grep _3T_)
+GroupProject="dwolklab/NACC-SC"
+Gear=ashsharpicv
+
+INDDToc=$(mktemp /tmp/${cmd}-XXXXX)
+ssh cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c dir 2> /dev/null" | awk '{print $1}' | grep -P '^\d{6}(\.\d{2})?_\d{8}.pdf$' | sort  > "$INDDToc"
+
+FWReports=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | grep .pdf | grep _3T_)
 
 FWINDDColumn=$(echo "$FWReports" | cut -f 2 -d ' ' | ashsharp2INDDReportName)
 
 FWFullReportInfo=$(paste <(echo "$FWReports") <(echo "$FWINDDColumn") | sort -k +3)
 
-ReportsToDownload=$(diff <(echo "$FWFullReportInfo" | awk '{print $3}') /tmp/indd.toc | grep '<' | cut -f 2 -d ' ')
+# Sometimes there can be multiple analyses run on the same session so we want the sort -u to prevent unneeded downloads
+ReportsToDownload=$(diff <(echo "$FWFullReportInfo" | awk '{print $3}' | sort -u) "$INDDToc" | grep '<' | cut -f 2 -d ' ')
 
 if [ -n "$ReportsToDownload" ]
 then
@@ -30,9 +36,10 @@ then
 	for i in *.pdf
 	do
 		InddName=$(echo "$i" | ashsharp2INDDReportName)
-		echo ssh cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c 'put - $InddName' " 
+		cat "$i" | ssh cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c 'put - $InddName' 2> /dev/null "
 	done
 
 	rm -rf "$tmpdir"
 fi
 
+# rm "$INDDToc"
