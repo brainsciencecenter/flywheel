@@ -13,7 +13,7 @@ syntax="$cmd [-f inddreporttofilter][-g gear][-n][-v] Group/Project"
 
 function sys {
 	  [ -n "${opt_n}${opt_v}" ] && echo "$cmd : $@" 1>&2
-	  [ -n "$opt_z" ] || "$@"
+	  [ -n "$opt_n" ] || "$@"
 }
 
 opt_f='xxxxx'
@@ -73,9 +73,9 @@ then
 		AidFids+=("$AidFid")
 	done
 	
-	sys getFWProjectAnalyses -v -D -d "$tmpdir" "${AidFids[@]}"
+	DownloadedFiles=$(sys getFWProjectAnalyses -D -d "$tmpdir" "${AidFids[@]}" | awk '{print $2}')
 
-	for i in *.pdf
+	for i in $DownloadedFiles
 	do
 		InddName=$(echo "$i" | ashsharp2INDDReportName)
 		cat "$i" | ssh -x cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c 'put - $InddName' 2> /dev/null "

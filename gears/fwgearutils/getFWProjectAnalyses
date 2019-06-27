@@ -63,6 +63,7 @@ if __name__ == '__main__':
     ap.add_argument('-d', '--downloaddir', type=str, nargs=1, default=None, help='download switch')
     ap.add_argument('-g', '--gear', type=str, default=None, dest="gear", help='gear')
     ap.add_argument('-n', '--noop', action='store_true', help='show what the program would do, but do not do it')
+    ap.add_argument('-q', '--quiet', action='store_true', help='turn off printing')
     ap.add_argument('-v', '--verbose', action='store_true', help='show what the program is doing')
     ap.add_argument('ids', nargs='+', type=str, default=None, help='group/project|ProjectID')
 
@@ -74,7 +75,6 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if (args.downloaddir):
-        #print("chdir to %s" % (args.downloaddir[0]))
         if (args.noop or args.verbose):
             print("%s : change directory to '%s'" % (CmdName, args.downloaddir[0]))
 
@@ -115,7 +115,8 @@ if __name__ == '__main__':
 
         if (Analyses):
             for analysis in Analyses:
-                print("%s/%s %s" % (analysis['analysis'].id, analysis['file'].id, analysis['file'].name ))
+                if (not args.quiet):
+                    print("%s/%s %s" % (analysis['analysis'].id, analysis['file'].id, analysis['file'].name ))
 
                 if (args.download):
                     downloadGearFile(analysis['analysis'], analysis['file'])
