@@ -92,7 +92,7 @@ def getFW(args):
         fw = flywheel.Client()
     except (OSError, Exception) as e:
         try:
-            fw = flywheel.Client(ApiKey,root=True)
+            fw = flywheel.Client(ApiKey)
             return(fw)
         
         except (OSError, Exception) as e2:
