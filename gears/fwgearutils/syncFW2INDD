@@ -2,15 +2,53 @@
 
 # syncs NACC-SC AshsHarP reports to INDD
 
+# Assumptions
+# + Only 3T reports are looked for
+# + Each session only has a since analysis.  It is possible to run multiple analyses, but there is only room in the INDD for one of them.
+# 
+
 cmd=$(basename "$0")
 
-GroupProject="dwolklab/NACC-SC"
-Gear=ashsharpicv
+syntax="$cmd [-g gear][-n][-v] Group/Project"
+
+function sys {
+	  [ -n "${opt_n}${opt_v}" ] && echo "$cmd : $@" 1>&2
+	  [ -n "$opt_z" ] || "$@"
+}
+
+while getopts g:nv arg
+do
+	case "$arg" in
+	     g|n|v)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -n "$opt_g" ]
+then
+   Gear="$opt_g"
+else
+   Gear=ashsharpicv
+fi
+
+if [ -n "$1" ]
+then
+	GroupProject="$1"
+else
+	GroupProject="dwolklab/NACC-SC"
+fi
 
 INDDToc=$(mktemp /tmp/${cmd}-XXXXX)
-ssh cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c dir 2> /dev/null" | awk '{print $1}' | grep -P '^\d{6}(\.\d{2})?_\d{8}.pdf$' | sort  > "$INDDToc"
+ssh cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c dir 2> /dev/null" | awk '{print $1}' | grep -P '^\d{6}(\.\d{2})?_\d{8}.pdf$' | sort | grep -v 125070_20190619.pdf  > "$INDDToc"
+
+[ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of INDD reports" 1>&2
 
 FWReports=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | grep .pdf | grep _3T_)
+
+[ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of Flywheel reports from $GroupProject" 1>&2
 
 FWINDDColumn=$(echo "$FWReports" | cut -f 2 -d ' ' | ashsharp2INDDReportName)
 
@@ -21,6 +59,8 @@ ReportsToDownload=$(diff <(echo "$FWFullReportInfo" | awk '{print $3}' | sort -u
 
 if [ -n "$ReportsToDownload" ]
 then
+	[ -n "${opt_n}${opt_v}" ] && echo "$cmd : ReportsToDownload = " $ReportsToDownload 1>&2
+
 	tmpdir=$(mktemp -d /tmp/${cmd}-XXXXXX)
 	cd "$tmpdir"
 
@@ -31,15 +71,18 @@ then
 		AidFids+=("$AidFid")
 	done
 	
-	getFWProjectAnalyses -v -D -d "$tmpdir" "${AidFids[@]}"
+	sys getFWProjectAnalyses -v -D -d "$tmpdir" "${AidFids[@]}"
 
 	for i in *.pdf
 	do
 		InddName=$(echo "$i" | ashsharp2INDDReportName)
 		cat "$i" | ssh cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c 'put - $InddName' 2> /dev/null "
+		[ -n "${opt_n}${opt_v}" ] && echo "$cmd : copy '$i' to '//cndr-indd.uphs.pennhealth.prv/mrireport/$InddName'" 1>&2
 	done
 
 	rm -rf "$tmpdir"
+else
+	[ -n "${opt_n}${opt_v}" ] && echo "$cmd : No Flywheel reports to sync to INDD" 1>&2
 fi
 
 # rm "$INDDToc"
