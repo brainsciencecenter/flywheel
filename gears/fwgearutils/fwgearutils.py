@@ -86,19 +86,20 @@ def getApiKey(args):
 
 def getFW(args):
    
-    ApiKey = getApiKey(args)
-
     try:
         fw = flywheel.Client()
+        return(fw)
     except (OSError, Exception) as e:
         try:
-            fw = flywheel.Client(ApiKey)
-            return(fw)
+           ApiKey = getApiKey(args)
+
+           fw = flywheel.Client(ApiKey)
+           return(fw)
         
         except (OSError, Exception) as e2:
-            print("e2",e2, file=sys.stderr)
-            print("e",e, file=sys.stderr)
-            sys.exit(1)
+           print("e2",e2, file=sys.stderr)
+           print("e",e, file=sys.stderr)
+           sys.exit(1)
 
 def sloppyCopy(d):
     '''

@@ -20,19 +20,10 @@ if __name__ == '__main__':
 
     args = ap.parse_args()
 
-    ApiKey = fwgearutils.getApiKey(args)
-
-    try:
-        fw = flywheel.Client()
-    except (OSError, Exception) as e:
-        try:
-            fw = flywheel.Client(ApiKey,root=True)
-        
-        except (OSError, Exception) as e2:
-            print("e2",e2, file=sys.stderr)
-            print("e",e, file=sys.stderr)
-            sys.exit(1)
-
+    fw = fwgearutils.getFW(args)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
 
     c = fw.lookup(args.path[0])
 
