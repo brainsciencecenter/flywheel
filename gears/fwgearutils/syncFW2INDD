@@ -42,7 +42,7 @@ else
 fi
 
 INDDToc=$(mktemp /tmp/${cmd}-XXXXX)
-ssh cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c dir 2> /dev/null" | awk '{print $1}' | grep -P '^\d{6}(\.\d{2})?_\d{8}.pdf$' | sort | grep -v 125070_20190619.pdf  > "$INDDToc"
+ssh -x cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c dir 2> /dev/null" | awk '{print $1}' | grep -P '^\d{6}(\.\d{2})?_\d{8}.pdf$' | sort | grep -v 125070_20190619.pdf  > "$INDDToc"
 
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of INDD reports" 1>&2
 
@@ -76,8 +76,8 @@ then
 	for i in *.pdf
 	do
 		InddName=$(echo "$i" | ashsharp2INDDReportName)
-		cat "$i" | ssh cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c 'put - $InddName' 2> /dev/null "
-		[ -n "${opt_n}${opt_v}" ] && echo "$cmd : copy '$i' to '//cndr-indd.uphs.pennhealth.prv/mrireport/$InddName'" 1>&2
+		cat "$i" | ssh -x cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c 'put - $InddName' 2> /dev/null "
+		[ -n "${opt_n}${opt_v}" ] && echo "$cmd : copy Flywheel/$GroupProject '$i' to INDD:'//cndr-indd.uphs.pennhealth.prv/mrireport/$InddName'" 1>&2
 	done
 
 	rm -rf "$tmpdir"
