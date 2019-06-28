@@ -31,7 +31,7 @@ else
 	while read line
 	do
 		StudyDescriptions+=("$line")
-	done < <(./fw-mvsessions -v   -f  "$FromGroupProject" | sed 's/^.*: *//; s/ *$//' | sort -u)
+	done < <(fw-mvsessions -v   -f  "$FromGroupProject" | sed 's/^.*: *//; s/ *$//' | sort -u)
 	#echo "StudyDescription: ${StudyDescriptions[0]}"
 fi
 
@@ -64,7 +64,7 @@ do
 
 	if [ -n "$ToGroup" ]
 	then
-		sys ./fw-mvsessions -v -f "$FromGroupProject" -i StudyDescription="$StudyDescription" -t "${ToGroup}/${ToProject}"
+		sys fw-mvsessions -v -f "$FromGroupProject" -i StudyDescription="$StudyDescription" -t "${ToGroup}/${ToProject}"
 	else		
 		echo No entry for "'$StudyDescription'" in "'$LookUpTable'" 1>&2
 	fi

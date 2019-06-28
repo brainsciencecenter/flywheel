@@ -16,6 +16,7 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
+    ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('path', nargs=1, type=str, default=None, help='group/project')
 
     args = ap.parse_args()
@@ -29,18 +30,27 @@ if __name__ == '__main__':
 
     j = fwgearutils.sloppyCopy(c)
 
-    if (type(c) == 'flywheel.models.resolver_project_node.ResolverProjectNode'):
+    if (type(c) == flywheel.models.resolver_project_node.ResolverProjectNode):
         Sessions = []
         for s in c.sessions():
+            if (args.verbose):
+                print("%s : '%s'" % (CmdName, s.label), file=sys.stderr)
+
             session = fw.get(s.id)
             Session = fwgearutils.sloppyCopy(session)
             Acquisitions = []
             for a in session.acquisitions():
+                if (args.verbose):
+                    print("%s : '%s/%s'" % (CmdName, s.label, a.label), file=sys.stderr)
+
                 aprime = fw.get(a.id)
 
                 Files = []
                 if (args.zip_info):
                     for f in aprime.files:
+                        if (args.verbose):
+                            print("%s : '%s/%s/%s'" % (CmdName, s.label, a.label, f.name), file=sys.stderr)
+
                         File = fwgearutils.sloppyCopy(f)
                         if (re.search('\.zip$', f.name)):
                             if (f.size > 0):
