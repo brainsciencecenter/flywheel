@@ -141,7 +141,7 @@ function session2Subject {
 function path2ProjectSubjectSession {
 	 local Path="$1"
 
-	 echo "$Path" | cut -f 1,3,4 | tr '/' ' '
+	 echo "$Path" | cut -f 1,3,4 -d / | tr '/' ' '
 }
 
 function syncDicom2FW {
