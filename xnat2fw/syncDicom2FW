@@ -163,7 +163,7 @@ function syncDicom2FW {
 		fi
 
 		FWPath=$(dirPath2FWPath "$FWGroupID" "$Project" "$Path")
-		read Subject Session < <(echo "$FWPath" | tr '/' ' ')
+		read g p Subject Session < <(echo "$FWPath" | tr '/' ' ')
 
 		#
 		# fw -q doesn't seem to do anything  Force it.
