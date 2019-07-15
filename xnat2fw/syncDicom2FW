@@ -109,7 +109,7 @@ function getFWSessions {
 	#     have authorization to this group/project
 	for Subject in $( fw ls "${FWGroupID}/${FWProject}" | awk '{print $2}')
 	do
-		sys fw ls "${FWGroupID}/${FWProject}/${Subject}" | grep -v " files/" | awk '{print "'"${FWGroup}/${FWProject}/${Subject}/"'"$NF}'
+		sys fw ls "${FWGroupID}/${FWProject}/${Subject}" | grep -v " files/" | awk '{print "'"${FWGroupID}/${FWProject}/${Subject}/"'"$NF}'
 	done | sort
 }
 
