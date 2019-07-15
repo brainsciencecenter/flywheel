@@ -215,14 +215,6 @@ else
 	exit 1
 fi
 
-
-if [ -n "$1" ]
-then
-	Sessions=("$@")
-else
-	Sessions=($(getSessionsStill2Import "$FWGroupID" "$FWProject" "$XNATProject"))
-fi
-
 function prefix {
 	 XNATURL=http://picsl-xnat.uphs.upenn.edu
 	 XNATSessionID=$(curl -n -s "$XNATURL/data/JSESSION")
@@ -246,7 +238,15 @@ then
 	sys cd "$opt_d"
 fi
 
-syncDicom2FW "$FWGroupID" 
+if [ -n "$1" ]
+then
+	Sessions=("$@")
+else
+	d=4
+	Sessions=($find . -mindepth $d -maxdepth $d -name '[A-Z][A-Z]*[0-9][0-9]*' | grep Subjects)
+fi
+
+sys syncDicom2FW "$FWGroupID" 
 
 cleanup
 
