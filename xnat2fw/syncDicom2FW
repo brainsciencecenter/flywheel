@@ -139,9 +139,11 @@ function session2Subject {
 }
 
 function dirPath2FWPath {
-	 local Path="$1"
+    local Group="$1"
+    local Project="$2"
+    local Path="$3"
 
-	 echo "$Path" | cut -f 1,3,4 -d /
+    echo "$Group/$Project/$(echo $Path | cut -f 8,9 -d /)"
 }
 
 function syncDicom2FW {
@@ -160,8 +162,8 @@ function syncDicom2FW {
 			continue
 		fi
 
-		FWPath=$(dirPath2FWPath "$Path")
-		read p Subject Session < <(echo "$FWPath" | tr '/' ' ')
+		FWPath=$(dirPath2FWPath "$FWGroupID" "$Project" "$Path")
+		read Subject Session < <(echo "$FWPath" | tr '/' ' ')
 
 		#
 		# fw -q doesn't seem to do anything  Force it.
