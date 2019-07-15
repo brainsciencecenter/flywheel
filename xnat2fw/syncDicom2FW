@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 #
 # Xnat credentials are expected in ~/.netrc (man netrc for details)
@@ -50,7 +50,7 @@ List the remaining XNAT sessions to upload to the given Flywheel group and proje
 
 =item -n
 
-No-op.  Show what would have been done, but don't really do anything
+No-op.  Show what would have been done, but don\'t really do anything
 
 =item -P XNATProject
 
@@ -141,11 +141,11 @@ function session2Subject {
 function path2ProjectSubjectSession {
 	 local Path="$1"
 
-	 echo "$Path | sed -r 's,.*/([^/]+)/Subjects/([0-9]{6})/([A-Z]+[0-9]+)$,\1 \2,'
+	 echo "$Path" | sed -r 's,.*/([^/]+)/Subjects/([0-9]{6})/([A-Z]+[0-9]+)$,\1 \2 \3,'
 }
 
 function syncDicom2FW {
-        local FWGroupID=$1
+        local FWGroupID="$1"
 
 	shift 2
 
@@ -240,13 +240,14 @@ fi
 
 if [ -n "$1" ]
 then
-	Sessions=("$@")
+	Paths=("$@")
 else
 	d=4
-	Sessions=($find . -mindepth $d -maxdepth $d -name '[A-Z][A-Z]*[0-9][0-9]*' | grep Subjects)
+	Paths=($(find . -mindepth $d -maxdepth $d -name '[A-Z][A-Z]*[0-9][0-9]*' | grep Subjects))
 fi
 
-sys syncDicom2FW "$FWGroupID" 
+syncDicom2FW "$FWGroupID" "${Paths[@]}"
 
 cleanup
+
 
