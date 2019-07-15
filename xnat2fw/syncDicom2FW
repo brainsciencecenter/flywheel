@@ -135,36 +135,36 @@ function getSessionsStill2Import {
 function session2Subject {
 	 local Session="$1"
 
-	 grep ",$Session," "$XNATCSVFile" | cut -f 2 -d ,
+	 grep ",$Session," "$CleanupFile" | cut -f 2 -d ,
 }
 
-function xnat2fw {
+function path2ProjectSubjectSession {
+	 local Path="$1"
+
+	 echo "$Path | sed -r 's,.*/([^/]+)/Subjects/([0-9]{6})/([A-Z]+[0-9]+)$,\1 \2,'
+}
+
+function syncDicom2FW {
         local FWGroupID=$1
-        local FWProject="$2"
 
 	shift 2
 
 	local FWCmd
 
-	for Session in "$@"
+	for Path in "$@"
 	do
-		if [ ! -e "$Session" ]
+		read Project Subject Session < <(path2ProjectSubjectSession "$Path")
+		
+		if [ ! -e "$Path" ]
 		then
 			echo "$cmd : No such file or directory for session '$Session' : skipping" 1>&2
-			continue
-		fi
-
-		Subject=$(session2Subject "$Session")
-		if [ -z "$Subject" ]
-		then
-			echo "$cmd : Missing subject for session '$Session' : skipping" 1>&2
 			continue
 		fi
 
 		#
 		# fw -q doesn't seem to do anything  Force it.
 		#	
-		FWCmd=(fw import dicom -y --quiet --de-identify --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Session" "$FWGroupID" "$FWProject")
+		FWCmd=(fw import dicom -y --quiet --de-identify --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Session" "$FWGroupID" "$Path")
 		if [ -n "$opt_q" ]
 		then
 			sys "${FWCmd[@]}" > /dev/null
@@ -183,7 +183,7 @@ function getXNATSession2SubjectMap {
 }
 
 function cleanup {
-	 [ -e "$XNATCSVFile" ] && sys rm "$XNATCSVFile"
+	 [ -e "$CleanupFile" ] && sys rm "$CleanupFile"
 	 [ -n "$XNATSessionID" ] && sys curl -b "JSESSIONID=$XNATSessionID" -X DELETE "$XNATURL/data/JSESSION"
 }
 
@@ -193,10 +193,10 @@ function cleanup {
 opt_t=4
 opt_w=2
 
-while getopts Fg:lnP:p:qt:w:v arg
+while getopts d:Fg:lnP:p:qt:w:v arg
 do
 	case "$arg" in 
-		F|f|g|l|n|P|p|q|t|w|v)
+		d|F|f|g|l|n|P|p|q|t|w|v)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -215,40 +215,6 @@ else
 	exit 1
 fi
 
-if [ -n "$opt_p" ]
-then
-	FWProject="$opt_p"
-else
-	echo "$cmd : Missing -p argument" 1>&2
-	echo "$syntax" 1>&2
-	exit 1
-fi
-
-if [ -n "$opt_P" ]
-then
-	XNATProject="$opt_P"
-else
-	XNATProject="$opt_p"
-fi
-
-if [ ! -e "${XNATBaseDir}/${XNATProject}" ]
-then
-	echo "$cmd : No such file or directory '${XNATBaseDir}/${XNATProject}'" 1>&2
-	exit 1
-fi
-
-if ! fw status > /dev/null 2>&1
-then
-	echo "$cmd : Flywheel authorization failed" 1>&2
-	echo "	   use 'fw login' command to login to flywheel" 1>&2
-	exit 1
-fi
-	
-if [ -n "$opt_F" ]
-then
-	getFWSessions "$FWGroupID" "$FWProject"
-	exit
-fi
 
 if [ -n "$1" ]
 then
@@ -257,29 +223,30 @@ else
 	Sessions=($(getSessionsStill2Import "$FWGroupID" "$FWProject" "$XNATProject"))
 fi
 
-if [ -n "$opt_l" ]
+function prefix {
+	 XNATURL=http://picsl-xnat.uphs.upenn.edu
+	 XNATSessionID=$(curl -n -s "$XNATURL/data/JSESSION")
+
+	 HTTPCode=$(curl -b "JSESSIONID=$XNATSessionID" -s -o /dev/null -w "%{http_code}" "${XNATURL}/data/projects/${XNATProject}")
+	 if [ "$HTTPCode" == 401 ]
+	 then
+		echo "$cmd : XNAT authorization failed '$XNATURL'" 1>&2
+		cleanup
+
+	 	exit 1
+	 fi
+
+	 CleanupFile=$(sys mktemp /tmp/xnat2fw-XXXXX)
+	 getXNATSession2SubjectMap "$CleanupFile" "$XNATSessionID" "$XNATProject"
+}
+
+
+if [ -n "$opt_d" ]
 then
-	echo "${Sessions[@]}" | sed "s/ /\n/g"
-	exit 0
+	sys cd "$opt_d"
 fi
 
-XNATURL=http://picsl-xnat.uphs.upenn.edu
-XNATSessionID=$(curl -n -s "$XNATURL/data/JSESSION")
-
-HTTPCode=$(curl -b "JSESSIONID=$XNATSessionID" -s -o /dev/null -w "%{http_code}" "${XNATURL}/data/projects/${XNATProject}")
-if [ "$HTTPCode" == 401 ]
-then
-	echo "$cmd : XNAT authorization failed '$XNATURL'" 1>&2
-	cleanup
-	exit 1
-fi
-
-XNATCSVFile=$(sys mktemp /tmp/xnat2fw-XXXXX)
-getXNATSession2SubjectMap "$XNATCSVFile" "$XNATSessionID" "$XNATProject"
-
-sys cd "${XNATBaseDir}/${XNATProject}/arc001"
-
-xnat2fw "$FWGroupID" "$FWProject" "${Sessions[@]}" 
+syncDicom2FW "$FWGroupID" 
 
 cleanup
 
