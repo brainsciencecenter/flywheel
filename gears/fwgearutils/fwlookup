@@ -22,9 +22,6 @@ def getAcquisitionsJson(session):
         Files = []
         if (args.zip_info):
             for f in aprime.files:
-                if (args.verbose):
-                    print("%s : '%s/%s/%s/%s/files/%s'" % (CmdName, args.path[0], Subject.label, session.label, a.label, f.name), file=sys.stderr)
-
                 File = fwgearutils.sloppyCopy(f)
                 if (re.search('\.zip$', f.name)):
                     if (f.size > 0):
@@ -33,18 +30,26 @@ def getAcquisitionsJson(session):
                             File['zip_member_count'] = len(File['zip_info']['members'])
 
                             Files.append(File.copy())
+                            if (args.verbose):
+#                               print("%s : '%s/%s/%s/%s/files/%s' %d" % (CmdName, args.path[0], Subject.label, session.label, a.label, f.name, f.zip_member_count), file=sys.stderr)
+                                print("%s : '%s/%s/%s/%s/files/%s' %d" % (CmdName, args.path[0], Subject.label, session.label, a.label, f.name, File['zip_member_count']), file=sys.stderr)
+
                         except (flywheel.rest.ApiException) as e:
                             print("%s : %s/%s(%s).get_file_zip_info failed on '%s' : %s - %s\n" % (CmdName, session.label, a.label, aprime.id, f.name, e.status, e.reason), file=sys.stderr)
                             continue
-                        else:
-                            print("%s : Size of '%s/%s(%s)/%s' is 0 : Skipping\n" % (CmdName, session.label, a.label, aprime.id, f.name), file=sys.stderr)
-                            continue
+                    else:
+                        print("%s : Size of '%s/%s(%s)/%s' is 0 : Skipping\n" % (CmdName, session.label, a.label, aprime.id, f.name), file=sys.stderr)
+                        continue
+                else:
+                    if (args.verbose):
+                        print("%s : '%s/%s/%s/%s/files/%s'" % (CmdName, args.path[0], Subject.label, session.label, a.label, f.name), file=sys.stderr)
+
 
         acquisition = fwgearutils.sloppyCopy(aprime)
         acquisition['files'] = Files
         Acquisitions.append((acquisition))
 
-        return(Acquisitions)
+    return(Acquisitions)
 
 if __name__ == '__main__':
 
@@ -88,6 +93,7 @@ if __name__ == '__main__':
         j['sessions'] = Sessions
     elif (type(c) == flywheel.models.resolver_session_node.ResolverSessionNode):
             session = fw.get(c._id)
+
             Acquisitions = getAcquisitionsJson(session)
 
             j['acquisitions'] = Acquisitions.copy()
