@@ -216,6 +216,15 @@ else
 	exit 1
 fi
 
+if [ -n "$opt_p" ]
+then
+    Project="$opt_p"
+else
+    echo "$cmd : Missing -p argument" 1>&2
+    echo "$syntax" 1>&2
+    exit 1
+fi
+
 function prefix {
 	 XNATURL=http://picsl-xnat.uphs.upenn.edu
 	 XNATSessionID=$(curl -n -s "$XNATURL/data/JSESSION")
