@@ -13,7 +13,7 @@
 
 cmd=$(basename $0)
 
-syntax="$cmd [-F]{-g FWGroupID}[-l][-n][-P XNATProject]{-p FlyWheelProject}[-q][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[XNATSession] ...]"
+syntax="$cmd [-D depth][-d dir] [-F]{-g FWGroupID}[-l][-n][-P XNATProject]{-p FlyWheelProject}[-q][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[XNATSession] ...]"
 
 XNATBaseDir=/data/XNAT/archive
 
@@ -138,10 +138,10 @@ function session2Subject {
 	 grep ",$Session," "$CleanupFile" | cut -f 2 -d ,
 }
 
-function path2ProjectSubjectSession {
+function dirPath2FWPath {
 	 local Path="$1"
 
-	 echo "$Path" | cut -f 1,3,4 -d / | tr '/' ' '
+	 echo "$Path" | cut -f 1,3,4 -d /
 }
 
 function syncDicom2FW {
@@ -160,7 +160,8 @@ function syncDicom2FW {
 			continue
 		fi
 
-		read p Subject Session < <(path2ProjectSubjectSession "$Path")
+		FWPath=$(dirPath2FWPath "$Path")
+		read p Subject Session < <(echo "$FWPath" | tr '/' ' ')
 
 		#
 		# fw -q doesn't seem to do anything  Force it.
@@ -193,11 +194,12 @@ function cleanup {
 #
 opt_t=4
 opt_w=2
+opt_d=3
 
-while getopts d:Fg:lnP:p:qt:w:v arg
+while getopts D:d:Fg:lnP:p:qt:w:v arg
 do
 	case "$arg" in 
-		d|F|f|g|l|n|P|p|q|t|w|v)
+		D|d|F|f|g|l|n|P|p|q|t|w|v)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -243,17 +245,11 @@ function prefix {
 }
 
 
-if [ -n "$opt_d" ]
-then
-	sys cd "$opt_d"
-fi
-
 if [ -n "$1" ]
 then
 	Paths=("$@")
 else
-	d=3
-	Paths=($(find . -mindepth $d -maxdepth $d -name '[A-Z][A-Z]*[0-9][0-9]*' | grep Subjects))
+	Paths=($(find "$opt_d" -mindepth $Depth -maxdepth $Depth -name '[A-Z][A-Z]*[0-9][0-9]*' | grep Subjects))
 fi
 
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
