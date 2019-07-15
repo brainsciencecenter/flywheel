@@ -194,7 +194,7 @@ function cleanup {
 #
 opt_t=4
 opt_w=2
-opt_d=3
+opt_D=3
 
 while getopts D:d:Fg:lnP:p:qt:w:v arg
 do
@@ -227,7 +227,7 @@ else
     exit 1
 fi
 
-if [ -n "$opt_D"]
+if [ -n "$opt_D" ]
 then
     Depth="$opt_D"
 fi
