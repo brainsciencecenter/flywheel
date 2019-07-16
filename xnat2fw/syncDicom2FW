@@ -230,7 +230,7 @@ fi
 
 if [ -n "$opt_p" ]
 then
-    Project="$opt_p"
+    FWProject="$opt_p"
 else
     echo "$cmd : Missing -p argument" 1>&2
     echo "$syntax" 1>&2
