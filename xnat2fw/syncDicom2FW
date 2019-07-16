@@ -149,7 +149,7 @@ function dirPath2FWPath {
     local Project="$2"
     local Path="$3"
 
-    echo "$Group/$Project/$(echo $Path | cut -f 8,9 -d /)"
+    echo "$Group/$(echo $Path | cut -f 6,8,9 -d /)"
 }
 
 function syncDicom2FW {
@@ -264,7 +264,7 @@ then
 fi
 
 Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$Project" "$@"))
-dirPath2FWPath "${Paths[0]}"
+dirPath2FWPath "$FWGroupID" "${Paths[0]}"
 exit
 
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
