@@ -265,7 +265,7 @@ then
     exit $?
 fi
 
-Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$Project" "$@"))
+Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$FWProject" "$@"))
 
 DicomDirSessions=$(getDicomDirSessions "$FWGroupID" "${Paths[@]}" | sort)
 FWSessions=$(getFWSessions "$FWGroupID" "$FWProject" | sort)
