@@ -156,6 +156,10 @@ function syncDicom2FW {
 	shift
 
 	local FWCmd
+	local Project
+	local Subject
+	local Session
+	local g
 
 	for Path in "$@"
 	do
@@ -166,8 +170,8 @@ function syncDicom2FW {
 			continue
 		fi
 
-		FWPath=$(dirPath2FWPath "$FWGroupID" "$Project" "$Path")
-		read g p Subject Session < <(echo "$FWPath" | tr '/' ' ')
+		FWPath=$(dirPath2FWPath "$FWGroupID" "$Path")
+		read g Project Subject Session < <(echo "$FWPath" | tr '/' ' ')
 
 		#
 		# fw -q doesn't seem to do anything  Force it.
@@ -262,8 +266,6 @@ then
 fi
 
 Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$Project" "$@"))
-getDicomDirSessions "$FWGroupID" "${Paths[@]}"
-exit
 
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
 
