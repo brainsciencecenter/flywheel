@@ -254,7 +254,7 @@ function prefix {
 
 if [ -n "$opt_l" ]
 then
-    getFWSessions "$opt_g" "$opt_p"
+    getFWSessions -l "$opt_g" "$opt_p"
     exit $?
 fi
 
