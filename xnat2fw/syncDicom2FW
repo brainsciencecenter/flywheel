@@ -263,15 +263,9 @@ then
     exit $?
 fi
 
-getDicomDirsLoughead -g "$FWGroupID" -p "$Project" "$@"
+Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$Project" "$@"))
+getDicomDirSessions "${Paths[@]}"
 exit
-
-if [ -n "$1" ]
-then
-	Paths=("$@")
-else
-	Paths=( $(getDicomDirsLoughead))
-fi
 
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
 
