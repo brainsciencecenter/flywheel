@@ -186,6 +186,11 @@ function syncDicom2FW {
 	done
 }
 
+function mapFWSessions2Paths {
+    BaseDir=/data/jag/bbcp/Studies
+    awk -F / '{print "'"$BaseDir"'/"$2"/Subjects/"$3"/"$4}'
+}
+
 function getXNATSession2SubjectMap {
 	 local MapFile="$1"
 	 local SessionID="$2"
@@ -267,10 +272,10 @@ fi
 
 Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$FWProject" "$@"))
 
-DicomDirSessions=$(getDicomDirSessions "$FWGroupID" "${Paths[@]}" | sort)
 FWSessions=$(getFWSessions "$FWGroupID" "$FWProject" | sort)
+FWPaths=$(echo "$FWSessions" | mapFWSessions2Paths)
 
-diff <(echo "$DicomDirSessions") <(echo "$FWSessions")
+
 exit
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
 
