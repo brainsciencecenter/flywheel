@@ -281,7 +281,7 @@ fi
 
 FWPaths=$(echo "$FWSessions" | mapFWSessions2Paths)
 
-diff <(echo "${Paths[@]}") <(echo "$FWPaths") | grep '<' | sed 's,/< //'
+diff <(echo "${Paths[@]}") <(echo "$FWPaths") | grep '<' | sed 's/< //'
 
 exit
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
