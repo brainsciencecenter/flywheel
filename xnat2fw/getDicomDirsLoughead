@@ -67,7 +67,7 @@ do
 
 		if [ "${#Sessions[@]}" -gt 0 ]
 		then
-			echo "${Sessions[@]}"
+			echo "${Sessions[@]}" | tr ' ' '\n'
 		fi
 	done
 done
