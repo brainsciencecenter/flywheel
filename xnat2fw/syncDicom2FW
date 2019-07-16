@@ -102,7 +102,7 @@ function getDicomDirSessions {
 
     for DicomPath in "$@"
     do
-	dirPath2FWPath "$DicomGroup" "$DicomProject" "$DicomPath"
+	dirPath2FWPath "$DicomGroup" "$DicomPath"
     done
 }
 
