@@ -126,7 +126,7 @@ function getSessionsDiff {
 	local FWSessions=""
 
 	FWSessions=$(getFWSessions "$FWGroupID" "$FWProject")
-	diff <(getXNATSessions "$XNATProject") <(echo "$FWSessions" | sed 's/_MRI//')
+	diff <(getDicomDirSessions "FWGroupID") <(echo "$FWSessions" | sed 's/_MRI//')
 }
 
 function getSessionsStill2Import {
@@ -267,10 +267,10 @@ fi
 
 Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$Project" "$@"))
 
-DicomDirSessions=$(getDicomDirSessions "$FWGroupID" "${Paths[@]}")
-FWSessions=$(getFWSessions "$FWGroupID" "$FWProject")
+DicomDirSessions=$(getDicomDirSessions "$FWGroupID" "${Paths[@]}" | sort)
+FWSessions=$(getFWSessions "$FWGroupID" "$FWProject" | sort)
 
-echo "$FWSessions"
+diff <(echo "$DicomDirSessions") <(echo "$FWSessions")
 exit
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
 
