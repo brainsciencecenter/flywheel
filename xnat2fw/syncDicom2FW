@@ -95,10 +95,16 @@ function sys {
 #
 # /data/XNAT/archive/MEMORIES-2/arc001: has directories of the form DD_DDDDD_YYYYMMDD -- mostly.  Some of them have _PET extension.
 # 
-function getXNATSessions {
-	 local XNATProject="$1"
-	 
-	 (cd "$XNATBaseDir/$XNATProject/arc001"; ls | sort)
+function getDicomDirSessions {
+    local DicomGroup="$1"
+    local DicomProject="$2"
+
+    shift 2
+
+    for DicomPath in "$@"
+    do
+	dirPath2FWPath "$DicomGroup" "$DicomProject" "$DicomPath"
+    done
 }
 
 function getFWSessions {
@@ -257,11 +263,14 @@ then
     exit $?
 fi
 
+getDicomDirsLoughead -g "$FWGroupID" -p "$Project" "$@"
+exit
+
 if [ -n "$1" ]
 then
 	Paths=("$@")
 else
-	Paths=($(find "$opt_d" -mindepth $Depth -maxdepth $Depth -name '[A-Z][A-Z]*[0-9][0-9]*' | grep Subjects))
+	Paths=( $(getDicomDirsLoughead))
 fi
 
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
