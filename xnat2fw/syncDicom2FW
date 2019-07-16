@@ -106,18 +106,6 @@ function getDicomDirSessions {
     done
 }
 
-function getFWSessions {
-	local FWGroupID="$1"
-	local FWProject="$2"
-
-	# *** just because we're authenticated to fw doesn't mean we
-	#     have authorization to this group/project
-	for Subject in $( fw ls "${FWGroupID}/${FWProject}" | awk '{print $2}')
-	do
-		sys fw ls "${FWGroupID}/${FWProject}/${Subject}" | grep -v " files/" | awk '{print "'"${FWGroupID}/${FWProject}/${Subject}/"'"$NF}'
-	done | sort
-}
-
 function getSessionsDiff {
         local FWGroupID="$1"
         local FWProject="$2"
@@ -276,7 +264,7 @@ if [ -n "$opt_s" ]
 then
     FWSessions=$(< "$opt_s")
 else
-    FWSessions=$(getFWSessions "$FWGroupID" "$FWProject" | sort)
+    FWSessions=$(getFWSessions -g "$FWGroupID" "$FWProject" | sort)
 fi
 
 FWPaths=$(echo "$FWSessions" | mapFWSessions2Paths)
