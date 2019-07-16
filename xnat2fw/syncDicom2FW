@@ -275,7 +275,7 @@ Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$FWProject" "$@"))
 FWSessions=$(getFWSessions "$FWGroupID" "$FWProject" | sort)
 FWPaths=$(echo "$FWSessions" | mapFWSessions2Paths)
 
-echo "$FWPaths"
+diff <(echo "${Paths[@]}") <(echo "$FWPaths")
 
 exit
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
