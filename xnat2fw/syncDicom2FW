@@ -97,9 +97,8 @@ function sys {
 # 
 function getDicomDirSessions {
     local DicomGroup="$1"
-    local DicomProject="$2"
 
-    shift 2
+    shift 
 
     for DicomPath in "$@"
     do
@@ -263,7 +262,7 @@ then
 fi
 
 Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$Project" "$@"))
-dirPath2FWPath "$FWGroupID" "${Paths[0]}"
+getDicomDirSessions "$FWGroupID" "${Paths[0]}"
 exit
 
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
