@@ -211,10 +211,10 @@ opt_t=4
 opt_w=2
 opt_D=3
 
-while getopts D:d:Fg:lnP:p:qt:w:v arg
+while getopts D:d:Fg:lnP:p:qs:t:w:v arg
 do
 	case "$arg" in 
-		D|d|F|f|g|l|n|P|p|q|t|w|v)
+		D|d|F|f|g|l|n|P|p|q|s|t|w|v)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -272,10 +272,16 @@ fi
 
 Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$FWProject" "$@"))
 
-FWSessions=$(getFWSessions "$FWGroupID" "$FWProject" | sort)
+if [ -n "$opt_s" ]
+then
+    FWSessions=$(< "$opt_s")
+else
+    FWSessions=$(getFWSessions "$FWGroupID" "$FWProject" | sort)
+fi
+
 FWPaths=$(echo "$FWSessions" | mapFWSessions2Paths)
 
-diff <(echo "${Paths[@]}") <(echo "$FWPaths")
+diff <(echo "${Paths[@]}") <(echo "$FWPaths") | grep '<' | sed 's,/< //'
 
 exit
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
