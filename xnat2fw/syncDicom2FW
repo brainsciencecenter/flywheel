@@ -264,7 +264,7 @@ then
 fi
 
 Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$Project" "$@"))
-getDicomDirSessions "${Paths[@]}"
+dirPath2FWPath "${Paths[0]}"
 exit
 
 syncDicom2FW "$FWGroupID" "${Paths[@]}"
