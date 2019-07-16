@@ -13,7 +13,7 @@
 
 cmd=$(basename $0)
 
-syntax="$cmd [-D depth][-d dir] [-F]{-g FWGroupID}[-l][-n][-P XNATProject]{-p FlyWheelProject}[-q][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[XNATSession] ...]"
+syntax="$cmd [-D depth][-d dir] [-F]{-g FWGroupID}[-l][-n][-P XNATProject]{-p FlyWheelProject}[-q][-s cessionfile][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[XNATSession] ...]"
 
 XNATBaseDir=/data/XNAT/archive
 
@@ -92,45 +92,6 @@ function sys {
 	[ -z "$opt_n" ] && "$@"
 }
 
-#
-# /data/XNAT/archive/MEMORIES-2/arc001: has directories of the form DD_DDDDD_YYYYMMDD -- mostly.  Some of them have _PET extension.
-# 
-function getDicomDirSessions {
-    local DicomGroup="$1"
-
-    shift 
-
-    for DicomPath in "$@"
-    do
-	dirPath2FWPath "$DicomGroup" "$DicomPath"
-    done
-}
-
-function getSessionsDiff {
-        local FWGroupID="$1"
-        local FWProject="$2"
-        local XNATProject="$3"
-
-	local FWSessions=""
-
-	FWSessions=$(getFWSessions "$FWGroupID" "$FWProject")
-	diff <(getDicomDirSessions "FWGroupID") <(echo "$FWSessions" | sed 's/_MRI//')
-}
-
-function getSessionsStill2Import {
-        local FWGroupID=$1
-        local FWProject="$2"
-        local XNATProject="$3"
-
-	getSessionsDiff "$FWGroupID" "$FWProject" "$XNATProject" | grep '<' | awk '{print $2}'
-}
-
-function session2Subject {
-	 local Session="$1"
-
-	 grep ",$Session," "$CleanupFile" | cut -f 2 -d ,
-}
-
 function dirPath2FWPath {
     local Group="$1"
     local Path="$2"
@@ -158,8 +119,7 @@ function syncDicom2FW {
 			continue
 		fi
 
-		FWPath=$(dirPath2FWPath "$FWGroupID" "$Path")
-		read g Project Subject Session < <(echo "$FWPath" | tr '/' ' ')
+		read g Project Subject Session < <(echo "$Path" | $(mapPath2FWSessions) "$FWGroupID" | tr '/' ' ')
 
 		#
 		# fw -q doesn't seem to do anything  Force it.
@@ -174,19 +134,17 @@ function syncDicom2FW {
 	done
 }
 
-function mapFWSessions2Paths {
+function mapFWSessions2LougheadPaths {
     BaseDir=/data/jag/bbcp/Studies
     awk -F / '{print "'"$BaseDir"'/"$2"/Subjects/"$3"/"$4}'
 }
 
-function getXNATSession2SubjectMap {
-	 local MapFile="$1"
-	 local SessionID="$2"
-	 local XNATSession="$3"
-
-	 sys curl -s -b "JSESSIONID=$SessionID" "$XNATURL/data/archive/projects/${XNATSession}/experiments?columns=subject_label,label&format=csv" > $MapFile
+function mapLoughheadPath2FWSessions {
+    local Group="$1"
+    
+    awk -F / '{print "'"$Group"'/"$6"/"$8"/"$9}'
 }
-
+    
 function cleanup {
 	 [ -e "$CleanupFile" ] && sys rm "$CleanupFile"
 	 [ -n "$XNATSessionID" ] && sys curl -b "JSESSIONID=$XNATSessionID" -X DELETE "$XNATURL/data/JSESSION"
@@ -235,30 +193,16 @@ then
     Depth="$opt_D"
 fi
 
-function prefix {
-	 XNATURL=http://picsl-xnat.uphs.upenn.edu
-	 XNATSessionID=$(curl -n -s "$XNATURL/data/JSESSION")
-
-	 HTTPCode=$(curl -b "JSESSIONID=$XNATSessionID" -s -o /dev/null -w "%{http_code}" "${XNATURL}/data/projects/${XNATProject}")
-	 if [ "$HTTPCode" == 401 ]
-	 then
-		echo "$cmd : XNAT authorization failed '$XNATURL'" 1>&2
-		cleanup
-
-	 	exit 1
-	 fi
-
-	 CleanupFile=$(sys mktemp /tmp/xnat2fw-XXXXX)
-	 getXNATSession2SubjectMap "$CleanupFile" "$XNATSessionID" "$XNATProject"
-}
-
 if [ -n "$opt_l" ]
 then
     getFWSessions -g "$opt_g" "$opt_p"
     exit $?
 fi
 
-Paths=( $(getDicomDirsLoughead -g "$FWGroupID" -p "$FWProject" "$@"))
+mapFWSessions2Paths=mapFWSessions2LougheadPaths
+mapPaths2FWSesssions=mapLougheadPaths2FWSessions
+
+Paths=$(getDicomDirsLoughead -g "$FWGroupID" -p "$FWProject" "$@" | sort)
 
 if [ -n "$opt_s" ]
 then
@@ -267,9 +211,9 @@ else
     FWSessions=$(getFWSessions -g "$FWGroupID" "$FWProject" | sort)
 fi
 
-FWPaths=$(echo "$FWSessions" | mapFWSessions2Paths)
+FWPaths=$(echo "$FWSessions" | "$mapFWSessions2Paths" "$GroupID")
 
-SessionsMissingFromFlywheel=$(diff <(echo "${Paths[@]}" | tr ' ' '\n' | sort) <(echo "$FWPaths") | grep '<' | sed 's/< //')
+SessionsMissingFromFlywheel=$(diff <(echo "$Paths") <(echo "$FWPaths") | grep '<' | sed 's/< //')
 
 syncDicom2FW "$FWGroupID" "$SessionsMissingFromFlywheel"
 
