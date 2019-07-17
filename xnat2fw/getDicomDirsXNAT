@@ -49,7 +49,7 @@ do
 	do
 	    if [ -d "${Project}/arc001/${Session}" ]
 	    then
-		Sessions+="${Project}/arc001/${Session}"
+		Sessions+=( "${Project}/arc001/${Session}" )
 	    fi
 	done
     else
