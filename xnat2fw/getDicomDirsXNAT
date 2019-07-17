@@ -42,33 +42,27 @@ fi
 
 for Project in "${Projects[@]}"
 do
+    Sessions=()
     if [ -n "$1" ]
     then
-	if [ -n "$@" ]
-	then
-	    Sessions=()
-	    
-	    for Session in "$@"
-	    do
-		if [ -d "${Project}/arc001/${Session}" ]
-		then
-		    Sessions+="${Project}/arc001/${Session}"
-		fi
-	    done
-	else
-	    Sessions=( $(find "${Project}/arc001" -mindepth 1 -maxdepth1 -name "$Name" -type d) )
-	fi
-	
-	for Session in "${Sessions[@]}"
+	for Session in "$@"
 	do
-	    if [ -d "$/${Session}" ]
+	    if [ -d "${Project}/arc001/${Session}" ]
 	    then
-		Sessions+=( "${Project}/arc001/${Session}" )
+		Sessions+="${Project}/arc001/${Session}"
 	    fi
 	done
     else
 	Sessions=( $(getDicomDirs "$Subject" 1 "$Name" "$Filter") )
     fi
+	
+    for Session in "${Sessions[@]}"
+    do
+	if [ -d "$/${Session}" ]
+	then
+	    Sessions+=( "${Project}/arc001/${Session}" )
+	fi
+    done
 
     if [ "${#Sessions[@]}" -gt 0 ]
     then
