@@ -13,7 +13,7 @@ function getFWSessions {
 
 	# *** just because we're authenticated to fw doesn't mean we
 	#     have authorization to this group/project
-	for Subject in $( fw ls "${Group}/${Project}" | awk '{print $2}')
+	for Subject in $( fw ls "${Group}/${Project}" | grep -v " files/" | awk '{print $2}')
 	do
 		sys fw ls "${Group}/${Project}/${Subject}" | grep -v " files/" | awk '{print "'"${Group}/${Project}/${Subject}/"'"$NF}'
 	done | sort
@@ -21,10 +21,10 @@ function getFWSessions {
 
 syntax="$cmd : {-g group} [[Project] ...]"
 
-while getopts g: arg
+while getopts g:nv arg
 do
 	case "$arg" in
-	     g)
+	     g|n|v)
 		eval "opt_${arg}=${OPTARG:=1}"
 		;;
 	esac
