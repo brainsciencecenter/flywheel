@@ -3,12 +3,12 @@
 function prefix {
 	true
 }
-function mapFWSessions2LougheadPaths {
+function mapFWSessions2Paths {
     BaseDir=/data/jag/bbcp/Studies
     awk -F / '{print "'"$BaseDir"'/"$2"/Subjects/"$3"/"$4}'
 }
 
-function mapLougheadPaths2FWSessions {
+function mapPaths2FWSessions {
     local Group="$1"
     
     awk -F / '{print "'"$Group"'/"$6"/"$8"/"$9}'
