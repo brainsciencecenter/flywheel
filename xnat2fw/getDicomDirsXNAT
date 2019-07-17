@@ -53,7 +53,7 @@ do
 	    fi
 	done
     else
-	Sessions=( $(getDicomDirs "$Subject" 1 "$Name" "$Filter") )
+	Sessions=( $(getDicomDirs "$Project" 1 "$Name" "$Filter") )
     fi
 	
     for Session in "${Sessions[@]}"
