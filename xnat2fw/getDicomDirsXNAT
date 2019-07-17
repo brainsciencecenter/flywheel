@@ -47,9 +47,9 @@ do
 	Sessions=()
 	for Session in "$@"
 	do
-	    if [ -d "${Project}/arc001/${Session}" ]
+	    if [ -d "${Project}/${Session}" ]
 	    then
-		Sessions+=( "${Project}/arc001/${Session}" )
+		Sessions+=( "${Project}/${Session}" )
 	    fi
 	done
     else
