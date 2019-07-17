@@ -1,0 +1,58 @@
+#!/bin/bash
+
+function prefix {
+    local Group="$1"
+    local Project="$2"
+
+    XNATURL=http://picsl-xnat.uphs.upenn.edu
+    XNATSessionID=$(curl -n -s "$XNATURL/data/JSESSION")
+
+    HTTPCode=$(curl -b "JSESSIONID=$XNATSessionID" -s -o /dev/null -w "%{http_code}" "${XNATURL}/data/projects/${Project}")
+    if [ "$HTTPCode" == 401 ]
+    then
+        echo "$cmd : XNAT authorization failed '$XNATURL'" 1>&2
+        cleanup
+        exit 1
+    fi
+
+    XNATCSVFile=$(sys mktemp /tmp/xnat2fw-XXXXX)
+
+    sys curl -s -b "JSESSIONID=$XNATSessionID" "$XNATURL/data/archive/projects/${Project}/experiments?columns=subject_label,label&format=csv" > $XNATCSVFile
+
+    echo "$XNATCSVFile"
+}
+
+function mapFWSessions2Paths {
+    BaseDir=/data/XNAT/archive
+
+    awk -F / '{print "'"$BaseDir"'/"$2"/arc001/"$4}'    
+}
+
+# /data/XNAT/archive/NACC-SC/arc001/124287_20190124_3T => dwolklab/NACC-SC/124287/124287_20190124_3T
+function mapPaths2FWSessions {
+    local Group="$1"
+    local XNATCSVFile="$2"
+    local Subject
+    local Session
+    
+    while read line
+    do
+	Session=$(echo "$line" | awk -F / '{print $NF}')
+	Project=$(echo "$line" | awk -F / '{print $5}')
+	Subject=$(grep ",$Session," "$XNATCSVFile" | cut -f 2 -d ,)
+	echo "${Group}/${Project}/${Subject}/${Session}"
+    done
+
+}
+
+Command="$1"
+
+shift
+
+case "$Command" in
+	Prefix|mapFWSessions2Paths|mapPaths2FWSessions)
+		"$Command" "$@"
+		;;
+
+esac
+		
