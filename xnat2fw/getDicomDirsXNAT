@@ -56,14 +56,6 @@ do
 	Sessions=( $(getDicomDirs "${Project}" 2 "$Name" "$Filter") )
     fi
 	
-    for Session in "${Sessions[@]}"
-    do
-	if [ -d "${Session}" ]
-	then
-	    Sessions+=( "${Project}/arc001/${Session}" )
-	fi
-    done
-
     if [ "${#Sessions[@]}" -gt 0 ]
     then
 	echo "${Sessions[@]}" | tr ' ' '\n'
