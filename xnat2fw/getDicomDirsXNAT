@@ -44,12 +44,26 @@ for Project in "${Projects[@]}"
 do
     if [ -n "$1" ]
     then
-	Sessions=()
-	for Session in "$@"
+	if [ -n "$@" ]
+	then
+	    Sessions=()
+	    
+	    for Session in "$@"
+	    do
+		if [ -d "${Project}/arc001/${Session}" ]
+		then
+		    Sessions+="${Project}/arc001/${Session}"
+		fi
+	    done
+	else
+	    Sessions=( $(find "${Project}/arc001" -mindepth 1 -maxdepth1 -name "$Name" -type d) )
+	fi
+	
+	for Session in "${Sessions[@]}"
 	do
-	    if [ -d "${Project}/${Session}" ]
+	    if [ -d "$/${Session}" ]
 	    then
-		Sessions+=( "${Project}/${Session}" )
+		Sessions+=( "${Project}/arc001/${Session}" )
 	    fi
 	done
     else
