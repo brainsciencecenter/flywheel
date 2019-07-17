@@ -267,9 +267,9 @@ fi
 
 FWPaths=$(echo "$FWSessions" | "$mapFWSessions2Paths" "$GroupID" "${PrefixInfo[@]}")
 
-SessionsMissingFromFlywheel=$(diff <(echo "$Paths") <(echo "$FWPaths") | grep '<' | sed 's/< //')
+SessionsMissingFromFlywheel=( $(diff <(echo "$Paths") <(echo "$FWPaths") | grep '<' | sed 's/< //') )
 
-syncDicom2FW "$FWGroupID" "$SessionsMissingFromFlywheel"
+syncDicom2FW "$FWGroupID" "${SessionsMissingFromFlywheel[@]}"
 
 cleanup
 
