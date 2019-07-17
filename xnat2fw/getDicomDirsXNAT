@@ -44,9 +44,9 @@ for Project in "${Projects[@]}"
 do
 	if [ -n "$opt_S" ]
 	then
-		Subjects=( $(echo "$opt_S" | sed 's:,:\n:g' | sed 's:^:'"$Project"'/Subjects/:') )
+		Subjects=( $(echo "$opt_S" | sed 's:,:\n:g' | sed 's:^:'"$Project"'/arc001/:') )
 	else
-		Subjects=( $(getDicomDirs "${Project}/Subjects" 1 "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*" "$Filter") )
+		Subjects=( $(getDicomDirs "${Project}/arc001" 1 "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*" "$Filter") )
 	fi
 		
 	for Subject in "${Subjects[@]}"
