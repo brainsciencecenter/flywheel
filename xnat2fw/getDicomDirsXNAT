@@ -3,11 +3,11 @@
 BaseDir=/data/XNAT/archive
 Depth=3
 Filter="^"
-Name='[0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*'
+Name='[0-9][0-9][0-9][0-9][0-9][0-9]_*'
 
 cmd=$(basename "$0")
 
-# /data/XNAT/archive/NACC-SC/arc001/118579_20170629/
+# /data/XNAT/archive/NACC-SC/arc001/118439_20190305_3T/SCANS/1/DICOM/*.dcm
 
 function getDicomDirs {
 	local BaseDir="$1"
@@ -46,7 +46,7 @@ do
 	then
 		Subjects=( $(echo "$opt_S" | sed 's:,:\n:g' | sed 's:^:'"$Project"'/arc001/:') )
 	else
-		Subjects=( $(getDicomDirs "${Project}/arc001" 1 "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*" "$Filter") )
+		Subjects=( $(getDicomDirs "${Project}/arc001" 1 "[0-9][0-9][0-9][0-9][0-9][0-9]_*" "$Filter") )
 	fi
 		
 	for Subject in "${Subjects[@]}"
