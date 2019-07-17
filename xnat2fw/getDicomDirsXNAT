@@ -42,32 +42,22 @@ fi
 
 for Project in "${Projects[@]}"
 do
-	if [ -n "$opt_S" ]
-	then
-		Subjects=( $(echo "$opt_S" | sed 's:,:\n:g' | sed 's:^:'"$Project"'/arc001/:') )
-	else
-		Subjects=( $(getDicomDirs "${Project}/arc001" 1 "[0-9][0-9][0-9][0-9][0-9][0-9]_*" "$Filter") )
-	fi
-		
-	for Subject in "${Subjects[@]}"
+    if [ -n "$1" ]
+    then
+	Sessions=()
+	for Session in "$@"
 	do
-		if [ -n "$1" ]
-		then
-			Sessions=()
-			for Session in "$@"
-			do
-				if [ -d "${Subject}/${Session}" ]
-				then
-					Sessions+=( "${Subject}/${Session}" )
-				fi
-			done
-		else
-			Sessions=( $(getDicomDirs "$Subject" 1 "$Name" "$Filter") )
-		fi
-
-		if [ "${#Sessions[@]}" -gt 0 ]
-		then
-			echo "${Sessions[@]}" | tr ' ' '\n'
-		fi
+	    if [ -d "${Project}/arc001/${Session}" ]
+	    then
+		Sessions+=( "${Project}/arc001/${Session}" )
+	    fi
 	done
+    else
+	Sessions=( $(getDicomDirs "$Subject" 1 "$Name" "$Filter") )
+    fi
+
+    if [ "${#Sessions[@]}" -gt 0 ]
+    then
+	echo "${Sessions[@]}" | tr ' ' '\n'
+    fi
 done
