@@ -117,7 +117,7 @@ function syncDicom2FW {
 			continue
 		fi
 
-		read g Project Subject Session < <(echo "$Path" | "$mapPaths2FWSessions" "$FWGroupID" | tr '/' ' ')
+		read g Project Subject Session < <(echo "$Path" | "$mapPaths2FWSessions" "$FWGroupID" "${PrefixInfo[@]}" | tr '/' ' ')
 
 		#
 		# fw -q doesn't seem to do anything  Force it.
@@ -265,7 +265,7 @@ else
     FWSessions=$(getFWSessions -g "$FWGroupID" "$FWProject" | sort)
 fi
 
-FWPaths=$(echo "$FWSessions" | "$mapFWSessions2Paths" "$GroupID")
+FWPaths=$(echo "$FWSessions" | "$mapFWSessions2Paths" "$GroupID" "${PrefixInfo[@]}")
 
 SessionsMissingFromFlywheel=$(diff <(echo "$Paths") <(echo "$FWPaths") | grep '<' | sed 's/< //')
 
