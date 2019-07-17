@@ -58,7 +58,7 @@ do
 	
     for Session in "${Sessions[@]}"
     do
-	if [ -d "$/${Session}" ]
+	if [ -d "${Session}" ]
 	then
 	    Sessions+=( "${Project}/arc001/${Session}" )
 	fi
