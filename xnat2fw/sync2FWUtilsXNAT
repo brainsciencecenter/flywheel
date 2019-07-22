@@ -1,5 +1,10 @@
 #!/bin/bash
 
+function sys {
+	[ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	[ -z "$opt_n" ] && "$@"
+}
+
 function prefix {
     local Group="$1"
     local Project="$2"
@@ -17,7 +22,7 @@ function prefix {
 
     XNATCSVFile=$(sys mktemp /tmp/xnat2fw-XXXXX)
 
-    sys curl -s -b "JSESSIONID=$XNATSessionID" "$XNATURL/data/archive/projects/${Project}/experiments?columns=subject_label,label&format=csv" > $XNATCSVFile
+    sys curl -s -b "JSESSIONID=$XNATSessionID" "$XNATURL/data/archive/projects/${Project}/experiments?columns=subject_label,label&format=csv" > "$XNATCSVFile"
 
     echo "$XNATCSVFile"
 }
@@ -39,7 +44,7 @@ function mapPaths2FWSessions {
     do
 	Session=$(echo "$line" | awk -F / '{print $NF}')
 	Project=$(echo "$line" | awk -F / '{print $5}')
-	Subject=$(grep ",$Session," "$XNATCSVFile" | cut -f 2 -d ,)
+	Subject=$(grep -E ",${Session}(_DUPLICATE)?," "$XNATCSVFile" | cut -f 2 -d ,)
 	echo "${Group}/${Project}/${Subject}/${Session}"
     done
 
@@ -50,7 +55,7 @@ Command="$1"
 shift
 
 case "$Command" in
-	Prefix|mapFWSessions2Paths|mapPaths2FWSessions)
+	prefix|mapFWSessions2Paths|mapPaths2FWSessions)
 		"$Command" "$@"
 		;;
 
