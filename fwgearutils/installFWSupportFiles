@@ -25,11 +25,11 @@ fi
 ApiKey=$(getFlywheelApiKey)
 
 ProjectGearID=$(jq -r '.["destination"]["id"]' "$DefaultConfigFile")
-Json=$(pullFWProjectContext -a "$ProjectGearID" 2> /dev/null)
+Json=$(pullFWProjectContext -a "$ProjectGearID")
 if [ "$?" != 0 ]
 then
     ProjectGearID=$(getGearParam -c "$DefaultConfigFile" ProjectName ImageComments UnknownProjectName)
-    Json=$(pullFWProjectContext -a "$ProjectGearID" 2> /dev/null)
+    Json=$(pullFWProjectContext -a "$ProjectGearID")
 fi
 
 if [ -n "$Json" ]

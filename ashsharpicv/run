@@ -12,6 +12,8 @@ export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
 
 CONFIG_FILE=${FLYWHEEL}/config.json
 
+echo 35.184.111.29 dss.itksnap.org >> /etc/hosts
+
 echo "/flywheel/v0"
 ls -lR /flywheel/v0
 

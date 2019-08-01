@@ -2,7 +2,7 @@
 	"name": "ashsharpicv",
 	"label": "Penn Memory Center Hippocampus Volumetry Pipeline",
 	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
-	"version": "0.2.22",
+	"version": "0.2.25",
 	"inputs": {
 		"api-key": {
 			"base": "api-key"
@@ -64,7 +64,8 @@
 		},
 		"gear-builder": {
 			"category": "analysis",
-			"image": "ashs/itksnap:latest"
+			"container": "aae1a8a2f249dd786a98554457e828fc6dc4d1c2ba32a722a6f11e72f0d3db67",
+			"image": "gear-builder-mazqvpgusg-20190801072901"
 		}
 	}
 }
