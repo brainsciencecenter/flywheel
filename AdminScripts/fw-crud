@@ -42,6 +42,7 @@ import csv
 import flywheel
 import logging
 import os
+import json
 import sys
 import re
 import warnings
@@ -378,6 +379,7 @@ class FW():
         create_parser.set_defaults(func=self.userCreate)
 
         retrieve_parser = subparsers.add_parser('get', help='get [-i][-l][-m][-r] [UserName[ UserName]...]')
+        retrieve_parser.add_argument('-d', '--disabled', action='store_true', help='include disabled account.')
         retrieve_parser.add_argument('UserNames', nargs='*', help='UserNames')
         retrieve_parser.set_defaults(func=self.userRetrieve)
 
@@ -418,8 +420,8 @@ class FW():
       for user in self.fw.users():
         if (args.UserNames and (not (user.id in args.UserNames))):
           continue
-        print("%s %s %s %s" % (user.firstname, user.lastname, user.id, user.root))
-
+        if (args.disabled or not user.disabled):
+          print("%s, %s, %s, %s" % (user.firstname, user.lastname, user.id, user.root))
 
     def userUpdate(self,args):
         user = self.getUser(self.enforceDomain(args.UserName[0]))
