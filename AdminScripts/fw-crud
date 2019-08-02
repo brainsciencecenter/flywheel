@@ -418,7 +418,7 @@ class FW():
       for user in self.fw.users():
         if (args.UserNames and (not (user.id in args.UserNames))):
           continue
-        print("%s %s %s %s" % (user.firstname, user.lastname, user.id, user.root))
+        print("%s, %s, %s, %s" % (user.firstname, user.lastname, user.id, user.root))
 
 
     def userUpdate(self,args):
