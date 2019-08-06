@@ -27,5 +27,7 @@ COPY fwgearutils/ /usr/local/bin/
 
 COPY ADNI_metadata_for_R.csv clinical_report.Rmd run run_pipeline.sh make_report.sh trim_neck.sh ${FLYWHEEL}/
 
+RUN touch /tmp/$(date +%F-%T)
+
 # Run the run.sh script on entry.
 #ENTRYPOINT ["/flywheel/v0/run"]
