@@ -58,7 +58,7 @@ do
 
     Age=$(getGearParam Age PatientAge UnknownAge)
     SessionID=$(getGearParam SessionID StudyDescription UnknownSessionID)
-    ScanID=$(getGearParam ScanID SeriesDescription UnknownScanID)
+    SubjectID=$(getGearParam SubjectID SeriesDescription UnknownSubjectID)
     
     if ! ( echo "$Age" | grep -q '^[0-9][0-9]*$' )
     then
