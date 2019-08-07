@@ -58,6 +58,7 @@ if __name__ == '__main__':
     CmdName = os.path.basename(sys.argv[0])
 
     ap = argparse.ArgumentParser()
+    ap.add_argument('-a', '--acquisitions',  action='store_true', help='include acquisition information')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('path', nargs=1, type=str, default=None, help='group/project')
@@ -74,7 +75,7 @@ if __name__ == '__main__':
 
     j = fwgearutils.sloppyCopy(c)
 
-    if (type(c) == flywheel.models.resolver_project_node.ResolverProjectNode):
+    if (type(c) == flywheel.models.resolver_project_node.ResolverProjectNode or type(c) == flywheel.models.resolver_subject_node.ResolverSubjectNode):
         Sessions = []
         for s in c.sessions():
             Subject = fw.get(s.subject._id)
@@ -84,9 +85,9 @@ if __name__ == '__main__':
             session = fw.get(s.id)
             Session = fwgearutils.sloppyCopy(session)
 
-            Acquisitions = getAcquisitionsJson(session)
-            Session['acquisitions'] = Acquisitions.copy()
-
+            if (args.acquisitions):
+                Acquisitions = getAcquisitionsJson(session)
+                Session['acquisitions'] = Acquisitions.copy()
 
             Sessions.append(Session.copy())
 
@@ -94,9 +95,9 @@ if __name__ == '__main__':
     elif (type(c) == flywheel.models.resolver_session_node.ResolverSessionNode):
             session = fw.get(c._id)
 
-            Acquisitions = getAcquisitionsJson(session)
-
-            j['acquisitions'] = Acquisitions.copy()
+            if (args.acquisitions):
+                Acquisitions = getAcquisitionsJson(session)
+                j['acquisitions'] = Acquisitions.copy()
 
     print(json.dumps(j))
 
