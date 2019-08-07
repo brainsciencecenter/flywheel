@@ -11,12 +11,7 @@ function getFWSessions {
 	local Group="$1"
 	local Project="$2"
 
-	# *** just because we're authenticated to fw doesn't mean we
-	#     have authorization to this group/project
-	for Subject in $( fw ls "${Group}/${Project}" | grep -v " files/" | awk '{print $2}')
-	do
-		sys fw ls "${Group}/${Project}/${Subject}" | grep -v " files/" | awk '{print "'"${Group}/${Project}/${Subject}/"'"$NF}'
-	done | sort
+	fwlookup "${Group}/${Project}" | jq -r '"'"$Group"'/'"$Project"'/\(.sessions[].subject.label)/\(.sessions[]|.label)"'
 }
 
 syntax="$cmd : {-g group} [[Project] ...]"
@@ -48,4 +43,4 @@ fi
 for Project in "${Projects[@]}"
 do
 	getFWSessions "$opt_g" "$Project"
-done
+done 
