@@ -1,0 +1,46 @@
+#!/bin/bash
+
+cmd=$(basename $0)
+
+function sys {
+	[ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	[ -z "$opt_n" ] && "$@"
+}
+
+function getFWSessions {
+	local Group="$1"
+	local Project="$2"
+
+	fwlookup "${Group}/${Project}" | jq -r '"'"$Group"'/'"$Project"'/\(.sessions[].subject.label)/\(.sessions[]|.label)"'
+}
+
+syntax="$cmd : {-g group} [[Project] ...]"
+
+while getopts g:nv arg
+do
+	case "$arg" in
+	     g|n|v)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -z "$opt_g" ]
+then
+	echo "$cmd : -g group option required" 1>&2
+	exit 1
+fi
+
+if [ -n "$1" ]
+then
+	Projects=( "$@" )
+else
+	Projects=( $(sys fw ls "${Group}" | cut -f 2 -d ' ') )
+fi
+
+for Project in "${Projects[@]}"
+do
+	getFWSessions "$opt_g" "$Project"
+done 
