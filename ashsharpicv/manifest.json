@@ -28,14 +28,14 @@
 			"description": "Project Name. Default found from gear manifest.",
 			"type": "string"
 		},
-		"ScanID": {
+		"Subject": {
 			"default": "",
-			"description": "Scan ID. Default found from dicom headers.",
+			"description": "SubjectID. Default found from flywheel Subject label.",
 			"type": "string"
 		},
 		"SessionID": {
 			"default": "",
-			"description": "Session ID. Default found from dicom headers.",
+			"description": "Session ID. Default found from flywheel Session label.",
 			"type": "string"
 		}
 	},
