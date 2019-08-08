@@ -103,7 +103,6 @@ function syncDicom2FW {
 
 	for Path in "$@"
 	do
-		
 		if [ ! -e "$Path" ]
 		then
 			echo "$cmd : No such file or directory for session '$Session' : skipping" 1>&2
@@ -118,10 +117,12 @@ function syncDicom2FW {
 		    continue
 		fi
 
+		logfile=$(mktemp "/tmp/${CmdName}-${FWGroupID}-${Project}-${Subject}-${Session}-XXXXX")
+
 		#
 		# fw -q doesn't seem to do anything  Force it.
 		#	
-		FWCmd=(fw import dicom -y --quiet --de-identify --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Path" "$FWGroupID" "$Project")
+		FWCmd=(fw import dicom -y --quiet --audit-log-path "$logfile" --de-identify --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Path" "$FWGroupID" "$Project")
 		if [ -n "$opt_q" ]
 		then
 			sys "${FWCmd[@]}" > /dev/null

@@ -64,7 +64,7 @@ do
     # R markdown boofs if the SessionID has a ^ in it.
     SessionID=$(echo "$SessionID" | sed 's/\^/-/g')
 
-    run_pipeline.sh -s "$SessionID" -n "$ScanID" -p "$ProjectName" -a "$Age" "$ExtractDir" "$FLYWHEEL_OUTPUTDIR"
+    run_pipeline.sh -s "$SessionID" -n "$SubjectID" -p "$ProjectName" -a "$Age" "$ExtractDir" "$FLYWHEEL_OUTPUTDIR"
 done < <(find ${FLYWHEEL_INPUTDIR} -type f | grep -P '(\.zip|.gz)$')
 
 
