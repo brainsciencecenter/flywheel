@@ -11,7 +11,7 @@ function getFWSessions {
 	local Group="$1"
 	local Project="$2"
 
-	fw2json "${Group}/${Project}" | jq -r '"'"$Group"'/'"$Project"'/\(.sessions[].subject.label)/\(.sessions[]|.label)"'
+	fw2json "${Group}/${Project}" | jq -r '.sessions[] | "'"$Group"'/'"$Project"'/\(.subject.label)/\(.label)"'
 }
 
 syntax="$cmd : {-g group} [[Project] ...]"
