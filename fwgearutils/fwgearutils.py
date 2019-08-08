@@ -101,7 +101,7 @@ def getFW(args):
            print("e",e, file=sys.stderr)
            sys.exit(1)
 
-def sloppyCopy(d):
+def sloppyCopy(d, recurse = True):
     '''
     serializes a object, ignoring all the stuff it cant easily serialize, but will give you something
     '''
@@ -120,8 +120,9 @@ def sloppyCopy(d):
                     json.dumps(d[k])
                     nd[k] = d[k]
                 except (TypeError, OverflowError) as e2:
-                    #print("Object '%s' key '%s' not json serialable" % (type(d[k]),k), file=sys.stderr)
-                    nd[k] = sloppyCopy(d[k])
+                   #print("Object '%s' key '%s' not json serialable" % (type(d[k]),k), file=sys.stderr)
+                   if (recurse): 
+                      nd[k] = sloppyCopy(d[k])
 
             # print("sloppyCopy: d is sorta dict", nd.copy(), file=sys.stderr)
             return(nd)
@@ -129,10 +130,12 @@ def sloppyCopy(d):
        if (type(d) is list):
             nd = []
             for i in d:
-                nd.append(sloppyCopy(i))
+               if (recurse):
+                  nd.append(sloppyCopy(i))
 
             # print("sloppyCopy: d is list", nd.copy(), file=sys.stderr)
             return(nd)
+
        if (type(d) is datetime.datetime):
           timezone = pytz.timezone("America/New_York")
           d_localtz = d.astimezone(pytz.timezone("America/New_York"))

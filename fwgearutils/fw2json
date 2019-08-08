@@ -59,6 +59,7 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-a', '--acquisitions',  action='store_true', help='include acquisition information')
+    ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('path', nargs=1, type=str, default=None, help='group/project')
@@ -78,11 +79,15 @@ if __name__ == '__main__':
     if (type(c) == flywheel.models.resolver_project_node.ResolverProjectNode or type(c) == flywheel.models.resolver_subject_node.ResolverSubjectNode):
         Sessions = []
         for s in c.sessions():
-            Subject = fw.get(s.subject._id)
-            if (args.verbose):
-                print("%s : '%s/%s/%s'" % (CmdName, args.path[0], Subject.label,  s.label), file=sys.stderr)
+            if (args.get):
+                Subject = fw.get(s.subject._id)
+                if (args.verbose):
+                    print("%s : '%s/%s/%s'" % (CmdName, args.path[0], Subject.label,  s.label), file=sys.stderr)
 
-            session = fw.get(s.id)
+                session = fw.get(s.id)
+            else:
+                session = s
+
             Session = fwgearutils.sloppyCopy(session)
 
             if (args.acquisitions):
