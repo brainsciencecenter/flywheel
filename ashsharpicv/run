@@ -49,17 +49,11 @@ do
 	(echo cd "$dirname"; cd "$dirname"; echo unzip -j $basename -d "${ExtractDir}"; unzip -j "$basename" -d "$ExtractDir")
     fi
 
-    ProjectName=$(getGearParam ProjectName ImageComments UnknownProjectName)
-    if [ "$ProjectName" == "UnknownProjectName" ]
-    then
-	ProjectID=$(jq -r '.["destination"]["id"]' "$CONFIG_FILE")
-	ProjectName=$(getFWParent "$ProjectID")
-    fi
-
-    Age=$(getGearParam Age PatientAge UnknownAge)
-    SessionID=$(getGearParam SessionID StudyDescription UnknownSessionID)
-    SubjectID=$(getGearParam SubjectID SeriesDescription UnknownSubjectID)
+    ProjectName=$(getGearParam ProjectName .parents.project,.label ImageComments UnknownProjectName)
+    SubjectID=$(getGearParam SubjectID .parents.subject,.label SeriesDescription UnknownSubjectID)
+    SessionID=$(getGearParam SessionID .parents.session,.label StudyDescription UnknownSessionID)
     
+    Age=$(getGearParam Age PatientAge UnknownAge)
     if ! ( echo "$Age" | grep -q '^[0-9][0-9]*$' )
     then
 	# R markdown will fail if Age is not a number

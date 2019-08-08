@@ -124,7 +124,7 @@ def sloppyCopy(d):
                     nd[k] = sloppyCopy(d[k])
 
             # print("sloppyCopy: d is sorta dict", nd.copy(), file=sys.stderr)
-            return(nd.copy())
+            return(nd)
 
        if (type(d) is list):
             nd = []
@@ -132,7 +132,7 @@ def sloppyCopy(d):
                 nd.append(sloppyCopy(i))
 
             # print("sloppyCopy: d is list", nd.copy(), file=sys.stderr)
-            return(nd.copy())
+            return(nd)
        if (type(d) is datetime.datetime):
           timezone = pytz.timezone("America/New_York")
           d_localtz = d.astimezone(pytz.timezone("America/New_York"))

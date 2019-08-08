@@ -24,11 +24,20 @@ fi
 
 ApiKey=$(getFlywheelApiKey)
 
-ProjectGearID=$(jq -r '.["destination"]["id"]' "$DefaultConfigFile")
-Json=$(pullFWProjectContext -a "$ProjectGearID")
+ApiKeyDir=~/.config/flywheel
+ApiKeyFile="${ApiKeyDir}/api.key"
+if [ ! -f "$ApiKeyFile" ]
+then
+    mkdir -p "$ApiKeyDir"
+    echo "$ApiKey" > "$ApiKeyFile"
+fi
+
+FWProjectGearID=$(jq -r '.["destination"]["id"]' "$DefaultConfigFile")
+Json=$(pullFWProjectContext -a "$FWProjectGearID")
 if [ "$?" != 0 ]
 then
-    ProjectGearID=$(getGearParam -c "$DefaultConfigFile" ProjectName ImageComments UnknownProjectName)
+    # project not in config file
+    ProjectGearID=$(getGearParam -c "$DefaultConfigFile" ProjectName .parents.project,.label ImageComments UnknownProjectName)
     Json=$(pullFWProjectContext -a "$ProjectGearID")
 fi
 

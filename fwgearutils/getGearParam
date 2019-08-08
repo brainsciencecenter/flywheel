@@ -2,7 +2,7 @@
 
 cmd=$(basename "$0")
 
-syntax="${cmd} [-c configfile] ConfigParam DicomParam [default]"
+syntax="${cmd} [-c configfile] ConfigParam FW DicomParam [default]"
 
 ConfigFile=/flywheel/v0/config.json
 
@@ -36,16 +36,32 @@ then
 	exit 0
 fi
 
-DicomParam=$(jq -r '.["inputs"]["dicom"]["object"]["info"]["'$2'"]' "$ConfigFile")
-if [ -n "$DicomParam" -a "$DicomParam" != 'null' -a "$ConfigParam" != '' ]
+IDExpr=$(echo "$2" | cut -f 1 -d ,)
+LabelExpr=$(echo "$2" | cut -f 2 -d ,)
+
+FWDestinationID=$(jq -r .destination.id "$ConfigFile")
+FWID=$(fwget "$FWDestinationID" | jq -r "$IDExpr")
+if [ "$FWID" != 'null' ]
+then
+    DicomParam=$(fwget "$FWID" | jq -r "$LabelExpr")
+    if [ "$DicomParam" != null ]
+    then
+	echo "$DicomParam"
+	exit 0
+    fi
+fi
+
+DicomParam=$(jq -r '.["inputs"]["dicom"]["object"]["info"]["'$3'"]' "$ConfigFile")
+#if [ -n "$DicomParam" -a "$DicomParam" != 'null' -a "$ConfigParam" != '' ]
+if [ -n "$DicomParam" -a "$DicomParam" != 'null' ]
 then
 	echo "$DicomParam"
 	exit 0
 fi
 
-if [ -n "$3" ]
+if [ -n "$4" ]
 then
-	echo "$3"
+	echo "$4"
 	exit 0
 fi
 

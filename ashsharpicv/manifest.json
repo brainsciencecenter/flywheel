@@ -2,7 +2,7 @@
 	"name": "ashsharpicv",
 	"label": "AshsHarpICV",
 	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
-	"version": "0.2.26",
+	"version": "0.2.27",
 	"inputs": {
 		"api-key": {
 			"base": "api-key"
@@ -28,14 +28,14 @@
 			"description": "Project Name. Default found from gear manifest.",
 			"type": "string"
 		},
-		"Subject": {
-			"default": "",
-			"description": "SubjectID. Default found from flywheel Subject label.",
-			"type": "string"
-		},
 		"SessionID": {
 			"default": "",
 			"description": "Session ID. Default found from flywheel Session label.",
+			"type": "string"
+		},
+		"Subject": {
+			"default": "",
+			"description": "SubjectID. Default found from flywheel Subject label.",
 			"type": "string"
 		}
 	},
@@ -63,9 +63,9 @@
 			"suite": "BrainScienceCenter"
 		},
 		"gear-builder": {
-			"category": "analysis",
-			"container": "2f760dcbb89d2d24a99113d92fcd2f3a1917710eec485bcef7334c7eed68eb63",
-			"image": "ashs/itksnap:latest"
+		"category": "analysis",
+		"container": "9858ca0c56ecdf102561a1e92a347e9243c38ea81a047c957c63ddb3e1790849",
+			"image": "gear-builder-zzesholmdf-20190807161558"
 		}
 	}
 }
