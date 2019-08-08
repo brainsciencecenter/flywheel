@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import os
+import flywheel
+import json
+import argparse
+import fwgearutils
+
+
+if __name__ == '__main__':
+
+    import argparse
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-r', '--recurse',  action='store_true', help='simpleminded flywheel object to json recursion.  No sessions or acquisitions')
+    ap.add_argument('id', nargs=1, type=str, default=None, help='group/project|ProjectID')
+
+    args = ap.parse_args()
+
+    fw = fwgearutils.getFW(args)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    print(json.dumps(fwgearutils.sloppyCopy(fw.lookup(args.id[0]), args.recurse)))
+
+    sys.exit(0)
