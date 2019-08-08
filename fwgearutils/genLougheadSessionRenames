@@ -25,7 +25,7 @@ else
 	ProjectJsonFile=$(mktemp "/tmp/${cmd}-XXXXXX.json")
 	RemoveTmpFile=true
 
-	fwlookup "$Project" > "$ProjectJsonFile"
+	fw2json "$Project" > "$ProjectJsonFile"
 fi
 
 ProjectJson=$(jq -r ".sessions | sort_by(.timestamp) | .[] | (\"\(._id) \(.timestamp) \(.subject.label) \(.label)\")" "$ProjectJsonFile")
