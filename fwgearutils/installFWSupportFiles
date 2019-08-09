@@ -32,19 +32,22 @@ then
     echo "$ApiKey" > "$ApiKeyFile"
 fi
 
-FWProjectGearID=$(jq -r '.["destination"]["id"]' "$DefaultConfigFile")
-Json=$(pullFWProjectContext -a "$FWProjectGearID")
-if [ "$?" != 0 ]
+ProjectGearID=$(getGearParam "${DefaultConfigFile}:.destination.id")
+if [ "$ProjectGearID" == "aex" ]
 then
-    # project not in config file
-    ProjectGearID=$(getGearParam -c "$DefaultConfigFile" ProjectName .parents.project,.label ImageComments UnknownProjectName)
-    Json=$(pullFWProjectContext -a "$ProjectGearID")
+     ProjectGearID=$(getGearParam "${DefaultConfigFile}:.config.ProjectName" "${DefaultConfigFile}:.inputs.dicom.object.info.${3}" default:UnknownProjectName)
 fi
 
-if [ -n "$Json" ]
+if [ "$ProjectGearID" != "UnknownProjectName" ]
 then
-    for k in site group project
-    do
-	echo "$Json" | jq '.["'$k'"]["filesystem"]' | json2dir -v -C "$opt_d"
-    done
+    Json=$(pullFWProjectContext -a "$ProjectGearID")
+
+    if [ -n "$Json" ]
+    then
+	for k in site group project
+	do
+	    echo "$Json" | jq '.["'$k'"]["filesystem"]' | json2dir -v -C "$opt_d"
+	done
+    fi
 fi
+

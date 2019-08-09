@@ -26,6 +26,9 @@ if __name__ == '__main__':
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
-    print(json.dumps(fwgearutils.sloppyCopy(fw.lookup(args.id[0]), args.recurse)))
+    try:
+        print(json.dumps(fwgearutils.sloppyCopy(fw.lookup(args.id[0]), args.recurse)))
+    except (flywheel.rest.ApiException) as e:
+        print(json.dumps(fwgearutils.sloppyCopy(fw.get(args.id[0]), args.recurse)))
 
     sys.exit(0)

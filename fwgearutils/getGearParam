@@ -2,7 +2,9 @@
 
 cmd=$(basename "$0")
 
-syntax="${cmd} [-c configfile] ConfigParam FW DicomParam [default]"
+# {JsonFile:jqExpr|fw:fwlookup,jqExpr|DicomFile|default:String} ....
+
+syntax="${cmd} ConfigParam FW DicomParam [default]"
 
 ConfigFile=/flywheel/v0/config.json
 
@@ -17,52 +19,35 @@ done
 
 shift $(($OPTIND - 1))
 
-if [ -n "$opt_c" ]
-then
-	ConfigFile="$opt_c"
-fi
 
-if [ ! -e "$ConfigFile" ]
-then
-	echo "$cmd : no such file '$ConfigFile'" 1>&2
-	exit 1
-fi
+for arg in "$@"
+do
+    read key value <<< $(echo "$arg" | sed 's/:/ /')
 
-JQExpr=$(echo "$1" | sed -r 's/ / | /g; s/(\w+)/..|select(.\1)?|.\1/g')
-ConfigParam=$(jq -r "$JQExpr" "$ConfigFile")
-if [ -n "$ConfigParam" -a "$ConfigParam" != 'null' -a "$ConfigParam" != '' ]
-then
-	echo "$ConfigParam"
-	exit 0
-fi
+    case "$key" in
+	*.json)
+	    Res=$(jq -r "$value" "$key")
+	    ;;
 
-IDExpr=$(echo "$2" | cut -f 1 -d ,)
-LabelExpr=$(echo "$2" | cut -f 2 -d ,)
+	fw)
+	    read FWPath JqExpr <<< $(echo "$value" | sed 's/,/ /')
+	    Res=$(fwlookup "$FWPath" | jq -r "$JqExpr")
+	    ;;
+	
+	*dcm)
+	    Res=$(gdcmdump "$key" | grep -P "$value" | sed 's/^.*\[//; s/\].*$//')
+	    ;;
 
-FWDestinationID=$(jq -r .destination.id "$ConfigFile")
-FWID=$(fwget "$FWDestinationID" | jq -r "$IDExpr")
-if [ "$FWID" != 'null' ]
-then
-    DicomParam=$(fwget "$FWID" | jq -r "$LabelExpr")
-    if [ "$DicomParam" != null ]
+	default)
+	    Res="$value"
+	    ;;
+    esac
+    if [ "$Res" == 'null' ]
     then
-	echo "$DicomParam"
-	exit 0
+	continue
     fi
-fi
+    	    
+    [ -n "$Res" ] && echo "$Res" && exit 0
+done
 
-DicomParam=$(jq -r '.["inputs"]["dicom"]["object"]["info"]["'$3'"]' "$ConfigFile")
-#if [ -n "$DicomParam" -a "$DicomParam" != 'null' -a "$ConfigParam" != '' ]
-if [ -n "$DicomParam" -a "$DicomParam" != 'null' ]
-then
-	echo "$DicomParam"
-	exit 0
-fi
 
-if [ -n "$4" ]
-then
-	echo "$4"
-	exit 0
-fi
-
-exit 1
