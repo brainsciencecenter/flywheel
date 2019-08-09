@@ -35,7 +35,7 @@ fi
 ProjectGearID=$(getGearParam "${DefaultConfigFile}:.destination.id")
 if [ "$ProjectGearID" == "aex" ]
 then
-     ProjectGearID=$(getGearParam "${DefaultConfigFile}:.config.ProjectName" "${DefaultConfigFile}:.inputs.dicom.object.info.${3}" default:UnknownProjectName)
+     ProjectGearID=$(getGearParam "${DefaultConfigFile}:.config.ProjectName" "${DefaultConfigFile}:.inputs.dicom.object.info.ImageComments" default:UnknownProjectName)
 fi
 
 if [ "$ProjectGearID" != "UnknownProjectName" ]
