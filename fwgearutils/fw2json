@@ -94,8 +94,6 @@ if __name__ == '__main__':
                 Acquisitions = getAcquisitionsJson(session)
                 Session['acquisitions'] = Acquisitions.copy()
 
-            Sessions.append(Session.copy())
-
         j['sessions'] = Sessions
     elif (type(c) == flywheel.models.resolver_session_node.ResolverSessionNode):
             session = fw.get(c._id)

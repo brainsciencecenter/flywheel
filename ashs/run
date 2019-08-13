@@ -18,21 +18,21 @@ ls -lR /flywheel/v0
 
 cat "$CONFIG_FILE"
 
-bash -x installFWSupportFiles
+#bash -x installFWSupportFiles
+#
+#if [ -e "/root/.alfabis/server" -a -e "/root/.alfabis/cookie_"*".jar" ]
+#then
+#	echo "Found itksnap cookie jar"
+#else
+#	echo "No itksnap cookie found.  Bailing"
+#	exit 1
+#fi
 
-if [ -e "/root/.alfabis/server" -a -e "/root/.alfabis/cookie_"*".jar" ]
-then
-	echo "Found itksnap cookie jar"
-else
-	echo "No itksnap cookie found.  Bailing"
-	exit 1
-fi
+DSSService=$(getGearParam "${CONFIG_FILE}:.config.DSSService" default:UnknownServiceName)
+T1Path=$(getGearParam "${CONFIG_FILE}:.inputs.t1.location.path")
+T2Path=$(getGearParam "${CONFIG_FILE}:.inputs.t2.location.path")
 
-DSSService=$(getGearParam "DSSService" ImageComments UnknownServiceName)
-T1Path=$(getGearParam "t1 path" ImageComments UnknownProjectName)
-T2Path=$(getGearParam "t2 path" ImageComments UnknownProjectName)
-
-itksnap-wt -dss-tickets-list
+#itksnap-wt -dss-tickets-list
 
 
 run_pipeline.sh -s "$DSSService" -d "$FLYWHEEL_OUTPUTDIR" -T "$T1Path" -t "$T2Path"

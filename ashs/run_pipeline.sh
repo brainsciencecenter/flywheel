@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 cmd=$(basename "$0")
 DayInSeconds=$(echo $((24 * 60 * 60)))
@@ -75,7 +75,7 @@ while getopts "d:s:T:t:" arg
 do
 	case "$arg" in
         	d|s|T|t)
-		    eval "opt_${arg}=${OPTARG:=1}"
+		    eval "opt_${arg}='${OPTARG:=1}'"
 		    ;;
 	esac
 done
@@ -136,6 +136,11 @@ else
 fi
 
 itksnap-wt -layers-add-anat "$T1NiftiFile" -tags-add "$T1Tag" -layers-add-anat "$T2NiftiFile" -tags-add "T2-MRI" -layers-list -o "$WorkspaceFile"
+
+for i in $(itksnap-wt -dss-tickets-list | grep -P 'success|failed' /tmp/cookies | awk '{print $2}')
+do
+	itksnap-wt -dss-tickets-delete $i
+done
 
 itksnap-wt -i "$WorkspaceFile" -dss-tickets-create "$Service" > "$TicketFile"
 

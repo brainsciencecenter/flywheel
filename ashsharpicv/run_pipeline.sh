@@ -105,6 +105,12 @@ fi
 input_workspace=${full_id}_input.itksnap
 itksnap-wt -laa $TMPDIR/$input_image -ta T1 -psn "MRI" -ll -o $TMPDIR/$input_workspace
 
+
+for i in $(itksnap-wt -dss-tickets-list | grep -P 'success|failed' /tmp/cookies | awk '{print $2}')
+do
+        itksnap-wt -dss-tickets-delete $i
+done
+
 # Create ticket with the HARP-ICV service number
 service=ASHS-HarP
 ticket_create_out=$TMPDIR/${full_id}_ticket_info.txt
