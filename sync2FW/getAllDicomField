@@ -1,0 +1,31 @@
+#!/bin/bash
+
+export PATH=~pcook/bin/gdcm/bin:~gholder/flywheel/sync2FW:$PATH
+
+CmdName=$(basename "$0")
+syntax="$CmdName [-f DicomFieldTag] [[DicomDir] ...]"
+
+opt_f='(0008,1030)'
+
+while getopts f: arg
+do
+	case "$arg" in
+		f)
+			eval "opt_${arg}='${OPTARG:=1}'"
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1 ))
+
+if [ -n "$1" ]
+then
+	Dirs=( "$@" )
+else
+	Dirs=( . )
+fi
+
+for Dir in "${Dirs[@]}"
+do
+	find "$Dir" -type d -a -exec getDicomField "$opt_f" {} \; 
+done

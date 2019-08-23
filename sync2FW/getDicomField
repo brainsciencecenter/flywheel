@@ -1,0 +1,29 @@
+#!/bin/bash
+
+Dir="$2"
+cd "$Dir"
+CurDir=$(/bin/pwd)
+export PATH=~pcook/bin/gdcm/bin:~/flywheel/sync2FW:$PATH
+
+while read File
+do
+	DicomFile="$File"
+	if file "$File" | grep -q ': gzip compressed data,'
+	then
+		TempFile=$(mktemp /tmp/getDicomField-XXXXX)
+		if ! zcat "$File" > "$TempFile"
+		then
+			exit 1
+		fi
+		DicomFile="$TempFile"
+	fi
+	
+	if file "$DicomFile" | grep -q ": DICOM medical imaging data$"
+	then
+		echo "$CurDir/$File, $(gdcmdump "$DicomFile" | grep "$1" | sed 's/^.*\[//; s/\].*$//')"
+		[ -n "$TempFile" ] && rm "$TempFile"
+		exit 0
+	fi
+	
+	[ -n "$TempFile" ] && rm "$TempFile"
+done < <(ls)
