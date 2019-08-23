@@ -1,0 +1,42 @@
+{
+	"config": {
+		"Age": 4000,
+		"ProjectName": "dwolklab/NACC-SC",
+		"SessionID": "",
+		"Subject": ""
+	},
+	"destination": {
+		"id": "aex",
+		"type": "acquisition"
+	},
+	"inputs": {
+		"api-key": {
+			"base": "api-key",
+			"key": "upenn.flywheel.io:L3dqtPiM2XDsfjC7jF"
+		},
+		"dicom": {
+			"base": "file",
+			"hierarchy": {
+				"id": "aex",
+				"type": "acquisition"
+			},
+			"location": {
+				"name": "T1_3D_0.8x0.8x0.8_ND.dicom.zip",
+				"path": "/flywheel/v0/input/dicom/T1_3D_0.8x0.8x0.8_ND.dicom.zip"
+			},
+			"object": {
+				"classification": {
+					"Intent": [],
+					"Measurement": []
+				},
+				"info": {},
+				"measurements": [],
+				"mimetype": "",
+				"modality": "",
+				"size": 29110930,
+				"tags": [],
+				"type": ""
+			}
+		}
+	}
+}

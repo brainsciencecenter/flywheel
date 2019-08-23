@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import os
+import flywheel
+import json
+import argparse
+import fwgearutils
+
+def listGearFiles(project):
+    global CmdName
+    global args
+
+    Analyses = []
+
+    for c in project.sessions():
+        for analysis in fw.get(c.id).analyses:
+            if (analysis.gear_info):
+                if (args.gear and analysis.gear_info.name != args.gear):
+                    continue
+
+                if (analysis.files):
+                    for f in analysis.files:
+                        Analyses.append({ 'analysis': analysis, 'file': f})
+
+    for c in fw.projects.find("group=%s" % (project.group), "label=%s" % (project.label)):
+        for analysis in fw.get(c.id).analyses:
+            if (analysis.gear_info):
+                if (args.gear and analysis.gear_info.name != args.gear):
+                    continue
+
+                for f in analysis.files:
+                    Analyses.append({ 'analysis': analysis, 'file': f})
+
+
+    return(Analyses)
+
+def downloadGearFile(analysis,File):
+    global CmdName
+    global args
+
+    if (args.noop or args.verbose):
+        print("Downloading file '%s'" % (File.name), file=sys.stderr)
+
+    if (not args.noop):
+        analysis.download_file(File.name,File.name)
+
+if __name__ == '__main__':
+
+    import argparse
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    '''
+    {group/project|ProjectID}
+    {AnalysisID/FileID [[AnalysisID/FileID] ...]}
+    '''
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-k', '--apikey', type=str, default=None, dest="apikey", help='apikey')
+    ap.add_argument('-D', '--download', action='store_true', help='download requested analysis files')
+    ap.add_argument('-d', '--downloaddir', type=str, nargs=1, default=None, help='download switch')
+    ap.add_argument('-g', '--gear', type=str, default=None, dest="gear", help='gear')
+    ap.add_argument('-n', '--noop', action='store_true', help='show what the program would do, but do not do it')
+    ap.add_argument('-q', '--quiet', action='store_true', help='turn off printing')
+    ap.add_argument('-v', '--verbose', action='store_true', help='show what the program is doing')
+    ap.add_argument('ids', nargs='+', type=str, default=None, help='group/project|ProjectID')
+
+    args = ap.parse_args()
+
+    fw = fwgearutils.getFW(args)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    if (args.downloaddir):
+        if (args.noop or args.verbose):
+            print("%s : change directory to '%s'" % (CmdName, args.downloaddir[0]))
+
+        os.chdir(args.downloaddir[0])
+
+
+    for id in args.ids:
+        try:
+            container = fw.get(id)
+
+        except flywheel.rest.ApiException as e:
+            try:
+                container = fw.lookup(id)
+
+            except flywheel.rest.ApiException as e:
+                try:
+                    (aid, fid) = re.split('/',id)
+                    container = fw.get(aid)
+                    
+                except flywheel.rest.ApiException as e:
+                    print("%s : Cannot find project or analysis by '%s' : %s" % (CmdName, id, e.reason), file=sys.stderr)
+                    sys.exit(e.status)
+
+        if (type(container) == flywheel.models.container_project_output.ContainerProjectOutput):
+            # AcquisitionID eg: 5d01594ca550c600466fccf7
+            project = fw.get(container.parents.project)
+            Analyses = listGearFiles(project)
+        elif (type(container) == flywheel.models.resolver_project_node.ResolverProjectNode):
+            # group/project eg: dwolklab/NACC-SC
+            project = container
+            Analyses = listGearFiles(project)
+        elif (type(container) == flywheel.models.container_analysis_output.ContainerAnalysisOutput):
+            # AcquisitionID/FileID eg: 5d0a9dcaa550c600396fc61e/0a3f5b45-133f-467a-bba1-c4647650cbbf
+            (aid, fid) = re.split('/',id)
+            analysis = fw.get(aid)
+            [ file ] = list(filter(lambda x: x.id == fid, analysis.files))
+            Analyses = [{ 'analysis': analysis, 'file': file }]
+
+        if (Analyses):
+            for analysis in Analyses:
+                if (not args.quiet):
+                    print("%s/%s %s" % (analysis['analysis'].id, analysis['file'].id, analysis['file'].name ))
+
+                if (args.download):
+                    downloadGearFile(analysis['analysis'], analysis['file'])
+
+    else:
+        sys.exit(0)
+

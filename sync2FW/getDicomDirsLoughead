@@ -1,0 +1,73 @@
+#!/bin/bash
+
+BaseDir=/data/jag/bbcp/Studies
+Depth=4
+Filter="/Subjects/"
+Name='[A-Z][A-Z]*[0-9][0-9][0-9][0-9][0-9][0-9]'
+
+cmd=$(basename "$0")
+
+# /data/jag/bbcp/Studies/NBR_824061/Subjects/046440/NBR177102
+
+function getDicomDirs {
+	local BaseDir="$1"
+	local Depth="$2"
+	local Name="$3"
+	local Filter="$4"
+
+	if [ -d "$BaseDir" ]
+	then
+		find "$BaseDir" -mindepth "$Depth" -maxdepth "$Depth" -name "$Name" | grep -E "$Filter"
+	fi
+}
+
+
+while getopts b:g:p:S: arg
+do
+	case "$arg" in
+		b|g|p|S)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -n "$opt_p" ]
+then
+	Projects=( $(echo "$opt_p" | sed 's:,:\n:g' | sed 's:^:'"$BaseDir"'/:') )
+else
+	Projects=( $(find "$BaseDir" -mindepth 1 -maxdepth 1 -type d) )
+fi
+
+for Project in "${Projects[@]}"
+do
+	if [ -n "$opt_S" ]
+	then
+		Subjects=( $(echo "$opt_S" | sed 's:,:\n:g' | sed 's:^:'"$Project"'/Subjects/:') )
+	else
+		Subjects=( $(getDicomDirs "${Project}/Subjects" 1 "[0-9][0-9][0-9][0-9][0-9][0-9]" "$Filter") )
+	fi
+		
+	for Subject in "${Subjects[@]}"
+	do
+		if [ -n "$1" ]
+		then
+			Sessions=()
+			for Session in "$@"
+			do
+				if [ -d "${Subject}/${Session}" ]
+				then
+					Sessions+=( "${Subject}/${Session}" )
+				fi
+			done
+		else
+			Sessions=( $(getDicomDirs "$Subject" 1 "$Name" "$Filter") )
+		fi
+
+		if [ "${#Sessions[@]}" -gt 0 ]
+		then
+			echo "${Sessions[@]}" | tr ' ' '\n'
+		fi
+	done
+done

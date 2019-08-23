@@ -1,0 +1,53 @@
+#!/bin/bash
+
+DefaultFlywheelDir=/flywheel/v0
+DefaultConfigFile=${DefaultFlywheelDir}/config.json
+opt_d=/
+
+export PATH=/flywheel/v0:$PATH
+
+while getopts c:d: args
+do
+    case $args in
+	c|d)
+	    eval "opt_${args}=${OPTARG:=1}"
+	    ;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -n "$opt_c" ]
+then
+    DefaultConfigFile="$opt_c"
+fi
+
+ApiKey=$(getFlywheelApiKey)
+
+ApiKeyDir=~/.config/flywheel
+ApiKeyFile="${ApiKeyDir}/api.key"
+if [ ! -f "$ApiKeyFile" ]
+then
+    mkdir -p "$ApiKeyDir"
+    echo "$ApiKey" > "$ApiKeyFile"
+fi
+
+ProjectGearID=$(getGearParam "${DefaultConfigFile}:.destination.id")
+if [ "$ProjectGearID" == "aex" ]
+then
+     ProjectGearID=$(getGearParam "${DefaultConfigFile}:.config.ProjectName" "${DefaultConfigFile}:.inputs.dicom.object.info.ImageComments" default:UnknownProjectName)
+fi
+
+if [ "$ProjectGearID" != "UnknownProjectName" ]
+then
+    Json=$(pullFWProjectContext -a "$ProjectGearID")
+
+    if [ -n "$Json" ]
+    then
+	for k in site group project
+	do
+	    echo "$Json" | jq '.["'$k'"]["filesystem"]' | json2dir -v -C "$opt_d"
+	done
+    fi
+fi
+

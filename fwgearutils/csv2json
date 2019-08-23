@@ -1,0 +1,21 @@
+#!/bin/bash
+
+cmd=$(basename "$0")
+
+CsvFile="$1"
+JsonFile=$(mktemp "/tmp/${cmd}-XXXXXX.json")
+
+tail -n +2 "$CsvFile" | sed "s/^/,/; s/\$/,/; s/,/', '/g" > "$JsonFile"
+
+Headers=($(head -n 1 "$CsvFile" | sed 's/ //g; s/,/ /g'))
+for Header in "${Headers[@]}"
+do
+	sed -i "s/', '/\", \"${Header}\": \"/" "$JsonFile"
+done
+
+sed -i "s/^\", /{/; s/', '/\"},/" "$JsonFile"
+sed -i '1s/^/\[/; $s/},/}]/' "$JsonFile"
+
+cat "$JsonFile"
+
+rm -f "$JsonFile"

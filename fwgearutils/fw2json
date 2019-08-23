@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import os
+import flywheel
+import json
+import argparse
+import fwgearutils
+
+def getAcquisitionsJson(session):
+    global CmdName
+    global args
+
+    Subject = fw.get(session.subject._id)
+    Acquisitions = []
+    for a in session.acquisitions():
+        if (args.verbose):
+            print("%s : '%s/%s/%s/%s'" % (CmdName, args.path[0], Subject.label, session.label, a.label), file=sys.stderr)
+        aprime = fw.get(a.id)
+
+        Files = []
+        if (args.zip_info):
+            for f in aprime.files:
+                File = fwgearutils.sloppyCopy(f)
+                if (re.search('\.zip$', f.name)):
+                    if (f.size > 0):
+                        try:
+                            File['zip_info'] = fwgearutils.sloppyCopy(aprime.get_file_zip_info(f.name))
+                            File['zip_member_count'] = len(File['zip_info']['members'])
+
+                            Files.append(File.copy())
+                            if (args.verbose):
+#                               print("%s : '%s/%s/%s/%s/files/%s' %d" % (CmdName, args.path[0], Subject.label, session.label, a.label, f.name, f.zip_member_count), file=sys.stderr)
+                                print("%s : '%s/%s/%s/%s/files/%s' %d" % (CmdName, args.path[0], Subject.label, session.label, a.label, f.name, File['zip_member_count']), file=sys.stderr)
+
+                        except (flywheel.rest.ApiException) as e:
+                            print("%s : %s/%s(%s).get_file_zip_info failed on '%s' : %s - %s\n" % (CmdName, session.label, a.label, aprime.id, f.name, e.status, e.reason), file=sys.stderr)
+                            continue
+                    else:
+                        print("%s : Size of '%s/%s(%s)/%s' is 0 : Skipping\n" % (CmdName, session.label, a.label, aprime.id, f.name), file=sys.stderr)
+                        continue
+                else:
+                    if (args.verbose):
+                        print("%s : '%s/%s/%s/%s/files/%s'" % (CmdName, args.path[0], Subject.label, session.label, a.label, f.name), file=sys.stderr)
+
+
+        acquisition = fwgearutils.sloppyCopy(aprime)
+        acquisition['files'] = Files
+        Acquisitions.append((acquisition))
+
+    return(Acquisitions)
+
+if __name__ == '__main__':
+
+    import argparse
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-a', '--acquisitions',  action='store_true', help='include acquisition information')
+    ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
+    ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
+    ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
+    ap.add_argument('path', nargs=1, type=str, default=None, help='group/project')
+
+    args = ap.parse_args()
+
+    fw = fwgearutils.getFW(args)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    GroupProject = args.path[0]
+    c = fw.lookup(GroupProject)
+
+    j = fwgearutils.sloppyCopy(c)
+
+    if (type(c) == flywheel.models.resolver_project_node.ResolverProjectNode or type(c) == flywheel.models.resolver_subject_node.ResolverSubjectNode):
+        Sessions = []
+        for s in c.sessions():
+            if (args.get):
+                Subject = fw.get(s.subject._id)
+                if (args.verbose):
+                    print("%s : '%s/%s/%s'" % (CmdName, args.path[0], Subject.label,  s.label), file=sys.stderr)
+
+                session = fw.get(s.id)
+            else:
+                session = s
+
+            Session = fwgearutils.sloppyCopy(session)
+
+            if (args.acquisitions):
+                Acquisitions = getAcquisitionsJson(session)
+                Session['acquisitions'] = Acquisitions.copy()
+
+            Sessions.append(Session.copy())
+
+        j['sessions'] = Sessions
+    elif (type(c) == flywheel.models.resolver_session_node.ResolverSessionNode):
+            session = fw.get(c._id)
+
+            if (args.acquisitions):
+                Acquisitions = getAcquisitionsJson(session)
+                j['acquisitions'] = Acquisitions.copy()
+
+    print(json.dumps(j))
+

@@ -12,6 +12,8 @@ export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
 
 CONFIG_FILE=${FLYWHEEL}/config.json
 
+echo 35.184.111.29 dss.itksnap.org >> /etc/hosts
+
 echo "/flywheel/v0"
 ls -lR /flywheel/v0
 
@@ -47,28 +49,29 @@ do
 	(echo cd "$dirname"; cd "$dirname"; echo unzip -j $basename -d "${ExtractDir}"; unzip -j "$basename" -d "$ExtractDir")
     fi
 
-    ProjectName=$(getGearParam ProjectName ImageComments UnknownProjectName)
-    if [ "$ProjectName" == "UnknownProjectName" ]
-    then
-	ProjectID=$(jq -r '.["destination"]["id"]' "$CONFIG_FILE")
-	ProjectName=$(getFWParent "$ProjectID")
-    fi
+    # Really want the input fwID to track back the session/subject ID
+    # If you don't have the gear/dicom ids, you don't have the subject/session chain
+    #
+    # Want to get the input dicom id from the config file, look it up in flywheel and pass the output to jq
 
-    Age=$(getGearParam Age PatientAge UnknownAge)
-    SessionID=$(getGearParam SessionID StudyDescription UnknownSessionID)
-    ScanID=$(getGearParam ScanID SeriesDescription UnknownScanID)
-    
+    ProjectName=$(getGearParam "${DefaultConfigFile}:.config.ProjectName" "${DefaultConfigFile}:.inputs.dicom.object.info.ImageComments" default:UnknownProjectName)
+
+    SubjectID=$(getGearParam "${DefaultConfigFile}:.config.SubjectID" "fwget:${DefaultConfigFile},.destination.id,.parents.subject,.label" "${DefaultConfigFile}:.inputs.dicom.object.info.SeriesDescription" UnknownSubjectID)
+
+    SessionID=$(getGearParam "${DefaultConfigFile}:.config.SessionID" "fwget:${DefaultConfigFile},.destination.id,.parents.session,.label" "${DefaultConfigFile}:.inputs.dicom.object.info.StudyDescription" UnknownSession)
+
+    Age=$(getGearParam "${DefaultConfigFile}:.config.Age" "${DefaultConfigFile}:.inputs.dicom.object.info.PatientAge" UnknownAge)
     if ! ( echo "$Age" | grep -q '^[0-9][0-9]*$' )
     then
 	# R markdown will fail if Age is not a number
-	echo "Age '$Age' for '$ProjectName/$SessionID/$ScanID' is not a number.  Skipping." 1>&2
+	echo "Age '$Age' for '$ProjectName/$SessionID/$ScanID' is not an integer.  Skipping." 1>&2
 	continue
     fi
 
     # R markdown boofs if the SessionID has a ^ in it.
     SessionID=$(echo "$SessionID" | sed 's/\^/-/g')
 
-    run_pipeline.sh -s "$SessionID" -n "$ScanID" -p "$ProjectName" -a "$Age" "$ExtractDir" "$FLYWHEEL_OUTPUTDIR"
+    run_pipeline.sh -s "$SessionID" -n "$SubjectID" -p "$ProjectName" -a "$Age" "$ExtractDir" "$FLYWHEEL_OUTPUTDIR"
 done < <(find ${FLYWHEEL_INPUTDIR} -type f | grep -P '(\.zip|.gz)$')
 
 

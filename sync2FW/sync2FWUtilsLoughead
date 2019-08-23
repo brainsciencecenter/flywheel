@@ -1,0 +1,27 @@
+#!/bin/bash
+
+function prefix {
+	true
+}
+function mapFWSessions2Paths {
+    BaseDir=/data/jag/bbcp/Studies
+    awk -F / '{print "'"$BaseDir"'/"$2"/Subjects/"$3"/"$4}'
+}
+
+function mapPaths2FWSessions {
+    local Group="$1"
+    
+    awk -F / '{print "'"$Group"'/"$6"/"$8"/"$9}'
+}
+    
+Command="$1"
+
+shift
+
+case "$Command" in
+	prefix|mapFWSessions2Paths|mapPaths2FWSessions)
+		"$Command" "$@"
+		;;
+
+esac
+		

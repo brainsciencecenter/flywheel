@@ -1,0 +1,90 @@
+{
+	"name": "ashs",
+	"label": "Penn Memory Center Hippocampus Volumetry Pipeline",
+	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
+	"version": "0.0.6",
+	"inputs": {
+		"api-key": {
+			"base": "api-key"
+		},
+		"t1": {
+			"base": "file",
+			"description": "T1 weighted dicom or nifti file.",
+			"optional": true,
+			"type": {
+				"enum": [
+					"dicom"
+				]
+			}
+		},
+		"t2": {
+			"base": "file",
+			"description": "T2 weighted dicom or nifti file.",
+			"optional": true,
+			"type": {
+				"enum": [
+					"dicom"
+				]
+			}
+		}
+	},
+	"config": {
+		"DSSService": {
+			"default": "ASHS-HarP",
+			"description": "Segmentation service to use.  defaults to ASHS-HarP(0). May be one of ASHS-Magdeburg(1), ASHS-PMC-T1(2), ASHS-PMC-T2(3), ASHS-Princeton(4), ASHS-Utrect(5)",
+			"enum": [
+				"0 - ASHS-HarP",
+				"1 - ASHS-Magdeburg",
+				"2 - ASHS-PMC-T1",
+				"3 - ASHS-PMC-T2",
+				"4 - ASHS-Princeton",
+				"5 - ASHS-Utrecht"
+			],
+			"type": "string"
+		},
+		"ProjectName": {
+			"default": "",
+			"description": "Project Name. Default found from gear manifest.",
+			"type": "string"
+		},
+		"ScanID": {
+			"default": "",
+			"description": "Scan ID. Default found from dicom headers.",
+			"type": "string"
+		},
+		"SessionID": {
+			"default": "",
+			"description": "Session ID. Default found from dicom headers.",
+			"type": "string"
+		}
+	},
+	"environment": {
+		"FLYWHEEL": "/flywheel/v0",
+		"FLYWHEEL_INPUT": "/flywheel/v0/input",
+		"FLYWHEEL_OUTPUT": "/flywheel/v0/output",
+		"GPG_KEY": "C01E1CAD5EA2C4F0B8E3571504C367C218ADD4FF",
+		"LANG": "C.UTF-8",
+		"PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PYTHONIOENCODING": "UTF-8",
+		"PYTHON_PIP_VERSION": "19.0.2",
+		"PYTHON_VERSION": "2.7.15",
+		"WORKDIR": "/app"
+	},
+	"command": "./run",
+	"author": "Gaylord Holder",
+	"maintainer": "Gaylord Holder",
+	"cite": "List citations here.",
+	"license": "Other",
+	"source": "",
+	"url": "",
+	"custom": {
+		"flywheel": {
+			"suite": "BrainScienceCenter"
+		},
+		"gear-builder": {
+			"category": "analysis",
+			"container": "c9d1c22c35948ffda5b71ae2745f2a81ee8a9371229c4238a33a40dcabc344f4",
+			"image": "gear-builder-thgqotmsur-20190619214111"
+		}
+	}
+}

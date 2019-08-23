@@ -1,0 +1,63 @@
+#!/bin/bash
+
+cmd=$(basename "$0")
+
+function yyyymmdd2us {
+	 local Date="$1"
+	 
+	 echo $Date | sed -E 's,([0-9]{4})([0-9]{2})([0-9]{2}),\2/\3/\1,'
+}
+
+function us2yyyyddmm {
+	 local Date="$1"
+	 
+	 echo $Date | sed -E 's,([0-9]{2})/([0-9]{2})/([0-9]{4}),\3\1\2,'
+}
+
+Project="$1"
+
+ScanDatesJson=$(pullFWProjectContext "$Project" | jq .Scandates_CINRA)
+
+if [ -e "$2" ]
+then
+	ProjectJsonFile="$2"
+else
+	ProjectJsonFile=$(mktemp "/tmp/${cmd}-XXXXXX.json")
+	RemoveTmpFile=true
+
+	fw2json "$Project" > "$ProjectJsonFile"
+fi
+
+ProjectJson=$(jq -r ".sessions | sort_by(.timestamp) | .[] | (\"\(._id) \(.timestamp) \(.subject.label) \(.label)\")" "$ProjectJsonFile")
+
+PrevUsScanDate=""
+
+echo "$ProjectJson" | while read SessionID MachineScanDate StartTime SubjectLabel SessionLabel
+do
+	UsScanDate=$(yyyymmdd2us $MachineScanDate)
+	
+	ScanDateAndTimeJson=$(echo "$ScanDatesJson" | jq -r "[ .[]|select(.ScanDate == \"$UsScanDate\") ] | sort_by(.StartTimme)")
+	if [ "$UsScanDate" != "$PrevUsScanDate" ]
+	then
+		n=0
+	else
+		PrevUsScanDate="$UsScanDate"
+		n=$(($n + 1))
+	fi
+
+	read Asid Stid <<< $(echo "$ScanDateAndTimeJson" | jq -r ".[$n] | \"\(.ASID) \(.STID)\"")	
+	if [ -z "$Stid" ]
+	then
+		Stid=MissingData
+	fi
+
+	PaddedAsid=$(printf "%06d" $Asid)
+
+	echo "mv \"$SessionID\" \"$MachineScanDate\" \"$StartTime\" \"$SubjectLabel\" \"$SessionLabel\" => \"$Stid\" \"$PaddedAsid\""
+done
+
+if [ -n "$RemoveTmpFile" ]
+then
+	rm -f "$ProjectJsonFile"
+fi
+

@@ -1,0 +1,60 @@
+#!/bin/bash
+
+cmd=$(basename "$0")
+
+# {JsonFile:jqExpr|fw:fwlookup,jqExpr|DicomFile|default:String} ....
+
+syntax="${cmd} ConfigParam FW DicomParam [default]"
+
+ConfigFile=/flywheel/v0/config.json
+
+while getopts c: args
+do
+	case "$args" in
+	     c)
+		eval "opt_${args}=${OPTARG:=1}"
+		;;
+	esac	
+done
+
+shift $(($OPTIND - 1))
+
+
+for arg in "$@"
+do
+    read key value <<< $(echo "$arg" | sed 's/:/ /')
+
+    case "$key" in
+	*.json)
+	    Res=$(jq -r "$value" "$key")
+	    ;;
+
+	fwget)
+	    read ConfigFile JqExpr1 JqExpr2 JqExpr3  <<< $(echo "$value" | sed 's/,/ /g')
+	    ConfigID=$(jq -r "$JqExpr1" "$ConfigFile")
+	    ID1=$(fwget "$ConfigID" | jq -r "$JqExpr2")
+	    Res=$(fwget "$ID1" | jq -r "$JqExpr3")
+	    ;;
+
+	fw)
+	    read FWPath JqExpr <<< $(echo "$value" | sed 's/,/ /')
+	    Res=$(fwlookup "$FWPath" | jq -r "$JqExpr")
+	    ;;
+	
+	*dcm)
+	    Res=$(gdcmdump "$key" | grep -P "$value" | sed 's/^.*\[//; s/\].*$//')
+	    ;;
+
+	default)
+	    Res="$value"
+	    ;;
+    esac
+    if [ "$Res" == 'null' ]
+    then
+	continue
+    fi
+    	    
+    [ -n "$Res" ] && echo "$Res" && exit 0
+done
+
+

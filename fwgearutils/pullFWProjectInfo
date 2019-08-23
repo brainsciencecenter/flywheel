@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import os
+import flywheel
+import json
+import argparse
+import fwgearutils
+import pyjq
+
+from os.path import expanduser
+
+'''
+pull json from gropu/project info
+'''
+
+if __name__ == '__main__':
+    import argparse
+    import tempfile
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+
+    ap.add_argument('-d', '--debug', action='store_true', dest='debug', help='print additional debugging info')
+    ap.add_argument('-n', '--noop', action='store_true', help='do not actually do anything.')
+    ap.add_argument('-v', '--verbose', action='store_true', help='show what is being done')
+    ap.add_argument('project', nargs=1, help='group/project')
+    args = ap.parse_args()
+
+    ApiKey = fwgearutils.getApiKey(args)
+
+    fw = fwgearutils.getFW(args)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    if (args.project):
+        try:
+            container = fw.get(args.project[0])
+            if (type(container) == flywheel.models.container_project_output.ContainerProjectOutput):
+                project = container
+            elif ('gear_info' in container.keys()):
+                ProjectID = container.parents.project
+                project = fw.get(ProjectID)
+            else:
+                print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
+                sys.exit(e.status)
+
+
+        except flywheel.rest.ApiException as e:
+            try:
+                project = fw.lookup(args.project[0])
+
+            except flywheel.rest.ApiException as e:
+                print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
+                sys.exit(e.status)
+
+        ProjectInfoDict = fwgearutils.decodeKeys(project.info)
+        print(json.dumps(ProjectInfoDict))
+

@@ -1,8 +1,8 @@
 {
 	"name": "ashsharpicv",
-	"label": "AshsHarpIcv",
+	"label": "AshsHarpICV",
 	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
-	"version": "0.2.22",
+	"version": "0.2.28",
 	"inputs": {
 		"api-key": {
 			"base": "api-key"
@@ -28,14 +28,14 @@
 			"description": "Project Name. Default found from gear manifest.",
 			"type": "string"
 		},
-		"ScanID": {
-			"default": "",
-			"description": "Scan ID. Default found from dicom headers.",
-			"type": "string"
-		},
 		"SessionID": {
 			"default": "",
-			"description": "Session ID. Default found from dicom headers.",
+			"description": "Session ID. Default found from flywheel Session label.",
+			"type": "string"
+		},
+		"Subject": {
+			"default": "",
+			"description": "SubjectID. Default found from flywheel Subject label.",
 			"type": "string"
 		}
 	},
@@ -59,8 +59,12 @@
 	"source": "",
 	"url": "",
 	"custom": {
+		"flywheel": {
+			"suite": "BrainScienceCenter"
+		},
 		"gear-builder": {
-			"category": "analysis",
+		"category": "analysis",
+		"container": "c50769fc3251c8321815323ccf2ad4ab0a1bdc7f2f5b4201fa748573e5a93c5f",
 			"image": "ashs/itksnap:latest"
 		}
 	}

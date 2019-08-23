@@ -1,0 +1,213 @@
+#!/bin/bash
+
+#
+# Xnat credentials are expected in ~/.netrc (man netrc for details)
+# should be in the form:
+# machine $hostname login $user password $password
+#
+# Flywheel credentials are expected in the ~/.config/flywheel/api.key file in the form of
+#    $host:$apikey
+# eg:
+#    upenn.flywheel.io:xxxxxxxxxxx
+#
+
+cmd=$(basename $0)
+
+syntax="$cmd [-b backend][-d dir] [-F]{-g FWGroupID}[-l][-n][-P DicomProjectName]{-p FWProjectName}[-q][-s sessionfile][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[DicomSession] ...]"
+
+: <<=cut
+=pod
+
+=head1 NAME
+
+xnat2fw - upload XNAT sessions to flywheel
+
+=head1 SYNOPSIS
+
+xnat2fw {-g FWGroupID} {-p FlyWheelProject} [-n][-P DicomProject][-q][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[DicomSession] ...]
+xnat2fw {-g FWGroupID} {-p FlyWheelProject} [-F]
+xnat2fw {-g FWGroupID} {-p FlyWheelProject} [-l]
+
+=head1 DESCRIPTION
+
+xnat2fw uploads XNAT sessions to flywheel.
+
+=over 8
+
+=item -F
+
+Get list of existing Flywheel session for the given group and project.
+
+=item -g FWGroupID
+
+Required. Specify the flywheel GroupID to upload the XNAT sessions to.
+
+=item -l
+
+List the remaining XNAT sessions to upload to the given Flywheel group and project.
+
+=item -n
+
+No-op.  Show what would have been done, but don\'t really do anything
+
+=item -P DicomProject
+
+Overrides the Flywheel project specified with '-p'.
+Use this to upload sessions to a different Flywheel project.
+
+=item -p
+
+Required.  Specify the Flywheel project to upload XNAT sessions to.
+
+=item -q
+
+Quiet mode.  The underlying fw command is quite chatty. This ignores any status reports from fw.
+
+=item -t NumberOfTransferThreads
+
+Number of Transfer Threads.  Defaults to 4.
+
+=item -w NumberOfWorkerThreads
+
+Number of Worker Threads.  Defaults to 2.
+
+=item -v
+
+Verbose.  Show what commands are being run as we go.
+
+=back
+
+A space list of Dicom sessions names may be given to xnat2fw.  Without this list, xnat2fw will
+generate a list of sessions still to be uploaded (use xnat2fw -l to see the list) and start uploading them.
+
+=cut
+
+#
+# -P defaults to -p option
+#
+function sys {
+	[ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	[ -z "$opt_n" ] && "$@"
+}
+
+function syncDicom2FW {
+        local FWGroupID="$1"
+
+	shift
+
+	local FWCmd
+	local Project
+	local Subject
+	local Session
+	local g
+
+	for Path in "$@"
+	do
+		if [ ! -e "$Path" ]
+		then
+			echo "$cmd : No such file or directory for session '$Session' : skipping" 1>&2
+			continue
+		fi
+
+		read g Project Subject Session < <(echo "$Path" | "$sync2FWUtils" mapPaths2FWSessions "$FWGroupID" "${PrefixInfo[@]}" | tr '/' ' ')
+
+		if [ -z "$Project" -o -z "$Subject" -o -z "$Session" ]
+		then
+		    echo "$CmdName : '$Path' not mapped correctly.  Skipping."  1>&2
+		    continue
+		fi
+
+		logfile=$(mktemp "/tmp/${CmdName}-${FWGroupID}-${Project}-${Subject}-${Session}-XXXXX")
+
+		#
+		# fw -q doesn't seem to do anything  Force it.
+		#	
+		FWCmd=(fw import dicom -y --quiet --audit-log-path "$logfile" --de-identify --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Path" "$FWGroupID" "$Project")
+		if [ -n "$opt_q" ]
+		then
+			sys "${FWCmd[@]}" > /dev/null
+		else
+			sys "${FWCmd[@]}"
+		fi	  
+	done
+}
+
+function cleanup {
+	 [ -e "$CleanupFile" ] && sys rm "$CleanupFile"
+	 [ -n "$XNATSessionID" ] && sys curl -b "JSESSIONID=$XNATSessionID" -X DELETE "$XNATURL/data/JSESSION"
+}
+
+#
+# *** Remove defaults for opt_g opt_p opt_P and verify they've been given on command line
+#
+opt_b=XNAT
+opt_t=4
+opt_w=2
+
+while getopts b:Fg:lnP:p:qs:t:w:v arg
+do
+	case "$arg" in 
+		b|F|f|g|l|n|P|p|q|s|t|w|v)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $((OPTIND - 1))
+
+# check FWgroupid/Project exists? --- let it fail
+
+if [ -n "$opt_g" ]
+then
+	FWGroupID="$opt_g"
+else
+	echo "$cmd : Missing -g argument" 1>&2
+	echo "$syntax" 1>&2
+	exit 1
+fi
+
+if [ -n "$opt_p" ]
+then
+    FWProject="$opt_p"
+else
+    echo "$cmd : Missing -p argument" 1>&2
+    echo "$syntax" 1>&2
+    exit 1
+fi
+
+if [ -n "$opt_P" ]
+then
+    DicomProject="$opt_P"
+else
+    DicomProject="$opt_p"
+fi
+
+sync2FWUtils=sync2FWUtils${opt_b}
+getDicomDirs=getDicomDirs${opt_b}
+
+Paths=$("$getDicomDirs" -g "$FWGroupID" -p "$DicomProject" "$@" | sort)
+
+PrefixInfo=( $("$sync2FWUtils" prefix "$FWGroupID" "$FWProject") )
+
+if [ -n "$opt_s" ]
+then
+    FWSessions=$(< "$opt_s")
+else
+    FWSessions=$(getFWSessions -g "$FWGroupID" "$FWProject" | sort)
+fi
+
+FWPaths=$(echo "$FWSessions" | "$sync2FWUtils" mapFWSessions2Paths "$GroupID" "${PrefixInfo[@]}")
+
+SessionsMissingFromFlywheel=( $(diff <(echo "$Paths") <(echo "$FWPaths") | grep '<' | sed 's/< //') )
+
+if [ -n "$opt_l" ]
+then
+    echo "${SessionsMissingFromFlywheel[@]}" | tr ' ' '\n'
+    exit $?
+fi
+
+syncDicom2FW "$FWGroupID" "${SessionsMissingFromFlywheel[@]}"
+
+cleanup
+
+

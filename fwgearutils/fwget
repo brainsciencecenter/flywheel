@@ -16,7 +16,6 @@ if __name__ == '__main__':
     CmdName = os.path.basename(sys.argv[0])
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('-r', '--recurse',  action='store_true', help='simpleminded flywheel object to json recursion.  No sessions or acquisitions')
     ap.add_argument('id', nargs=1, type=str, default=None, help='group/project|ProjectID')
 
     args = ap.parse_args()
@@ -26,9 +25,4 @@ if __name__ == '__main__':
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
-    try:
-        print(json.dumps(fwgearutils.sloppyCopy(fw.lookup(args.id[0]), args.recurse)))
-    except (flywheel.rest.ApiException) as e:
-        print(json.dumps(fwgearutils.sloppyCopy(fw.get(args.id[0]), args.recurse)))
-
-    sys.exit(0)
+    print(json.dumps(fwgearutils.sloppyCopy(fw.get(args.id[0]))))
