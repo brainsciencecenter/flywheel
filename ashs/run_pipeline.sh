@@ -123,7 +123,6 @@ WorkspaceFile="${TmpDir}/WorkspaceFile"
 TicketFile="$TmpDir/TicketFile"    
 
 T1NiftiFile=$(niftiIfNeeded "$opt_T")
-T2NiftiFile=$(niftiIfNeeded "$opt_t")
  
 # Authorization token is in ~/.alfabis/cookie*.jar
 # -o is a file
@@ -135,9 +134,17 @@ else
     T1Tag=T1-MRI
 fi
 
-itksnap-wt -layers-add-anat "$T1NiftiFile" -tags-add "$T1Tag" -layers-add-anat "$T2NiftiFile" -tags-add "T2-MRI" -layers-list -o "$WorkspaceFile"
+ITKSnapCmd=( itksnap-wt -layers-add-anat "$T1NiftiFile" -tags-add "$T1Tag" -layers-list -o "$WorkspaceFile" )
 
-for i in $(itksnap-wt -dss-tickets-list | grep -P 'success|failed' /tmp/cookies | awk '{print $2}')
+if [ -n "$opt_t" -a "$opt_t" != 1 ]
+then
+    T2NiftiFile=$(niftiIfNeeded "$opt_t")
+    ITKSnapCmd+=(-layers-add-anat "$T2NiftiFile" -tags-add "T2-MRI")
+fi
+
+"${ITKSnapCmd[@]}"
+
+for i in $(itksnap-wt -dss-tickets-list | grep -P 'success|failed' | awk '{print $2}')
 do
 	itksnap-wt -dss-tickets-delete $i
 done
