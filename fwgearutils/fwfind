@@ -8,6 +8,92 @@ import json
 import argparse
 import fwgearutils
 
+def recurse(r):
+    global CmdName
+    global args
+
+    if (args.get):
+        r = fw.get(r._id)
+
+    if (args.verbose):
+        print(type(r), file=sys.stderr)
+
+    Output = fwgearutils.sloppyCopy(r)
+
+    if (type(r) == flywheel.models.project.Project or type(r) == flywheel.models.container_project_output.ContainerProjectOutput):
+        if (args.verbose):
+            print("%s : r == project" % (CmdName), file=sys.stderr)
+
+        Subjects = []
+        for s in r.subjects():
+            if (args.verbose):
+                print("%s : %s/%s" % (CmdName, r.label, s.label), file=sys.stderr)
+
+            Subject = recurse(s)
+            Subjects.append(fwgearutils.sloppyCopy(Subject))
+        Output['subjects'] = Subjects
+        
+    elif (type(r) == flywheel.models.subject.Subject or type(r) == flywheel.models.container_subject_output.ContainerSubjectOutput):
+        if (args.debug):
+            print("r == subject", file=sys.stderr)
+
+        Sessions = []
+        for s in fw.get_subject_sessions(r._id):
+            if (args.verbose):
+                print("%s : %s/%s" % (CmdName, r.label, s.label), file=sys.stderr)
+            Session = recurse(s)
+            Sessions.append(fwgearutils.sloppyCopy(Session))
+        Output['sessions'] = Sessions
+
+    elif (type(r) == flywheel.models.session.Session or type(r) == flywheel.models.container_session_output.ContainerSessionOutput):
+        if (args.verbose):
+            print("%s : r == session(%s)" % (CmdName, r.label), file=sys.stderr)
+
+        if (r.analyses):
+            Analyses = []
+            for a in r.analyses:
+                Analysis = fwgearutils.sloppyCopy(a)
+                Analyses.append(Analysis)
+            Output['analyses'] = Analyses
+
+        Acquisitions = []
+        for a in r.acquisitions():
+            Acquisition = recurse(a)
+            Acquisitions.append(fwgearutils.sloppyCopy(Acquisition))
+        Output['acquisitions'] = Acquisitions
+
+    elif (type(r) == flywheel.models.acquisition.Acquisition or type(r) == flywheel.models.container_acquisition_output.ContainerAcquisitionOutput):
+        if (args.verbose):
+            print("r == acquisition", file=sys.stderr)
+
+    if (args.zip_info):
+        Files = []
+        for f in r.files:
+            if (re.search('\.zip$', f.name)):
+                if (f.size > 0):
+                    try:
+                        File = fwgearutils.sloppyCopy(f)
+                        File['zip_info'] = r.get_file_zip_info(f.name)
+                        File['zip_member_count'] = len(File['zip_info']['members'])
+                        
+                        Files.append(File)
+                        if (args.verbose):
+                            print("%s : '%s/files/%s' %d" % (CmdName, r.label, f.name, File['zip_member_count']), file=sys.stderr)
+
+                    except (flywheel.rest.ApiException) as e:
+                        print("%s : %s(%s).get_file_zip_info failed on '%s' : %s - %s\n" % (CmdName, r.label, r.id, f.name, e.status, e.reason), file=sys.stderr)
+                        continue
+                else:
+                    print("%s : Size of '%s(%s)/%s' is 0 : Skipping\n" % (CmdName, r.label, r.id, f.name), file=sys.stderr)
+                    continue
+            else:
+                if (args.verbose):
+                    print("%s : '%s/files/%s'" % (CmdName, r.label, f.name), file=sys.stderr)
+
+        if (len(Files) > 0):
+            r['files'] = Files
+
+    return(Output)
 
 if __name__ == '__main__':
 
@@ -16,6 +102,12 @@ if __name__ == '__main__':
     CmdName = os.path.basename(sys.argv[0])
 
     ap = argparse.ArgumentParser()
+    ap.add_argument('-d', '--debug',  action='store_true', help='print debug info')
+    ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
+    ap.add_argument('-r', '--recurse',  action='store_true', help='recurse through data structure')
+    ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
+    ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
+    
     # Projects, Subjects, Sessions, Acquisitions and Analyses are containers
     # but Analyses are only containers within the other containers and not from the flywheel object
     cap = ap.add_mutually_exclusive_group()
@@ -25,6 +117,7 @@ if __name__ == '__main__':
     cap.add_argument('-s', '--subjects',  action='store_true', help='find subject information')
     cap.add_argument('-S', '--sessions',  action='store_true', help='find session information')
 
+ 
     ap.add_argument('findargs', nargs='+', type=str, default=None, help='find args')
 
     args = ap.parse_args()
@@ -37,23 +130,29 @@ if __name__ == '__main__':
     res = None
 
     if (args.acquisitions):
-        res = fw.acquisitions.find(*args.findargs)
+        res = fw.acquisitions.iter_find(*args.findargs)
 #    if (args.analyses):
 #        print(fw.__dir__())
 #        res = fw.analyses.find(*args.findargs)
     if (args.projects):
-        res = fw.projects.find(*args.findargs)
+        res = fw.projects.iter_find(*args.findargs)
     if (args.subjects):
-        res = fw.subjects.find(*args.findargs)
+        res = fw.subjects.iter_find(*args.findargs)
     if (args.sessions):
         res = fw.sessions.iter_find(*args.findargs)
 
     #
     # Want to add analyses, get, zip-info from fw2json
     #
-    output = []
+    Outputs = []
     for r in res:
-        output.append(r)
 
-    print(json.dumps(fwgearutils.sloppyCopy(output)))
+        if (args.recurse):
+            Output = recurse(r)
+        else:
+            Output = fwgearutils.sloppyCopy(r)
+
+        Outputs.append(Output)
+
+    print(json.dumps(Outputs))
 
