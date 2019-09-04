@@ -69,14 +69,13 @@ def recurse(r):
     if (args.zip_info):
         Files = []
         for f in r.files:
+            File = fwgearutils.sloppyCopy(f)
             if (re.search('\.zip$', f.name)):
                 if (f.size > 0):
                     try:
-                        File = fwgearutils.sloppyCopy(f)
-                        File['zip_info'] = r.get_file_zip_info(f.name)
+                        File['zip_info'] = fwgearutils.sloppyCopy(r.get_file_zip_info(f.name))
                         File['zip_member_count'] = len(File['zip_info']['members'])
                         
-                        Files.append(File)
                         if (args.verbose):
                             print("%s : '%s/files/%s' %d" % (CmdName, r.label, f.name, File['zip_member_count']), file=sys.stderr)
 
@@ -90,8 +89,11 @@ def recurse(r):
                 if (args.verbose):
                     print("%s : '%s/files/%s'" % (CmdName, r.label, f.name), file=sys.stderr)
 
+#            Files.append(File.copy())
+            Files.append(File)
+
         if (len(Files) > 0):
-            r['files'] = Files
+            Output['files'] = Files
 
     return(Output)
 
