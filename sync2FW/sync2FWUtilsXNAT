@@ -16,7 +16,6 @@ function prefix {
     if [ "$HTTPCode" == 401 ]
     then
         echo "$cmd : XNAT authorization failed '$XNATURL'" 1>&2
-        cleanup
         exit 1
     fi
 
