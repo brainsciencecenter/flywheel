@@ -61,6 +61,20 @@ do
     SessionID=$(getGearParam "${CONFIG_FILE}:.config.SessionID" "fwget:${CONFIG_FILE},.destination.id,.parents.session,.label" "${CONFIG_FILE}:.inputs.dicom.object.info.StudyDescription" UnknownSession)
 
     Age=$(getGearParam "${CONFIG_FILE}:.config.Age" "${CONFIG_FILE}:.inputs.dicom.object.info.PatientAge" UnknownAge)
+
+    # See if the age is in months and then take the floor of the age in months/12 (Arun's recommendataion)
+    if echo "$Age" | grep -qP '\d+M$'
+    then
+	AgeInMonths=$(echo "$Age" | sed 's/M$//')
+	Age=$(("$AgeInMonths" / 12))
+    fi
+
+    # deal with 081Y
+    if echo "$Age" | grep -qP '0\d+Y$'
+    then
+	Age=$(echo "$Age" | sed 's/^0//; s/Y$//')
+    fi
+	
     if ! ( echo "$Age" | grep -q '^[0-9][0-9]*$' )
     then
 	# R markdown will fail if Age is not a number

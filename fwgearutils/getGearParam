@@ -33,7 +33,12 @@ do
 	    read ConfigFile JqExpr1 JqExpr2 JqExpr3  <<< $(echo "$value" | sed 's/,/ /g')
 	    ConfigID=$(jq -r "$JqExpr1" "$ConfigFile")
 	    ID1=$(fwget "$ConfigID" | jq -r "$JqExpr2")
-	    Res=$(fwget "$ID1" | jq -r "$JqExpr3")
+	    if [ -n "$ID1" ]
+	    then
+		Res=$(fwget "$ID1" | jq -r "$JqExpr3")
+	    else
+		Res=""
+	    fi
 	    ;;
 
 	fw)

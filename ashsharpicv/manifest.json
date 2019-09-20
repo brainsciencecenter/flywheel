@@ -2,7 +2,7 @@
 	"name": "ashsharpicv",
 	"label": "AshsHarpICV",
 	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
-	"version": "0.2.31",
+	"version": "0.2.32",
 	"inputs": {
 		"api-key": {
 			"base": "api-key"
@@ -20,8 +20,9 @@
 	},
 	"config": {
 		"Age": {
+			"default": "",
 			"description": "Age of subject in years. Default found in dicom headers.",
-			"type": "number"
+			"type": "string"
 		},
 		"ProjectName": {
 			"default": "",
@@ -64,7 +65,7 @@
 		},
 		"gear-builder": {
 			"category": "analysis",
-			"container": "6d41de27d09996e7497e11ad35d542b0766aa45c41e0c2f4a085eb7f961a3d3f",
+			"container": "d7304722d98ed815afcfabc78ac7cb2e4fc439c2199452cab4247148eab5bf56",
 			"image": "ashs/itksnap:latest"
 		}
 	}

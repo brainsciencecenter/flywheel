@@ -29,8 +29,6 @@ if __name__ == '__main__':
     ap.add_argument('project', nargs=1, help='group/project')
     args = ap.parse_args()
 
-    ApiKey = fwgearutils.getApiKey(args)
-
     fw = fwgearutils.getFW(args)
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
