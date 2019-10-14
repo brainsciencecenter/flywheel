@@ -1,0 +1,142 @@
+dicom:
+  fields:
+  - name: AccessionNumber
+    replace-with: ''
+  - name: AdditionalPatientHistory
+    replace-with: ''
+  - name: AdmittingDiagnosesDescription
+    replace-with: ''
+  - name: Allergies
+    replace-with: ''
+  - name: BranchOfService
+    replace-with: ''
+  - name: ConfidentialityConstraintOnPatientDataDescription
+    replace-with: ''
+  - name: ConsultingPhysicianIdentificationSequence
+    replace-with: ''
+  - name: ConsultingPhysicianName
+    replace-with: ''
+  - name: CountryOfResidence
+    replace-with: ''
+  - name: CurrentPatientLocation
+    replace-with: ''
+  - name: EthnicGroup
+    replace-with: ''
+  - name: InsurancePlanIdentification
+    replace-with: ''
+  - name: IssuerOfPatientID
+    replace-with: ''
+  - name: LastMenstrualDate
+    replace-with: ''
+  - name: MedicalAlerts
+    replace-with: ''
+  - name: MedicalRecordLocator
+    replace-with: ''
+  - name: MilitaryRank
+    replace-with: ''
+  - name: NameOfPhysiciansReadingStudy
+    replace-with: ''
+  - name: Occupation
+    replace-with: ''
+  - name: OtherPatientIDs
+    replace-with: ''
+  - name: OtherPatientIDsSequence
+    replace-with: ''
+  - name: OtherPatientNames
+    replace-with: ''
+  - name: PatientAddress
+    replace-with: ''
+  - name: PatientAge
+    replace-with: ''
+  - name: PatientAlternativeCalendar
+    replace-with: ''
+  - name: PatientBirthDate
+    replace-with: ''
+  - name: PatientBirthDateInAlternativeCalendar
+    replace-with: ''
+  - name: PatientBirthName
+    replace-with: ''
+  - name: PatientBirthTime
+    replace-with: ''
+  - name: PatientComments
+    replace-with: ''
+  - name: PatientDeathDateInAlternativeCalendar
+    replace-with: ''
+  - name: PatientID
+    replace-with: ''
+  - name: PatientInsurancePlanCodeSequence
+    replace-with: ''
+  - name: PatientMotherBirthName
+    replace-with: ''
+  - name: PatientName
+    replace-with: ''
+  - name: PatientPrimaryLanguageCodeSequence
+    replace-with: ''
+  - name: PatientReligiousPreference
+    replace-with: ''
+  - name: PatientSexNeutered
+    replace-with: ''
+  - name: PatientSize
+    replace-with: ''
+  - name: PatientSizeCodeSequence
+    replace-with: ''
+  - name: PatientState
+    replace-with: ''
+  - name: PatientTelecomInformation
+    replace-with: ''
+  - name: PatientTelephoneNumbers
+    replace-with: ''
+  - name: PatientWeight
+    replace-with: ''
+  - name: PerformingPhysicianIdentificationSequence
+    replace-with: ''
+  - name: PerformingPhysicianName
+    replace-with: ''
+  - name: PertinentDocumentsSequence
+    replace-with: ''
+  - name: PhysicianApprovingInterpretation
+    replace-with: ''
+  - name: PhysiciansOfRecord
+    replace-with: ''
+  - name: PhysiciansOfRecordIdentificationSequence
+    replace-with: ''
+  - name: PhysiciansReadingStudyIdentificationSequence
+    replace-with: ''
+  - name: PregnancyStatus
+    replace-with: ''
+  - name: ReasonForStudy
+    replace-with: ''
+  - name: ReferencedPatientPhotoSequence
+    replace-with: ''
+  - name: ReferringPhysicianAddress
+    replace-with: ''
+  - name: ReferringPhysicianIdentificationSequence
+    replace-with: ''
+  - name: ReferringPhysicianName
+    replace-with: ''
+  - name: ReferringPhysicianTelephoneNumbers
+    replace-with: ''
+  - name: RegionOfResidence
+    replace-with: ''
+  - name: RequestedProcedureComments
+    replace-with: ''
+  - name: RequestingPhysician
+    replace-with: ''
+  - name: RequestingPhysicianIdentificationSequence
+    replace-with: ''
+  - name: ResponsibleOrganization
+    replace-with: ''
+  - name: ResponsiblePerson
+    replace-with: ''
+  - name: ResponsiblePersonRole
+    replace-with: ''
+  - name: ScheduledPerformingPhysicianIdentificationSequence
+    replace-with: ''
+  - name: ScheduledPerformingPhysicianName
+    replace-with: ''
+  - name: SmokingStatus
+    replace-with: ''
+  - name: SpecialNeeds
+    replace-with: ''
+  - name: DeidentificationMethod
+    replace-with: Penn_BSC_profile_v1.0
