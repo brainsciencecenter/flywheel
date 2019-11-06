@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+#
+# Flywheel says subject.label doesn't really exist -- only put out in the output for consistency.  Use subjects.find('code="12345"')
+# Numeric strings must be _Double_Quoted_ to be correctly interpeted as strings -- otherwise comparing strings vs numbers.
+# 
+
 import sys
 import re
 import os

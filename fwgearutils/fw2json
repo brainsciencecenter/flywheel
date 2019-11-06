@@ -8,48 +8,105 @@ import json
 import argparse
 import fwgearutils
 
-def getAcquisitionsJson(session):
+def recurse(r):
     global CmdName
     global args
 
-    Subject = fw.get(session.subject._id)
-    Acquisitions = []
-    for a in session.acquisitions():
-        if (args.verbose):
-            print("%s : '%s/%s/%s/%s'" % (CmdName, args.path[0], Subject.label, session.label, a.label), file=sys.stderr)
-        aprime = fw.get(a.id)
+    if (args.get):
+        try:
+            r = fw.get(r._id)
+        except (flywheel.rest.ApiException) as e:
+            True
 
+    if (args.debug):
+        print(type(r), file=sys.stderr)
+
+    Output = fwgearutils.sloppyCopy(r)
+
+    if (type(r) == flywheel.models.project.Project or type(r) == flywheel.models.container_project_output.ContainerProjectOutput):
+        if (args.verbose):
+            print("%s : r == project" % (CmdName), file=sys.stderr)
+
+        Subjects = []
+        for s in r.subjects():
+            if (args.verbose):
+                print("%s : %s/%s" % (CmdName, r.label, s.label), file=sys.stderr)
+
+            Subject = recurse(s)
+            Subjects.append(fwgearutils.sloppyCopy(Subject))
+        Output['subjects'] = Subjects
+        
+    elif (type(r) == flywheel.models.subject.Subject or type(r) == flywheel.models.container_subject_output.ContainerSubjectOutput):
+        if (args.debug):
+            print("r == subject", file=sys.stderr)
+
+        Sessions = []
+        for s in fw.get_subject_sessions(r._id):
+            if (args.verbose):
+                print("%s : %s/%s" % (CmdName, r.label, s.label), file=sys.stderr)
+            Session = recurse(s)
+            Sessions.append(fwgearutils.sloppyCopy(Session))
+        Output['sessions'] = Sessions
+
+    elif (type(r) == flywheel.models.session.Session or type(r) == flywheel.models.container_session_output.ContainerSessionOutput):
+        if (args.verbose):
+            print("%s : r == session(%s)" % (CmdName, r.label), file=sys.stderr)
+
+        if (r.analyses):
+            Analyses = []
+            for a in r.analyses:
+                Analysis = fwgearutils.sloppyCopy(a)
+                Analyses.append(Analysis)
+            Output['analyses'] = Analyses
+
+        Acquisitions = []
+
+        if (args.acquisitions):
+            for a in r.acquisitions():
+                Acquisition = recurse(a)
+                Acquisitions.append(fwgearutils.sloppyCopy(Acquisition))
+
+        Output['acquisitions'] = Acquisitions
+
+    elif (type(r) == flywheel.models.acquisition.Acquisition or type(r) == flywheel.models.container_acquisition_output.ContainerAcquisitionOutput):
+        if (args.verbose):
+            print("r == acquisition", file=sys.stderr)
+
+    if (args.zip_info):
         Files = []
-        if (args.zip_info):
-            for f in aprime.files:
+
+        try:
+            for f in r.files:
                 File = fwgearutils.sloppyCopy(f)
                 if (re.search('\.zip$', f.name)):
                     if (f.size > 0):
                         try:
-                            File['zip_info'] = fwgearutils.sloppyCopy(aprime.get_file_zip_info(f.name))
+                            File['zip_info'] = fwgearutils.sloppyCopy(r.get_file_zip_info(f.name))
                             File['zip_member_count'] = len(File['zip_info']['members'])
 
-                            Files.append(File.copy())
                             if (args.verbose):
-#                               print("%s : '%s/%s/%s/%s/files/%s' %d" % (CmdName, args.path[0], Subject.label, session.label, a.label, f.name, f.zip_member_count), file=sys.stderr)
-                                print("%s : '%s/%s/%s/%s/files/%s' %d" % (CmdName, args.path[0], Subject.label, session.label, a.label, f.name, File['zip_member_count']), file=sys.stderr)
+                                print("%s : '%s/files/%s' %d" % (CmdName, r.label, f.name, File['zip_member_count']), file=sys.stderr)
 
                         except (flywheel.rest.ApiException) as e:
-                            print("%s : %s/%s(%s).get_file_zip_info failed on '%s' : %s - %s\n" % (CmdName, session.label, a.label, aprime.id, f.name, e.status, e.reason), file=sys.stderr)
+                            print("%s : %s(%s).get_file_zip_info failed on '%s' : %s - %s\n" % (CmdName, r.label, r.id, f.name, e.status, e.reason), file=sys.stderr)
                             continue
                     else:
-                        print("%s : Size of '%s/%s(%s)/%s' is 0 : Skipping\n" % (CmdName, session.label, a.label, aprime.id, f.name), file=sys.stderr)
+                        print("%s : Size of '%s(%s)/%s' is 0 : Skipping\n" % (CmdName, r.label, r.id, f.name), file=sys.stderr)
                         continue
                 else:
                     if (args.verbose):
-                        print("%s : '%s/%s/%s/%s/files/%s'" % (CmdName, args.path[0], Subject.label, session.label, a.label, f.name), file=sys.stderr)
+                        print("%s : '%s/files/%s'" % (CmdName, r.label, f.name), file=sys.stderr)
 
+                Files.append(File)
 
-        acquisition = fwgearutils.sloppyCopy(aprime)
-        acquisition['files'] = Files
-        Acquisitions.append((acquisition))
+        except (AttributeError) as e:
+            # no filees attribute
+            True
 
-    return(Acquisitions)
+        if (len(Files) > 0):
+            Output['files'] = Files
+
+    return(Output)
 
 if __name__ == '__main__':
 
@@ -59,6 +116,7 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-a', '--acquisitions',  action='store_true', help='include acquisition information')
+    ap.add_argument('-d', '--debug',  action='store_true', help='debug flag')
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
@@ -71,36 +129,11 @@ if __name__ == '__main__':
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
-    GroupProject = args.path[0]
-    c = fw.lookup(GroupProject)
+    Container = re.sub('^fw://','',args.path[0])
+    
+    c = fw.lookup(Container)
 
-    j = fwgearutils.sloppyCopy(c)
+    Output = recurse(c)
 
-    if (type(c) == flywheel.models.resolver_project_node.ResolverProjectNode or type(c) == flywheel.models.resolver_subject_node.ResolverSubjectNode):
-        Sessions = []
-        for s in c.sessions():
-            if (args.get):
-                Subject = fw.get(s.subject._id)
-                if (args.verbose):
-                    print("%s : '%s/%s/%s'" % (CmdName, args.path[0], Subject.label,  s.label), file=sys.stderr)
-
-                session = fw.get(s.id)
-            else:
-                session = s
-
-            Session = fwgearutils.sloppyCopy(session)
-
-            if (args.acquisitions):
-                Acquisitions = getAcquisitionsJson(session)
-                Session['acquisitions'] = Acquisitions.copy()
-
-        j['sessions'] = Sessions
-    elif (type(c) == flywheel.models.resolver_session_node.ResolverSessionNode):
-            session = fw.get(c._id)
-
-            if (args.acquisitions):
-                Acquisitions = getAcquisitionsJson(session)
-                j['acquisitions'] = Acquisitions.copy()
-
-    print(json.dumps(j))
+    print(json.dumps(Output))
 
