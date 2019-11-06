@@ -8,6 +8,54 @@ import json
 import argparse
 import fwgearutils
 
+#
+# Convert fw paths to json representation
+# -a	Include acquisitions
+# -g	Do a fw.get on each container
+# -v	Print project information on stderr
+# -z	Include zip header information
+#
+# Examples:
+#   Quick dump of all the sessions for a group:
+#     fw2json fw://upenn-admins | jq -r '"\(._id)/\(.projects[].label)/\(.projects[].subjects[].label)/\(.projects[].subjects[].sessions[].label)"'
+#
+#  For a group/project:
+#     fw2json fw://upenn-admins/Test2 | jq -r '"\(.group)/\(.label)/\(.subjects[].label)/\(.subjects[].sessions[].label)"'
+#
+# For group/project/subject (No easy access to the project label from a subject):
+#     fw2json  fw://upenn-admins/Test2/121526 |jq -r '"fw://\(.parents.group)/Test2/\(.label)/\(.sessions[].label)"'
+#
+# Dump the acquisition names for a whole project:
+#     fw2json -a -v fw://upenn-admins/Test2 | jq -r '.subjects[].sessions[].acquisitions[].label'
+#
+# Get the acqusition names for a given session (Need the -a and no easy access to either project or subject labels from session):
+#     fw2json -a fw://upenn-admins/Test2/121526/121526_20180213_7T | jq -r '"fw://\(.parents.group)/Test2/121526/\(.label)/\(.acquisitions[].label)"'
+#
+# Find indexes for acquisitions that match a given string:
+#     fw2json -a fw://upenn-admins/Test2 | jq -r 'paths(select(.label=="mp2rage_siemens_ipat3_0.69mm_UNI_Images")?)'
+# [
+#   "subjects",
+#   65,
+#   "sessions",
+#   0,
+#   "acquisitions",
+#   5
+# ]
+# [
+#   "subjects",
+#   67,
+#   "sessions",
+#   0,
+#   "acquisitions",
+#   1
+# ]
+# => .subjects[65].sessions[0].acquisitions[5].label and .subjects[67].sessions[0].acquisitions[1].label are the desired acquisitions
+#
+# Dump the header information for the dicom.zip file (clicking on the 'i' over the acqusition in the WebUI):
+#     fw2json -a -g -z -v -d fw://upenn-admins/Test2/121526/121526_20180213_7T/mp2rage_siemens_ipat3_0.69mm_T1_Images_ND   | jq -r '.files[0].info'
+#
+
+
 def recurse(r):
     global CmdName
     global args
@@ -16,6 +64,7 @@ def recurse(r):
         try:
             r = fw.get(r._id)
         except (flywheel.rest.ApiException) as e:
+            print("%s : Exception : %s" % (CmdName, e), file=sys.stderr)
             True
 
     if (args.debug):
@@ -23,7 +72,23 @@ def recurse(r):
 
     Output = fwgearutils.sloppyCopy(r)
 
-    if (type(r) == flywheel.models.project.Project or type(r) == flywheel.models.container_project_output.ContainerProjectOutput):
+    if (type(r) == flywheel.models.resolver_group_node.ResolverGroupNode):
+        if (args.verbose):
+            print("%s : r == Group %s" % (CmdName,r._id), file=sys.stderr)
+
+        Projects = []
+        for p in r.projects():
+            if (args.verbose):
+                print("%s : %s/%s" % (CmdName, r._id, p.label), file=sys.stderr)
+
+            Project = recurse(p)
+            Projects.append(fwgearutils.sloppyCopy(Project))
+
+        Output['projects'] = Projects
+                
+    if (   type(r) == flywheel.models.project.Project 
+        or type(r) == flywheel.models.resolver_project_node.ResolverProjectNode 
+        or type(r) == flywheel.models.container_project_output.ContainerProjectOutput):
         if (args.verbose):
             print("%s : r == project" % (CmdName), file=sys.stderr)
 
@@ -36,7 +101,9 @@ def recurse(r):
             Subjects.append(fwgearutils.sloppyCopy(Subject))
         Output['subjects'] = Subjects
         
-    elif (type(r) == flywheel.models.subject.Subject or type(r) == flywheel.models.container_subject_output.ContainerSubjectOutput):
+    elif (   type(r) == flywheel.models.subject.Subject 
+          or type(r) == flywheel.models.resolver_subject_node.ResolverSubjectNode 
+          or type(r) == flywheel.models.container_subject_output.ContainerSubjectOutput):
         if (args.debug):
             print("r == subject", file=sys.stderr)
 
@@ -48,7 +115,9 @@ def recurse(r):
             Sessions.append(fwgearutils.sloppyCopy(Session))
         Output['sessions'] = Sessions
 
-    elif (type(r) == flywheel.models.session.Session or type(r) == flywheel.models.container_session_output.ContainerSessionOutput):
+    elif (   type(r) == flywheel.models.session.Session 
+          or type(r) == flywheel.models.resolver_session_node.ResolverSessionNode 
+          or type(r) == flywheel.models.container_session_output.ContainerSessionOutput):
         if (args.verbose):
             print("%s : r == session(%s)" % (CmdName, r.label), file=sys.stderr)
 
@@ -68,9 +137,11 @@ def recurse(r):
 
         Output['acquisitions'] = Acquisitions
 
-    elif (type(r) == flywheel.models.acquisition.Acquisition or type(r) == flywheel.models.container_acquisition_output.ContainerAcquisitionOutput):
+    elif (   type(r) == flywheel.models.acquisition.Acquisition 
+          or type(r) == flywheel.models.resolver_acquisition_node.ResolverAcquisitionNode 
+          or type(r) == flywheel.models.container_acquisition_output.ContainerAcquisitionOutput):
         if (args.verbose):
-            print("r == acquisition", file=sys.stderr)
+            print("%s : r == acquisition : ", (CmdName, r.label), file=sys.stderr)
 
     if (args.zip_info):
         Files = []
