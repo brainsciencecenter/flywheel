@@ -11,9 +11,11 @@
 #    upenn.flywheel.io:xxxxxxxxxxx
 #
 
-cmd=$(basename $0)
+CmdName=$(basename $0)
+FlywheelCmdDir=$(dirname $(dirname $(which "$0")))
+DeIDProfile=$FlywheelCmdDir/fwgearutils/deIDProfile/profiles/PennBrainScienceCenter/de-id_upenn_Penn_BSC_profile.yaml
 
-syntax="$cmd [-b backend][-d dir] [-F]{-g FWGroupID}[-l][-n][-P DicomProjectName]{-p FWProjectName}[-q][-s sessionfile][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[DicomSession] ...]"
+syntax="$CmdName [-b backend][-d dir] [-F]{-g FWGroupID}[-l][-n][-P DicomProjectName]{-p FWProjectName}[-q][-s sessionfile][-t NumberOfTransferThreads][-w NumberOfWorkerThreads][-v] [[DicomSession] ...]"
 
 : <<=cut
 =pod
@@ -105,7 +107,7 @@ function syncDicom2FW {
 	do
 		if [ ! -e "$Path" ]
 		then
-			echo "$cmd : No such file or directory for session '$Session' : skipping" 1>&2
+			echo "$CmdName : No such file or directory for session '$Session' : skipping" 1>&2
 			continue
 		fi
 
@@ -122,7 +124,7 @@ function syncDicom2FW {
 		#
 		# fw -q doesn't seem to do anything  Force it.
 		#	
-		FWCmd=(fw import dicom -y --quiet --audit-log-path "$logfile" --de-identify --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Path" "$FWGroupID" "$Project")
+		FWCmd=(fw import dicom --profile "$DeIDProfile" -y --quiet --audit-log-path "$logfile" --jobs "$opt_w" --concurrent-uploads "$opt_t" --subject "$Subject" --session "$Session" "$Path" "$FWGroupID" "$Project")
 		if [ -n "$opt_q" ]
 		then
 			sys "${FWCmd[@]}" > /dev/null
@@ -161,7 +163,7 @@ if [ -n "$opt_g" ]
 then
 	FWGroupID="$opt_g"
 else
-	echo "$cmd : Missing -g argument" 1>&2
+	echo "$CmdName : Missing -g argument" 1>&2
 	echo "$syntax" 1>&2
 	exit 1
 fi
@@ -170,7 +172,7 @@ if [ -n "$opt_p" ]
 then
     FWProject="$opt_p"
 else
-    echo "$cmd : Missing -p argument" 1>&2
+    echo "$CmdName : Missing -p argument" 1>&2
     echo "$syntax" 1>&2
     exit 1
 fi
