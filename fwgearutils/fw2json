@@ -141,7 +141,7 @@ def recurse(r):
           or type(r) == flywheel.models.resolver_acquisition_node.ResolverAcquisitionNode 
           or type(r) == flywheel.models.container_acquisition_output.ContainerAcquisitionOutput):
         if (args.verbose):
-            print("%s : r == acquisition : ", (CmdName, r.label), file=sys.stderr)
+            print("%s : r == acquisition : %s" % (CmdName, r.label), file=sys.stderr)
 
     if (args.zip_info):
         Files = []
