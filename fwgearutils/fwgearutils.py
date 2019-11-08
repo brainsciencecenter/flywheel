@@ -137,9 +137,7 @@ def sloppyCopy(d, recurse = True):
             return(nd)
 
        if (type(d) is datetime.datetime):
-          timezone = pytz.timezone("America/New_York")
-          d_localtz = d.astimezone(pytz.timezone("America/New_York"))
-          return(d_localtz.strftime("%Y%m%d %X"))
+          return(d.isoformat())
 
         # print("sloppyCopy: d is type ", type(d), file=sys.stderr)
  
