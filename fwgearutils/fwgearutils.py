@@ -101,11 +101,13 @@ def getFW(args):
            print("e",e, file=sys.stderr)
            sys.exit(1)
 
-def sloppyCopy(d, recurse = True):
+def sloppyCopy(d, recurse = True, tz="UTCx"):
     '''
     serializes a object, ignoring all the stuff it cant easily serialize, but will give you something
     '''
-    
+
+    from tzlocal import get_localzone
+
     # print("sloppyCopy: ", d, file=sys.stderr)
     try:
         json.dumps(d)
@@ -137,7 +139,11 @@ def sloppyCopy(d, recurse = True):
             return(nd)
 
        if (type(d) is datetime.datetime):
-          return(d.isoformat())
+          #d.datetime.datetime is supposed to be in UTC 
+          if (tz == "UTC"):
+             return(d.isoformat(timespec="minutes"))
+          else:
+             return(d.astimezone(get_localzone()).isoformat())
 
         # print("sloppyCopy: d is type ", type(d), file=sys.stderr)
  
