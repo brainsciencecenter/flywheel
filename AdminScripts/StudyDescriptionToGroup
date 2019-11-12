@@ -1,6 +1,11 @@
+ACember			cmroi
 ASL - Jianxun Qu	detre_group
 ASL Study - Jianxun QU	detre_group
 CAMRIS^An-Li		langlebengrp
+CAMRIS_BackedUP^Baker	cmroi
+CAMRIS_BackedUP_UseTHIS^Baker	cmroi
+CAMRIS_BackedUP_UseTHIS^EPPERSON	cmroi
+CAMRIS^Baker_usethis	cmroi
 CAMRIS^Bassett		bassett
 CAMRIS^Brannon		brannon
 CAMRIS^Chatterjee	chatterjee
@@ -28,8 +33,14 @@ CAMRIS^ThompsonSchill	stslab
 CAMRIS^VERMA		verma
 CAMRIS^Wolk		dwolklab
 CAMRIS^Woo		woo
+Copy of CAMRIS^NANGA	cmroi
+LRich			cmroi
 MEMORIES-2		memories
+NWilson			cmroi
+PBagga			cmric
+RaviN			cmroi
 RESEARCH^AGUIRRE	gkaguirrelab
+Research^DKumar_Usethis	cmroi
 RESEARCH^ClearPoint
 RESEARCH^Tisdall	huntington
 Research^DKumar		cmroi
@@ -38,6 +49,7 @@ Research^Jianxun	detre_group
 Research^JianxunQu	detre_group
 Research^Kineticor	kneticor
 Research^Neil		neil
+Research^LRich 		cmroi
 BRAIN RESEARCH^SATTERTHWAITE bbl
 RESEARCH^Verma		verma
 RESEARCH^Wehrli		lcns
