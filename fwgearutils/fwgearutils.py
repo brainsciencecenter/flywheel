@@ -101,7 +101,7 @@ def getFW(args):
            print("e",e, file=sys.stderr)
            sys.exit(1)
 
-def sloppyCopy(d, recurse = True, UTC = True):
+def sloppyCopy(d, recurse=True, UTC=True):
     '''
     serializes a object, ignoring all the stuff it cant easily serialize, but will give you something
     '''
@@ -124,7 +124,7 @@ def sloppyCopy(d, recurse = True, UTC = True):
                 except (TypeError, OverflowError) as e2:
                    #print("Object '%s' key '%s' not json serialable" % (type(d[k]),k), file=sys.stderr)
                    if (recurse): 
-                      nd[k] = sloppyCopy(d[k])
+                      nd[k] = sloppyCopy(d[k], UTC=UTC)
 
             # print("sloppyCopy: d is sorta dict", nd.copy(), file=sys.stderr)
             return(nd)
@@ -133,7 +133,7 @@ def sloppyCopy(d, recurse = True, UTC = True):
             nd = []
             for i in d:
                if (recurse):
-                  nd.append(sloppyCopy(i))
+                  nd.append(sloppyCopy(i, UTC=UTC))
 
             # print("sloppyCopy: d is list", nd.copy(), file=sys.stderr)
             return(nd)
