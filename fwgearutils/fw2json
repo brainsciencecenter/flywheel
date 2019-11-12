@@ -59,7 +59,7 @@ import fwgearutils
 #
 
 
-def recurse(r, CmdName="", Get=False, UTC=True, Debug=False, Verbose=False, Acquisitions=False, ZipInfo=False ):
+def recurse(r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UTC=True, Verbose=False, ZipInfo=False ):
 
     if (Get):
         try:
@@ -82,7 +82,7 @@ def recurse(r, CmdName="", Get=False, UTC=True, Debug=False, Verbose=False, Acqu
             if (Verbose):
                 print("%s : %s/%s" % (CmdName, r._id, p.label), file=sys.stderr)
 
-            Project = recurse(p, UTC=UTC)
+            Project = recurse(p, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
             Projects.append(fwgearutils.sloppyCopy(Project, UTC=UTC))
 
         Output['projects'] = Projects
@@ -98,7 +98,7 @@ def recurse(r, CmdName="", Get=False, UTC=True, Debug=False, Verbose=False, Acqu
             if (Verbose):
                 print("%s : %s/%s" % (CmdName, r.label, s.label), file=sys.stderr)
 
-            Subject = recurse(s, UTC=UTC)
+            Subject = recurse(s, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
             Subjects.append(fwgearutils.sloppyCopy(Subject, UTC=UTC))
         Output['subjects'] = Subjects
         
@@ -112,7 +112,7 @@ def recurse(r, CmdName="", Get=False, UTC=True, Debug=False, Verbose=False, Acqu
         for s in fw.get_subject_sessions(r._id):
             if (Verbose):
                 print("%s : %s/%s" % (CmdName, r.label, s.label), file=sys.stderr)
-            Session = recurse(s, UTC=UTC)
+            Session = recurse(s, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
             Sessions.append(fwgearutils.sloppyCopy(Session, UTC=UTC))
         Output['sessions'] = Sessions
 
@@ -131,9 +131,15 @@ def recurse(r, CmdName="", Get=False, UTC=True, Debug=False, Verbose=False, Acqu
 
         Acquisitions = []
 
-        if (Acquisitions):
+        if (Debug):
+            print("%s : Starting acquisitions = '%s'" % (CmdName,GetAcquisitions), file=sys.stderr)
+            
+        if (GetAcquisitions):
+            if (Debug):
+                print("%s : Looking for acquisitions = '%s'" % (CmdName,GetAcquisitions), file=sys.stderr)
+            
             for a in r.acquisitions():
-                Acquisition = recurse(a, UTC=UTC)
+                Acquisition = recurse(a, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
                 Acquisitions.append(fwgearutils.sloppyCopy(Acquisition, UTC=UTC))
 
         Output['acquisitions'] = Acquisitions
@@ -206,7 +212,7 @@ if __name__ == '__main__':
     
     c = fw.lookup(Container)
 
-    Output = recurse(c, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, Acquisitions=args.acquisitions, ZipInfo=args.zip_info)
+    Output = recurse(c, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
 
     print(json.dumps(Output))
 
