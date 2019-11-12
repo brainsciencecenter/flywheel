@@ -141,7 +141,7 @@ def sloppyCopy(d, recurse=True, UTC=True):
        if (type(d) is datetime.datetime):
           #d.datetime.datetime is supposed to be in UTC 
           if (UTC):
-             return(d.isoformat(timespec="minutes"))
+             return(d.isoformat())
           else:
              return(d.astimezone(get_localzone()).isoformat())
 
