@@ -1,0 +1,309 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import os
+import flywheel
+import json
+import argparse
+import fnmatch
+import inspect
+
+#
+# Use mv syntax to move groups/projects/subjects/sessions around in flywheel
+# fw-mv [fw://]group[/project[/subject[/session]]] [fw://]group[/project[/subject[/session]]]
+# fw-mv will use glob matching to indicate the source sessions
+# Source names will be carried over to target unspecified names
+#
+
+
+#
+# *** Renaming group doesn't look like it renames the group sessions belong to.
+#
+
+from os.path import expanduser
+
+def mvOrRename(Container, NewParentID, NewLabel, Verbose=False):
+    FunctionName = inspect.stack()[0][3]
+    
+    #
+    # Move project from One group to another
+    #         project.update({'group': NewGroupID})
+    #
+    # Move Subject from one project to another
+    #         subject.update({'project': NewProject._id })
+    #
+    # Move Session from one subject to another
+    #
+    if (re.search('.*Group.*', str(type(Container)))):
+        # Can't rename groups
+        if (Verbose):
+            print("%s : %s : Can't rename group '%s' to '%s'. Returning None" % (CmdName, FunctionName, Container.label, NewLabel), file=sys.stderr)
+
+        return(True)
+
+    elif (re.search('.*Project.*', str(type(Container)))):
+        if (Verbose):
+            print("%s : %s : mv project from '%s' to '%s'" % (CmdName, FunctionName, Container.label, NewLabel), file=sys.stderr)
+
+        Container.update({'label': NewLabel, 'group': NewParentID})
+
+    elif (re.search('.*Subject.*', str(type(Container)))):
+        if (Verbose):
+            print("%s : %s : mv subject from '%s' to '%s'" % (CmdName, FunctionName, Container.label, NewLabel), file=sys.stderr)
+
+        Container.update({'code': NewLabel, 'project': NewParentID})
+        
+    elif (re.search('.*Session.*', str(type(Container)))):
+        if (Verbose):
+            print("%s : %s : mv session from '%s' to '%s'" % (CmdName, FunctionName, Container.label, NewLabel), file=sys.stderr)
+
+        Container.update({'label': NewLabel, 'subject': { '_id': NewParentID }})
+
+    else:
+        print("%s : mvOrRename : Unexpected container type : %s" % (CmdName, type(Container)), file=sys.stderr)
+        exit(2)
+
+    return(Container)
+
+def createGroup(fw, OldGroup, ParentID, NewLabel=None):
+    if (not NewLabel):
+        NewLabel = OldProject.label
+
+    NewProject = flywheel.Group(label=NewLabel,
+                                permissions=OldGroup.permissions
+    )
+
+    NewAddedGroup = fw.add_group(NewGroup)
+ 
+    NewGottenGroup = fw.get_group(NewAddedGroup)
+ 
+    return(NewGottenGroup)
+    
+def createProject(fw, OldProject, NewGroupID, NewLabel=None):
+    if (not NewLabel):
+        NewLabel = OldProject.label
+
+    NewProject = flywheel.Project(group=NewGroupID,
+                                  label=NewLabel,
+                                  info=OldProject.info.copy(),
+# ***                              permissions=OldProject.permissions
+     )
+
+    NewAddedProject = fw.add_project(NewProject)
+ 
+    NewGottenProject = fw.get_project(NewAddedProject)
+ 
+    return(NewGottenProject)
+
+#
+#                                  notes=OldSubject.notes,
+# Notes are user specific, and not part of the general container metadata.
+# Delibertly leave off permissions so you get the project defaults
+#
+def createSubject(fw, OldSubject, NewProjectID, NewLabel=None):
+    if (not NewLabel):
+        NewLabel = OldSubject.label
+
+    NewSubject = flywheel.Subject(project=NewProjectID,
+                                  code=NewLabel,
+                                  firstname=OldSubject.firstname,
+                                  lastname=OldSubject.lastname,
+                                  sex=OldSubject.sex,
+                                  cohort=OldSubject.cohort,
+                                  race=OldSubject.race,
+                                  ethnicity=OldSubject.ethnicity,
+                                  species=OldSubject.species,
+                                  strain=OldSubject.strain,
+                                  files=OldSubject.files,
+                                  info=OldSubject.info,
+                                  info_exists=OldSubject.info_exists,
+                                  public=OldSubject.public,
+                                  tags=OldSubject.tags,
+                                  type=OldSubject.type
+     )
+
+    NewAddedSubject = fw.add_subject(NewSubject)
+ 
+    NewGottenSubject = fw.get_subject(NewAddedSubject)
+ 
+    return(NewGottenSubject)
+
+#
+# No createSession as sessions are supposed to be the lowest level
+# *** May need to change if we want to be able to move/rename acquisitions
+#
+
+def getParentID(Container):
+
+    if (Container == None):
+        return(None)
+
+    if (re.search(".*Group.*", str(type(Container)))):
+        return(None)
+    elif (re.search('.*Project.*', str(type(Container)))):
+        return(Container.parents.group)
+    elif (re.search('.*Subject.*', str(type(Container)))):
+        return(Container.parents.project)
+    elif (re.search('.*Session.*', str(type(Container)))):
+        return(Container.parents.subject)
+    else:
+        print("%s : getParentID : Unexpected container type : %s" % (CmdName, str(type(Container))), file=sys.stderr)
+        exit(2)
+
+#
+# No renaming -- only get an existing container, or create a new one from the template container.
+#
+def getOrCreateContainer(fw, ContainerTemplate, ContainerPath, Force=False, Verbose=False):
+    FunctionName = inspect.stack()[0][3]
+
+    if (not ContainerPath):
+        return(None)
+    
+    if (Verbose):
+        print("%s : '%s'" % (FunctionName, ContainerPath), file=sys.stderr)
+
+    try:
+        if (Verbose):
+            print("%s : fw lookup '%s'" % (FunctionName, ContainerPath), file=sys.stderr)
+
+        c = fw.lookup(ContainerPath)
+
+        if (Verbose):
+            print("%s : %s returning existing '%s'" % (CmdName, FunctionName, ContainerPath), file=sys.stderr)
+
+        return(c)
+    
+    except (flywheel.rest.ApiException) as e:
+        True
+        
+    # No container for Path
+    if (Verbose):
+        print("%s : No container '%s'" % (FunctionName, ContainerPath), file=sys.stderr)
+
+    if (len(ContainerPath.split("/") ) == 1):
+         # No /'s, must be asking for a group which doesn't exist
+        if (Verbose):
+            print("%s : Create Group '%s'" % (FunctionName, ContainerPath), file=sys.stderr)
+
+        NewContainer = createGroup(fw, ContainerTemplate, None, ContainerPath)
+
+    else:
+        NewContainerParentPath = "/".join(ContainerPath.split("/")[0:-1])
+        NewContainerLabel = ContainerPath.split("/")[-1]
+
+        ContainerTemplateParentID = getParentID(ContainerTemplate)
+        ContainerTemplateParent = fw.get(ContainerTemplateParentID)
+
+        NewContainerParent = getOrCreateContainer(fw, ContainerTemplateParent, NewContainerParentPath, Force)
+        NewContainerParentID = NewContainerParent._id
+
+        if (len(ContainerPath.split("/") ) == 2):
+        # Create Project
+            if (Verbose):
+                print("%s : Create Project in '%s' '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
+
+            NewContainer = createProject(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
+
+        elif (len(ContainerPath.split("/") ) == 3):
+            if (Verbose):
+                print("%s : Create Subject '%s' in '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
+
+            NewContainer = createSubject(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
+
+# *** Moving acquisitions around....
+#       elif (len(ContainerPath.split("/") ) == 4):
+#           print("%s : Create Session '%s' in '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
+#            NewContainer = createSession(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
+
+        else:
+            print("%s : Too many path segments" % (FunctionName), file=sys.stderr)
+            return(None)
+
+    return(NewContainer)
+
+
+
+if __name__ == '__main__':
+
+    CmdName = re.split('/', sys.argv[0])[-1]
+
+    ApiKeyFile = expanduser("~") + "/.config/flywheel/api.key"
+
+    try:
+        fw = flywheel.Client()
+    except (OSError, Exception) as e:
+        try:
+            with open(ApiKeyFile) as x: ApiKey = x.read().rstrip()
+            fw = flywheel.Client(ApiKey,root=True)
+
+        except (OSError, Exception) as e2:
+            print("e2",e2)
+            print("e",e)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--force', action='store_true', help='Force creation of projects and subjects')
+    parser.add_argument('-n', '--no-op', action='store_true', help='No-op')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose')
+    parser.add_argument('Paths', nargs='+', default='^', action='store', help='Paths')
+    args = parser.parse_args()
+
+    ToPath = args.Paths[-1]
+    CleanToPath = re.sub('[ /]*$', '', re.sub('^fw://', '', ToPath))
+
+    for FromPath in args.Paths[0:-1]:
+        print("%s : %s" % (CmdName, FromPath), file=sys.stderr)
+        
+        CleanFromPath = re.sub('[ /]*$', '', re.sub('^fw://', '', FromPath))
+
+        try:
+            FromContainer = fw.lookup(CleanFromPath)
+        except (flywheel.rest.ApiException) as e:
+            print("%s : No container '%s'" % (CmdName, CleanFromPath), file=sys.stderr)
+            sys.exit(4)
+
+        try:
+            if ((len(CleanFromPath.split('/')) == len(CleanToPath.split('/')))
+                and fw.lookup(CleanToPath)):
+                print("%s : %s already exists" % (CmdName, CleanToPath))
+                continue
+
+        except (flywheel.rest.ApiException) as e:
+            True
+
+        if (re.search('/', CleanFromPath)):
+            if ((len(CleanFromPath.split('/')) - len(CleanToPath.split('/'))) == 1):
+                # Container retains label
+                ToParentPath = CleanToPath
+                ToLabel = FromContainer.label
+
+            elif ((len(CleanFromPath.split('/')) - len(CleanToPath.split('/'))) == 0):
+                # New name for container
+                ToParentPath = '/'.join(CleanToPath.split('/')[0:-1])
+                ToLabel = CleanToPath.split('/')[-1]
+
+            else:
+                # Bad path name combination
+                print("%s : From/To paths '%s' '%s' make no sense." % (CmdName, FromPath, ToPath), file=sys.stderr)
+                sys.exit(3)
+
+            FromParentPath = '/'.join(CleanFromPath.split('/')[0:-1])
+            FromParentContainer = fw.lookup(FromParentPath)
+            ToParent = getOrCreateContainer(fw, FromParentContainer, ToParentPath, args.force, args.verbose)
+            ToParentID = ToParent._id
+
+        else:
+            ToParentID = None
+            ToLabel = CleanToPath
+
+        if (args.verbose):
+            print("%s : mvOrRename(%s, %s, %s)" % (CmdName, FromContainer.label, ToParentID, ToLabel), file=sys.stderr)
+
+        if (not mvOrRename(FromContainer, ToParentID, ToLabel)):
+            print("%s : mv %s to %s failed" % (CmdName, FromPath, ToPath), file=sys.stderr)
+
+    sys.exit(0)
+
+
+
+
