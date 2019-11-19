@@ -186,6 +186,7 @@ def getOrCreateContainer(fw, ContainerTemplate, ContainerPath, Force=False, Verb
         if (Verbose):
             print("%s : Create Group '%s'" % (FunctionName, ContainerPath), file=sys.stderr)
 
+# *** only if force == true
         NewContainer = createGroup(fw, ContainerTemplate, None, ContainerPath)
 
     else:
@@ -203,12 +204,14 @@ def getOrCreateContainer(fw, ContainerTemplate, ContainerPath, Force=False, Verb
             if (Verbose):
                 print("%s : Create Project in '%s' '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
 
+# *** only if force == true
             NewContainer = createProject(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
 
         elif (len(ContainerPath.split("/") ) == 3):
             if (Verbose):
                 print("%s : Create Subject '%s' in '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
 
+# *** only if force == true
             NewContainer = createSubject(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
 
 # *** Moving acquisitions around....
