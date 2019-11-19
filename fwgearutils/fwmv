@@ -11,8 +11,8 @@ import inspect
 
 #
 # Use mv syntax to move groups/projects/subjects/sessions around in flywheel
-# fw-mv [fw://]group[/project[/subject[/session]]] [fw://]group[/project[/subject[/session]]]
-# fw-mv will use glob matching to indicate the source sessions
+# fwmv [fw://]group[/project[/subject[/session]]] [fw://]group[/project[/subject[/session]]]
+# fwmv will use glob matching to indicate the source sessions
 # Source names will be carried over to target unspecified names
 #
 
