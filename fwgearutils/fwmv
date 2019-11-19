@@ -23,7 +23,13 @@ import inspect
 
 from os.path import expanduser
 
-def mvOrRename(Container, NewParentID, NewLabel, Verbose=False):
+Noop = 0
+Verbose = 0
+
+def mvOrRename(Container, NewParentID, NewLabel):
+    global Noop
+    global Verbose
+    
     FunctionName = inspect.stack()[0][3]
     
     #
@@ -67,6 +73,9 @@ def mvOrRename(Container, NewParentID, NewLabel, Verbose=False):
     return(Container)
 
 def createGroup(fw, OldGroup, ParentID, NewLabel=None):
+    global Noop
+    global Verbose
+    
     if (not NewLabel):
         NewLabel = OldProject.label
 
@@ -81,6 +90,9 @@ def createGroup(fw, OldGroup, ParentID, NewLabel=None):
     return(NewGottenGroup)
     
 def createProject(fw, OldProject, NewGroupID, NewLabel=None):
+    global Noop
+    global Verbose
+    
     if (not NewLabel):
         NewLabel = OldProject.label
 
@@ -102,6 +114,9 @@ def createProject(fw, OldProject, NewGroupID, NewLabel=None):
 # Delibertly leave off permissions so you get the project defaults
 #
 def createSubject(fw, OldSubject, NewProjectID, NewLabel=None):
+    global Noop
+    global Verbose
+    
     if (not NewLabel):
         NewLabel = OldSubject.label
 
@@ -135,6 +150,9 @@ def createSubject(fw, OldSubject, NewProjectID, NewLabel=None):
 #
 
 def getParentID(Container):
+    global Noop
+    global Verbose
+    
 
     if (Container == None):
         return(None)
@@ -154,8 +172,12 @@ def getParentID(Container):
 #
 # No renaming -- only get an existing container, or create a new one from the template container.
 #
-def getOrCreateContainer(fw, ContainerTemplate, ContainerPath, Force=False, Verbose=False):
+def getOrCreateContainer(fw, ContainerTemplate, ContainerPath, Force=False):
+    global Noop
+    global Verbose
+    
     FunctionName = inspect.stack()[0][3]
+    NewContainer = None
 
     if (not ContainerPath):
         return(None)
@@ -181,48 +203,47 @@ def getOrCreateContainer(fw, ContainerTemplate, ContainerPath, Force=False, Verb
     if (Verbose):
         print("%s : No container '%s'" % (FunctionName, ContainerPath), file=sys.stderr)
 
-    if (len(ContainerPath.split("/") ) == 1):
-         # No /'s, must be asking for a group which doesn't exist
-        if (Verbose):
-            print("%s : Create Group '%s'" % (FunctionName, ContainerPath), file=sys.stderr)
-
-# *** only if force == true
-        NewContainer = createGroup(fw, ContainerTemplate, None, ContainerPath)
-
-    else:
-        NewContainerParentPath = "/".join(ContainerPath.split("/")[0:-1])
-        NewContainerLabel = ContainerPath.split("/")[-1]
-
-        ContainerTemplateParentID = getParentID(ContainerTemplate)
-        ContainerTemplateParent = fw.get(ContainerTemplateParentID)
-
-        NewContainerParent = getOrCreateContainer(fw, ContainerTemplateParent, NewContainerParentPath, Force)
-        NewContainerParentID = NewContainerParent._id
-
-        if (len(ContainerPath.split("/") ) == 2):
-        # Create Project
+    if (Force):
+        if (len(ContainerPath.split("/") ) == 1):
+             # No /'s, must be asking for a group which doesn't exist
             if (Verbose):
-                print("%s : Create Project in '%s' '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
+                print("%s : Create Group '%s'" % (FunctionName, ContainerPath), file=sys.stderr)
 
-# *** only if force == true
-            NewContainer = createProject(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
-
-        elif (len(ContainerPath.split("/") ) == 3):
-            if (Verbose):
-                print("%s : Create Subject '%s' in '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
-
-# *** only if force == true
-            NewContainer = createSubject(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
-
-# *** Moving acquisitions around....
-#       elif (len(ContainerPath.split("/") ) == 4):
-#           print("%s : Create Session '%s' in '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
-#            NewContainer = createSession(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
+            NewContainer = createGroup(fw, ContainerTemplate, None, ContainerPath)
 
         else:
-            print("%s : Too many path segments" % (FunctionName), file=sys.stderr)
-            return(None)
+            NewContainerParentPath = "/".join(ContainerPath.split("/")[0:-1])
+            NewContainerLabel = ContainerPath.split("/")[-1]
 
+            ContainerTemplateParentID = getParentID(ContainerTemplate)
+            ContainerTemplateParent = fw.get(ContainerTemplateParentID)
+
+            NewContainerParent = getOrCreateContainer(fw, ContainerTemplateParent, NewContainerParentPath, Force)
+            NewContainerParentID = NewContainerParent._id
+
+            if (len(ContainerPath.split("/") ) == 2):
+            # Create Project
+                if (Verbose):
+                    print("%s : Create Project in '%s' '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
+
+                NewContainer = createProject(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
+
+            elif (len(ContainerPath.split("/") ) == 3):
+                if (Verbose):
+                    print("%s : Create Subject '%s' in '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
+                NewContainer = createSubject(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
+
+    # *** Moving acquisitions around....
+    #       elif (len(ContainerPath.split("/") ) == 4):
+    #           print("%s : Create Session '%s' in '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
+    #            NewContainer = createSession(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
+
+            else:
+                print("%s : Too many path segments" % (FunctionName), file=sys.stderr)
+                return(None)
+    else:
+        print("%s : No existing container for '%s' and -f not set" % (CmdName, ContainerPath), file=sys.stderr)
+        
     return(NewContainer)
 
 
@@ -251,11 +272,16 @@ if __name__ == '__main__':
     parser.add_argument('Paths', nargs='+', default='^', action='store', help='Paths')
     args = parser.parse_args()
 
+    Noop = args.no_op
+    Verbose = args.verbose
+    ToParentID = None
+
     ToPath = args.Paths[-1]
     CleanToPath = re.sub('[ /]*$', '', re.sub('^fw://', '', ToPath))
 
     for FromPath in args.Paths[0:-1]:
-        print("%s : %s" % (CmdName, FromPath), file=sys.stderr)
+        if (Verbose):
+            print("%s : %s" % (CmdName, FromPath), file=sys.stderr)
         
         CleanFromPath = re.sub('[ /]*$', '', re.sub('^fw://', '', FromPath))
 
@@ -292,8 +318,12 @@ if __name__ == '__main__':
 
             FromParentPath = '/'.join(CleanFromPath.split('/')[0:-1])
             FromParentContainer = fw.lookup(FromParentPath)
-            ToParent = getOrCreateContainer(fw, FromParentContainer, ToParentPath, args.force, args.verbose)
-            ToParentID = ToParent._id
+            ToParent = getOrCreateContainer(fw, FromParentContainer, ToParentPath, args.force)
+            if (ToParent):
+                ToParentID = ToParent._id
+            else:
+                print("%s : Unable to find parent for '%s' : skipping" % (CmdName, ToParentPath), file=sys.stderr)
+                continue
 
         else:
             ToParentID = None
