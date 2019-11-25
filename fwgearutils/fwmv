@@ -99,11 +99,12 @@ def createProject(fw, OldProject, NewGroupID, NewLabel=None):
     NewProject = flywheel.Project(group=NewGroupID,
                                   label=NewLabel,
                                   info=OldProject.info.copy(),
-# ***                              permissions=OldProject.permissions
      )
 
+    NewProject.update(permissions=OldProject.permissions)
+
     NewAddedProject = fw.add_project(NewProject)
- 
+
     NewGottenProject = fw.get_project(NewAddedProject)
  
     return(NewGottenProject)

@@ -34,6 +34,9 @@ import fwgearutils
 # Print the interesting info from unknown/Unsorted:
 # jq -r '.subjects[].sessions[]|([ .subject.label + "/" + .label,  (.timestamp|strptime("%Y%m%d %H:%M:%S")|strftime("%Y-%m-%dT%H-%M-%S")), ( .acquisitions[0].files[0].info  | ("\(.StudyDescription)",  "\(.StudyComments)", "\(.InstitutionName)", "\(.ManufacturerModelName)"))] | join(":"))' /tmp/unknownUnsorted.json 
 #
+# Print all the flywheel paths for the sessions in a set of projects:
+# 	fw2json pennftdcenter/{Unsorted,7T_invivo_pilot,invivo_pilot} | jq -r '.[] | { "\(._id)": .label } as $ProjectLabels | .subjects[] | ({ "\(._id)": .label} as $SubjectLabels | .sessions[] | ([ .group, $ProjectLabels[.project],  $SubjectLabels[.subject._id], .label ])) | join("/")'
+#
 # Find indexes for acquisitions that match a given string:
 #     fw2json -a fw://upenn-admins/Test2 | jq -r 'paths(select(.label=="mp2rage_siemens_ipat3_0.69mm_UNI_Images")?)'
 # [
@@ -197,25 +200,31 @@ if __name__ == '__main__':
     ap.add_argument('-d', '--debug',  action='store_true', help='debug flag')
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-l', '--localtime',  action='store_true', help='print times in local timezone instead of UTC')
+    ap.add_argument('-r', '--root',  action='store_true', help='enable manager mode')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
-    ap.add_argument('path', nargs=1, type=str, default=None, help='group/project')
+    ap.add_argument('path', nargs='+', type=str, default=None, help='group/project')
 
     args = ap.parse_args()
 
-    fw = fwgearutils.getFW(args)
+    fw = fwgearutils.getFW(args,args.root)
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
-    Container = re.sub('^fw://','',args.path[0])
+
+    Output = []
     
-    try:
-        c = fw.lookup(Container)
+    for path in args.path:
+        try:
+            ContainerPath = re.sub('^fw://','', path)
 
-        Output = recurse(c, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
+            Container = fw.lookup(ContainerPath)
 
-        print(json.dumps(Output))
-    except (flywheel.rest.ApiException) as e:
-        print("%s : No such flywheel path '%s'" % (CmdName, args.path[0]), file=sys.stderr)
+            Output.append(recurse(Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
 
+
+        except (flywheel.rest.ApiException) as e:
+            print("%s : No such flywheel path '%s'" % (CmdName, ContainerPath), file=sys.stderr)
+
+    print(json.dumps(Output))
