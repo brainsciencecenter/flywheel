@@ -6,10 +6,10 @@ FromGroupProject=unknown/Unsorted
 ToProject=Unsorted
 LookUpTable=~/Work/CfN/flywheel/AdminScripts/StudyDescriptionToGroup
 
-while getopts nl:v arg
+while getopts c:fl:nv arg
 do
 	case "$arg" in
-	     n|l|v)
+	     c|f|l|n|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -17,7 +17,22 @@ done
 
 shift $((OPTIND - 1))
 
+if [ -n "$opt_f" ]
+then
+    CmdArgs+=("-f")
+fi
+
+if [ -n "$opt_l" ]
+then
+    LookUpTable="$opt_l"
+fi
+
 StudyDescriptions=()
+
+if [ -n "$opt_c" ]
+then
+    CSVFile="$opt_c"
+fi
 
 if [ -n "$1" ]
 then
@@ -31,7 +46,7 @@ else
         while read line
 	do 
 	    StudyComments+=("$line")
-	done < <(cut -f 3 -d : /tmp/unknownUnsorted.csv | sort -u)
+	done < <(cut -f 3,4 -d , /tmp/unknownUnsorted.csv | sed 's/"//g; s/,/\n/g' | sort -u)
 	#echo "StudyComments: ${StudyComments[0]}"
 fi
 
@@ -42,11 +57,11 @@ function sys {
 }
 
 function getDestGroup {
-	 local StudyComments="$(echo $1 | sed 's/\^/\\^/; s/Copy of //')"
+	 local StudyComments="$(echo $1 | sed 's/\^/\\^/; s/\"//g; s/Copy of //')"
 	 local res
 	 local n
 
-	 res=$(grep -P "^${StudyComments}\s" "${LookUpTable}" | sed -r 's/^.*\s//')
+	 res=$(grep -P "^${StudyComments}\s" "${LookUpTable}" | sed -r 's/^.*\s//' | sed 's/"//g' )
 	 
 	 if [ -n "$res" ]
 	 then
@@ -58,11 +73,11 @@ function getDestGroup {
 }
 
 function getSubjectSession {
-	 local StudyComments="$(echo $1 | sed 's/\^/\\^/; s/Copy of //')"
+	 local StudyDescription="$(echo $1 | sed 's/\^/\\^/')"
 	 local res
 	 local n
 
-	 res=$(grep -P ":${StudyComments}:" /tmp/unknownUnsorted.csv | cut -f 1 -d :)
+	 res=$(grep -P ",\"(Copy of )?${StudyDescription}\"," /tmp/unknownUnsorted.csv | sed 's/"//g' | cut -f 1 -d , )
 	 
 	 if [ -n "$res" ]
 	 then
@@ -80,9 +95,10 @@ do
 
 	if [ -n "$ToGroup" ]
 	then
-		while read ss
+		while read FromPath
 		do
-		    sys fwmv "fw://${FromGroupProject}/${ss}" "${ToGroup}/${ToProject}/${ss}"
+		    ToPath=$(echo "$FromPath" | sed 's,^[^/]*/,,')
+		    sys fwmv "${CmdArgs[@]}" "fw://${FromPath}" "${ToGroup}/${ToPath}"
 		done < <(getSubjectSession "$StudyComments")
 	else		
 		echo No entry for "'$StudyComments'" in "'$LookUpTable'" 1>&2

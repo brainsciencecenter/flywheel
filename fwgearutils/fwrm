@@ -16,7 +16,9 @@ if __name__ == '__main__':
     CmdName = os.path.basename(sys.argv[0])
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('id', nargs=1, type=str, default=None, help='group/project|ProjectID')
+    ap.add_argument('-n', '--no-op', action='store_true', help='No-op')
+    ap.add_argument('-v', '--verbose', action='store_true', help='Verbose')
+    ap.add_argument('id', nargs="+", type=str, default=None, help='group/project|ProjectID')
 
     args = ap.parse_args()
 
@@ -25,14 +27,21 @@ if __name__ == '__main__':
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
-    try:
-        Container = fw.get(args.id[0])
-    except (OSError, Exception) as e:
+    for path in args.id:
         try:
-            Container = fw.lookup(args.id[0])
+            Container = fw.get(path)
         except (OSError, Exception) as e:
-            print("e",e, file=sys.stderr)
-            sys.exit(1)
+            try:
+                Container = fw.lookup(path)
+            except (OSError, Exception) as e:
+                print("%s : fw.get and fw.lookup failed for '%s' : e = %s" %(CmdName, path, e), file=sys.stderr)
+                sys.exit(1)
 
-    print(json.dumps(fwgearutils.sloppyCopy(Container)))
-    fw.delete_container(Container._id)
+        if (args.verbose):
+            print("%s : removing '%s'" % (CmdName, Container.label), file=sys.stderr)
+            
+        if (not args.no_op):
+            try:
+                fw.delete_container(Container._id)
+            except (OSError, Exception) as e:
+                print("%s : deleting '%s'(%s) failed %s" % (CmdName, Container.label, Container._id, e), file=sys.stderr)

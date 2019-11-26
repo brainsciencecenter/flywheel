@@ -134,12 +134,17 @@ def createSubject(fw, OldSubject, NewProjectID, NewLabel=None):
                                   files=OldSubject.files,
                                   info=OldSubject.info,
                                   info_exists=OldSubject.info_exists,
-                                  public=OldSubject.public,
                                   tags=OldSubject.tags,
                                   type=OldSubject.type
      )
 
     NewAddedSubject = fw.add_subject(NewSubject)
+    if (type(NewAddedSubject) == str):
+        print("%s : add_subject(%s) returned string '%s' instead of container." % (CmdName, NewSubject.label, NewAddedSubject))
+        
+    NewAddedSubject.update(
+                                  public=OldSubject.public
+    )
  
     NewGottenSubject = fw.get_subject(NewAddedSubject)
  
@@ -231,7 +236,7 @@ def getOrCreateContainer(fw, ContainerTemplate, ContainerPath, Force=False):
 
             elif (len(ContainerPath.split("/") ) == 3):
                 if (Verbose):
-                    print("%s : Create Subject '%s' in '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
+                    print("%s : Create Subject '%s' in '%s'" % (FunctionName, NewContainerLabel, NewContainerParent.label), file=sys.stderr)
                 NewContainer = createSubject(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
 
     # *** Moving acquisitions around....
