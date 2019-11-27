@@ -142,11 +142,11 @@ def createSubject(fw, OldSubject, NewProjectID, NewLabel=None):
     if (type(NewAddedSubject) == str):
         print("%s : add_subject(%s) returned string '%s' instead of container." % (CmdName, NewSubject.label, NewAddedSubject))
         
-    NewAddedSubject.update(
+    NewGottenSubject = fw.get_subject(NewAddedSubject)
+
+    NewGottenSubject.update(
                                   public=OldSubject.public
     )
- 
-    NewGottenSubject = fw.get_subject(NewAddedSubject)
  
     return(NewGottenSubject)
 
@@ -251,8 +251,6 @@ def getOrCreateContainer(fw, ContainerTemplate, ContainerPath, Force=False):
         print("%s : No existing container for '%s' and -f not set" % (CmdName, ContainerPath), file=sys.stderr)
         
     return(NewContainer)
-
-
 
 if __name__ == '__main__':
 
