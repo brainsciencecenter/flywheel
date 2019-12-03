@@ -24,11 +24,9 @@ except (OSError, Exception) as e:
 
 
 #
-# List all the sessions that match a regex in a group/project
-# Move all the sessions that match a regex in a group/project to a group/project
-#
-# fw-mv-session -f group/project -t group/project SessionRegex [[SessionRegex]...]
-# fw-mv-session -f group/project [[SessionRegex]...]
+# Use mv syntax to move groups/projects/subjects/sessions around in flywheel
+# fw-mv-session [fw://]group[/project[/subject[/session]]] [fw://]group[/project[/subject[/session]]]
+# fw-mv-session will use glob matching to find 
 #
 
 parser = argparse.ArgumentParser()

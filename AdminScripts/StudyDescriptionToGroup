@@ -1,8 +1,17 @@
+014@chatterjee:CHA	chatterjee
+13@chatterjee:CHA	chatterjee
+12@Chatterjee:CHA	chatterjee
+117376@dwolk:NACC-SC	dwolklab
 ACember			cmroi
 ASL - Jianxun Qu	detre_group
 ASL Study - Jianxun QU	detre_group
+BRAIN RESEARCH^EPSTEIN	epsteinlab
+BRAIN RESEARCH^GROSSMAN	pennftdcenter
+BRAIN RESEARCH^SHELINE	cnds
+C784:oathes_lab	    	oathes_lab
 CAMRIS^An-Li		langlebengrp
 CAMRIS_BackedUP^Baker	cmroi
+CAMRIS_BackedUP^EPPERSON	epperson
 CAMRIS_BackedUP_UseTHIS^Baker	cmroi
 CAMRIS_BackedUP_UseTHIS^EPPERSON	cmroi
 CAMRIS^Baker_usethis	cmroi
@@ -10,10 +19,13 @@ CAMRIS^Bassett		bassett
 CAMRIS^Brannon		brannon
 CAMRIS^Chatterjee	chatterjee
 CAMRIS^CHOP		chop
+CAMRIS^Chirinos Zamani	cmroi
 CAMRIS^Detre		detre_group
 CAMRIS^Epperson		epperson
+CAMRIS^Epstein		epsteinlab
 CAMRIS^Falk		falklab
 CAMRIS^Franklin		franklin
+CAMRIS^GROSSMAN		pennftdcenter
 CAMRIS^HENGYI		raoupennlab
 CAMRIS^Kable		kable
 CAMRIS^Kohler		bbl
@@ -23,8 +35,9 @@ CAMRIS Loughead @SIT	loughead_lab
 CAMRIS^Mackey		mackeylab
 CAMRIS^McCormack	smccormacklab
 CAMRIS^Medaglia		medaglia
+CAMRIS^NANGA		cmroi
 CAMRIS^Oathes		oathes_lab
-CAMRIS^Phantom_QA	nncadim/sc3t_fbirn
+CAMRIS^Phantom_QA	nncadim
 CAMRIS^Satterthwaite	bbl
 CAMRIS^SCHINDLER	cnet
 CAMRIS^Sheikh		sheikh
@@ -32,25 +45,39 @@ CAMRIS^Sheline		cnds
 CAMRIS^ThompsonSchill	stslab
 CAMRIS^VERMA		verma
 CAMRIS^Wolk		dwolklab
+CAMRIS^WOLK		dwolklab
+CAMRIS WOLK		dwolklab
+CAMRIS__UseTHIS WOLK	dwolklab
+CAMRIS_Use from here^EPPERSON	epperson
 CAMRIS^Woo		woo
-Copy of CAMRIS^NANGA	cmroi
+GLS034@BassettLab:GraphLearning	bassett
+GLS038:Bassett:GraphLearning	bassett
 LRich			cmroi
 MEMORIES-2		memories
 NWilson			cmroi
-PBagga			cmric
+PBagga			cmroi
 RaviN			cmroi
 RESEARCH^AGUIRRE	gkaguirrelab
-Research^DKumar_Usethis	cmroi
-RESEARCH^ClearPoint
 RESEARCH^Tisdall	huntington
+Research^DKumar_Usethis	cmroi
+Research^DylanTisdall	huntington
+Research^DTisdall	huntington
 Research^DKumar		cmroi
 Research^HYUNEOL LEE	wehrli
 Research^Jianxun	detre_group
 Research^JianxunQu	detre_group
 Research^Kineticor	kneticor
+Research LRich		cmroi
 Research^Neil		neil
+Research^NWilson	cmroi
 Research^LRich 		cmroi
+Research^ACember	cmroi
+Research^PBagga		cmroi
+Research^RaviN		cmroi
 BRAIN RESEARCH^SATTERTHWAITE bbl
 RESEARCH^Verma		verma
 RESEARCH^Wehrli		lcns
-
+Research^Wehrli		lcns
+sub-08@epsteinlab:brainSLAM	epsteinlab
+techdev:bbl@Brain RF1	bbl
+Techdev_FLOBS	  	techdev

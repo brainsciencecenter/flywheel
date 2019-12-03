@@ -7,6 +7,7 @@ import flywheel
 import json
 import datetime
 import pytz
+import globre
 
 from os.path import expanduser
 
@@ -84,7 +85,7 @@ def getApiKey(args):
 
     return(ApiKey)
 
-def getFW(args):
+def getFW(args, Root=False):
    
     try:
         fw = flywheel.Client()
@@ -93,13 +94,57 @@ def getFW(args):
         try:
            ApiKey = getApiKey(args)
 
-           fw = flywheel.Client(ApiKey)
+           fw = flywheel.Client(ApiKey, root=Root)
            return(fw)
         
         except (OSError, Exception) as e2:
            print("e2",e2, file=sys.stderr)
            print("e",e, file=sys.stderr)
            sys.exit(1)
+
+def fwGlobPath(fw,Path):
+    Groups = []
+    Projects = []
+    Subjects = []
+    Sesions = []
+
+    Segments = Path.split('/')
+    Containers = {}
+
+    if (len(Segments) >= 0):
+        Groups = [ Group for Group in fw.groups() if (globre.match(Segments[0], Group.id)) ]
+        for Group in Groups:
+            Containers[Group.id] = Group
+
+    CurrentPath = []
+    if (len(Segments) > 1):
+        Projects = {}
+        for GroupPath, Group in Containers.items():
+            for Project in Group.projects():
+                if (globre.match(Segments[1], Project.label)):
+                    Projects['/'.join([GroupPath, Project.label])] = Project
+
+        Containers = Projects
+
+    if (len(Segments) > 2):
+        Subjects = {}
+        for ProjectPath, Project in Containers.items():
+            for Subject in Project.subjects():
+                if (globre.match(Segments[2], Subject.label)):
+                    Subjects[ '/'.join([ProjectPath, Subject.label])] = Subject
+
+        Containers = Subjects
+
+    if (len(Segments) > 3):
+        Sessions = {}
+        for SubjectPath, Subject in Containers.items():
+            for Session in Subject.sessions():
+                if (globre.match(Segments[3], Session.label)):
+                    Sessions[ '/'.join([SubjectPath, Session.label])] = Session
+
+        Containers = Sessions
+
+    return(Containers)
 
 def sloppyCopy(d, recurse=True, UTC=True):
     '''

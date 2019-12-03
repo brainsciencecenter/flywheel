@@ -49,7 +49,6 @@ ssh -x cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/A
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of INDD reports" 1>&2
 
 FWReports=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | grep '.pdf$')
-#FWReports=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | grep .pdf | grep _3T_)
 
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of Flywheel reports from $GroupProject" 1>&2
 
