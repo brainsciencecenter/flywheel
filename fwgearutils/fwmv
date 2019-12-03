@@ -139,12 +139,10 @@ def createSubject(fw, OldSubject, NewProjectID, NewLabel=None):
      )
 
     NewAddedSubject = fw.add_subject(NewSubject)
-    if (type(NewAddedSubject) == str):
-        print("%s : add_subject(%s) returned string '%s' instead of container." % (CmdName, NewSubject.label, NewAddedSubject))
         
     NewGottenSubject = fw.get_subject(NewAddedSubject)
 
-    NewGottenSubject.update(
+    NewGottenSubject.update(        
                                   public=OldSubject.public
     )
  

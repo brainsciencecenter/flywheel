@@ -5,6 +5,9 @@
 ACember			cmroi
 ASL - Jianxun Qu	detre_group
 ASL Study - Jianxun QU	detre_group
+BRAIN RESEARCH^EPSTEIN	epsteinlab
+BRAIN RESEARCH^GROSSMAN	pennftdcenter
+BRAIN RESEARCH^SHELINE	cnds
 C784:oathes_lab	    	oathes_lab
 CAMRIS^An-Li		langlebengrp
 CAMRIS_BackedUP^Baker	cmroi
@@ -19,6 +22,7 @@ CAMRIS^CHOP		chop
 CAMRIS^Chirinos Zamani	cmroi
 CAMRIS^Detre		detre_group
 CAMRIS^Epperson		epperson
+CAMRIS^Epstein		epsteinlab
 CAMRIS^Falk		falklab
 CAMRIS^Franklin		franklin
 CAMRIS^GROSSMAN		pennftdcenter
