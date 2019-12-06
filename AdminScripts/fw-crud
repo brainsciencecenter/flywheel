@@ -374,6 +374,7 @@ class FW():
         create_parser.add_argument('-f', '--first-name', required=True, nargs=1, action='store', help='First Name')
         create_parser.add_argument('-g', '--group-id', nargs=1, action='store', help='Groups to add user to')
         create_parser.add_argument('-l', '--last-name', required=True, nargs=1, action='store', help='Last Name')
+        create_parser.add_argument('-r', '--role', choices=['admin', 'ro', 'rw'], default=['rw'], nargs=1, action='store', help='Role to add user as -- defaults to rw')
         create_parser.add_argument('-s', '--site-admin', nargs=1, action='store', help='Make user a site administrator')
         create_parser.add_argument('UserName', nargs=1, action='store', help='UserName')
         create_parser.set_defaults(func=self.userCreate)
@@ -412,13 +413,18 @@ class FW():
           self.fw.add_user(flywheel.User(firstname=args.first_name[0], lastname=args.last_name[0], email=username, id=username))
 
       if (args.verbose or args.no_op):
-        print('create user %s %s(%s)' % (args.first_name[0], args.last_name[0], username))
+        print('create user %s %s(%s)' % (args.first_name[0], args.last_name[0], username), file=sys.stderr)
 
+      if (not self.appendUser2Group(args.group[0], username, args.role[0])):
+          print("append user '%s' to group '%' failed" % (username, args.group[0]), file=sys.stderr)
+          
       return(True)
 
     def userRetrieve(self,args):
       for user in self.fw.users():
-        if (args.UserNames and (not (user.id in args.UserNames))):
+        UserNames = list(map(lambda x: self.enforceDomain(x), args.UserNames))
+        
+        if (args.UserNames and (not (user.id in UserNames))):
           continue
         if (args.disabled or not user.disabled):
           print("%s, %s, %s, %s" % (user.firstname, user.lastname, user.id, user.root))

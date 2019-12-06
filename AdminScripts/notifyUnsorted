@@ -1,0 +1,105 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+if [ -z "$FLYWHEELAPPDIR" ]
+then
+   if [ -e "/share/apps/flywheel" ]
+   then
+	   FLYWHEELAPPDIR=/share/apps/flywheel
+   elif [ -e "/home/holder/Work/CfN/flywheel" ]
+   then
+	   FLYWHEELAPPDIR=/home/holder/Work/CfN/flywheel
+   else
+	   echo "${CmdName} : FLYWHEELAPPDIR not set" 1>&2
+	   exit 1
+   fi
+fi
+	
+UnsortedEmailTemplate="${FLYWHEELAPPDIR}/AdminScripts/UnsortedEmailTemplate"
+
+function genGroupAdminLists {
+    Group=
+    Members=()
+	while IFS='' read line
+	do
+		Line=$(echo "$line" | sed 's/^.*(//; s/).*$//')
+		if echo "$Line" | grep -q admin:
+		then
+			if echo "$Line" | grep -vq "holder@"
+			then
+				Members+=( $(echo "$Line" | cut -f 2 -d :) )
+			fi
+		elif echo "$Line" | grep -q '^[a-z]'
+		then
+			if [ -n "$Group" ]
+			then
+				if [ -n "${Members[*]}" ]
+				then		     
+					echo $Group ${Members[@]}
+				else
+					echo "${CmdName} : No members for group '$Group'" 1>&2
+				fi
+			fi
+
+			Group="$Line"
+			Members=()
+		fi
+	done
+
+	if [ -n "$Group" ]
+	then
+		if [ -n "${Members[*]}" ]
+		then
+			echo $Group ${Members[@]}
+		else
+			echo "${CmdName} : No members for group '$Group'" 1>&2
+		fi
+	fi
+}
+
+UnsortedCounts=/tmp/UnsortedCounts
+
+while getopts c:v arg
+do
+	case "$arg" in
+	    c|v)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+	esac
+done
+
+if [ -n "$opt_c" ]
+then
+	UnsortedCounts="$opt_c"
+fi
+
+if [ -n "$1" ] && [ -e "$1" ]
+then
+	FWGroupList=$(< "$1")
+else
+	if [ -n "$Verbose" ]
+	then
+		echo "${CmdName} : getting flywheel groups" 1>&2
+	fi
+	
+	FWGroupList=$(fw-groupcrud get)
+fi
+
+FWGroupEmails=$(echo "$FWGroupList" | genGroupAdminLists | sort)
+
+while read Group Emails
+do
+	CountGroup=$(grep -P "\s${Group}$" "$UnsortedCounts")
+	if [ $? == 0 ]
+	then
+		SessionCount=$(echo "$CountGroup" | awk '{print $1}')
+		echo "cat <<EOF | mail -r holder@upenn.edu -s '${Group}/Unsorted Flywheel Sessions'  $Emails"
+		(export Group SessionCount ; envsubst < "${UnsortedEmailTemplate}")
+		echo "EOF"
+	else
+		echo "${CmdName} : No count for group '${Group}'" 1>&2
+	fi
+done < <(echo "$FWGroupEmails")
+
+
