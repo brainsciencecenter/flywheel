@@ -214,15 +214,20 @@ if __name__ == '__main__':
     
     for path in args.path:
         CleanPath = re.sub('^fw://','', path)
-        Containers = fwgearutils.fwGlobPath(fw, CleanPath)
-        for ContainerPath, Container in Containers.items():
-            try:
-                Container = fw.lookup(ContainerPath)
+        try:
+            Output.append(recurse(fw.get(path), CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
+            
+        except (flywheel.rest.ApiException) as e:
+            Containers = fwgearutils.fwGlobPath(fw, CleanPath)
 
-                Output.append(recurse(Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
+            for ContainerPath, Container in Containers.items():
+                try:
+                    Container = fw.lookup(ContainerPath)
+
+                    Output.append(recurse(Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
 
 
-            except (flywheel.rest.ApiException) as e:
-                print("%s : No such flywheel path '%s'" % (CmdName, ContainerPath), file=sys.stderr)
+                except (flywheel.rest.ApiException) as e:
+                    print("%s : No such flywheel path '%s'" % (CmdName, ContainerPath), file=sys.stderr)
 
     print(json.dumps(Output))

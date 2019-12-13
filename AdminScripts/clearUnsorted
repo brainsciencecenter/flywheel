@@ -56,11 +56,11 @@ function sys {
 }
 
 function getDestGroup {
-	 local StudyComments="$(echo $1 | sed 's/\^/\\^/; s/\"//g; s/Copy of //')"
+	 local StudyComments="$(echo $1 | sed 's/\^/\\^/; s/\"//g; s/Copy of //; s/[()]/\\&/')"
 	 local res
 	 local n
 
-	 res=$(grep -P "^${StudyComments}\s" "${LookUpTable}" | sed -r 's/^.*\s//' | sed 's/"//g' )
+	 res=$(sys grep -P "^${StudyComments}\s" "${LookUpTable}" | sed -r 's/^.*\s//' | sed 's/"//g' )
 	 
 	 if [ -n "$res" ]
 	 then

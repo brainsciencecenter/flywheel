@@ -142,9 +142,11 @@ def createSubject(fw, OldSubject, NewProjectID, NewLabel=None):
         
     NewGottenSubject = fw.get_subject(NewAddedSubject)
 
-    NewGottenSubject.update(        
-                                  public=OldSubject.public
-    )
+#
+#   Public is being deprecated and will be removed in the future. Gaylord from Jeff Yager 12/4/2019
+#   NewGottenSubject.update(        
+#                                 public=OldSubject.public
+#   )
  
     return(NewGottenSubject)
 
