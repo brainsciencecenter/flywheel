@@ -158,7 +158,7 @@ if __name__ == '__main__':
             print("%s : r._id = '%s'" % (CmdName, r._id), file=sys.stderr)
 
         if (args.recurse):
-            Output = recurse(r, Get=args.get)
+            Output = fwgearutils.recurse(fw, r, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
         else:
             Output = fwgearutils.sloppyCopy(r)
 
