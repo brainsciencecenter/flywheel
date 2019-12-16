@@ -186,12 +186,11 @@ def sloppyCopy(d, recurse=True, UTC=True):
        if (type(d) is datetime.datetime):
           #d.datetime.datetime is supposed to be in UTC 
           if (UTC):
-             return(d.isoformat())
+             return(d.strftime("%Y-%m-%dT%H:%M:%S%z"))
           else:
-             return(d.astimezone(get_localzone()).isoformat())
+             return(d.astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
 
-        # print("sloppyCopy: d is type ", type(d), file=sys.stderr)
- 
+
 
 
 def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UTC=True, Verbose=False, ZipInfo=False ):
