@@ -2,18 +2,33 @@ import "ScannerMap" as $Scanners;
 import "SubjectMap" as $Subjects;
 .[]
    | .label as $SessionLabel
+   | ._id as $SessionID
    | .parents.subject as $SubjectID
    | .subject.code as $Code
    | .subject.label as $Label
    | .created as $CreationDate
-   | .acquisitions[0].files[0]
-      | .origin.id as $ScannerID
-      | .info
-        | [
-             $Scanners::Scanners[][$ScannerID],
+   | if (.acquisitions | length) > 0 then
+     .acquisitions[0].files[0]
+        | .origin.id as $ScannerID
+        | .info
+          | [
+
+             if ($ScannerID | in($Scanners::Scanners[])) then
+               $Scanners::Scanners[][$ScannerID]
+             else
+               $ScannerID
+             end,
+
              $CreationDate,
-             ($Subjects::Subjects[][$SubjectID] + "/" + $SessionLabel),
+
+             if ($SubjectID | in($Subjects::Subjects[])) then
+               $Subjects::Subjects[][$SubjectID] + "/" + $SessionLabel 
+             else
+               $SubjectID + "/" + $SessionLabel
+             end,
+
              $Code,
+             $SessionID,
              .ImageComments,
              .InstitutionName,
              .ManufacturerModelName,
@@ -24,4 +39,10 @@ import "SubjectMap" as $Subjects;
              .RequestingPhysician,
              .StudyComments,
              .StudyDescription
-           ] | @csv
+
+             ] | @csv
+   else
+     # "no acqusitions for \($SessionLabel) \($SessionID)"
+     empty
+   end
+
