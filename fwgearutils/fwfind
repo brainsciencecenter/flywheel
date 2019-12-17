@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     args = ap.parse_args()
 
-    fw = fwgearutils.getFW(args)
+    fw = fwgearutils.getFW(args,Root=True)
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)

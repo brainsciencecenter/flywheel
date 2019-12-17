@@ -42,7 +42,7 @@ import "SubjectMap" as $Subjects;
 
              ] | @csv
    else
-     # "no acqusitions for \($SessionLabel) \($SessionID)"
-     empty
+     "no acqusitions for \($SessionLabel) \($SessionID)"
+     # empty
    end
 

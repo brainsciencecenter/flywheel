@@ -70,7 +70,7 @@ if __name__ == '__main__':
     ap.add_argument('-d', '--debug',  action='store_true', help='debug flag')
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-l', '--localtime',  action='store_true', help='print times in local timezone instead of UTC')
-    ap.add_argument('-r', '--root',  action='store_true', help='enable manager mode')
+    ap.add_argument('-r', '--root', default=True,  action='store_true', help='enable manager mode')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
     ap.add_argument('path', nargs='+', type=str, default=None, help='group/project')
@@ -101,5 +101,7 @@ if __name__ == '__main__':
 
                 except (flywheel.rest.ApiException) as e:
                     print("%s : No such flywheel path '%s'" % (CmdName, ContainerPath), file=sys.stderr)
+
+        print("%s" % CleanPath, file=sys.stderr, flush=True)
 
     print(json.dumps(Output))

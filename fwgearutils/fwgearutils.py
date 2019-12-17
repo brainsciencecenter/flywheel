@@ -88,11 +88,13 @@ def getApiKey(args):
 def getFW(args, Root=False):
    
     try:
-        fw = flywheel.Client()
+        fw = flywheel.Client(root=Root)
         return(fw)
     except (OSError, Exception) as e:
         try:
            ApiKey = getApiKey(args)
+
+           print("ApiKey = ", ApiKey)
 
            fw = flywheel.Client(ApiKey, root=Root)
            return(fw)
