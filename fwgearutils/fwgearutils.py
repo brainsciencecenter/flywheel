@@ -88,11 +88,13 @@ def getApiKey(args):
 def getFW(args, Root=False):
    
     try:
-        fw = flywheel.Client()
+        fw = flywheel.Client(root=Root)
         return(fw)
     except (OSError, Exception) as e:
         try:
            ApiKey = getApiKey(args)
+
+           print("ApiKey = ", ApiKey)
 
            fw = flywheel.Client(ApiKey, root=Root)
            return(fw)
@@ -186,10 +188,137 @@ def sloppyCopy(d, recurse=True, UTC=True):
        if (type(d) is datetime.datetime):
           #d.datetime.datetime is supposed to be in UTC 
           if (UTC):
-             return(d.isoformat())
+             return(d.strftime("%Y-%m-%dT%H:%M:%S%z"))
           else:
-             return(d.astimezone(get_localzone()).isoformat())
+             return(d.astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
 
-        # print("sloppyCopy: d is type ", type(d), file=sys.stderr)
- 
+
+
+
+def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UTC=True, Verbose=False, ZipInfo=False ):
+
+    if (Get):
+        try:
+            r = fw.get(r._id)
+        except (flywheel.rest.ApiException) as e:
+            print("%s : Exception : %s" % (CmdName, e), file=sys.stderr)
+            True
+
+    if (Debug):
+        print(type(r), file=sys.stderr)
+
+    Output = sloppyCopy(r, UTC=UTC)
+
+    if (type(r) == flywheel.models.resolver_group_node.ResolverGroupNode):
+        if (Verbose):
+            print("%s : r == Group %s" % (CmdName,r._id), file=sys.stderr)
+
+        Projects = []
+        for p in r.projects():
+            if (Verbose):
+                print("%s : %s/%s" % (CmdName, r._id, p.label), file=sys.stderr)
+
+            Project = recurse(fw, p, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
+            Projects.append(sloppyCopy(Project, UTC=UTC))
+
+        Output['projects'] = Projects
+                
+    if (   type(r) == flywheel.models.project.Project 
+        or type(r) == flywheel.models.resolver_project_node.ResolverProjectNode 
+        or type(r) == flywheel.models.container_project_output.ContainerProjectOutput):
+        if (Verbose):
+            print("%s : r == project" % (CmdName), file=sys.stderr)
+
+        Subjects = []
+        for s in r.subjects():
+            if (Verbose):
+                print("%s : %s/%s" % (CmdName, r.label, s.label), file=sys.stderr)
+
+            Subject = recurse(fw, s, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
+            Subjects.append(sloppyCopy(Subject, UTC=UTC))
+        Output['subjects'] = Subjects
+        
+    elif (   type(r) == flywheel.models.subject.Subject 
+          or type(r) == flywheel.models.resolver_subject_node.ResolverSubjectNode 
+          or type(r) == flywheel.models.container_subject_output.ContainerSubjectOutput):
+        if (Debug):
+            print("r == subject", file=sys.stderr)
+
+        Sessions = []
+        for s in fw.get_subject_sessions(r._id):
+            if (Verbose):
+                print("%s : %s/%s" % (CmdName, r.label, s.label), file=sys.stderr)
+            Session = recurse(fw, s, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
+            Sessions.append(sloppyCopy(Session, UTC=UTC))
+        Output['sessions'] = Sessions
+
+    elif (   type(r) == flywheel.models.session.Session 
+          or type(r) == flywheel.models.resolver_session_node.ResolverSessionNode 
+          or type(r) == flywheel.models.container_session_output.ContainerSessionOutput):
+        if (Verbose):
+            print("%s : r == session(%s)" % (CmdName, r.label), file=sys.stderr)
+
+        if (r.analyses):
+            Analyses = []
+            for a in r.analyses:
+                Analysis = sloppyCopy(a, UTC=UTC)
+                Analyses.append(Analysis)
+            Output['analyses'] = Analyses
+
+        Acquisitions = []
+
+        if (Debug):
+            print("%s : Starting acquisitions = '%s'" % (CmdName,GetAcquisitions), file=sys.stderr)
+            
+        if (GetAcquisitions):
+            if (Debug):
+                print("%s : Looking for acquisitions = '%s'" % (CmdName,GetAcquisitions), file=sys.stderr)
+            
+            for a in r.acquisitions():
+                Acquisition = recurse(fw, a, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
+                Acquisitions.append(sloppyCopy(Acquisition, UTC=UTC))
+
+        Output['acquisitions'] = Acquisitions
+
+    elif (   type(r) == flywheel.models.acquisition.Acquisition 
+          or type(r) == flywheel.models.resolver_acquisition_node.ResolverAcquisitionNode 
+          or type(r) == flywheel.models.container_acquisition_output.ContainerAcquisitionOutput):
+        if (Verbose):
+            print("%s : r == acquisition : %s" % (CmdName, r.label), file=sys.stderr)
+
+    if (ZipInfo):
+        Files = []
+
+        try:
+            for f in r.files:
+                File = sloppyCopy(f, UTC=UTC)
+                if (re.search('\.zip$', f.name)):
+                    if (f.size > 0):
+                        try:
+                            File['zip_info'] = sloppyCopy(r.get_file_zip_info(f.name), UTC=UTC)
+                            File['zip_member_count'] = len(File['zip_info']['members'])
+
+                            if (Verbose):
+                                print("%s : '%s/files/%s' %d" % (CmdName, r.label, f.name, File['zip_member_count']), file=sys.stderr)
+
+                        except (flywheel.rest.ApiException) as e:
+                            print("%s : %s(%s).get_file_zip_info failed on '%s' : %s - %s\n" % (CmdName, r.label, r.id, f.name, e.status, e.reason), file=sys.stderr)
+                            continue
+                    else:
+                        print("%s : Size of '%s(%s)/%s' is 0 : Skipping\n" % (CmdName, r.label, r.id, f.name), file=sys.stderr)
+                        continue
+                else:
+                    if (Verbose):
+                        print("%s : '%s/files/%s'" % (CmdName, r.label, f.name), file=sys.stderr)
+
+                Files.append(File)
+
+        except (AttributeError) as e:
+            # no files attribute
+            True
+
+        if (len(Files) > 0):
+            Output['files'] = Files
+
+    return(Output)
 
