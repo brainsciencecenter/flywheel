@@ -1,0 +1,18 @@
+#!/bin/bash
+
+FlywheelUtilsDir=/home/holder/Work/CfN/flywheel
+
+WorkDir=$(mktemp -d /tmp/genSessionCSV-XXXXX)
+
+fwfind -p 'created>2018-01-01' | jq . > ${WorkDir}/Projects.json
+fwfind -s 'created>2018-01-01' | jq . > ${WorkDir}/Subjects.json
+
+jq -r '[ .[] | { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
+jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ .[] | { (._id): ($Projects::Projects[][.parents.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > ${WorkDir}/SubjectMap.json
+
+fwfind -S "$@" | jq -r '.[]._id' > ${WorkDir}/SessionUIDs
+
+
+(fw2json -alg $(< ${WorkDir}/SessionUIDs) | jq . > ${WorkDir}/Sessions.json ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
+
+jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f genTechDevCSV.jq ${WorkDir}/Sessions.json
