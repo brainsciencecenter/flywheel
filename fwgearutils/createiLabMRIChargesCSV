@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# ** Read dynamically
+ServiceRequestID=RadiologyiLabBenNumber
+
+# *** Need to read this dynamically
+declare -A ServiceIDs=( [HUP6]=455017 [SC3T]=454998 [SC7T]=455018 )
+Scanners=$(echo "${!ServiceIDs[@]}" | sed 's/ /|/g')
+ScannerRegEx='^"?('"$Scanners"')"?,'
+
+ChargeHeaders=(
+	service_id
+	note
+	service_quantity
+	price
+	purchased_on
+	service_request_id
+	owner_email
+	pi_email_or_group_id
+	payment_number
+	errors
+	warnings
+)
+
+echo "${ChargeHeaders[@]}" | sed 's/ /, /g '
+
+#
+# Want Scanner, Date, FWUID
+#
+# Date goes from "2019-12-01T11:22:03-0400" => "2019-12-01","11:22:03-0400"
+#
+
+while read Scanner Date Time FWUID
+do
+	echo '$service_id', '"$note"', '$service_quantity', '$price', '$purchased_on',  '$service_request_id', '$owner_email', '$pi_email_or_group_id', '$payment_number', '$errors', '$warning' | (
+
+	export service_id=${ServiceIDs[$Scanner]}
+	export note="${FWUID} ${Scanner} ${Date} ${Time}"
+	export service_quantity=1
+	export purchased_on=$Date
+	export service_request_id=$ServiceRequestID
+
+	envsubst)
+
+done < <(grep -P "$ScannerRegEx" "$1" | sed -E 's/,("?)([0-9]{4}-[0-9]{2}-[0-9]{2})T([0-9]{2}:[0-9]{2}:[0-9]{2}[+-][0-9]{4})("?)/,\1\2\4,\1\3\4/' | csvcut -c 1,2,3,6 | sed 's/,/ /g')
+

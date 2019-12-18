@@ -1,6 +1,22 @@
 import "ScannerMap" as $Scanners;
 import "SubjectMap" as $Subjects;
-.[]
+[
+	"Scanner",
+	"Date",
+	"Path",
+	"Subject",
+	"FWUID",
+	"Code",
+	"ImageComments",
+	"InstitutionName",
+	"ManufacturerModelName",
+	"PerformedProcedureStepDescription",
+	"PerformingPhysicianName",
+	"ReferringPhysicianName",
+	"StudyComments",
+	"StudyDescription"
+],
+(.[]
    | .label as $SessionLabel
    | ._id as $SessionID
    | .parents.subject as $SubjectID
@@ -40,9 +56,10 @@ import "SubjectMap" as $Subjects;
              .StudyComments,
              .StudyDescription
 
-             ] | @csv
+             ] 
    else
-     "no acqusitions for \($SessionLabel) \($SessionID)"
-     # empty
+     #"no acqusitions for \($SessionLabel) \($SessionID)"
+     empty
    end
+   ) | @csv
 
