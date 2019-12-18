@@ -94,8 +94,6 @@ def getFW(args, Root=False):
         try:
            ApiKey = getApiKey(args)
 
-           print("ApiKey = ", ApiKey)
-
            fw = flywheel.Client(ApiKey, root=Root)
            return(fw)
         
