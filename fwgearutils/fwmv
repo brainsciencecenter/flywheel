@@ -66,6 +66,11 @@ def mvOrRename(Container, NewParentID, NewLabel):
 
         Container.update({'label': NewLabel, 'subject': { '_id': NewParentID }})
 
+    elif(re.search('.*Acquisition.*', str(type(Container)))):
+        if (Verbose):
+            print("%s : %s : mv session from '%s' to '%s'" % (CmdName, FunctionName, Container.label, NewLabel), file=sys.stderr)
+        Container.update({'label': NewLabel, 'session': NewParentID})
+        
     else:
         print("%s : mvOrRename : Unexpected container type : %s" % (CmdName, type(Container)), file=sys.stderr)
         exit(2)
@@ -251,6 +256,12 @@ def getOrCreateContainer(fw, ContainerTemplate, ContainerPath, Force=False):
         print("%s : No existing container for '%s' and -f not set" % (CmdName, ContainerPath), file=sys.stderr)
         
     return(NewContainer)
+
+def basename(path):
+    return(re.split('/',path)[-1])
+
+def dirname(path):
+    return('/'.join(re.split('/',path)[0:-1]))
 
 if __name__ == '__main__':
 

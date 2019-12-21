@@ -16,18 +16,30 @@ if __name__ == '__main__':
     CmdName = os.path.basename(sys.argv[0])
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('-r', '--recurse',  action='store_true', help='simpleminded flywheel object to json recursion.  No sessions or acquisitions')
+    ap.add_argument('-a', '--acquisitions',  action='store_true', help='include acquisition information')
+    ap.add_argument('-d', '--debug',  action='store_true', help='debug flag')
+    ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
+    ap.add_argument('-l', '--localtime',  action='store_true', help='print times in local timezone instead of UTC')
+    ap.add_argument('-p', '--progress-bar', default=False,  action='store_true', help='generate progress info on stderr')
+    ap.add_argument('-r', '--root', default=True,  action='store_true', help='enable manager mode')
+    ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
+    ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
+    ap.add_argument('-R', '--recurse', default=True,  action='store_true', help='Recurse')
     ap.add_argument('id', nargs=1, type=str, default=None, help='group/project|ProjectID')
 
     args = ap.parse_args()
 
     fw = fwgearutils.getFW(args)
+    Output = []
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
     try:
-        print(json.dumps(fwgearutils.sloppyCopy(fw.lookup(args.id[0]), args.recurse)))
+        Container = fw.lookup(args.id[0])
+        Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
+        
+        print(json.dumps(Output))
     except (flywheel.rest.ApiException) as e:
         print(json.dumps(fwgearutils.sloppyCopy(fw.get(args.id[0]), args.recurse)))
 

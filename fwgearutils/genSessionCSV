@@ -1,8 +1,42 @@
 #!/bin/bash
 
-FlywheelUtilsDir=/home/holder/Work/CfN/flywheel
+CmdName=$(basename "$0")
+
+syntax="$CmdName [-j jsonfile][-p] fwfindargs....]"
+
+#
+# *** Need to config dynamically
+#
+if [ -z "$FlywheelUtilsDir" ]
+then
+	if echo "$0" | grep -q /
+	then
+		FlywheelUtilsDir=$(dirname $(dirname $(realpath "$0")))
+	else
+		FlywheelUtilsDir=$(dirname $(dirname $(which "$0")))
+	fi
+fi
+
+while getopts "j:p" arg 
+do
+	case "$arg" in
+	     j|p)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+
+	esac
+done
+
+shift $(($OPTIND - 1))
 
 WorkDir=$(mktemp -d /tmp/genSessionCSV-XXXXX)
+
+if [ -n "$opt_j" ]
+then
+	SessionJsonFile="$opt_j"
+else
+	SessionJsonFile="${WorkDir}/Session.json"
+fi
 
 fwfind -p 'created>2018-01-01' | jq . > ${WorkDir}/Projects.json
 fwfind -s 'created>2018-01-01' | jq . > ${WorkDir}/Subjects.json
@@ -12,7 +46,11 @@ jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ .[] | { (._id): ($Proje
 
 fwfind -S "$@" | jq -r '.[]._id' > ${WorkDir}/SessionUIDs
 
+if [ -n "$opt_p" ]
+then
+	(fw2json -p -alg $(< ${WorkDir}/SessionUIDs) | jq . > "$SessionJsonFile" ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
+else
+	fw2json -alg $(< ${WorkDir}/SessionUIDs) | jq . > "$SessionJsonFile"
+fi
 
-(fw2json -alg $(< ${WorkDir}/SessionUIDs) | jq . > ${WorkDir}/Sessions.json ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
-
-jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f genTechDevCSV.jq ${WorkDir}/Sessions.json
+jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${FlywheelUtilsDir}/fwgearutils/genTechDevCSV.jq" "$SessionJsonFile"
