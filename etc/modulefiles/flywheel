@@ -1,0 +1,4 @@
+#%Module 1.0
+setenv			FLYWHEELAPPDIR		/share/apps/flywheel
+prepend-path 		PATH			/share/apps/bin:/share/apps/flywheel/bin
+prepend-path		PYTHONPATH		/share/apps/flywheel/lib
