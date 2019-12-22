@@ -71,6 +71,7 @@ if __name__ == '__main__':
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-l', '--localtime',  action='store_true', help='print times in local timezone instead of UTC')
     ap.add_argument('-p', '--progress-bar', default=False,  action='store_true', help='generate progress info on stderr')
+    ap.add_argument('-R', '--no-recurse', default=False,  action='store_true', help='no recurse mode')
     ap.add_argument('-r', '--root', default=True,  action='store_true', help='enable manager mode')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
@@ -87,8 +88,13 @@ if __name__ == '__main__':
     
     for path in args.path:
         CleanPath = re.sub('^fw://','', path)
+        
         try:
-            Output.append(fwgearutils.recurse(fw, fw.get(path), CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
+            Container = fw.get(path)
+            if (args.no_recurse):
+                Output.append(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)))
+            else:
+                Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
             
         except (flywheel.rest.ApiException) as e:
             Containers = fwgearutils.fwGlobPath(fw, CleanPath)
@@ -97,11 +103,13 @@ if __name__ == '__main__':
                 try:
                     Container = fw.lookup(ContainerPath)
 
-                    Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
-
-
                 except (flywheel.rest.ApiException) as e:
                     print("%s : No such flywheel path '%s'" % (CmdName, ContainerPath), file=sys.stderr)
+
+                if (args.no_recurse):
+                    Output.append(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)))
+                else:
+                    Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
 
         if (args.progress_bar):
             print("%s" % CleanPath, file=sys.stderr, flush=True)
