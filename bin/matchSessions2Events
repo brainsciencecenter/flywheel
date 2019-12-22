@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import os
+import flywheel
+import json
+import argparse
+import fwgearutils
+import csv
+
+if __name__ == '__main__':
+
+    import argparse
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-e', '--events', nargs=1,  help='Event CSV File')
+
+    ap.add_argument('sessions', nargs='+', type=str, default=None, help='Sessions CSV file')
+
+    args = ap.parse_args()
+
+    fw = fwgearutils.getFW(args)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    Events = {}
+
+    with open(args.events[0], newline='') as csvfile:
+        reader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        for row in reader:
+            Scanner = row[1]
+
+            Protocol = row[2]
+            StartDateTime = row[3]
+            StopDateTime = row[4]
+
+            Date = re.sub('-', '', re.split(' ',StartDateTime)[0])
+#            print("Date = '%s'" % (Date))
+
+            if (not Scanner + "-" + Date in Events):
+                Events[Scanner + "-" + Date] = []
+                
+            Events[Scanner + "-" + Date].append(
+            { "Scanner": Scanner,
+              "Protocol": Protocol,
+              "StartDateTime": StartDateTime,
+              "StopDateTime": StopDateTime
+            })
+
+#    print(json.dumps(Events))
+
+#    sys.exit(0)
+
+    with open(args.sessions[0], newline='') as csvfile:
+        spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        for row in spamreader:
+            Scanner = row[0]
+            DateTime = re.sub('^ *','',row[1])
+            Date = re.split(' ', DateTime)[0]
+            Key = Scanner + '-' + Date
+
+            PPDateTime = re.sub('(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})','\g<year>-\g<month>-\g<day>',DateTime)
+#            print(PPDateTime)
+            if (Key in Events):
+                for e in Events[Key]:
+                    if (PPDateTime > e["StartDateTime"] and PPDateTime < e["StopDateTime"]):
+                        print('%s, %s, %s, %s, %s' % (e["Protocol"], Scanner, e["StartDateTime"], PPDateTime, e["StopDateTime"]))
+
+
+
+

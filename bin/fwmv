@@ -155,10 +155,29 @@ def createSubject(fw, OldSubject, NewProjectID, NewLabel=None):
  
     return(NewGottenSubject)
 
-#
-# No createSession as sessions are supposed to be the lowest level
-# *** May need to change if we want to be able to move/rename acquisitions
-#
+def createSession(fw, OldSession, NewSubjectID, NewLabel=None):
+    global Noop
+    global Verbose
+    
+    if (not NewLabel):
+        NewLabel = OldSession.label
+
+    NewSubject = fw.get(NewSubjectID)
+    
+    NewSession = flywheel.Session(subject={'_id': NewSubjectID},
+                                  info=OldSession.info,
+                                  info_exists=OldSession.info_exists,
+                                  label=NewLabel,
+                                  project=NewSubject.project,
+                                  operator=OldSession.operator,
+                                  weight=OldSession.weight
+     )
+
+    NewAddedSession = fw.add_session(NewSession)
+        
+    NewGottenSession = fw.get_session(NewAddedSession)
+
+    return(NewGottenSession)
 
 def getParentID(Container):
     global Noop
@@ -244,10 +263,9 @@ def getOrCreateContainer(fw, ContainerTemplate, ContainerPath, Force=False):
                     print("%s : Create Subject '%s' in '%s'" % (FunctionName, NewContainerLabel, NewContainerParent.label), file=sys.stderr)
                 NewContainer = createSubject(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
 
-    # *** Moving acquisitions around....
-    #       elif (len(ContainerPath.split("/") ) == 4):
-    #           print("%s : Create Session '%s' in '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
-    #            NewContainer = createSession(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
+            elif (len(ContainerPath.split("/") ) == 4):
+                print("%s : Create Session '%s' '%s'" % (FunctionName, NewContainerParentID, NewContainerLabel), file=sys.stderr)
+                NewContainer = createSession(fw, ContainerTemplate, NewContainerParentID, NewContainerLabel)
 
             else:
                 print("%s : Too many path segments" % (FunctionName), file=sys.stderr)
