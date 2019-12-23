@@ -279,7 +279,7 @@ class FW():
             if (not args.no_op): 
                 group.add_permission(permission) 
             if (args.verbose or args.no_op): 
-                print("add %s to %s with %s" % (user,args.groupid,role)) 
+                print("add %s to %s with %s" % (user,group.id,role)) 
 
 
             
@@ -330,7 +330,7 @@ class FW():
                     group_users = list(filter(lambda p: p.id == user, group.permissions))
                     if (not group_users):
                         warn = "User '%s is not in group '%s'" % (user,group.id)
-                        warnings.warning(warn)
+                        logging.warning(warn)
                     else:
                         group.delete_permission(user)
                         if (args.verbose):
@@ -343,7 +343,7 @@ class FW():
                         permission = flywheel.Permission(user, args.role)
                         group.add_permission(permission)
                         if (args.verbose):
-                            print("add %s to %s with %s" % (user,args.groupid,args.role))
+                            print("add %s to %s with %s" % (user,groupid,args.role))
 
                 group_users = list(filter(lambda p: not (p.id in args.UserNames), group.permissions))
                 for user in group_users:
