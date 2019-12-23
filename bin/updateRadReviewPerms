@@ -1,0 +1,3 @@
+#!/bin/bash
+
+fw-groupcrud -v update -g $(echo $(fw2json -R '*' | jq -r '.[]._id' | sort) | sed 's/ /,/g') -F -p all -r ro radreview

@@ -144,6 +144,15 @@ def fwGlobPath(fw,Path):
 
         Containers = Sessions
 
+    if (len(Segments) > 4):
+        Acquisitions = {}
+        for SessionPath, Session in Containers.items():
+            for Acquisition in Session.acquisitions():
+                if (globre.match(Segments[3], Session.label)):
+                    Acquisitions[ '/'.join([SessionPath, Acquisition.label])] = Acquisition
+
+        Containers = Acquisitions
+
     return(Containers)
 
 def sloppyCopy(d, recurse=True, UTC=True):

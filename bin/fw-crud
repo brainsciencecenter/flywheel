@@ -105,7 +105,7 @@ class FW():
         try:
             retval = self.Config.func(self.Config)
         except Exception as e:
-            logging.warn(e)
+            logging.warning(e)
             sys.exit(1)
 
         sys.exit(retval)
@@ -154,7 +154,7 @@ class FW():
         groupid = args.GroupID[0]
 
         if (list(filter(lambda k: k.id == groupid, self.fw.groups()))):
-            warnings.warn("Group '%s' already exists" % (groupid))
+            warnings.warning("Group '%s' already exists" % (groupid))
             return(False)
 
         if (args.GroupLabel):
@@ -236,12 +236,12 @@ class FW():
     def updateProjectUserRole(self, project, user, role):
         args = self.Config
 
-        if (list(filter(lambda p: p.id == user and p.access == role, project.permissions))):
+        if (list(filter(lambda p: p.id == user, project.permissions))):
             if (args.force):
                 if (not args.no_op):
-                    project.delete_permissions(user)
+                    project.delete_permission(user)
             else:
-                logging.warn("user '%s' is already in project '%s' as '%s'" % (user, project.label, role))
+                logging.warning("user '%s' is already in project '%s' as '%s'" % (user, project.label, role))
                 return(False)
 
         permission = flywheel.Permission(user, role)
@@ -250,7 +250,7 @@ class FW():
             try:
                 project.add_permission(permission)
             except flywheel.ApiException as e:
-                print('API Error: %d -- %s' % (e.status, e.reason))
+                print('API Error3: %d -- %s' % (e.status, e.reason))
 
         if (args.verbose or args.no_op):
             print("add %s to %s/%s with %s" % (user, project.group, project.label, role))
@@ -264,13 +264,13 @@ class FW():
         group_users = list(filter(lambda p: p.id == user, group.permissions))
         if (group_users):
             # Check if we're just updating the role.
-            if (group_users[0].access != role):
+            if (group_users[0].access != role or args.force):
                 permission = flywheel.Permission(user, role)
                 if (not args.no_op):
                     # why can't update_permissions use the id in the permissions?
                     group.update_permission(group_users[0].id, permission)
                 if (args.verbose or args.no_op):
-                    print("update %s to %s with %s" % (user,args.groupid,role))
+                    print("update %s to %s with %s" % (user,group.id,role))
             else:
                 raise Exception("User '%s already in group '%s' as '%s'" % (user,group.id,role))
 
@@ -292,62 +292,64 @@ class FW():
         # *** make sure users are already created
         # *** have to check if the group exists
 
-        groupid = args.groupid[0]
-        group = self.fw.get_group(groupid)
+        groups = args.groupid[0]
+        for groupid in re.split(',',groups):
 
-        if (args.append and not (args.delete or args.set)):
-            if (args.file):
-                csvlines = []
-                for file in args.UserNames:
-                    csvlines += self.readCSVFile(file)
+            group = self.fw.get_group(groupid)
 
-                for l in csvlines:
-                    user = self.enforceDomain(l['pennkeyname'])
+            if (args.append and not (args.delete or args.set)):
+                if (args.file):
+                    csvlines = []
+                    for file in args.UserNames:
+                        csvlines += self.readCSVFile(file)
 
-                    if (self.getUser(user)):
-                        self.appendUser2Group(group,user,l['role'])
-                    elif(args.create_user):
-                        self.createUser(l['role'],user,l['firstname'],l['lastname'])
-                        self.appendUser2Group(group,user,l['role'])
+                    for l in csvlines:
+                        user = self.enforceDomain(l['pennkeyname'])
 
-            else:
-                for UserName in args.UserNames:
-                    user = self.enforceDomain(UserName)
-                    try:
-                        self.appendUser2Group(group,user,args.role[0])
-                    except (Exception) as e:
-                        logging.warn(e)
-                        
-                    if (args.project):
-                        for p in group.projects():
-                            if (args.project == 'all' or p.label in args.project):
-                                self.updateProjectUserRole(p, user, args.role[0])
+                        if (self.getUser(user)):
+                            self.appendUser2Group(group,user,l['role'])
+                        elif(args.create_user):
+                            self.createUser(l['role'],user,l['firstname'],l['lastname'])
+                            self.appendUser2Group(group,user,l['role'])
 
-        elif (args.delete):
-            for user in args.UserNames:
-                group_users = list(filter(lambda p: p.id == user, group.permissions))
-                if (not group_users):
-                    warn = "User '%s is not in group '%s'" % (user,group.id)
-                    warnings.warn(warn)
                 else:
-                    group.delete_permission(user)
-                    if (args.verbose):
-                        print("delete %s from %s" % (user,group.id))
+                    for UserName in args.UserNames:
+                        user = self.enforceDomain(UserName)
+                        try:
+                            self.appendUser2Group(group,user,args.role[0])
+                        except (Exception) as e:
+                            logging.warning(e)
 
-        elif (args.set):
-            for user in args.UserNames:
-                group_users = list(filter(lambda p: p.id == user, group.permissions))
-                if (not group_users):
-                    permission = flywheel.Permission(user, args.role)
-                    group.add_permission(permission)
-                    if (args.verbose):
-                        print("add %s to %s with %s" % (user,args.groupid,args.role))
+                        if (args.project):
+                            for p in group.projects():
+                                if (args.project == 'all' or p.label in args.project):
+                                    self.updateProjectUserRole(p, user, args.role[0])
 
-            group_users = list(filter(lambda p: not (p.id in args.UserNames), group.permissions))
-            for user in group_users:
-                group.delete_permission(user.id)
-                if (args.verbose):
-                        print("delete %s from %s" % (user,group.id))
+            elif (args.delete):
+                for user in args.UserNames:
+                    group_users = list(filter(lambda p: p.id == user, group.permissions))
+                    if (not group_users):
+                        warn = "User '%s is not in group '%s'" % (user,group.id)
+                        warnings.warning(warn)
+                    else:
+                        group.delete_permission(user)
+                        if (args.verbose):
+                            print("delete %s from %s" % (user,group.id))
+
+            elif (args.set):
+                for user in args.UserNames:
+                    group_users = list(filter(lambda p: p.id == user, group.permissions))
+                    if (not group_users):
+                        permission = flywheel.Permission(user, args.role)
+                        group.add_permission(permission)
+                        if (args.verbose):
+                            print("add %s to %s with %s" % (user,args.groupid,args.role))
+
+                group_users = list(filter(lambda p: not (p.id in args.UserNames), group.permissions))
+                for user in group_users:
+                    group.delete_permission(user.id)
+                    if (args.verbose):
+                            print("delete %s from %s" % (user,group.id))
 
 
     def groupDelete(self,args):
@@ -358,7 +360,7 @@ class FW():
         existing_groups = self.fw.groups()
         for groupid in args.GroupID:
             if (not (list(filter(lambda g: g.id == groupid, existing_groups)))):
-                warnings.warn("No such group '%s' to delete" % groupid)
+                warnings.warning("No such group '%s' to delete" % groupid)
                 continue
 
             self.fw.delete_group(groupid)
@@ -406,7 +408,7 @@ class FW():
 
       if (self.getUser(username)):
           # *** should raise and exception
-        warnings.warn("User '%s' already exists" % (username))
+        warnings.warning("User '%s' already exists" % (username))
         return(False)
 
       if (not args.no_op):
