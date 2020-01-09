@@ -3,9 +3,20 @@
 cmd=$(basename $0)
 syntax="$cmd : [-c csvfile][-f][-l LookUpTable][-n][-v] [StudyComments [StudyComments...]]"
 
+if [ -z "$FlywheelUtilsDir" ]
+then
+	if echo "$0" | grep -q /
+	then
+		FlywheelUtilsDir=$(dirname $(dirname $(realpath "$0")))
+	else
+		FlywheelUtilsDir=$(dirname $(dirname $(which "$0")))
+	fi
+fi
+
 FromGroupProject=unknown/Unsorted
 ToProject=Unsorted
-LookUpTable=~/Work/CfN/flywheel/AdminScripts/StudyDescriptionToGroup
+
+LookUpTable=${FlywheelUtilsDir}/etc/StudyDescriptionToGroup
 
 while getopts c:fl:nv arg
 do

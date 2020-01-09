@@ -53,4 +53,4 @@ else
 	fw2json -alg $(< ${WorkDir}/SessionUIDs) | jq . > "$SessionJsonFile"
 fi
 
-jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${FlywheelUtilsDir}/fwgearutils/genTechDevCSV.jq" "$SessionJsonFile"
+jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${FlywheelUtilsDir}/bin/genSessionCSV.jq" "$SessionJsonFile"
