@@ -23,7 +23,7 @@ import "SubjectMap" as $Subjects;
    | .subject.code as $Code
    | .subject.label as $Label
    | .created as $CreationDate
-   | if (.acquisitions | length) > 0 then
+   | if (((.acquisitions | length) > 0) and ((.acquisitions[0].files | length) > 0)) then
      .acquisitions[0].files[0]
         | .origin.id as $ScannerID
         | .info
@@ -44,7 +44,12 @@ import "SubjectMap" as $Subjects;
              end,
 
              $Code,
-             .DeidentificationMethod,
+             if ((.DeidentificationMethod | type) == "array") then
+               .DeidentificationMethod[0]
+             else
+                .DeidentificationMethod
+             end,
+ 
              $SessionID,
              .ImageComments,
              .InstitutionName,
