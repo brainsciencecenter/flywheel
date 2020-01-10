@@ -44,13 +44,14 @@ import "SubjectMap" as $Subjects;
              end,
 
              $Code,
+             $SessionID,
+
              if ((.DeidentificationMethod | type) == "array") then
                .DeidentificationMethod[0]
              else
                 .DeidentificationMethod
              end,
  
-             $SessionID,
              .ImageComments,
              .InstitutionName,
              .ManufacturerModelName,
