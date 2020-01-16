@@ -236,21 +236,19 @@ class FW():
     def updateProjectUserRole(self, project, user, role):
         args = self.Config
 
-        if (list(filter(lambda p: p.id == user, project.permissions))):
-            if (args.force):
-                if (not args.no_op):
-                    project.delete_permission(user)
-            else:
-                logging.warning("user '%s' is already in project '%s' as '%s'" % (user, project.label, role))
-                return(False)
-
         permission = flywheel.Permission(user, role)
 
         if (not args.no_op):
             try:
                 project.add_permission(permission)
             except flywheel.ApiException as e:
-                print('API Error3: %d -- %s' % (e.status, e.reason))
+                if (e.status == 409):
+                    existing_permission = list(filter(lambda x: x.id == user, project.permissions))[0]
+                    if (existing_permission.access != permission.access and args.force):
+                        project.delete_permission(user)
+                        project.add_permission(permission)
+                else:
+                    print('API Error3: %d -- %s' % (e.status, e.reason))
 
         if (args.verbose or args.no_op):
             print("add %s to %s/%s with %s" % (user, project.group, project.label, role))
@@ -264,7 +262,7 @@ class FW():
         group_users = list(filter(lambda p: p.id == user, group.permissions))
         if (group_users):
             # Check if we're just updating the role.
-            if (group_users[0].access != role or args.force):
+            if (group_users[0].access != role and args.force):
                 permission = flywheel.Permission(user, role)
                 if (not args.no_op):
                     # why can't update_permissions use the id in the permissions?
