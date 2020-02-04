@@ -406,7 +406,7 @@ class FW():
 
       if (self.getUser(username)):
           # *** should raise and exception
-        warnings.warning("User '%s' already exists" % (username))
+        warnings.warn("User '%s' already exists" % (username))
         return(False)
 
       if (not args.no_op):
