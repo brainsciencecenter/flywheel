@@ -41,10 +41,7 @@ fi
 # Subjects don't have a created or timestamp field. Created works.  timestamp doesn't - G 2020/2/6
 #
 fwfind -l -p 'created>2018-01-01' | jq . > ${WorkDir}/Projects.json
-ls -l ${WorkDir}/Projects.json 1>&2
-
 fwfind -l -s 'created>2018-01-01' | jq . > ${WorkDir}/Subjects.json
-ls -l ${WorkDir}/Subjects.json 1>&2
 
 jq -r '[ .[] | { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
 jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ .[] | { (._id): ($Projects::Projects[][.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > ${WorkDir}/SubjectMap.json
