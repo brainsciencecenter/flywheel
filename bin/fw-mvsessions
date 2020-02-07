@@ -150,7 +150,7 @@ for FromSession in FromSessions:
     else:
         acquisition = fw.get_session_acquisitions(session_id=FromSession.id)[0]
         a = fw.get(acquisition.id)
-        print("%s : %s : " % (a.created, FromSession.label), end="")
+        print("%s : %s : " % (a.timestamp, FromSession.label), end="")
         sd = a.files[0].info.get('StudyDescription')
         if (sd):
             print("%s" % (sd), end="")

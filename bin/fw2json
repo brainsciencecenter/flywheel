@@ -30,10 +30,10 @@ import fwgearutils
 #     fw2json -a fw://upenn-admins/Test2/121526/121526_20180213_7T | jq -r '"fw://\(.parents.group)/Test2/121526/\(.label)/\(.acquisitions[].label)"'
 #
 # Print the interesting info from unknown/Unsorted:
-# 	fw2json -ag unknown/Unsorted | jq -r '.[] | { "\(._id)": .label } as $ProjectLabels | .subjects[] | { "\(._id)": .label} as $SubjectLabels | .sessions[] |[ ([ .group, $ProjectLabels[.project],  $SubjectLabels[.subject._id], .label ] | join("/")), .created, .acquisitions[0].files[0].info.StudyComments, .acquisitions[0].files[0].info.StudyDescription, .acquisitions[0].files[0].info.InstitutionName, .acquisitions[0].files[0].info.ManufacturerModelName ] | @csv'
+# 	fw2json -ag unknown/Unsorted | jq -r '.[] | { "\(._id)": .label } as $ProjectLabels | .subjects[] | { "\(._id)": .label} as $SubjectLabels | .sessions[] |[ ([ .group, $ProjectLabels[.project],  $SubjectLabels[.subject._id], .label ] | join("/")), .timestamp, .acquisitions[0].files[0].info.StudyComments, .acquisitions[0].files[0].info.StudyDescription, .acquisitions[0].files[0].info.InstitutionName, .acquisitions[0].files[0].info.ManufacturerModelName ] | @csv'
 #
 # Print all the flywheel paths for the sessions in a set of projects:
-# 	fw2json pennftdcenter/{Unsorted,7T_invivo_pilot,invivo_pilot} | jq -r '.[] | . as $Project | .subjects[] | . as $Subject | .sessions[] | . as $Session |  .acquisitions[0].files[0].info | [ ([ $Session.group, $Project.label,  $Subject.label, $Session.label ] | join("/")), $Session.created, .StudyComments, .StudyDescription, .InstitutionName, .ManufacturerModelName ] | @csv'
+# 	fw2json pennftdcenter/{Unsorted,7T_invivo_pilot,invivo_pilot} | jq -r '.[] | . as $Project | .subjects[] | . as $Subject | .sessions[] | . as $Session |  .acquisitions[0].files[0].info | [ ([ $Session.group, $Project.label,  $Subject.label, $Session.label ] | join("/")), $Session.timestamp, .StudyComments, .StudyDescription, .InstitutionName, .ManufacturerModelName ] | @csv'
 #
 # Find indexes for acquisitions that match a given string:
 #     fw2json -a fw://upenn-admins/Test2 | jq -r 'paths(select(.label=="mp2rage_siemens_ipat3_0.69mm_UNI_Images")?)'

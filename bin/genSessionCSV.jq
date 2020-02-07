@@ -22,7 +22,7 @@ import "SubjectMap" as $Subjects;
    | .parents.subject as $SubjectID
    | .subject.code as $Code
    | .subject.label as $Label
-   | .created as $CreationDate
+   | .timestamp as $TimeStamp
    | if (((.acquisitions | length) > 0) and ((.acquisitions[0].files | length) > 0)) then
      .acquisitions[0].files[0]
         | .origin.id as $ScannerID
@@ -35,7 +35,7 @@ import "SubjectMap" as $Subjects;
                $ScannerID
              end,
 
-             $CreationDate,
+             $TimeStamp,
 
              if ($SubjectID | in($Subjects::Subjects[])) then
                $Subjects::Subjects[][$SubjectID] + "/" + $SessionLabel 

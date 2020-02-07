@@ -21,6 +21,7 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-d', '--debug',  action='store_true', help='print debug info')
+    ap.add_argument('-l', '--localtime',  action='store_true', help='print times in local timezone instead of UTC')
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-r', '--recurse',  action='store_true', help='recurse through data structure')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
@@ -72,7 +73,7 @@ if __name__ == '__main__':
         if (args.recurse):
             Output = fwgearutils.recurse(fw, r, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
         else:
-            Output = fwgearutils.sloppyCopy(r)
+            Output = fwgearutils.sloppyCopy(r, recurse=False, UTC=(not args.localtime))
 
         Outputs.append(Output)
 

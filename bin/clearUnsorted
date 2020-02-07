@@ -47,7 +47,7 @@ then
 else
     CSVFile=$(mktemp /tmp/clearUnsorted-XXXXXX)
 
-    fw2json -ag fw://unknown/Unsorted | jq -r '.[] | . as $Project | .subjects[] | . as $Subject | .sessions[] | . as $Session |  .acquisitions[0].files[0].info | [ ([ $Session.group, $Project.label,  $Subject.label, $Session.label ] | join("/")), $Session.created, .StudyComments, .StudyDescription, .InstitutionName, .ManufacturerModelName ] | @csv' > "$CSVFile"
+    fw2json -ag fw://unknown/Unsorted | jq -r '.[] | . as $Project | .subjects[] | . as $Subject | .sessions[] | . as $Session |  .acquisitions[0].files[0].info | [ ([ $Session.group, $Project.label,  $Subject.label, $Session.label ] | join("/")), $Session.timestamp, .StudyComments, .StudyDescription, .InstitutionName, .ManufacturerModelName ] | @csv' > "$CSVFile"
 fi
 
 if [ -n "$1" ]
