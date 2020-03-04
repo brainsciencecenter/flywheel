@@ -41,7 +41,7 @@ function addPatientIDToDicom {
     local Path="$1"
     local SubjectID=$(echo "$Path" | cut -f 3 -d /)
 
-    addSubjectIDtoDicom -p "$Subject" "$Path"
+    addSubjectIDToDicom -p "$Subject" "$Path"
 }
 
 while getopts "j:p:qs:" arg
@@ -100,7 +100,7 @@ done | eval $ProgressBar
 
 [ -d FixedDicoms ] || mkdir FixedDicoms
 
-rsync -av "$Group" FixedDicoms
+rsync -a "$Group" FixedDicoms
 
 cd FixedDicoms
 
