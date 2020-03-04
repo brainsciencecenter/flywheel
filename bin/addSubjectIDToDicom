@@ -36,8 +36,6 @@ TempDir = tempfile.TemporaryDirectory(prefix="/tmp/{}".format(CMDNAME))
 
 print("TempDir = {}".format(TempDir.name))
 
-os.chdir(TempDir.name)
-
 print("ZipFile '{}' exists '{}'".format(ZipFileToProcess, os.path.exists(ZipFileToProcess)))
 
 with ZipFile(ZipFileToProcess, 'r') as zip_ref:
@@ -48,10 +46,13 @@ DicomFiles = Zipfile(args.filename[0]).namelist
 print("DicomFiles = ",DicomFiles)
 
 for DicomFile in DicomFiles:
-    ds = pydicom.filereader.dcmread(DicomFile)
+    FullDicomPath = "{}/{}".format(TempDir.name,DicomFile)
+    
+    ds = pydicom.filereader.dcmread(FullDicomPath)
     ds.PatientID = args.patient_id
-    ds.save_as(DicomFile)
+    ds.save_as(FullDicomPath)
 
 with ZipFile(ZipFileToProcess, mode='w', compression=ZIP_DEFLATED) as zip_ref:
     for DicomFile in DicomFiles:
-        zip_ref.write(DicomFile)
+        FullDicomPath = "{}/{}".format(TempDir.name,DicomFile)
+        zip_ref.write(FullDicomPath)
