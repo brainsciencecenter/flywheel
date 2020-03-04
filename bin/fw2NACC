@@ -17,6 +17,12 @@
 # + Do the uploaded files stay in the same locations, or does the NACC move them around as they're processed?
 #
 
+#
+# Pain points:
+#  fw download messes with download file names and will not overwrite output files by default
+#  + have to use -o filename to fix
+#  fw download will only download the first Group/Project/Subject/Session/Acquisition/files/FileName in the case when there are multiple Acquisitions with the same name.
+# 
 CmdName=$(basename "$0")
 syntax="$CmdName -j JsonFile -p FlywheelProjectPath -s SubjectList.csv"
 
@@ -27,7 +33,7 @@ function downloadFWDicom {
     (
 	cd "$Dir"
 
-	fw download "$Path" -o "$BaseName" -f 2> /dev/null
+	[ -f "$BaseName" ] || (fw download "$Path" -o "$BaseName" -f 2> /dev/null)
     )
 }
 
