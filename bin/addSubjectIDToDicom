@@ -22,6 +22,8 @@ from zipfile import ZipFile, ZIP_DEFLATED, ZIP_BZIP2
 
 CMDNAME = os.path.basename(sys.argv[0])
 
+debug = False
+
 ap = argparse.ArgumentParser()
 ap.add_argument('-p', '--patient-id', type=str, default=None, help='PatientID')
 ap.add_argument('filename', nargs='+', type=str, default=None, help='filename')
@@ -30,11 +32,13 @@ args = ap.parse_args()
 
 ZipFileToProcess = args.filename[0]
 
-print("PatientID = ",args.patient_id)
+if (debug):
+    print("PatientID = ",args.patient_id)
 
 TempDir = tempfile.TemporaryDirectory(prefix="/tmp/{}".format(CMDNAME))
 
-print("TempDir = {}".format(TempDir.name))
+if (debug):
+    print("TempDir = {}".format(TempDir.name))
 
 print("ZipFile '{}' exists '{}'".format(ZipFileToProcess, os.path.exists(ZipFileToProcess)))
 
@@ -43,7 +47,8 @@ with ZipFile(ZipFileToProcess, 'r') as zip_ref:
 
 DicomFiles = ZipFile(args.filename[0]).namelist()
 
-print("DicomFiles = ",DicomFiles)
+if (debug):
+    print("DicomFiles = ",DicomFiles)
 
 for DicomFile in DicomFiles:
     FullDicomPath = "{}/{}".format(TempDir.name,DicomFile)
