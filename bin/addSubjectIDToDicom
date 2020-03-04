@@ -34,17 +34,19 @@ TempDir = tempfile.TemporaryDirectory(prefix="/tmp/{}".format(CMDNAME))
 
 print("TempDir = {}".format(TempDir.name))
 
+os.chdir(TempDir)
+
 with ZipFile(args.filename[0], 'r') as zip_ref:
     zip_ref.extractall(TempDir.name)
 
-DicomFiles = os.listdir(TempDir.name)
+DicomFiles = Zipfile(args.filename[0]).namelist
+
+print("DicomFiles = ",DicomFiles)
 
 for DicomFile in DicomFiles:
-    FullDicomPath = "{}/{}".format(TempDir.name,DicomFile)
-
-    ds = pydicom.filereader.dcmread(FullDicomPath)
+    ds = pydicom.filereader.dcmread(DicomFile)
     ds.PatientID = args.patient_id
-    ds.save_as(FullDicomPath)
+    ds.save_as(DicomFile)
 
 with ZipFile(args.filename[0], mode='w', compression=ZIP_DEFLATED) as zip_ref:
     for DicomFile in DicomFiles:
