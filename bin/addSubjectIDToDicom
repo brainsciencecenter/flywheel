@@ -28,6 +28,8 @@ ap.add_argument('filename', nargs='+', type=str, default=None, help='filename')
 
 args = ap.parse_args()
 
+ZipFileToProcess = args.filename[0]
+
 print("PatientID = ",args.patient_id)
 
 TempDir = tempfile.TemporaryDirectory(prefix="/tmp/{}".format(CMDNAME))
@@ -36,7 +38,9 @@ print("TempDir = {}".format(TempDir.name))
 
 os.chdir(TempDir.name)
 
-with ZipFile(args.filename[0], 'r') as zip_ref:
+print("ZipFile '{}' exists '{}'".format(ZipFileToProcess, os.path.exists(ZipFileToProcess)))
+
+with ZipFile(ZipFileToProcess, 'r') as zip_ref:
     zip_ref.extractall(TempDir.name)
 
 DicomFiles = Zipfile(args.filename[0]).namelist
@@ -48,6 +52,6 @@ for DicomFile in DicomFiles:
     ds.PatientID = args.patient_id
     ds.save_as(DicomFile)
 
-with ZipFile(args.filename[0], mode='w', compression=ZIP_DEFLATED) as zip_ref:
+with ZipFile(ZipFileToProcess, mode='w', compression=ZIP_DEFLATED) as zip_ref:
     for DicomFile in DicomFiles:
         zip_ref.write(DicomFile)
