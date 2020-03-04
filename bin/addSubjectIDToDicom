@@ -20,6 +20,8 @@ import sys
 import tempfile
 from zipfile import ZipFile, ZIP_DEFLATED, ZIP_BZIP2
 
+CMDNAME = sys.argv[0]
+
 ap = argparse.ArgumentParser()
 ap.add_argument('-p', '--patient-id', type=str, default=None, help='PatientID')
 ap.add_argument('filename', nargs='+', type=str, default=None, help='filename')
@@ -28,7 +30,7 @@ args = ap.parse_args()
 
 print("PatientID = ",args.patient_id)
 
-TempDir = tempfile.TemporaryDirectory(prefix='/tmp/fw2NACC')
+TempDir = tempfile.TemporaryDirectory(prefix="/tmp/{}".format(CMDNAME))
 
 print("TempDir = {}".format(TempDir.name))
 
@@ -44,6 +46,6 @@ for DicomFile in DicomFiles:
     ds.PatientID = args.patient_id
     ds.save_as(FullDicomPath)
 
-with ZipFile('/tmp/zipit.zip', mode='w', compression=ZIP_DEFLATED) as zip_ref:
+with ZipFile(args.filename[0], mode='w', compression=ZIP_DEFLATED) as zip_ref:
     for DicomFile in DicomFiles:
         zip_ref.write(DicomFile)
