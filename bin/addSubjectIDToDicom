@@ -41,7 +41,7 @@ print("ZipFile '{}' exists '{}'".format(ZipFileToProcess, os.path.exists(ZipFile
 with ZipFile(ZipFileToProcess, 'r') as zip_ref:
     zip_ref.extractall(TempDir.name)
 
-DicomFiles = Zipfile(args.filename[0]).namelist
+DicomFiles = ZipFile(args.filename[0]).namelist
 
 print("DicomFiles = ",DicomFiles)
 
