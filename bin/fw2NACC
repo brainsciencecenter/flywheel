@@ -101,14 +101,14 @@ done | eval $ProgressBar
 
 [ -d FixedDicoms ] || mkdir FixedDicoms
 
-rsync -a "${Group}" FixedDicoms/
+[ -d "FixedDicoms/${Group}" ] || rsync -a "${Group}" FixedDicoms/
 
 cd FixedDicoms
 
 #
 # 30 min to 1 hour+ to fix all the ~700 files
 #
-cat FlywheelAcquisitionPathsToDownload | while read path
+cat "${TempDir}/FlywheelAcquisitionPathsToDownload" | while read path
 do
     if [ -z "$opt_q" ]
     then
