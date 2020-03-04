@@ -40,8 +40,6 @@ TempDir = tempfile.TemporaryDirectory(prefix="/tmp/{}".format(CMDNAME))
 if (debug):
     print("TempDir = {}".format(TempDir.name))
 
-print("ZipFile '{}' exists '{}'".format(ZipFileToProcess, os.path.exists(ZipFileToProcess)))
-
 with ZipFile(ZipFileToProcess, 'r') as zip_ref:
     zip_ref.extractall(TempDir.name)
 

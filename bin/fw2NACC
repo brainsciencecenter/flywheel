@@ -41,7 +41,7 @@ function addPatientIDToDicom {
     local Path="$1"
     local SubjectID=$(echo "$Path" | cut -f 3 -d /)
 
-    addSubjectIDToDicom -p "$Subject" "$Path" > /dev/null 2>&1 
+    addSubjectIDToDicom -p "$SubjectID" "$Path" > /dev/null 2>&1 
 }
 
 while getopts "j:p:qs:" arg
