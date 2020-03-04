@@ -41,7 +41,7 @@ function addPatientIDToDicom {
     local Path="$1"
     local SubjectID=$(echo "$Path" | cut -f 3 -d /)
 
-    addSubjectIDToDicom -p "$Subject" "$Path"
+    addSubjectIDToDicom -p "$Subject" "$Path" > /dev/null 2>&1 
 }
 
 while getopts "j:p:qs:" arg
@@ -106,7 +106,8 @@ done | eval $ProgressBar
 cd FixedDicoms
 
 #
-# 30 min to 1 hour+ to fix all the ~700 files
+# 40 minutes to 2 hour+ to fix all the ~700 files
+# Seems to put 2 lines for each dicom file
 #
 cat "${TempDir}/FlywheelAcquisitionPathsToDownload" | while read path
 do
