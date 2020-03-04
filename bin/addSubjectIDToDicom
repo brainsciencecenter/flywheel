@@ -1,0 +1,49 @@
+#!/usr/bin/python3
+
+# To use the new system, submitted files should be cleaned of potentially identifying information except for the following DICOM header tags which should be intact and not anonymized:
+#    Patient ID (your local PTID, we will replace this with an anonymous ID after extracting it)
+#    Series instance ID
+#    Study instance ID
+#    Instance number
+#    Series description
+#    Study date (Minimum value: Jan 1 1970, Maximum value: Current date)
+#    Magnetic field strength
+#    Manufacturer
+#    Manufacturer model name
+
+# (0010,0020)	LO	Patient ID
+
+import argparse
+import os
+import pydicom
+import sys
+import tempfile
+from zipfile import ZipFile, ZIP_DEFLATED, ZIP_BZIP2
+
+ap = argparse.ArgumentParser()
+ap.add_argument('-p', '--patient-id', type=str, default=None, help='PatientID')
+ap.add_argument('filename', nargs='+', type=str, default=None, help='filename')
+
+args = ap.parse_args()
+
+print("PatientID = ",args.patient_id)
+
+TempDir = tempfile.TemporaryDirectory(prefix='/tmp/fw2NACC')
+
+print("TempDir = {}".format(TempDir.name))
+
+with ZipFile(args.filename[0], 'r') as zip_ref:
+    zip_ref.extractall(TempDir.name)
+
+DicomFiles = os.listdir(TempDir.name)
+
+for DicomFile in DicomFiles:
+    FullDicomPath = "{}/{}".format(TempDir.name,DicomFile)
+
+    ds = pydicom.filereader.dcmread(FullDicomPath)
+    ds.PatientID = args.patient_id
+    ds.save_as(FullDicomPath)
+
+with ZipFile('/tmp/zipit.zip', mode='w', compression=ZIP_DEFLATED) as zip_ref:
+    for DicomFile in DicomFiles:
+        zip_ref.write(DicomFile)

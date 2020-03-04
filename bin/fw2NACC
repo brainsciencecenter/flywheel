@@ -1,0 +1,54 @@
+#!/bin/bash
+
+
+#    Acquisition ID has not been previously successfully sent
+#    Session ID matches XXXXXX_DDDDDDDD_3T or XXXXXX.XX_DDDDDDDD_3T
+#    Acquisition Label matches T1_3D_0.8x0.8x0.8 or FLAIR_3D_0.8x0.8x0.8
+#        There may be other T1 or FLAIR scans that have slightly different names, it's worth going through the project and checking what the IDS are. The scans that end with _ND do not need to be sent.
+
+#
+# Subject list is a list of the INDD patient IDs, one per line
+# Flywheel sessions are assumed to be in the form
+#   INDD#/INDD#_YYYYMMDD for Subject/Session
+# *** Will have to do with Sandy's new BIDs naming 
+#
+# Questions for NACC
+# + Do we upload a zip, or tar of the acquisitions?
+# + Do the uploaded files stay in the same locations, or does the NACC move them around as they're processed?
+#
+
+CmdName=$(basename "$0")
+syntax="$CmdName -j JsonFile -p FlywheelProjectPath -s SubjectList.csv"
+
+while getopts "j:p:s:" arg
+do
+    case "$arg" in
+	j|p|s)
+	    eval "opt_${arg}=${OPTARG:=1}"
+	    ;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+	
+if [ -z "${TempDir}" ]
+then
+	TempDir=$(mktemp -d "/tmp/${CmdName}-XXXXXX")
+fi
+
+BaseName=$(basename "$opt_p")
+
+if [ -z "$opt_j" ]
+then
+    time fw2json -a "$opt_p" > "${TempDir}/Project.json"
+    opt_j="${TempDir}/Project.json"
+fi
+
+jq -r '.[].subjects[] | .label as $Subject | .sessions[] | .label as $Session | .acquisitions[] | .label as $Acquisition | .files[] | "'"${opt_p}"'/\($Subject)/\($Session)/\($Acquisition)/files/\(.name)"' "$opt_j" | sort -u > "${TempDir}/AcquisitionList"
+
+# Get Dave's list of subjectids to upload
+
+for i in $(< "$opt_s")
+do 
+    grep "${BaseName}/$i/$i" "${TempDir}/AcquisitionList"
+done  | grep -P '(T1_3D_0.8x0.8x0.8|FLAIR_3D_1x1x1)/' | grep "dicom.zip$"  > "${TempDir}/FlywheelAcquisitionPathsToDownload"
