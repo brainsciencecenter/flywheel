@@ -26,7 +26,10 @@ function downloadFWDicom {
     local BaseName=$(basename "$Path")
     (
 	cd "$Dir"
-	fw download "$Path" -o "$BaseName" -f 2> /dev/null
+	while [ ! -f "$BaseName" ]
+	do
+	    fw download "$Path" -o "$BaseName" -f 2> /dev/null
+	done
     )
 }
 
@@ -45,6 +48,8 @@ if [ -z "${TempDir}" ]
 then
 	TempDir=$(mktemp -d "/tmp/${CmdName}-XXXXXX")
 fi
+
+echo "TempDir = $TempDir" 1>&2
 
 cd "$TempDir"
 
