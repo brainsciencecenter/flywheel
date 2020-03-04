@@ -26,10 +26,8 @@ function downloadFWDicom {
     local BaseName=$(basename "$Path")
     (
 	cd "$Dir"
-	while [ ! -f "$BaseName" ]
-	do
-	    fw download "$Path" -o "$BaseName" -f 2> /dev/null
-	done
+
+	fw download "$Path" -o "$BaseName" -f 2> /dev/null
     )
 }
 
