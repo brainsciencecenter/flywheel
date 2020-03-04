@@ -23,10 +23,10 @@ syntax="$CmdName -j JsonFile -p FlywheelProjectPath -s SubjectList.csv"
 function downloadFWDicom {
     local Path="$1"
     local Dir=$(dirname "$Path")
-
+    local BaseName=$(basename "$Path")
     (
 	cd "$Dir"
-	fw download "$Path" -f 2> /dev/null
+	fw download "$Path" -o "$BaseName" -f 2> /dev/null
     )
 }
 
