@@ -37,6 +37,13 @@ function downloadFWDicom {
     )
 }
 
+function addPatientIDToDicom {
+    local Path="$1"
+    local SubjectID=$(echo "$Path" | cut -f 3 -d /)
+
+    addSubjectIDtoDicom -p "$Subject" "$Path"
+}
+
 while getopts "j:p:qs:" arg
 do
     case "$arg" in
@@ -90,3 +97,21 @@ do
     fi
     downloadFWDicom "$path"
 done | eval $ProgressBar 
+
+[ -d FixedDicoms ] || mkdir FixedDicoms
+
+rsync -av "$Group" FixedDicoms
+
+cd FixedDicoms
+
+cat FlywheelAcquisitionPathsToDownload | while read path
+do
+    if [ -z "$opt_q" ]
+    then
+	echo "$path"
+    fi
+    addPatientIDToDicom "$path"
+done | eval $ProgressBar 
+
+
+
