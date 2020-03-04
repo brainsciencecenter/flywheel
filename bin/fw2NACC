@@ -75,7 +75,7 @@ do
 done  | grep -P '(T1_3D_0.8x0.8x0.8|FLAIR_3D_1x1x1)/' | grep "dicom.zip$"  > FlywheelAcquisitionPathsToDownload
 
 cut -f 1-6 -d / FlywheelAcquisitionPathsToDownload | sort -u | xargs mkdir -p 
-    
+
 ProgressBar='cat'
 if [ -z "$opt_q" ]
 then
