@@ -20,10 +20,20 @@
 CmdName=$(basename "$0")
 syntax="$CmdName -j JsonFile -p FlywheelProjectPath -s SubjectList.csv"
 
-while getopts "j:p:s:" arg
+function downloadFWDicom {
+    local Path="$1"
+    local Dir=$(dirname "$Path")
+
+    (
+	cd "$Dir"
+	fw download "$Path" -f 2> /dev/null
+    )
+}
+
+while getopts "j:p:qs:" arg
 do
     case "$arg" in
-	j|p|s)
+	j|p|q|s)
 	    eval "opt_${arg}=${OPTARG:=1}"
 	    ;;
     esac
@@ -36,19 +46,38 @@ then
 	TempDir=$(mktemp -d "/tmp/${CmdName}-XXXXXX")
 fi
 
+cd "$TempDir"
+
 BaseName=$(basename "$opt_p")
 
 if [ -z "$opt_j" ]
 then
-    time fw2json -a "$opt_p" > "${TempDir}/Project.json"
-    opt_j="${TempDir}/Project.json"
+    time fw2json -a "$opt_p" > Project.json
+    opt_j=Project.json
 fi
 
-jq -r '.[].subjects[] | .label as $Subject | .sessions[] | .label as $Session | .acquisitions[] | .label as $Acquisition | .files[] | "'"${opt_p}"'/\($Subject)/\($Session)/\($Acquisition)/files/\(.name)"' "$opt_j" | sort -u > "${TempDir}/AcquisitionList"
+jq -r '.[].subjects[] | .label as $Subject | .sessions[] | .label as $Session | .acquisitions[] | .label as $Acquisition | .files[] | "'"${opt_p}"'/\($Subject)/\($Session)/\($Acquisition)/files/\(.name)"' "$opt_j" | sort -u > AcquisitionList
 
 # Get Dave's list of subjectids to upload
 
 for i in $(< "$opt_s")
 do 
-    grep "${BaseName}/$i/$i" "${TempDir}/AcquisitionList"
-done  | grep -P '(T1_3D_0.8x0.8x0.8|FLAIR_3D_1x1x1)/' | grep "dicom.zip$"  > "${TempDir}/FlywheelAcquisitionPathsToDownload"
+    grep "${BaseName}/$i/$i" AcquisitionList
+done  | grep -P '(T1_3D_0.8x0.8x0.8|FLAIR_3D_1x1x1)/' | grep "dicom.zip$"  > FlywheelAcquisitionPathsToDownload
+
+cut -f 1-6 -d / FlywheelAcquisitionPathsToDownload | sort -u | xargs mkdir -p 
+    
+ProgressBar='cat'
+if [ -z "$opt_q" ]
+then
+    ProgressBar="pv -l -s $(wc -l < FlywheelAcquisitionPathsToDownload) > /dev/null"
+fi
+
+cat FlywheelAcquisitionPathsToDownload | while read path
+do
+    if [ -z "$opt_q" ]
+    then
+	echo "$path"
+    fi
+    downloadFWDicom "$path"
+done | eval $ProgressBar 
