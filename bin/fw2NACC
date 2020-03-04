@@ -64,7 +64,8 @@ echo "TempDir = $TempDir" 1>&2
 
 cd "$TempDir"
 
-BaseName=$(basename "$opt_p")
+ProjectName=$(basename "$opt_p")
+Group=$(dirname "$opt_p")
 
 if [ -z "$opt_j" ]
 then
@@ -78,7 +79,7 @@ jq -r '.[].subjects[] | .label as $Subject | .sessions[] | .label as $Session | 
 
 for i in $(< "$opt_s")
 do 
-    grep "${BaseName}/$i/$i" AcquisitionList
+    grep "${ProjectName}/$i/$i" AcquisitionList
 done  | grep -P '(T1_3D_0.8x0.8x0.8|FLAIR_3D_1x1x1)/' | grep "dicom.zip$"  > FlywheelAcquisitionPathsToDownload
 
 cut -f 1-6 -d / FlywheelAcquisitionPathsToDownload | sort -u | xargs mkdir -p 
@@ -100,10 +101,13 @@ done | eval $ProgressBar
 
 [ -d FixedDicoms ] || mkdir FixedDicoms
 
-rsync -a "$Group" FixedDicoms
+rsync -a "${Group}" FixedDicoms/
 
 cd FixedDicoms
 
+#
+# 30 min to 1 hour+ to fix all the ~700 files
+#
 cat FlywheelAcquisitionPathsToDownload | while read path
 do
     if [ -z "$opt_q" ]
