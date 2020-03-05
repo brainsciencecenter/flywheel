@@ -14,7 +14,7 @@
 #
 # Questions for NACC
 # + Do we upload a zip, or tar of the acquisitions?
-# + Do the uploaded files stay in the same locations, or does the NACC move them around as they're processed?
+# + Do the uploaded files stay in the same locations, or does the NACC move them around as they're processed? - They get moved/removed as processed.
 #
 
 #
