@@ -59,4 +59,4 @@ os.chdir(TempDir.name)
 
 with ZipFile(ZipFileToProcess, mode='w', compression=ZIP_DEFLATED) as zip_ref:
     for DicomFile in DicomFiles:
-        zip_ref.write(DicomPath)
+        zip_ref.write(DicomFile)
