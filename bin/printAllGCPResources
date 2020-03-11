@@ -1,0 +1,15 @@
+#!/usr/bin/python3
+
+organizations = CloudResourceManager.Organizations.Search()
+projects = emptyList()
+
+organizations = '900475861822'
+
+parentsToList = queueOf(organizations)
+while (parent = parentsToList.pop()) {
+  // NOTE: Don't forget to iterate over paginated results.
+  // TODO: handle PERMISSION_DENIED appropriately.
+  projects.addAll(CloudResourceManager.Projects.List(
+      "parent.type:" + parent.type + " parent.id:" + parent.id))
+  parentsToList.addAll(CloudResourceManager.Folders.List(parent))
+}
