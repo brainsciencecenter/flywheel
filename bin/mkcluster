@@ -1,0 +1,119 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+#
+# Build/rm cluster
+#
+
+Group=holder-demo
+OrganizationID=900475861822
+ParentFolderID=953779295229 # pennbrain-services
+ProjectName="holder-pennbrain-upenn.edu"
+Region=us-east1
+Zone=us-east1-b
+VPCNetworkProjectID=pennbrain-host-3097383fff
+Network=bsc-host-network
+BillingAccountID=010E05-389CEA-FDE7D9 # UPenn-PMACS
+SubnetName="${Group}-subnet"
+SubnetRange="10.40.0.0/16"
+
+ServiceAccountID=slurm-gcp@${ProjectName}
+ServiceAccountName=$ServiceAccountID
+
+#
+# create/rm folder
+# https://cloud.google.com/resource-manager/docs/creating-managing-folders
+#
+
+function mkFolder() {
+	 gcloud resource-manager folders create \
+	   --display-name="$Group" \
+	   --folder="$ParentFolderID" 2>&1
+
+}
+
+function listFolder() {
+	 gcloud resource-manager folders list --folder "$ParentFolderID"
+}
+
+function rmFolder() {
+	 FolderID="$1"
+
+	 gcloud projects list --filter=" parent.id: '${FolderID}' " | grep -v '^PROJECT_ID' | while read Project_ID Name Project_Number
+	 do
+		echo y | gcloud projects delete "$Project_Number" 
+	done
+
+ 	 gcloud resource-manager folders delete "$FolderID"
+}
+
+# create project
+function mkProject() {
+	 ProjectName="$1"
+	 FolderID="$2"
+
+	 gcloud projects create --folder="$FolderID" "$ProjectName"
+}
+
+# attach project to billing account
+# https://cloud.google.com/sdk/gcloud/reference/alpha/billing/accounts/projects/link
+function linkProjectToBillingAccount {
+	 ProjectName="$1"
+	 BillingAccountID="$2"
+
+	 gcloud beta billing accounts projects link "$ProjectName" --billing-account="$BillingAccountID"
+}
+
+# https://cloud.google.com/sdk/gcloud/reference/compute/networks/subnets/create
+function mkSubnet {
+	 Network="$1"
+	 VPCNetworkProjectID="$2"
+	 SubnetName="$3"
+	 SubnetRange="$4"
+
+	 gcloud compute networks subnets create "$SubnetName" --project="$VPCNetworkProjectID" --range="$SubnetRange" --network="$Network"
+}
+
+# create service account
+#https://cloud.google.com/sdk/gcloud/reference/iam/service-accounts/create
+function mkServiceAccount {
+	 ServiceAccountID="$1"
+	 ServiceAccountName="$2"
+
+echo	 gcloud iam service-accounts create "$ServiceAccountID"  --display-name "$ServiceAccountName"
+}
+# turn on compute engin api for project
+# add project to pennbrain-host-?? vpc-network
+# create group for cluster
+# add perms to service account
+# add service account to group?
+# create subnet for project with next address segment
+# create subprojects
+# create cluster yaml template
+# spin up cluster controller
+
+# Create router and router nat
+function mkrouter {
+	 gcloud compute routers create holder-demo-router --project pennbrain-host-3097383fff --network bsc-host-network
+	 gcloud beta compute routers nats create holder-demo-router-nat --router holder-demo-router --project pennbrain-host-3097383fff --auto-allocate-nat-external-ips --nat-custom-subnet-ip-ranges=holder-demo-subnet 
+}
+
+
+# tear down -- have to leave the extra disk and snapshots
+
+if [ "$CmdName" == mkcluster ]
+then
+#	FolderID=$(mkFolder | grep '^ name: ' | sed "s/'//g" | cut -f 2 -d /)
+#	echo "$FolderID"
+#	listFolder
+#	mkProject "$ProjectName" "$FolderID"
+#	linkProjectToBillingAccount "$ProjectName" "$BillingAccountID"
+
+#	mkSubnet "$Network" "$VPCNetworkProjectID" "$SubnetName" "$SubnetRange"
+	mkServiceAccount "$ServiceAccountID" "$ServiceAccountName"
+elif [ "$CmdName" == rmcluster ]
+then
+	FolderID=$(listFolder "$ParentFolderID" | grep "^${Group} " | awk '{print $3}')
+	rmFolder "$FolderID"
+fi
