@@ -1,0 +1,48 @@
+#!/usr/bin/python3
+
+import flywheel
+import csv
+import argparse
+import sys
+import fwgearutils
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-m', '--month', action='store', nargs=1, type=str, help='Month number, 1 = January, 12 = December')
+parser.add_argument('-y', '--year', action='store', nargs=1, type=str, default=[2020], help='Year number')
+parser.add_argument('out', type=argparse.FileType('w', encoding='UTF-8'))
+args = parser.parse_args()
+
+Year = args.year[0]
+Month = args.month[0]
+
+fp = args.out
+
+fw = fwgearutils.getFW(args)
+
+
+data=fw.get_usage_report(year=Year,month=Month,csv='FALSE')
+
+if (len(data) > 0):
+    writer = csv.DictWriter(fp, 
+               [ 'center_compute_ms',
+                 'center_job_count',
+                 'center_storage_byte_day',
+                 'days',
+                 'group',
+                 'group_compute_ms',
+                 'group_job_count',
+                 'group_storage_byte_day',
+                 'project','project_label',
+                 'session_count',
+                 'total_compute_ms',
+                 'total_job_count',
+                 'total_storage_byte_day',])
+
+    writer.writeheader()
+
+    for row in data:
+            writer.writerow(row)
+
+else:
+    print("No data for {}-{}".format(Year,Month), file=sys.stderr)
+    sys.exit(1)
