@@ -72,6 +72,19 @@ RequestIDs:
         - Radiology/MRIScans
         - default
 
+  Yushkevich:
+    - service_id: abc
+      percent: 60%
+      ben: 400-4452-4-571661-xxxx-2810-2992
+      aliases: 
+        - R01 AG056014
+
+    - service_id: def
+      percent: 40%
+      ben4 400-4452-4-574453-xxxx-2810-2992
+      aliases:
+        - ADRC Neuroimaging Core
+
   Detre Lab:
     - service_request_id: 3241014
       fund: Developing a multi-modality, paradigm-shifting approach for in vivo assessment of the human placenta and the impact of maternal nutrition on its development and function - expires 6/30/2020 
