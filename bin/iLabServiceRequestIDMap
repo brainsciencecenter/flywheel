@@ -1,0 +1,123 @@
+#
+# yq -jP r - < iLabServiceRequestIDMap | jq '.Groups[][] | select((.groups[].projects)?|contains(["NewPerf"]))|.service_request_id' 
+# 3241014
+#
+# yq -jP r - < iLabServiceRequestIDMap | jq '.Groups[][] | select((.groups[].projects)?|contains(["melaSpatial"]))|.service_request_id' 
+# 3240859
+#
+# yq -jP r - < iLabServiceRequestIDMap | jq '.Services[][]|select((.aliases)?|contains(["SC3T"]))|.service_id'
+# 454998
+#
+# yq -jP r - < iLabServiceRequestIDMap | jq '.Services[][]|select((.aliases)?|contains(["Compute Charges (Gross)"]))|.service_id'
+# 455011
+
+
+Services:
+  Flywheel:
+    - service_id: 455018
+      aliases:
+        - SC7T
+        - Flywheel MRI Scan - SC7T
+
+    - service_id: 454998
+      aliases:
+        - Flywheel MRI Scan - SC3T
+        - SC3T
+
+    - service_id: 455017
+      aliases:
+        - Flywheel MRI Scan - HUP6
+        - HUP6
+
+    - service_id: 455011
+      aliases:
+        - Flywheel Compute Charge
+        - compute
+        - Compute Charges (Gross)
+ 
+    - service_id:  455012
+      aliases:
+        - Flywheel Storage Charge
+        - storage
+        - Storage Charges (Gross)
+
+    - service_id: 455013
+      aliases:
+        - Flywheel Initial Analysis Gear Charge
+        - firstanalaysis
+        - Converted Sessions (New)
+
+  GCP:
+    - service_id: 455000
+      aliases:
+        - compute:
+        - GCP Compute
+
+    - service_id: 455009
+      aliases:
+        - storage
+        - GCP Storage
+
+    - service_id: 455010
+      aliases:
+        - credits
+        - GCP Credits
+
+Groups:
+  MRIScans:
+    service_request_id: 3050653
+    ben:  400-4744-1-000011-5340-7006-1100
+    fund: MRI Service Center (CFN) - Expires 11/30/2022
+    groups:
+      Radiology:
+        aliases:
+          - NNC
+          - Radiology
+        projects:
+          - MRIScans
+          - default
+
+  Detre:
+    - service_request_id: 3241014
+      fund: Developing a multi-modality, paradigm-shifting approach for in vivo assessment of the human placenta and the impact of maternal nutrition on its development and function - expires 6/30/2020 
+      ben:  400-4322-4-567799-5340-2810-1100 
+      groups:
+        detre_group:
+          aliases:
+            - detre-group
+          projects:
+            - NewPerf
+            - Unsorted
+            - respiract
+            - ASL_pipeline_testing
+            - sudipto proj
+            - fmriprep_testing
+            - Jianxun
+            - VCID
+            - PHARMA
+            - CBFLOW
+
+        detre-group.pennbrain.upenn.edu:
+          projects:
+            - demo-project1
+
+  GKAguirreLab:
+    - service_request_id: 3240884
+      fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - Expires 9/29/2020
+      ben: 400-4322-4-567594-5340-2810-2779
+
+    - service_request_id: 3240859
+      fund: Melanopsin and cone signals in human visual processing - Expires 8/31/2020
+      ben:   020-0120-4-567527-5340-2000-0712 
+      groups:
+        gkaguirrelab:
+          projects:
+            - melaSpatial
+
+    - service_request_id: 3237104
+      fund: Melanopsin and cone signals in human visual processing - Expires 8/31/2020
+      ben: 400-4322-4-567527-5340-2810-2779
+
+    - service_request_id: 3240955
+      fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - Expires 9/29/2020
+      ben: 020-0120-4-567594-5340-2000-0712

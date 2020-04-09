@@ -1,0 +1,60 @@
+#!/usr/bin/python3
+
+import csv
+import json
+import sys
+
+# 'Group', 'Project', 'Sessions', 'Reaped Sessions', 'Total Converted Sessions', 'Converted Sessions (New)', 'Compute (h)', '% Compute', 'Compute Charges (Gross)', 'Storage (gb)', '% Storage', 'Storage Charges (Gross) '
+# Add Converted Sessions (New) #5
+#     Compute Charges (Gross) #9
+#     Storage Charges (Gross) #12 for Project Total total #13
+# group is not the same Group then print group total #14
+
+SessionConversionCharge = 25
+
+def formatGroupCharges(GroupCharges, StartLineNumber):
+     OutputLineNumber = StartLineNumber + 0
+
+     for r in GroupCharges:
+          r += [ "=({} * C{})+D{}+E{}".format(SessionConversionCharge,
+                                              OutputLineNumber,
+                                              OutputLineNumber,
+                                              OutputLineNumber) ]
+          OutputLineNumber += 1
+          
+     GroupCharges[0] += [ '=sum(F{}:F{})'.format(StartLineNumber,StartLineNumber + len(GroupCharges) - 1)]
+     GroupCharges.append( [] )
+
+     return(GroupCharges)
+
+
+GroupCharges = []
+Group = None
+GroupBeginingNumber = 0
+OutputKeys = [ 'Group', 'Project', 'Converted Sessions (New)', 'Compute Charges (Gross)', 'Storage Charges (Gross)' ]
+TotalHeaders = ['Total Project GCP Charges', 'Total Group GCP Charges', 'Total Center GCP Charges' ] 
+OutputLineNumber = 1
+
+CenterCharges = []
+
+with open("/tmp/2019-12-FlywheelCharges.csv", newline='') as csvfile:
+     reader = csv.DictReader(csvfile, delimiter=',', quotechar='|')
+
+     for row in reader:
+          if (not Group):
+               CenterCharges.append(OutputKeys + TotalHeaders)
+               Group = row['Group']
+               
+          if (Group != row['Group']):
+               Output = formatGroupCharges(GroupCharges, len(CenterCharges)+1)
+               CenterCharges += Output
+               Group = row['Group']
+               GroupCharges = []
+
+          if (Group == row['Group']):
+               GroupCharges.append(list(map(lambda x: row[x], OutputKeys)))
+
+CenterCharges[1] += [ '=sum(G{}:G{})'.format(2,len(CenterCharges) - 1) ]
+
+print('\n'.join([','.join(r) for r in CenterCharges]))
+#print(json.dumps(CenterCharges, indent=2))

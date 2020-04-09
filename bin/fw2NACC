@@ -1,0 +1,122 @@
+#!/bin/bash
+
+
+#    Acquisition ID has not been previously successfully sent
+#    Session ID matches XXXXXX_DDDDDDDD_3T or XXXXXX.XX_DDDDDDDD_3T
+#    Acquisition Label matches T1_3D_0.8x0.8x0.8 or FLAIR_3D_0.8x0.8x0.8
+#        There may be other T1 or FLAIR scans that have slightly different names, it's worth going through the project and checking what the IDS are. The scans that end with _ND do not need to be sent.
+
+#
+# Subject list is a list of the INDD patient IDs, one per line
+# Flywheel sessions are assumed to be in the form
+#   INDD#/INDD#_YYYYMMDD for Subject/Session
+# *** Will have to do with Sandy's new BIDs naming 
+#
+# Questions for NACC
+# + Do we upload a zip, or tar of the acquisitions?
+# + Do the uploaded files stay in the same locations, or does the NACC move them around as they're processed? - They get moved/removed as processed.
+# + How do we verify the upload has succeded and that the file has been correctly processed? - Coming features.
+
+#
+# Pain points:
+#  fw download messes with download file names and will not overwrite output files by default
+#  + have to use -o filename to fix
+#  fw download will only download the first Group/Project/Subject/Session/Acquisition/files/FileName in the case when there are multiple Acquisitions with the same name.
+# 
+CmdName=$(basename "$0")
+syntax="$CmdName -j JsonFile -p FlywheelProjectPath -s SubjectList.csv"
+
+function downloadFWDicom {
+    local Path="$1"
+    local Dir=$(dirname "$Path")
+    local BaseName=$(basename "$Path")
+    (
+	cd "$Dir"
+
+	[ -f "$BaseName" ] || (fw download "$Path" -o "$BaseName" -f 2> /dev/null)
+    )
+}
+
+function addPatientIDToDicom {
+    local Path="$1"
+    local SubjectID=$(echo "$Path" | cut -f 3 -d /)
+
+    addSubjectIDToDicom -p "$SubjectID" "$Path" > /dev/null 2>&1 
+}
+
+while getopts "j:p:qs:" arg
+do
+    case "$arg" in
+	j|p|q|s)
+	    eval "opt_${arg}=${OPTARG:=1}"
+	    ;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+	
+if [ -z "${TempDir}" ]
+then
+	TempDir=$(mktemp -d "/tmp/${CmdName}-XXXXXX")
+fi
+
+echo "TempDir = $TempDir" 1>&2
+
+cd "$TempDir"
+
+ProjectName=$(basename "$opt_p")
+Group=$(dirname "$opt_p")
+
+if [ -z "$opt_j" ]
+then
+    time fw2json -a "$opt_p" > Project.json
+    opt_j=Project.json
+fi
+
+jq -r '.[].subjects[] | .label as $Subject | .sessions[] | .label as $Session | .acquisitions[] | .label as $Acquisition | .files[] | "'"${opt_p}"'/\($Subject)/\($Session)/\($Acquisition)/files/\(.name)"' "$opt_j" | sort -u > AcquisitionList
+
+# Get Dave's list of subjectids to upload
+
+for i in $(< "$opt_s")
+do 
+    grep "${ProjectName}/$i/$i" AcquisitionList
+done  | grep -P '(T1_3D_0.8x0.8x0.8|FLAIR_3D_1x1x1)/' | grep "dicom.zip$"  > FlywheelAcquisitionPathsToDownload
+
+cut -f 1-6 -d / FlywheelAcquisitionPathsToDownload | sort -u | xargs mkdir -p 
+
+ProgressBar='cat'
+if [ -z "$opt_q" ]
+then
+    ProgressBar="pv -l -s $(wc -l < FlywheelAcquisitionPathsToDownload) > /dev/null"
+fi
+
+cat FlywheelAcquisitionPathsToDownload | while read path
+do
+    if [ -z "$opt_q" ]
+    then
+	echo "$path"
+    fi
+    downloadFWDicom "$path"
+done | eval $ProgressBar 
+
+[ -d FixedDicoms ] || mkdir FixedDicoms
+
+[ -d "FixedDicoms/${Group}" ] || rsync -a "${Group}" FixedDicoms/
+
+cd FixedDicoms
+
+#
+# 40 minutes to 2 hour+ to fix all the ~700 files
+# Seems to put 2 lines for each dicom file
+#
+cat "${TempDir}/FlywheelAcquisitionPathsToDownload" | while read path
+do
+    if [ -z "$opt_q" ]
+    then
+	echo "$path"
+    fi
+    addPatientIDToDicom "$path"
+done | eval $ProgressBar 
+
+
+

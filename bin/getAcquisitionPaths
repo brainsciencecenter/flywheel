@@ -1,0 +1,5 @@
+#!/bin/bash
+
+Project="$1"
+
+fw2json -a "$Project" | jq -r '.[].subjects[] | .label as $Subject | .sessions[] | .label as $Session | .acquisitions[] | .label as $Acquisition | .files[] | "'${Project}'/\($Subject)/\($Session)/\($Acquisition)/files/\(.name)"' 
