@@ -7,6 +7,6 @@
 	remote = https://github.com/ftdc-picsl/fwCustomDeidentification.git
 	branch = master
 	commit = aa388f0e3ddbe26606052002573e60596acf2173
-	parent = b994afface6c30edf9d87514b274f821f0ae3a7c
+	parent = 9cfbf508037c11ef6f5ce7dec1c6057be7e20498
 	method = merge
 	cmdver = 0.4.1
