@@ -1,3 +1,6 @@
+#
+# See DeidentificationMethod variable for profile version
+# 
 dicom:
   fields:
   - name: AccessionNumber
