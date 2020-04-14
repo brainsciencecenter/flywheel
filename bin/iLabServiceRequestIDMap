@@ -16,6 +16,7 @@
 ServiceIDs:
   - service_id: 455011
     aliases:
+      - total_compute_ms
       - Flywheel Compute Charge
       - flywheel compute
       - Compute Charges (Gross)
@@ -37,6 +38,7 @@ ServiceIDs:
 
   - service_id:  455012
     aliases:
+      - total_storage_bytes
       - Flywheel Storage Charge
       - storage
       - Storage Charges (Gross)
@@ -72,6 +74,65 @@ RequestIDs:
         - Radiology/MRIScans
         - default
 
+  BBL:
+    - service_id: bbl-default-ben-number
+      ben: defaultBBLBenNumber
+      aliases:
+        - 22Q_807982
+        - 22Q_812481
+        - ABCD
+        - ABCD_test
+        - AFFECT2_804847
+        - AFFECT_346200
+        - AGGY_808689
+        - ALPRAZ_805556
+        - BBLReward
+        - BPD
+        - BigDev
+        - Brain RF1
+        - CONTE2_704060
+        - CONTE_815814
+        - CS-DSI
+        - DAY2_808799
+        - DEFACE_708311
+        - E-EXT_826854
+        - EFR01
+        - EFR01_829744
+        - EONSX_810366
+        - Evolution_833922
+        - ExtraLong
+        - FNDM1_810211
+        - FNDM2_810211
+        - Fiberfox
+        - GLUCEST_828612
+        - GLUDEPR_7T_825834
+        - GLUPSY_825940
+        - GRMPY_822831
+        - MEDLEGAL
+        - MGI_808922
+        - MOTIVE
+        - MRSP-7_811940
+        - NASA_821559
+        - NEFF_818028
+        - NODRA_816281
+        - NOFACE_809108
+        - OLIFE_807360
+        - ONM_816275
+        - PNC_CS_810336
+        - PNC_LG_810336
+        - Q7DSI
+        - ReproBrainChart
+        - SYRP_818621
+        - SYRP_818621_7T
+        - TRIO_2_PRISMA
+        - Trash
+        - Unsorted
+        - WORDEN_700205
+        - alpraz
+        - gear_testing
+        - grmpy
+        - scratch
+
   Yushkevich:
     - service_id: abc
       percent: 60%
@@ -81,7 +142,7 @@ RequestIDs:
 
     - service_id: def
       percent: 40%
-      ben4 400-4452-4-574453-xxxx-2810-2992
+      ben: 400-4452-4-574453-xxxx-2810-2992
       aliases:
         - ADRC Neuroimaging Core
 
@@ -90,22 +151,37 @@ RequestIDs:
       fund: Developing a multi-modality, paradigm-shifting approach for in vivo assessment of the human placenta and the impact of maternal nutrition on its development and function - expires 6/30/2020 
       ben:  400-4322-4-567799-5340-2810-1100 
       aliases:
-      - detre_group/NewPerf
-      - Unsorted
-      - respiract
-      - ASL_pipeline_testing
-      - sudipto proj
-      - fmriprep_testing
-      - Jianxun
-      - VCID
-      - PHARMA
-      - CBFLOW
+      - detre_group/CBFLOW
+      - detre_group/Jianxun
+      - detre_group/PHARMA
+      - detre_group/Unsorted
+      - detre_group/VCID
       - detre-demo-proj-a
       - detre-demo-proj-b
       - detre-group-dd34a9
+      - detre_group/ASL_pipeline_testing
+      - detre_group/NewPerf
+      - detre_group/fmriprep_testing
       - garcea-demo-proj-a
+      - detre_group/pipedream
+      - detre_group/respiract
+      - sudipto proj
 
   GKAguirreLab:
+    - service_request_id: "*AguirreServicerRequest"
+      aliases:
+        - gkaguirrelab/canineFovea
+        - gkaguirrelab/Ex-vivo anatomy
+        - gkaguirrelab/fBIRN
+        - gkaguirrelab/gearDev
+        - gkaguirrelab/melaSpatial
+        - gkaguirrelab/mtSinaiFlicker
+        - gkaguirrelab/myVisionProject
+        - gkaguirrelab/realtime
+        - gkaguirrelab/scnLight
+        - gkaguirrelab/Unsorted
+        - gkaguirrelab/York retinotopy
+
     - service_request_id: 3240884
       fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - Expires 9/29/2020
       ben: 400-4322-4-567594-5340-2810-2779

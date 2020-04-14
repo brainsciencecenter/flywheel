@@ -1,0 +1,159 @@
+#!/usr/bin/python3
+
+import argparse
+import csv
+import json
+import pyjq
+import re
+import sys
+
+#
+# For March, I have 42 flywheel charges
+#
+ap = argparse.ArgumentParser()
+
+ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Charge Report file')
+
+args = ap.parse_args()
+
+FlywheelCharges = []
+
+with open(args.gcpcharges[0], newline='') as csvfile:
+     reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+     for row in reader:
+     	  if (re.search("flywheel",row["Project ID"])):
+               FlywheelCharges.append(row)
+
+#print(json.dumps(FlywheelCharges, indent=2))
+Charges = {
+     "Compute": {
+          "GCCoreHours": {
+               "UsageAmount": 0.0,
+               "UsageUnit": "Hour",
+               "Cost": 0.0
+          },
+          "ComputeCharges": {
+               "UsageAmount": 0.0,
+               "UsageUnit": "Hour",
+               "Cost": 0.0
+          },
+          "SustainedUseDiscount": {
+               "UsageAmount": 0.0,
+               "UsageUnit": "Hour",
+               "Cost": 0.0
+          },
+          "Promotions": {
+               "UsageAmount": 0.0,
+               "UsageUnit": "Hour",
+               "Cost": 0.0
+          },
+     },
+     "Storage": {
+          "MainStorage": {
+               "UsageAmount": 0.0,
+               "UsageUnit": "Gigabyte months",
+               "Cost": 0.0
+          },
+          "ColdlineBackup": {
+               "UsageAmount": 0.0,
+               "UsageUnit": "Gigabyte months",
+               "Cost": 0.0
+          },
+          "StorageCharges": {
+               "UsageAmount": 0.0,
+               "UsageUnit": "Gigabyte months",
+               "Cost": 0.0
+          },
+          "PromotionsCredits": {
+               "UsageAmount": 0.0,
+               "UsageUnit": "Hour",
+               "Cost": 0.0
+          },
+     },
+     
+}    
+
+for charge in FlywheelCharges:
+     if (re.search("Compute", charge["Service description"]) and re.search("Instance Core", charge["SKU description"])):
+          Charges["Compute"]["GCCoreHours"]["UsageAmount"] += float(re.sub(',','',charge["Usage amount"]))
+          Charges["Compute"]["GCCoreHours"]["Cost"] += float(charge["Cost ($)"])
+
+     # Only flywheel related charges are in the Flywheel Charges list
+     if (re.search("Compute", charge["Service description"]) and (float(charge["Cost ($)"]) > 0.0)):
+          Charges["Compute"]["ComputeCharges"]["UsageAmount"] += float(re.sub(',','',charge["Cost ($)"]))
+          Charges["Compute"]["ComputeCharges"]["Cost"] += float(charge["Cost ($)"])
+
+     if (re.search("Compute", charge["Service description"]) and re.search("Sustained", charge["SKU description"])):
+          Charges["Compute"]["SustainedUseDiscount"]["Cost"] += float(charge["Cost ($)"])
+          
+     if (re.search("Compute", charge["Service description"]) and re.search("Promotions", charge["SKU description"])):
+          Charges["Compute"]["Promotions"]["Cost"] += float(charge["Cost ($)"])
+
+
+
+
+     if (re.search("Storage", charge["Service description"])):
+          if (float(charge["Cost ($)"]) > 0.0):
+               Charges["Storage"]["StorageCharges"]["Cost"] += float(charge["Cost ($)"])
+               Charges["Storage"]["StorageCharges"]["UsageAmount"] += float(re.sub(',','',charge["Usage amount"]))
+               if ((not re.search('Coldline',charge['SKU description'])) and ("gibibyte month" == charge["Usage unit"])):
+                    print(json.dumps(charge, indent=2))
+                    Charges["Storage"]["MainStorage"]["Cost"] += float(charge["Cost ($)"])
+                    Charges["Storage"]["MainStorage"]["UsageAmount"] += float(re.sub(',','',charge["Usage amount"]))
+
+
+          if (float(charge["Cost ($)"]) > 0.0 and re.search("Coldline", charge["SKU description"])):
+               Charges["Storage"]["ColdlineBackup"]["UsageAmount"] += float(re.sub(',','',charge["Usage amount"]))
+               Charges["Storage"]["ColdlineBackup"]["Cost"] += float(charge["Cost ($)"])
+
+          if (re.search("Promotions", charge["SKU description"])):
+               Charges["Storage"]["PromotionsCredits"]["Cost"] += float(charge["Cost ($)"])
+
+
+print(json.dumps(Charges, indent = 2))
+         
+"""    
+
+Compute
+
+GC Core Hours: 
+"Service Description" contains "Compute" 
+AND "SKU Description" contains "Instance Core"
+
+Compute Charges:
+"Cost" > 0
+AND "Service Description" contains "Compute" 
+AND "Project ID" contains "flywheel"
+
+Sustained Use Discount:
+"Cost" < 0
+AND "Service Description" contains "Compute" 
+AND "SKU Description" contains "Sustained"
+
+Promotions / Credits:
+ "Service Description" contains "Compute" 
+AND "SKU Description" contains "Promotions"
+
+Storage
+
+
+Main Storage:
+ "Cost" > 0
+AND "Service Description" contains "Storage"
+AND "Usage unit" = "gibibyte month"
+AND NOT "SKU description" CONTAINS "Coldline"
+
+Coldline Backup:
+ "Cost" > 0
+AND "Service Description" contains "Storage"
+AND "Service Description" contains "Coldline"
+
+Storage Charges:
+"Cost" > 0
+AND "Service Description" contains "Storage"
+
+Promotions/Credits:
+ "Service Description" contains "Storage" 
+AND "SKU Description" contains "Promotions"
+"""

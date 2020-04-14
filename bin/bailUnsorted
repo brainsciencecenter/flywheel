@@ -1,0 +1,18 @@
+#!/bin/bash
+
+while getopts c: arg
+do
+	case "$arg" in
+		c)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $((OPTIND - 1))
+
+CSVFile="$opt_c"
+RegEx="$1"
+Group="$2"
+
+grep -i "$RegEx" "$CSVFile" | csvcut -c 3 | sed 's/^.*$/& &/; s/ unknown/ '"$Group"'/; s/^/echo fwmv -f /' | bash 

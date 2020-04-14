@@ -21,7 +21,6 @@ if __name__ == '__main__':
     ap.add_argument('sessions', nargs='+', type=str, default=None, help='Sessions CSV file')
 
     args = ap.parse_args()
-
     fw = fwgearutils.getFW(args)
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
