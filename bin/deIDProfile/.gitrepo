@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/ftdc-picsl/fwCustomDeidentification.git
+	branch = master
+	commit = aa388f0e3ddbe26606052002573e60596acf2173
+	parent = 5c6c587b9cc648de2076527aada1a7511d103f6f
+	method = merge
+	cmdver = 0.4.1
