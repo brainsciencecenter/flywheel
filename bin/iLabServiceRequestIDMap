@@ -65,6 +65,13 @@ ServiceIDs:
       - GCP Credits
 
 RequestIDs:
+  #
+  # Group:
+  #  - service_request_id: groupname-default-service-request-id
+  #    aliases:
+  #      groupname-default-service-request-id
+  #
+
   Radiology:
     - service_request_id: 3050653
       ben:  400-4744-1-000011-5340-7006-1100
@@ -137,10 +144,14 @@ RequestIDs:
     - service_id: abc
       percent: 60%
       ben: 400-4452-4-571661-xxxx-2810-2992
+      group: hippogang
       aliases: 
         - R01 AG056014
+        - hippogang/cfn-cluster-test
+        - hippogang-pennbrain-upenn-edu
+        - cfn-cluster-test
 
-    - service_id: def
+    - service_id: default
       percent: 40%
       ben: 400-4452-4-574453-xxxx-2810-2992
       aliases:
@@ -150,7 +161,9 @@ RequestIDs:
     - service_request_id: 3241014
       fund: Developing a multi-modality, paradigm-shifting approach for in vivo assessment of the human placenta and the impact of maternal nutrition on its development and function - expires 6/30/2020 
       ben:  400-4322-4-567799-5340-2810-1100 
+      group: detre-group
       aliases:
+      - detre-group-dd34a9
       - detre_group/CBFLOW
       - detre_group/Jianxun
       - detre_group/PHARMA
@@ -167,14 +180,31 @@ RequestIDs:
       - detre_group/respiract
       - sudipto proj
 
-  GKAguirreLab:
-    - service_request_id: "*AguirreServicerRequest"
+  BSC Admin:
+    - service_request_id: bsc-admin-default-service-request-id
+      group: bsc-admin
+      aliases:
+        - pennbrain-center
+        - pennbrain-license-82eff5
+        - pennbrain-host-3097383fff
+        - holder-dd34a9
+        - holder3-pennbrain-upenn-edu
+        - holder4-pennbrain-upenn-edu
+        - holder6-pennbrain-upenn-edu
+        - holder-pennbrain-upenn-edu
+        - holder-proj-a
+        - holder/Test1
+        - holder/Test2
+        - holder/Test3
+      
+  GKAguirre Lab:
+    - service_request_id: aguirre-defeult-service-request-id
+      group: gkaguirrelab
       aliases:
         - gkaguirrelab/canineFovea
         - gkaguirrelab/Ex-vivo anatomy
         - gkaguirrelab/fBIRN
         - gkaguirrelab/gearDev
-        - gkaguirrelab/melaSpatial
         - gkaguirrelab/mtSinaiFlicker
         - gkaguirrelab/myVisionProject
         - gkaguirrelab/realtime

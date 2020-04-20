@@ -1,0 +1,275 @@
+#!/usr/bin/python3
+
+import argparse
+import csv
+import json
+import os
+import pyjq
+import sys
+import yaml
+
+from collections import OrderedDict
+
+#
+# Input: a google cost table report csv
+# Output:
+#   Summary of charges for the center and by group
+#   CSV suitable to upload to iLab to allocate GCP charges
+#
+# Default mapfile is:
+#
+# Run through the cost table csv file to create the charge entries and generate a total for the center
+# On the way through, look up the service id and service request id for each charge
+# Go back through and print the center total, then each group and sub charges
+# createiLabGCPChargesCSV [-b][-f flywheelCSVFile][-i][-m mapfile] GCPCostTableCSVFile
+
+# Total bytes billed = total_storage_byte_day / days
+#
+TerraByte = 1024 * 1024 * 1024 * 1024
+
+CmdName = os.path.basename(sys.argv[0])
+
+SessionConversionCharge = 25
+iLabServiceRequestIDMapFile = "/home/holder/Work/CfN/flywheel/bin/iLabServiceRequestIDMap"
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument('-b', '--billable', action='store_true', help='Show only group/projects with billable service request ids')
+ap.add_argument('-f', '--flywheel', action='store', help='Flywheel cost allocation csv file')
+ap.add_argument('-i', '--iLab', action='store_true', help='produce ilab charges (may want -b)')
+ap.add_argument('-m', '--mapfile', action='store', help='iLab service id and service request id yaml file') 
+ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Cost Table Report CSV')
+
+args = ap.parse_args()
+
+def initCharge(center=None,
+               group=None,
+               project=None, 
+               service_id=None,
+               service_request_id=None,
+               service_description=None,
+               gcp_service_id=None,
+               sku_description=None,
+               sku_id=None,
+               cost_type=None,
+               usage_amount=None,
+               usage_unit=None,
+               cost=0.0,
+):
+
+    return(
+        OrderedDict([
+            ( 'center', center), 
+            ( 'group', group ),
+            ( 'project', project ),
+            ( 'service_id', service_id),
+            ( 'service_request_id', service_request_id),
+            ( 'service_description', service_description),
+            ( 'gcp_service_id', gcp_service_id),
+            ( 'sku_description', sku_description),
+            ( 'sku_id', sku_id),
+            ( 'cost_type', cost_type),
+            ( 'usage_amount', usage_amount),
+            ( 'usage_unit', usage_unit),
+            ( 'cost', cost)
+        ]))
+
+Groups = []
+
+def initGroup(name=None):
+     Group = {
+          'name': name,
+          'Projects': {}
+     }
+     return(Group)
+
+def getProjectGroup(iLabServiceRequestIDMap,alias):
+     res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .group'.format(alias), iLabServiceRequestIDMap)
+     if (len(res)):
+          return(res[0])
+     else:
+          return(None)
+
+def getServiceId(iLabServiceRequestIDMap,alias):
+     res = pyjq.all('.["ServiceIDs"][]|select(.aliases[]|match("^{}$")) | .service_id'.format(alias), iLabServiceRequestIDMap)
+     if (len(res)):
+          return(res[0])
+     else:
+          return(None)
+
+def getServiceRequestId(iLabServiceRequestIDMap,alias):
+     res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .service_request_id'.format(alias), iLabServiceRequestIDMap)
+     if (len(res)):
+          return(res[0])
+     else:
+          return(None)
+
+iLabServiceRequestIDMap = None
+
+with open(iLabServiceRequestIDMapFile) as file:
+    d = yaml.load(file, Loader=yaml.FullLoader)
+    iLabServiceRequestIDMap = json.loads(json.dumps(d))
+
+
+# 1. Billing account name,
+# 2. Billing account ID,
+# 3. Project name,
+# 4. Project ID,
+# 5. Service description,
+# 6. Service ID, - GCP service id -- not ilab service id
+# 7. SKU description,
+# 8. SKU ID,
+# 9. Cost type,
+# 10. Usage start date,
+# 11. Usage end date,
+# 12. Usage amount,
+# 13. Usage unit,
+# 14. Cost ($),
+
+# Usage Unit
+# None
+# count
+# hour - compute time
+# gibibytes - storage bytes
+# gibibytes hours - storage bytes * hours
+# gibibytes month - storage bytes * month
+
+GCPChargeTotals = {}
+Charges = []
+
+with open(args.gcpcharges[0], newline='') as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+    for row in reader:
+        if (not row['Project ID']):
+            continue
+
+        chargegroup = getProjectGroup(iLabServiceRequestIDMap, row['Project ID'])
+        if (not chargegroup):
+            if (row['Project ID'] == 'upenn-flywheel'):
+                if (not args.flywheel):
+                    chargegroup = 'flywheel'
+
+            else:
+                print("{}: No group for Project ID {}. {}".format(CmdName, row['Project ID'], row), file=sys.stderr)
+                chargegroup = 'unknown'
+
+        Charge = initCharge(
+            group=chargegroup,
+            project=row['Project ID'], 
+            service_description=row['Service description'],
+            gcp_service_id=row['Service ID'],
+            sku_description=row['SKU description'],
+            sku_id=row['SKU ID'],
+            cost_type=row['Cost type'],
+            usage_amount=row['Usage amount'],
+            usage_unit=row['Usage unit'],
+            cost=(float(row['Cost ($)'])+0.0)
+        )
+        if (Charge['sku_id'] in GCPChargeTotals.keys()):
+            GCPChargeTotals[Charge['sku_id']]['cost'] += Charge['cost']
+        else:
+            GCPChargeTotals[Charge['sku_id']] = Charge.copy()
+        
+        Charge['service_id'] = getServiceId(iLabServiceRequestIDMap,
+                                                 '{}/{}'.format(Charge['group'], Charge['project']))
+
+        Charge['service_request_id'] = getServiceRequestId(iLabServiceRequestIDMap,
+                                                 '{}/{}'.format(Charge['group'], Charge['project']))
+
+        Charges.append(Charge)
+
+# print(json.dumps(sorted(Charges, key=lambda c: c['ucost']), indent=2))
+print(json.dumps(sorted(GCPChargeTotals.items(), key=lambda t: abs(t[1]['cost']), reverse=True), indent=2))
+# print(json.dumps(GCPChargeTotals, indent=2))
+
+sys.exit(0)
+
+for Group in Groups:
+     g = initThing(group=Group['name'])
+     for Project in Group['Projects']:
+          g['group_total_compute_ms'] += Project['total_compute_ms']
+          g['group_total_storage_bytes'] += Project['total_storage_bytes']
+
+     Lines.append(g)
+
+     for Project in Group['Projects']:
+          Lines.append(Project)
+
+CenterTotalComputeMs = Center['center_total_compute_ms']
+CenterTotalStorageBytes = Center['center_total_storage_bytes']
+TotalCharge = 0.0
+
+print(CenterTotalComputeMs, CenterTotalStorageBytes)
+
+if (args.iLab):
+     with open(iLabServiceRequestIDMapFile) as file:
+          d = yaml.load(file, Loader=yaml.FullLoader)
+
+
+
+     #print(json.dumps(iLabServiceRequestIDMap, indent=2))
+
+     for p in Lines:
+          if (not p['project']):
+               continue
+
+          for id in ['total_compute_ms', 'total_storage_bytes']:
+               if (p[id]):
+                    RequestId = getRequestId(iLabServiceRequestIDMap,alias="{}".format(id))
+               else:
+                    RequestId = None
+
+               ServiceRequestId = getServiceRequestId(iLabServiceRequestIDMap,alias="{}/{}".format(p['group'],p['project']))
+               # print("Request Id = {}, Service Request Id for {} is {}".format(RequestId,p,ServiceRequestId))
+               if (not ServiceRequestId):
+                   DefaultGroupServiceRequesetId = "{}-default-service-request".format(p["group"])
+                   ServiceRequestId = getServiceRequestId(iLabServiceRequestIDMap,DefaultGroupServiceRequesetId)
+                   if (not ServiceRequestId):
+                       ServiceRequestId = DefaultGroupServiceRequesetId
+
+               if (RequestId and ServiceRequestId):
+#                    print(json.dumps(p, indent=2))
+                    CenterUsage = Center['center_{}'.format(id)]
+                    if (id == 'total_compute_ms'):
+                        CenterCharge = args.compute
+                        Unit = 'ms'
+                    if (id == 'total_storage_bytes'):
+                        CenterCharge = args.storage
+                        Unit = 'Gb'
+                        
+                    Note = '{}/{}: ({} {} / {} {}) * ${}'.format(p['group'], p['project'], p[id], Unit, CenterUsage, Unit, CenterCharge)
+                    ProjectCharge = round(p[id]/CenterUsage * float(CenterCharge),2)
+                    TotalCharge += ProjectCharge
+                    print("{},{},{},{},{},{},,,,".format(
+                        RequestId, 
+                        Note,
+                        ProjectCharge,
+                        str(round(ProjectCharge,2)),
+                        args.date,
+                        ServiceRequestId)
+                    )
+
+     print("Storage {} + Computing {} = Total {}".format(float(args.storage), float(args.compute), str(round(TotalCharge,2))))
+
+     """
+     # Comment output should be
+     # 
+     # service_id note service_quantity price purchased_on service_request_id owner_email pi_email_or_group_id $payment_number"
+     # Fill in 
+     #   service_id
+     #   note
+     #     Project: Storage Usage, unit / Center Usage, unit * Center Total
+     #   service quantity
+     #   purchased on Date YYYY-MM
+     #   service_request_id
+     """
+
+else:
+     writer = csv.DictWriter(sys.stdout, Center.keys())
+
+     writer.writeheader()
+     for row in Lines:
+          writer.writerow(row)
+
+

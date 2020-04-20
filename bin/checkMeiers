@@ -81,7 +81,7 @@ for charge in FlywheelCharges:
 
      # Only flywheel related charges are in the Flywheel Charges list
      if (re.search("Compute", charge["Service description"]) and (float(charge["Cost ($)"]) > 0.0)):
-          Charges["Compute"]["ComputeCharges"]["UsageAmount"] += float(re.sub(',','',charge["Cost ($)"]))
+          Charges["Compute"]["ComputeCharges"]["UsageAmount"] += float(re.sub(',','',charge["Usage amount"]))
           Charges["Compute"]["ComputeCharges"]["Cost"] += float(charge["Cost ($)"])
 
      if (re.search("Compute", charge["Service description"]) and re.search("Sustained", charge["SKU description"])):

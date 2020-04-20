@@ -9,6 +9,13 @@ import yaml
 
 from collections import OrderedDict
 
+#
+# Take a google monthly charge report and product summary of charges for the
+# Center, and there groups
+# If given a flywheel billing allocation csv, break the flywheel charges apart by group
+#
+# produce ilab charges if requested
+
 # Total bytes billed = total_storage_byte_day / days
 #
 TerraByte = 1024 * 1024 * 1024 * 1024
@@ -18,7 +25,10 @@ iLabServiceRequestIDMapFile = "/home/holder/Work/CfN/flywheel/bin/iLabServiceReq
 
 ap = argparse.ArgumentParser()
 
+ap.add_argument('-c', '--compute', action='store', help='Flywheel Compute charge')
+ap.add_argument('-d', '--date', action='store', help='YYYY-MM')
 ap.add_argument('-l', '--iLab', action='store_true', help='produce ilab charges')
+ap.add_argument('-s', '--storage', action='store', help='Flywheel Storage charge') 
 ap.add_argument('fwcharges', nargs='+', type=str, default=None, help='Flywheel Charge Report file')
 
 args = ap.parse_args()
@@ -75,24 +85,24 @@ def getServiceRequestId(iLabServiceRequestIDMap,alias):
 Group = initGroup()
 
 with open(args.fwcharges[0], newline='') as csvfile:
-     reader = csv.DictReader(csvfile, delimiter=',', quotechar='|')
+    reader = csv.DictReader(csvfile, delimiter=',', quotechar='|')
 
-     for row in reader:
-          if (row['project_label'] == ""):
-               if (Group['name']):
-                    Groups.append(Group)
+    for row in reader:
+        if (row['project_label'] == ""):
+            if (Group['name']):
+                Groups.append(Group)
 
-               Group = initGroup(name=row['group'])
+            Group = initGroup(name=row['group'])
 
-          else:
-               Project = initThing(group=Group['name'],
+        else:
+            Project = initThing(group=Group['name'],
                                    project=row['project_label'], 
                                    days=int(row['days']),
                                    total_compute_ms=int(row['total_compute_ms']),
                                    total_storage_byte_day=float(row['total_storage_byte_day']),
                                    total_storage_bytes=float(row['total_storage_byte_day']) / float(row['days'])
                                    )
-               Group['Projects'].append(Project)
+            Group['Projects'].append(Project)
 
 if (Group['name']):
      Groups.append(Group)
@@ -120,6 +130,7 @@ for Group in Groups:
 
 CenterTotalComputeMs = Center['center_total_compute_ms']
 CenterTotalStorageBytes = Center['center_total_storage_bytes']
+TotalCharge = 0.0
 
 print(CenterTotalComputeMs, CenterTotalStorageBytes)
 
@@ -142,9 +153,49 @@ if (args.iLab):
                     RequestId = None
 
                ServiceRequestId = getServiceRequestId(iLabServiceRequestIDMap,alias="{}/{}".format(p['group'],p['project']))
+               # print("Request Id = {}, Service Request Id for {} is {}".format(RequestId,p,ServiceRequestId))
+               if (not ServiceRequestId):
+                   DefaultGroupServiceRequesetId = "{}-default-service-request".format(p["group"])
+                   ServiceRequestId = getServiceRequestId(iLabServiceRequestIDMap,DefaultGroupServiceRequesetId)
+                   if (not ServiceRequestId):
+                       ServiceRequestId = DefaultGroupServiceRequesetId
+
                if (RequestId and ServiceRequestId):
 #                    print(json.dumps(p, indent=2))
-                    print(RequestId, ServiceRequestId, p[id])
+                    CenterUsage = Center['center_{}'.format(id)]
+                    if (id == 'total_compute_ms'):
+                        CenterCharge = args.compute
+                        Unit = 'ms'
+                    if (id == 'total_storage_bytes'):
+                        CenterCharge = args.storage
+                        Unit = 'Gb'
+                        
+                    Note = '{}/{}: ({} {} / {} {}) * ${}'.format(p['group'], p['project'], p[id], Unit, CenterUsage, Unit, CenterCharge)
+                    ProjectCharge = round(p[id]/CenterUsage * float(CenterCharge),2)
+                    TotalCharge += ProjectCharge
+                    print("{},{},{},{},{},{},,,,".format(
+                        RequestId, 
+                        Note,
+                        ProjectCharge,
+                        str(round(ProjectCharge,2)),
+                        args.date,
+                        ServiceRequestId)
+                    )
+
+     print("Storage {} + Computing {} = Total {}".format(float(args.storage), float(args.compute), str(round(TotalCharge,2))))
+
+     """
+     # Comment output should be
+     # 
+     # service_id note service_quantity price purchased_on service_request_id owner_email pi_email_or_group_id $payment_number"
+     # Fill in 
+     #   service_id
+     #   note
+     #     Project: Storage Usage, unit / Center Usage, unit * Center Total
+     #   service quantity
+     #   purchased on Date YYYY-MM
+     #   service_request_id
+     """
 
 else:
      writer = csv.DictWriter(sys.stdout, Center.keys())
