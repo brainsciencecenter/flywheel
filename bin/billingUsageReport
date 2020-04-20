@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+# Get per/project costs from flywheel for given month
+
 import flywheel
 import csv
 import argparse
