@@ -5,8 +5,10 @@ import csv
 import json
 import os
 import pyjq
+import re
 import sys
 import yaml
+import xlswriter
 
 from collections import OrderedDict
 
@@ -22,7 +24,9 @@ from collections import OrderedDict
 # On the way through, look up the service id and service request id for each charge
 # Go back through and print the center total, then each group and sub charges
 # createiLabGCPChargesCSV [-b][-f flywheelCSVFile][-i][-m mapfile] GCPCostTableCSVFile
-
+#
+# Do we want to ignore promotions, and discounts?
+#
 # Total bytes billed = total_storage_byte_day / days
 #
 TerraByte = 1024 * 1024 * 1024 * 1024
@@ -42,6 +46,24 @@ ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Cost 
 
 args = ap.parse_args()
 
+ChargeTypes = [
+    'compute',
+    'discounts',
+    'invalid',
+    'misc',
+    'promotions',
+    'storage',
+    'unknown',
+]
+
+def initTotalCosts():
+    TotalCosts = {}
+
+    for c in ChargeTypes:
+        TotalCosts[c] = 0.0
+
+    return(TotalCosts)
+
 def initCharge(center=None,
                group=None,
                project=None, 
@@ -55,6 +77,21 @@ def initCharge(center=None,
                usage_amount=None,
                usage_unit=None,
                cost=0.0,
+               compute=None,
+               discounts=None,
+               invalid=None,
+               misc=None,
+               promotions=None,
+               storage=None,
+               unknown=None,
+               group_compute=None,
+               group_discounts=None,
+               group_invalid=None,
+               group_misc=None,
+               group_promotions=None,
+               group_storage=None,
+               group_unknown=None,
+               group_total=None,
 ):
 
     return(
@@ -71,16 +108,33 @@ def initCharge(center=None,
             ( 'cost_type', cost_type),
             ( 'usage_amount', usage_amount),
             ( 'usage_unit', usage_unit),
-            ( 'cost', cost)
+            ( 'cost', cost),
+            ( 'promotions', promotions),
+            ( 'discounts', discounts),
+            ( 'invalid', invalid),
+            ( 'unknown', unknown),
+            ( 'misc', misc),
+            ( 'storage', storage),
+            ( 'compute', compute),
+            ( 'group_promotions', group_promotions),
+            ( 'group_discounts', group_discounts),
+            ( 'group_invalid', group_invalid),
+            ( 'group_unknown', group_unknown),
+            ( 'group_misc', group_misc),
+            ( 'group_storage', group_storage),
+            ( 'group_compute', group_compute),
+            ( 'group_total', group_total),
         ]))
 
-Groups = []
+Groups = {}
 
 def initGroup(name=None):
      Group = {
-          'name': name,
-          'Projects': {}
+         'name': name,
+         'TotalCosts': initTotalCosts(),
+         'Charges': [],
      }
+
      return(Group)
 
 def getProjectGroup(iLabServiceRequestIDMap,alias):
@@ -103,6 +157,45 @@ def getServiceRequestId(iLabServiceRequestIDMap,alias):
           return(res[0])
      else:
           return(None)
+
+def costClassifier(charge):
+    if (charge == "all"):
+        return(ChargeTypes)
+
+
+    if (re.search("Egress", charge["sku_description"])):
+        return("invalid")
+
+
+    if (re.search("Promotions", charge["sku_description"])):
+        return("promotions")
+
+    if (re.search("Discounts", charge["sku_description"])):
+        return("discounts")
+
+    if (re.search("IP Charge", charge["sku_description"], flags=re.IGNORECASE)):
+        return("misc")
+
+
+    
+    if (re.search("Compute", charge["service_description"]) and re.search("Instance Core", charge["sku_description"])):
+          return("compute")
+
+    # Only flywheel related charges are in the Flywheel Charges list
+    if (re.search("Compute", charge["service_description"]) and (float(charge["cost"]) > 0.0)):
+         return("compute")
+
+    if (re.search("Compute", charge["service_description"]) and re.search("Sustained", charge["sku_description"])):
+         return("compute")
+
+    if (re.search("Compute", charge["service_description"]) and re.search("Promotions", charge["sku_description"])):
+         return("compute")
+
+
+    if (re.search("Storage", charge["service_description"])):
+         return("storage")
+
+    return('unknown')
 
 iLabServiceRequestIDMap = None
 
@@ -137,6 +230,43 @@ with open(iLabServiceRequestIDMapFile) as file:
 GCPChargeTotals = {}
 Charges = []
 
+def formatGroupChargesCSV(Groups):
+    charge = initCharge()
+    writer = csv.DictWriter(sys.stdout, charge.keys())
+    writer.writeheader()
+
+    lineno = 1
+    CostColumn = 'M'
+    PromotionsColumn = xlsxwriter.utility.xl_col_to_name(20)
+    DiscountsColumn = chr(ord(PromotionsColumn) + 1)
+    InvalidColumn = chr(ord(DiscountsColumn) + 1)
+    UnknownColumn = chr(ord(InvalidColumn) + 1)
+    MiscColumn = chr(ord(UnknownColumn) + 1)
+    ComputeColumn = chr(ord(MiscColumn) + 1)
+    StorageColumn = chr(ord(ComputeColumn) + 1)
+
+    for groupname, group in Groups.items():
+        lineno += 1
+        FirstLine = lineno + 1
+        LastLine = lineno + len(group['Charges'])
+        charge = initCharge(group=groupname,
+                            group_promotions="=sum({}{}:{}{})".format(PromotionsColumn, FirstLine, PromotionsColumn, LastLine),
+                            group_discounts="=sum({}{}:{}{})".format(DiscountsColumn, FirstLine, DiscountsColumn, LastLine),
+                            group_invalid="=sum({}{}:{}{})".format(InvalidColumn, FirstLine, InvalidColumn, LastLine),
+                            group_unknown="=sum({}{}:{}{})".format(UnknownColumn, FirstLine, UnknownColumn, LastLine),
+                            group_misc="=sum({}{}:{}{})".format(MiscColumn, FirstLine, MiscColumn, LastLine),
+                            group_storage="=sum({}{}:{}{})".format(StorageColumn, FirstLine, StorageColumn, LastLine),
+                            group_compute="=sum({}{}:{}{})".format(ComputeColumn, FirstLine, ComputeColumn, LastLine),
+
+                            group_total="=sum({}{}:{}{})".format(CostColumn, FirstLine, CostColumn, LastLine),
+        )
+        writer.writerow(charge)
+
+        for c in group['Charges']:
+            writer.writerow(c)
+            lineno += 1
+        
+    
 with open(args.gcpcharges[0], newline='') as csvfile:
     reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
 
@@ -179,97 +309,25 @@ with open(args.gcpcharges[0], newline='') as csvfile:
 
         Charges.append(Charge)
 
-# print(json.dumps(sorted(Charges, key=lambda c: c['ucost']), indent=2))
-print(json.dumps(sorted(GCPChargeTotals.items(), key=lambda t: abs(t[1]['cost']), reverse=True), indent=2))
-# print(json.dumps(GCPChargeTotals, indent=2))
+SortedCharges = sorted(Charges, key=lambda c: c['group'])
 
-sys.exit(0)
+#print("Number of recorded charges = ",len(SortedCharges))
 
-for Group in Groups:
-     g = initThing(group=Group['name'])
-     for Project in Group['Projects']:
-          g['group_total_compute_ms'] += Project['total_compute_ms']
-          g['group_total_storage_bytes'] += Project['total_storage_bytes']
+for c in SortedCharges:
+    if (not (c['group'] in Groups.keys())):
+        Groups[c['group']] = initGroup(c['group'])
+        
+    group = Groups[c['group']]
 
-     Lines.append(g)
+    costtype = costClassifier(c)
+    c[costtype] = c['cost']
 
-     for Project in Group['Projects']:
-          Lines.append(Project)
+    group['Charges'].append(c)
 
-CenterTotalComputeMs = Center['center_total_compute_ms']
-CenterTotalStorageBytes = Center['center_total_storage_bytes']
-TotalCharge = 0.0
+CenterGroup = initGroup("BSC")
 
-print(CenterTotalComputeMs, CenterTotalStorageBytes)
+formatGroupChargesCSV(Groups)
 
-if (args.iLab):
-     with open(iLabServiceRequestIDMapFile) as file:
-          d = yaml.load(file, Loader=yaml.FullLoader)
-
-
-
-     #print(json.dumps(iLabServiceRequestIDMap, indent=2))
-
-     for p in Lines:
-          if (not p['project']):
-               continue
-
-          for id in ['total_compute_ms', 'total_storage_bytes']:
-               if (p[id]):
-                    RequestId = getRequestId(iLabServiceRequestIDMap,alias="{}".format(id))
-               else:
-                    RequestId = None
-
-               ServiceRequestId = getServiceRequestId(iLabServiceRequestIDMap,alias="{}/{}".format(p['group'],p['project']))
-               # print("Request Id = {}, Service Request Id for {} is {}".format(RequestId,p,ServiceRequestId))
-               if (not ServiceRequestId):
-                   DefaultGroupServiceRequesetId = "{}-default-service-request".format(p["group"])
-                   ServiceRequestId = getServiceRequestId(iLabServiceRequestIDMap,DefaultGroupServiceRequesetId)
-                   if (not ServiceRequestId):
-                       ServiceRequestId = DefaultGroupServiceRequesetId
-
-               if (RequestId and ServiceRequestId):
-#                    print(json.dumps(p, indent=2))
-                    CenterUsage = Center['center_{}'.format(id)]
-                    if (id == 'total_compute_ms'):
-                        CenterCharge = args.compute
-                        Unit = 'ms'
-                    if (id == 'total_storage_bytes'):
-                        CenterCharge = args.storage
-                        Unit = 'Gb'
-                        
-                    Note = '{}/{}: ({} {} / {} {}) * ${}'.format(p['group'], p['project'], p[id], Unit, CenterUsage, Unit, CenterCharge)
-                    ProjectCharge = round(p[id]/CenterUsage * float(CenterCharge),2)
-                    TotalCharge += ProjectCharge
-                    print("{},{},{},{},{},{},,,,".format(
-                        RequestId, 
-                        Note,
-                        ProjectCharge,
-                        str(round(ProjectCharge,2)),
-                        args.date,
-                        ServiceRequestId)
-                    )
-
-     print("Storage {} + Computing {} = Total {}".format(float(args.storage), float(args.compute), str(round(TotalCharge,2))))
-
-     """
-     # Comment output should be
-     # 
-     # service_id note service_quantity price purchased_on service_request_id owner_email pi_email_or_group_id $payment_number"
-     # Fill in 
-     #   service_id
-     #   note
-     #     Project: Storage Usage, unit / Center Usage, unit * Center Total
-     #   service quantity
-     #   purchased on Date YYYY-MM
-     #   service_request_id
-     """
-
-else:
-     writer = csv.DictWriter(sys.stdout, Center.keys())
-
-     writer.writeheader()
-     for row in Lines:
-          writer.writerow(row)
+#print(json.dumps(CenerGroup, indent=2))
 
 
