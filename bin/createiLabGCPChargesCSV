@@ -8,8 +8,8 @@ import pyjq
 import re
 import sys
 import yaml
-import xlswriter
 
+from openpyxl.utils.cell import get_column_letter
 from collections import OrderedDict
 
 #
@@ -231,13 +231,37 @@ GCPChargeTotals = {}
 Charges = []
 
 def formatGroupChargesCSV(Groups):
-    charge = initCharge()
+
+    FirstLine = 2
+    LastLine = FirstLine + len(Charges) + len(Groups.keys())
+
+    CostColumn = 'M'
+    PromotionsColumn = chr(ord(CostColumn) + 1)
+    DiscountsColumn = chr(ord(PromotionsColumn) + 1)
+    InvalidColumn = chr(ord(DiscountsColumn) + 1)
+    UnknownColumn = chr(ord(InvalidColumn) + 1)
+    MiscColumn = chr(ord(UnknownColumn) + 1)
+    ComputeColumn = chr(ord(MiscColumn) + 1)
+    StorageColumn = chr(ord(ComputeColumn) + 1)
+
+    charge = initCharge(
+        center='Brain Science Center',
+        group_promotions="=sum({}{}:{}{})".format(PromotionsColumn, FirstLine, PromotionsColumn, LastLine),
+        group_discounts="=sum({}{}:{}{})".format(DiscountsColumn, FirstLine, DiscountsColumn, LastLine),
+        group_invalid="=sum({}{}:{}{})".format(InvalidColumn, FirstLine, InvalidColumn, LastLine),
+        group_unknown="=sum({}{}:{}{})".format(UnknownColumn, FirstLine, UnknownColumn, LastLine),
+        group_misc="=sum({}{}:{}{})".format(MiscColumn, FirstLine, MiscColumn, LastLine),
+        group_storage="=sum({}{}:{}{})".format(StorageColumn, FirstLine, StorageColumn, LastLine),
+        group_compute="=sum({}{}:{}{})".format(ComputeColumn, FirstLine, ComputeColumn, LastLine),
+        group_total="=sum({}{}:{}{})".format(CostColumn, FirstLine, CostColumn, LastLine),
+    )
     writer = csv.DictWriter(sys.stdout, charge.keys())
     writer.writeheader()
+    writer.writerow(charge)
 
-    lineno = 1
+    lineno = 2
     CostColumn = 'M'
-    PromotionsColumn = xlsxwriter.utility.xl_col_to_name(20)
+    PromotionsColumn = chr(ord(CostColumn) + 1)
     DiscountsColumn = chr(ord(PromotionsColumn) + 1)
     InvalidColumn = chr(ord(DiscountsColumn) + 1)
     UnknownColumn = chr(ord(InvalidColumn) + 1)
