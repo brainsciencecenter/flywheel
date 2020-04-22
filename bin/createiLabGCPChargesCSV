@@ -9,7 +9,8 @@ import re
 import sys
 import yaml
 
-from openpyxl.utils.cell import get_column_letter
+from openpyxl.utils.cell import get_column_letter, column_index_from_string
+
 from collections import OrderedDict
 
 #
@@ -42,6 +43,7 @@ ap.add_argument('-b', '--billable', action='store_true', help='Show only group/p
 ap.add_argument('-f', '--flywheel', action='store', help='Flywheel cost allocation csv file')
 ap.add_argument('-i', '--iLab', action='store_true', help='produce ilab charges (may want -b)')
 ap.add_argument('-m', '--mapfile', action='store', help='iLab service id and service request id yaml file') 
+ap.add_argument('-g', '--group-summary-only', action='store_true', help='summarize by group.  leave out individual charges')
 ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Cost Table Report CSV')
 
 args = ap.parse_args()
@@ -151,6 +153,14 @@ def getServiceId(iLabServiceRequestIDMap,alias):
      else:
           return(None)
 
+def sumCostType(Group, costtype):
+    total = 0.0
+    for c in Group['Charges']:
+        if (c[costtype]):
+            total += c[costtype]
+
+    return(total)
+
 def getServiceRequestId(iLabServiceRequestIDMap,alias):
      res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .service_request_id'.format(alias), iLabServiceRequestIDMap)
      if (len(res)):
@@ -170,7 +180,7 @@ def costClassifier(charge):
     if (re.search("Promotions", charge["sku_description"])):
         return("promotions")
 
-    if (re.search("Discounts", charge["sku_description"])):
+    if (re.search("Discounts", charge["sku_description"], flags=re.IGNORECASE)):
         return("discounts")
 
     if (re.search("IP Charge", charge["sku_description"], flags=re.IGNORECASE)):
@@ -231,18 +241,29 @@ GCPChargeTotals = {}
 Charges = []
 
 def formatGroupChargesCSV(Groups):
+    global Charges
+    global args
 
-    FirstLine = 2
-    LastLine = FirstLine + len(Charges) + len(Groups.keys())
+    FirstLine = 3
 
-    CostColumn = 'M'
-    PromotionsColumn = chr(ord(CostColumn) + 1)
-    DiscountsColumn = chr(ord(PromotionsColumn) + 1)
-    InvalidColumn = chr(ord(DiscountsColumn) + 1)
-    UnknownColumn = chr(ord(InvalidColumn) + 1)
-    MiscColumn = chr(ord(UnknownColumn) + 1)
-    ComputeColumn = chr(ord(MiscColumn) + 1)
-    StorageColumn = chr(ord(ComputeColumn) + 1)
+    if (args.group_summary_only):
+        LastLine = FirstLine + len(Groups.keys())
+        PromotionsColumn = 'U'
+    else:
+        LastLine = FirstLine + len(Charges) + len(Groups.keys())
+        PromotionsColumn = 'N'
+
+    GroupPromotionsColumn = 'U'
+    GroupComputeColumn = 'AA'
+
+    DiscountsColumn = get_column_letter(column_index_from_string(PromotionsColumn) + 1)
+    InvalidColumn = get_column_letter(column_index_from_string(DiscountsColumn) + 1)
+    UnknownColumn = get_column_letter(column_index_from_string(InvalidColumn) + 1)
+    MiscColumn = get_column_letter(column_index_from_string(UnknownColumn) + 1)
+    StorageColumn = get_column_letter(column_index_from_string(MiscColumn) + 1)
+    ComputeColumn = get_column_letter(column_index_from_string(StorageColumn) + 1)
+
+    lineno = 2
 
     charge = initCharge(
         center='Brain Science Center',
@@ -253,42 +274,62 @@ def formatGroupChargesCSV(Groups):
         group_misc="=sum({}{}:{}{})".format(MiscColumn, FirstLine, MiscColumn, LastLine),
         group_storage="=sum({}{}:{}{})".format(StorageColumn, FirstLine, StorageColumn, LastLine),
         group_compute="=sum({}{}:{}{})".format(ComputeColumn, FirstLine, ComputeColumn, LastLine),
-        group_total="=sum({}{}:{}{})".format(CostColumn, FirstLine, CostColumn, LastLine),
+        group_total="=sum({}{}:{}{})".format(GroupPromotionsColumn, lineno, GroupComputeColumn, lineno),
     )
+
     writer = csv.DictWriter(sys.stdout, charge.keys())
     writer.writeheader()
     writer.writerow(charge)
 
-    lineno = 2
-    CostColumn = 'M'
-    PromotionsColumn = chr(ord(CostColumn) + 1)
-    DiscountsColumn = chr(ord(PromotionsColumn) + 1)
-    InvalidColumn = chr(ord(DiscountsColumn) + 1)
-    UnknownColumn = chr(ord(InvalidColumn) + 1)
-    MiscColumn = chr(ord(UnknownColumn) + 1)
-    ComputeColumn = chr(ord(MiscColumn) + 1)
-    StorageColumn = chr(ord(ComputeColumn) + 1)
+
+    if (args.group_summary_only):
+        PromotionsColumn = 'U'
+        DiscountsColumn = get_column_letter(column_index_from_string(PromotionsColumn) + 1)
+        InvalidColumn = get_column_letter(column_index_from_string(DiscountsColumn) + 1)
+        UnknownColumn = get_column_letter(column_index_from_string(InvalidColumn) + 1)
+        MiscColumn = get_column_letter(column_index_from_string(UnknownColumn) + 1)
+        StorageColumn = get_column_letter(column_index_from_string(MiscColumn) + 1)
+        ComputeColumn = get_column_letter(column_index_from_string(StorageColumn) + 1)
 
     for groupname, group in Groups.items():
         lineno += 1
         FirstLine = lineno + 1
-        LastLine = lineno + len(group['Charges'])
-        charge = initCharge(group=groupname,
-                            group_promotions="=sum({}{}:{}{})".format(PromotionsColumn, FirstLine, PromotionsColumn, LastLine),
-                            group_discounts="=sum({}{}:{}{})".format(DiscountsColumn, FirstLine, DiscountsColumn, LastLine),
-                            group_invalid="=sum({}{}:{}{})".format(InvalidColumn, FirstLine, InvalidColumn, LastLine),
-                            group_unknown="=sum({}{}:{}{})".format(UnknownColumn, FirstLine, UnknownColumn, LastLine),
-                            group_misc="=sum({}{}:{}{})".format(MiscColumn, FirstLine, MiscColumn, LastLine),
-                            group_storage="=sum({}{}:{}{})".format(StorageColumn, FirstLine, StorageColumn, LastLine),
-                            group_compute="=sum({}{}:{}{})".format(ComputeColumn, FirstLine, ComputeColumn, LastLine),
+        if (args.group_summary_only):
+            charge = initCharge(
+                group=groupname,
+                group_promotions=sumCostType(group, 'promotions'),
+                group_discounts=sumCostType(group, 'discounts'),
+                group_invalid=sumCostType(group, 'invalid'),
+                group_unknown=sumCostType(group, 'unknown'),
+                group_misc=sumCostType(group, 'misc'),
+                group_storage=sumCostType(group, 'storage'),
+                group_compute=sumCostType(group, 'compute'),
+                group_total="=sum({}{}:{}{})".format(PromotionsColumn, lineno, ComputeColumn, lineno),
+            )
 
-                            group_total="=sum({}{}:{}{})".format(CostColumn, FirstLine, CostColumn, LastLine),
-        )
+        else:
+            LastLine = lineno + len(group['Charges'])
+            GroupPromotionsColumn = 'U'
+            GroupComputeColumn = 'AA'
+
+            charge = initCharge(
+                group=groupname,
+                group_promotions="=sum({}{}:{}{})".format(PromotionsColumn, FirstLine, PromotionsColumn, LastLine),
+                group_discounts="=sum({}{}:{}{})".format(DiscountsColumn, FirstLine, DiscountsColumn, LastLine),
+                group_invalid="=sum({}{}:{}{})".format(InvalidColumn, FirstLine, InvalidColumn, LastLine),
+                group_unknown="=sum({}{}:{}{})".format(UnknownColumn, FirstLine, UnknownColumn, LastLine),
+                group_misc="=sum({}{}:{}{})".format(MiscColumn, FirstLine, MiscColumn, LastLine),
+                group_storage="=sum({}{}:{}{})".format(StorageColumn, FirstLine, StorageColumn, LastLine),
+                group_compute="=sum({}{}:{}{})".format(ComputeColumn, FirstLine, ComputeColumn, LastLine),
+                group_total="=sum({}{}:{}{})".format(GroupPromotionsColumn, lineno, GroupComputeColumn, lineno),
+            )
+
         writer.writerow(charge)
 
-        for c in group['Charges']:
-            writer.writerow(c)
-            lineno += 1
+        if (not args.group_summary_only):
+            for c in group['Charges']:
+                writer.writerow(c)
+                lineno += 1
         
     
 with open(args.gcpcharges[0], newline='') as csvfile:
