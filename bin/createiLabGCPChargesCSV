@@ -14,6 +14,11 @@ from openpyxl.utils.cell import get_column_letter, column_index_from_string
 from collections import OrderedDict
 
 #
+# ToDo
+#   toggle formulas on or off
+#   Try/except for reading in ilabmap and other files
+#
+
 # Input: a google cost table report csv
 # Output:
 #   Summary of charges for the center and by group
@@ -30,12 +35,14 @@ from collections import OrderedDict
 #
 # Total bytes billed = total_storage_byte_day / days
 #
-TerraByte = 1024 * 1024 * 1024 * 1024
+GibiByte = 1024 * 1024 * 1024
+TerraByte = 1024 * 1024 * 1024 * 1042
 
 CmdName = os.path.basename(sys.argv[0])
 
 SessionConversionCharge = 25
 iLabServiceRequestIDMapFile = "/home/holder/Work/CfN/flywheel/bin/iLabServiceRequestIDMap"
+NonRegisteredGroupName = 'NonRegistered'
 
 ap = argparse.ArgumentParser()
 
@@ -140,11 +147,20 @@ def initGroup(name=None):
      return(Group)
 
 def getProjectGroup(iLabServiceRequestIDMap,alias):
-     res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .group'.format(alias), iLabServiceRequestIDMap)
-     if (len(res)):
-          return(res[0])
-     else:
-          return(None)
+    try:
+        # way too many backslashes
+        # may need to do lots of re.escapes()
+        SafeAlias = re.sub('([\(\)])', r'\\\\\1', alias)
+
+        res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .group'.format(SafeAlias), iLabServiceRequestIDMap)
+    except:
+        print("{}: No alias for '{}' '{}' in iLabServiceRequestMap".format(CmdName, alias, SafeAlias), file=sys.stderr)
+        res = []
+
+    if (len(res)):
+        return(res[0])
+    else:
+        return(None)
 
 def getServiceId(iLabServiceRequestIDMap,alias):
      res = pyjq.all('.["ServiceIDs"][]|select(.aliases[]|match("^{}$")) | .service_id'.format(alias), iLabServiceRequestIDMap)
@@ -212,7 +228,6 @@ iLabServiceRequestIDMap = None
 with open(iLabServiceRequestIDMapFile) as file:
     d = yaml.load(file, Loader=yaml.FullLoader)
     iLabServiceRequestIDMap = json.loads(json.dumps(d))
-
 
 # 1. Billing account name,
 # 2. Billing account ID,
@@ -342,12 +357,11 @@ with open(args.gcpcharges[0], newline='') as csvfile:
         chargegroup = getProjectGroup(iLabServiceRequestIDMap, row['Project ID'])
         if (not chargegroup):
             if (row['Project ID'] == 'upenn-flywheel'):
-                if (not args.flywheel):
-                    chargegroup = 'flywheel'
+                chargegroup = 'flywheel'
 
             else:
                 print("{}: No group for Project ID {}. {}".format(CmdName, row['Project ID'], row), file=sys.stderr)
-                chargegroup = 'unknown'
+                chargegroup = NonRegisteredGroupName
 
         Charge = initCharge(
             group=chargegroup,
@@ -376,6 +390,7 @@ with open(args.gcpcharges[0], newline='') as csvfile:
 
 SortedCharges = sorted(Charges, key=lambda c: c['group'])
 
+
 #print("Number of recorded charges = ",len(SortedCharges))
 
 for c in SortedCharges:
@@ -388,6 +403,96 @@ for c in SortedCharges:
     c[costtype] = c['cost']
 
     group['Charges'].append(c)
+
+if (args.flywheel):
+
+    FlywheelComputeCost = sumCostType(Groups['flywheel'], 'compute')
+    FlywheelStorageCost = sumCostType(Groups['flywheel'], 'storage')
+
+    del(Groups['flywheel'])
+    
+    FlywheelComputeMS = 0.0
+    FlywheelStorageBytes = 0.0
+
+    FlywheelUsageEntries = []
+
+    with open(args.flywheel, newline='') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+        for row in reader:
+            if (not (row['project_label'])):
+                continue
+
+            group = row['group']
+            project = row['project_label']
+
+            storage_bytes = float(row['total_storage_byte_day'])/float(row['days'])
+            FlywheelStorageBytes += storage_bytes
+
+            compute_ms = float(row['total_compute_ms'])
+            FlywheelComputeMS += compute_ms
+
+            ProjectGroup = getProjectGroup(iLabServiceRequestIDMap,"{}/{}".format(group,project))
+            if (ProjectGroup):
+                Project = project
+            else:
+                ProjectGroup = NonRegisteredGroupName
+                Project = '{}/{}'.format(group,project)
+
+            FlywheelUsageEntries.append({ 
+                'group': ProjectGroup,
+                'project': Project,
+                'storage_bytes': storage_bytes,
+                'compute_ms': compute_ms,
+            })
+
+        for entry in FlywheelUsageEntries:
+            ProRatedComputeCost = FlywheelComputeCost * (entry['compute_ms'] / FlywheelComputeMS)
+            ProRatedStorageCost = FlywheelStorageCost * (entry['storage_bytes'] / FlywheelStorageBytes)
+
+            Total = ProRatedComputeCost + ProRatedStorageCost
+
+            if (not (entry['group'] in Groups.keys())):
+                Groups[entry['group']] = initGroup(entry['group'])
+
+            group = Groups[entry['group']]
+
+            if (ProRatedStorageCost):
+                c = initCharge(
+                    group=entry['group'],
+                    project=entry['project'],
+                    sku_description='flywheel cost allocation',
+                    cost_type='storage',
+                    usage_amount=entry['storage_bytes'] / GibiByte,
+                    usage_unit='gibibyte',
+                    storage=ProRatedStorageCost,
+                )
+                group['Charges'].append(c)
+
+            # flywheel groups compute_ms, compute storage, compute ram, etc into the compute costs
+            # so there isn't a consitent unit/usage to add to the charge
+            if (ProRatedComputeCost):
+                c = initCharge(
+                    group=entry['group'],
+                    project=entry['project'],
+                    sku_description='flywheel cost allocation',
+                    cost_type='compute',
+                    compute=ProRatedComputeCost,
+                )
+                group['Charges'].append(c)
+                
+
+            """
+            print("{}, {}, {}, {}, {}, {}, {}".format(
+                entry['group'],
+                entry['project'],
+                entry['storage_bytes'], 
+                entry['compute_ms'], 
+                ProRatedStorageCost,
+                ProRatedComputeCost,
+                Total,
+                ))
+            """
 
 CenterGroup = initGroup("BSC")
 

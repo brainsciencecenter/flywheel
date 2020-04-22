@@ -157,6 +157,7 @@ RequestIDs:
       aliases:
         - ADRC Neuroimaging Core
 
+  
   Detre Lab:
     - service_request_id: 3241014
       fund: Developing a multi-modality, paradigm-shifting approach for in vivo assessment of the human placenta and the impact of maternal nutrition on its development and function - expires 6/30/2020 
@@ -172,6 +173,11 @@ RequestIDs:
       - detre-demo-proj-a
       - detre-demo-proj-b
       - detre-group-dd34a9
+      - detre_group/ASL_pipeline
+      - detre_group/bids-test
+      - detre_group/presurgicalEpilepsy
+      - detre-group/respiract
+      - detre_group/testProject
       - detre_group/ASL_pipeline_testing
       - detre_group/NewPerf
       - detre_group/fmriprep_testing
@@ -179,6 +185,212 @@ RequestIDs:
       - detre_group/pipedream
       - detre_group/respiract
       - sudipto proj
+      - upenn-admins/Example Dicom Dataset
+      - upenn-admins/infra-troubleshooting
+      - upenn-admins/presurgicalEpilepsy
+      - upenn-admins/Presurgical Epilepsy fMRI
+      - upenn-admins/presurgicalEpilepsy_FULLDATASET
+      - upenn-admins/proj
+      - upenn-admins/project
+      - upenn-admins/sc3t_fbirn
+      - upenn-admins/test_project
+      - upenn-admins/test_project2
+      - upenn-admins/to-be-sorted
+      - upenn-admins/trash
+      - upenn-admins/willDemoData
+      - upenn-admins/XNATUploads-test
+      - unknown/LFContrast_
+      - unknown/Unknown
+      - unknown/Unsorted
+
+  PennFTDCenter:
+    - service_request_id: BogusPennFTDServiceRequest
+      group: pennftdcenter
+      aliases:
+        - pennftdcenter/7T_invivo_pilot
+        - pennftdcenter/ALS_Test
+        - pennftdcenter/ANTEMORTEMMRI_new
+        - pennftdcenter/BIDSTestHUP3TLegacy
+        - pennftdcenter/BIDSTestSingleSubject
+        - pennftdcenter/Biogen_ImageALS
+        - pennftdcenter/BOLD
+        - pennftdcenter/control_test
+        - pennftdcenter/exvivo_pilot
+        - pennftdcenter/HCPMultiCenter
+        - pennftdcenter/HCPPhase1
+        - pennftdcenter/HCP_task_fmri
+        - pennftdcenter/HUP3T_BIDS_Test
+        - pennftdcenter/HUP3TLegacy
+        - pennftdcenter/HUP3TLegacyUIDFix
+        - pennftdcenter/hup6
+        - pennftdcenter/HUP6
+        - pennftdcenter/invivo_pilot
+        - pennftdcenter/LegacyTest
+        - pennftdcenter/map_test
+        - pennftdcenter/mc_debug
+        - pennftdcenter/Sandbox_HUP3TLegacy
+        - pennftdcenter/SC7T
+        - pennftdcenter/Unsorted
+      
+  Oathes_Lab:
+    - service_request_id: BogusOathesServiceRequest
+      group: oathes_lab
+      aliases:
+        - oathes_lab/CURE
+        - oathes_lab/FW_test
+        - oathes_lab/Lerman_TSP
+        - oathes_lab/NARSAD
+        - oathes_lab/TPJ
+        - oathes_lab/Unsorted
+        - oathes_lab/WildWest
+        - oathes_lab/Ximo_Test
+        - oathes_lab/ZAPR01
+        - oathes_lab/bTNI
+        - oathes_lab/nki_xcp_test
+        - oathes_lab/ximo_test2
+
+  CMROI:
+    - service_request_id: BogusCMROIServiceRequest
+      group: cmroi
+      aliases:
+        - cmroi/Abby Techdev
+        - cmroi/CSI_gluCEST
+        - cmroi/Dushyant Techdev
+        - cmroi/IMPRES
+        - cmroi/OA (Baker)
+        - cmroi/Scratch
+        - cmroi/techdev
+        - cmroi/TRD 3
+        - cmroi/Unknown or Incomplete
+        - cmroi/Unsorted
+
+  dwolklab:
+    - service_request_id: BogusDwolkServiceRequest
+      group: dwolklab
+      aliases:
+        - dwolkgroup/NACC-SC
+        - dwolklab/ANTEMORTEMMRI
+        - dwolklab/NACC-SC
+        - dwolklab/Unsorted
+
+  CNDS:
+    - service_request_id: BogusCNDSServiceRequest
+      group: cnds
+      aliases:
+        - cnds/CCBT
+        - cnds/ciTBS
+        - cnds/K01
+        - cnds/RT
+        - cnds/Stress
+        - cnds/tTMS
+        - cnds/U01
+        - cnds/Unsorted
+
+  cnet:
+    - service_request_id: BoguscnetServiceRequest
+      group: cnet
+      aliases:
+        - cnet/7T-age-span-techdev
+        - cnet/7T-MS-agespan
+        - cnet/license-freesurfer
+        - cnet/MS-GluCEST
+        - cnet/NAIMS-comparison
+        - cnet/Thoracic-Duct-Lymph
+        - cnet/Unsorted
+
+  medaglia:
+    - service_request_id: BogusMedgliaServiceRequest
+      group: medaglia
+      aliases:
+        - medaglia/Archive
+        - medaglia/DP5
+        - medaglia/TMS/CEST
+        - medaglia/TNI
+        - medaglia/TNI_DP5
+        - medaglia/Unsorted
+
+  bassett:
+    - service_request_id: BogusBassettServiceRequest
+      group: bassett
+      aliases:
+        - bassett/Epilepsy
+        - bassett/GraphLearning
+        - bassett/GraphLearningPilot
+        - bassett/JonnyDSI
+        - bassett/RLN
+        - bassett/Unsorted
+
+  chao:
+    - service_request_id: BogusChaoServiceRequest
+      group: chao
+      aliases:
+        - chao/bento
+        - chao/BENTO Study
+        - chao/FFT
+        - chao/Food on the Brain
+        - chao/Unsorted
+
+  BBL:
+    - service_request_id: BogusBBLServiceRequest
+      group: bbl
+      aliases:
+        - bbl/22Q_807982
+        - bbl/22Q_812481
+        - bbl/ABCD_test
+        - bbl/AFFECT2_804847
+        - bbl/AFFECT_346200
+        - bbl/AGGY_808689
+        - bbl/alpraz
+        - bbl/ALPRAZ_805556
+        - bbl/bigdev
+        - bbl/BigDev
+        - bbl/Brain RF1
+        - bbl/CMI
+        - bbl/CONTE2_704060
+        - bbl/CONTE_815814
+        - bbl/CS-DSI
+        - bbl/DAY2_808799
+        - bbl/DEFACE_708311
+        - bbl/E-EXT_826854
+        - bbl/EFR01
+        - bbl/EFR01_829744
+        - bbl/EONSX_810366
+        - bbl/Evolution_833922
+        - bbl/ExtraLong
+        - bbl/Fiberfox
+        - bbl/FNDM1_810211
+        - bbl/FNDM2_810211
+        - bbl/gear_testing
+        - bbl/GLUCEST_828612
+        - bbl/GLUDEPR_7T_825834
+        - bbl/GLUPSY_825940
+        - bbl/grmpi1
+        - bbl/grmpy
+        - bbl/GRMPY_822831
+        - bbl/HPC Sandbox
+        - bbl/MEDLEGAL
+        - bbl/MGI_808922
+        - bbl/MOTIVE
+        - bbl/MRSP-7_811940
+        - bbl/NASA_821559
+        - bbl/NEFF_818028
+        - bbl/NODRA_816281
+        - bbl/NOFACE_809108
+        - bbl/OLIFE_807360
+        - bbl/ONM_816275
+        - bbl/PNC_CS_810336
+        - bbl/PNC_LG_810336
+        - bbl/Q7DSI
+        - bbl/ReproBrainChart
+        - bbl/scratch
+        - bbl/SYRP_818621
+        - bbl/SYRP_818621_7T
+        - bbl/testinggroup
+        - bbl/Trash
+        - bbl/TRIO_2_PRISMA
+        - bbl/Unsorted
+        - bbl/WORDEN_700205
+        - mcieslak/Reward2018
 
   BSC Admin:
     - service_request_id: bsc-admin-default-service-request-id
@@ -196,7 +408,23 @@ RequestIDs:
         - holder/Test1
         - holder/Test2
         - holder/Test3
-      
+
+  Techdev:
+    - service_request_id: BogusTechdevServiceRequestID
+      group: techdev
+      aliases:
+        - techdev/Unsorted
+
+  CfN:
+    - service_request_id: BogusCFNServiceRequestID
+      group: cfn
+      aliases: 
+        - cfn/Glymphatic
+        - cfn/PMC-CLINICAL
+        - cfn/pmc_exvivo
+        - cfn/pytest
+        - cfn/TestPermsProject      
+  
   GKAguirre Lab:
     - service_request_id: aguirre-defeult-service-request-id
       group: gkaguirrelab
@@ -205,6 +433,7 @@ RequestIDs:
         - gkaguirrelab/Ex-vivo anatomy
         - gkaguirrelab/fBIRN
         - gkaguirrelab/gearDev
+        - gkaguirrelab/melaSpatial
         - gkaguirrelab/mtSinaiFlicker
         - gkaguirrelab/myVisionProject
         - gkaguirrelab/realtime
@@ -216,7 +445,10 @@ RequestIDs:
       fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - Expires 9/29/2020
       ben: 400-4322-4-567594-5340-2810-2779
       aliases:
-        - foo
+        - tome/tempToSort
+        - tome/testUpload
+        - tome/tome
+
 
     - service_request_id: 3240859
       fund: Melanopsin and cone signals in human visual processing - Expires 8/31/2020
