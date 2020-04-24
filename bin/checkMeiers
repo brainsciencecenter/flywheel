@@ -90,7 +90,7 @@ for charge in FlywheelCharges:
      if (re.search("Compute", charge["Service description"]) and re.search("Promotions", charge["SKU description"])):
           Charges["Compute"]["Promotions"]["Cost"] += float(charge["Cost ($)"])
 
-
+     if (re.search('Compute', charge['Service
 
 
      if (re.search("Storage", charge["Service description"])):

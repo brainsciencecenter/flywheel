@@ -63,6 +63,8 @@ ServiceIDs:
     aliases:
       - credits
       - GCP Credits
+      - discounts
+      - promotions      
 
 RequestIDs:
   #
@@ -172,7 +174,6 @@ RequestIDs:
       - detre_group/VCID
       - detre-demo-proj-a
       - detre-demo-proj-b
-      - detre-group-dd34a9
       - detre_group/ASL_pipeline
       - detre_group/bids-test
       - detre_group/presurgicalEpilepsy

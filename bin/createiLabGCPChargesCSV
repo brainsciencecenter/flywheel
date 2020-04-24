@@ -19,6 +19,9 @@ from collections import OrderedDict
 #   Try/except for reading in ilabmap and other files
 #
 
+# *** Flywheel cost allocation report only deals with storage and compute
+#     But there are also promotions, discounts, invalid and misc costs to allocate
+
 # Input: a google cost table report csv
 # Output:
 #   Summary of charges for the center and by group
@@ -163,44 +166,51 @@ def getProjectGroup(iLabServiceRequestIDMap,alias):
         return(None)
 
 def getServiceId(iLabServiceRequestIDMap,alias):
-     res = pyjq.all('.["ServiceIDs"][]|select(.aliases[]|match("^{}$")) | .service_id'.format(alias), iLabServiceRequestIDMap)
-     if (len(res)):
+    print(alias, file=sys.stderr)
+    res = pyjq.all('.["ServiceIDs"][]|select(.aliases[]|match("^{}$")) | .service_id'.format(alias), iLabServiceRequestIDMap)
+    if (len(res)):
           return(res[0])
-     else:
+    else:
           return(None)
 
-def sumCostType(Group, costtype):
+def sumCostType(Group, costtype, cat=None):
     total = 0.0
     for c in Group['Charges']:
         if (c[costtype]):
-            total += c[costtype]
+            if (cat):
+                if (cat == costClassifier(c, primary=True)):
+                    total += c[costtype]
+            else:
+                total += c[costtype]
 
     return(total)
 
 def getServiceRequestId(iLabServiceRequestIDMap,alias):
+     print(alias, file=sys.stderr)
      res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .service_request_id'.format(alias), iLabServiceRequestIDMap)
      if (len(res)):
           return(res[0])
      else:
           return(None)
 
-def costClassifier(charge):
+def costClassifier(charge, primary=False):
     if (charge == "all"):
         return(ChargeTypes)
 
 
-    if (re.search("Egress", charge["sku_description"])):
-        return("invalid")
+    if (not primary):
+        if (re.search("Egress", charge["sku_description"])):
+            return("invalid")
 
 
-    if (re.search("Promotions", charge["sku_description"])):
-        return("promotions")
+        if (re.search("Promotions", charge["sku_description"])):
+            return("promotions")
 
-    if (re.search("Discounts", charge["sku_description"], flags=re.IGNORECASE)):
-        return("discounts")
+        if (re.search("Discounts", charge["sku_description"], flags=re.IGNORECASE)):
+            return("discounts")
 
-    if (re.search("IP Charge", charge["sku_description"], flags=re.IGNORECASE)):
-        return("misc")
+        if (re.search("IP Charge", charge["sku_description"], flags=re.IGNORECASE)):
+            return("misc")
 
 
     
@@ -208,7 +218,7 @@ def costClassifier(charge):
           return("compute")
 
     # Only flywheel related charges are in the Flywheel Charges list
-    if (re.search("Compute", charge["service_description"]) and (float(charge["cost"]) > 0.0)):
+    if (re.search("Compute", charge["service_description"]) and (float(charge["cost"]))):
          return("compute")
 
     if (re.search("Compute", charge["service_description"]) and re.search("Sustained", charge["sku_description"])):
@@ -265,7 +275,11 @@ def formatGroupChargesCSV(Groups):
         LastLine = FirstLine + len(Groups.keys())
         PromotionsColumn = 'U'
     else:
-        LastLine = FirstLine + len(Charges) + len(Groups.keys())
+        TotalNumberOfCharges = 0
+        for n, g in Groups.items():
+            TotalNumberOfCharges += len(g['Charges'])
+            
+        LastLine = FirstLine + TotalNumberOfCharges + len(Groups.keys()) - 1
         PromotionsColumn = 'N'
 
     GroupPromotionsColumn = 'U'
@@ -295,7 +309,6 @@ def formatGroupChargesCSV(Groups):
     writer = csv.DictWriter(sys.stdout, charge.keys())
     writer.writeheader()
     writer.writerow(charge)
-
 
     if (args.group_summary_only):
         PromotionsColumn = 'U'
@@ -380,12 +393,6 @@ with open(args.gcpcharges[0], newline='') as csvfile:
         else:
             GCPChargeTotals[Charge['sku_id']] = Charge.copy()
         
-        Charge['service_id'] = getServiceId(iLabServiceRequestIDMap,
-                                                 '{}/{}'.format(Charge['group'], Charge['project']))
-
-        Charge['service_request_id'] = getServiceRequestId(iLabServiceRequestIDMap,
-                                                 '{}/{}'.format(Charge['group'], Charge['project']))
-
         Charges.append(Charge)
 
 SortedCharges = sorted(Charges, key=lambda c: c['group'])
@@ -400,17 +407,72 @@ for c in SortedCharges:
     group = Groups[c['group']]
 
     costtype = costClassifier(c)
+
     c[costtype] = c['cost']
+    c['service_id'] = getServiceId(iLabServiceRequestIDMap,'{}'.format(costtype))
+
+    c['service_request_id'] = getServiceRequestId(iLabServiceRequestIDMap,
+                                                  '{}'.format(c['project']))
+
 
     group['Charges'].append(c)
 
 if (args.flywheel):
 
     FlywheelComputeCost = sumCostType(Groups['flywheel'], 'compute')
+    FlywheelComputeDiscounts = sumCostType(Groups['flywheel'], 'discounts', cat='compute')
+    FlywheelStorageDiscounts = sumCostType(Groups['flywheel'], 'discounts', cat='storage')
+    FlywheelComputePromotions = sumCostType(Groups['flywheel'], 'promotions', cat='compute')
+    FlywheelStoragePromotions = sumCostType(Groups['flywheel'], 'promotions', cat='storage')
     FlywheelStorageCost = sumCostType(Groups['flywheel'], 'storage')
 
-    del(Groups['flywheel'])
+    FlywheelInvalidCost = sumCostType(Groups['flywheel'], 'invalid')
+    FlywheelMiscCost = sumCostType(Groups['flywheel'], 'misc')
+    FlywheelUnknownCost = sumCostType(Groups['flywheel'], 'unknown')
+
+    print("{} {} {} {} {} {} {}".format(
+        FlywheelComputePromotions + FlywheelStoragePromotions,
+        FlywheelComputeDiscounts + FlywheelStorageDiscounts,
+        FlywheelInvalidCost,
+        FlywheelUnknownCost,
+        FlywheelMiscCost,
+        FlywheelStorageCost,
+        FlywheelComputeCost), file=sys.stderr)
+
+    group = Groups['bsc-admin']
+    c = initCharge(
+        group=group['name'],
+        project='pennbrain-center',
+        sku_description='flywheel invalid cost allocation',
+        cost_type=FlywheelInvalidCost,
+        invalid=FlywheelInvalidCost,
+    )
+
+    group['Charges'].append(c)
+
+    c = initCharge(
+        group=group['name'],
+        project='pennbrain-center',
+        sku_description='flywheel misc cost allocation',
+        cost_type='misc',
+        misc=FlywheelMiscCost,
+    )
+
+    group['Charges'].append(c)
+
+    c = initCharge(
+        group=group['name'],
+        project='pennbrain-center',
+        sku_description='flywheel unknown cost allocation',
+        cost_type='unknown',
+        misc=FlywheelUnknownCost,
+    )
+
+    group['Charges'].append(c)
     
+    
+    del(Groups['flywheel'])
+
     FlywheelComputeMS = 0.0
     FlywheelStorageBytes = 0.0
 
@@ -442,26 +504,61 @@ if (args.flywheel):
             FlywheelUsageEntries.append({ 
                 'group': ProjectGroup,
                 'project': Project,
-                'storage_bytes': storage_bytes,
                 'compute_ms': compute_ms,
+                'storage_bytes': storage_bytes,
             })
 
         for entry in FlywheelUsageEntries:
             ProRatedComputeCost = FlywheelComputeCost * (entry['compute_ms'] / FlywheelComputeMS)
-            ProRatedStorageCost = FlywheelStorageCost * (entry['storage_bytes'] / FlywheelStorageBytes)
+            ProRatedComputePromotions = FlywheelComputePromotions * (entry['compute_ms'] / FlywheelComputeMS)
+            ProRatedComputeDiscounts = FlywheelComputeDiscounts * (entry['compute_ms'] / FlywheelComputeMS)
 
-            Total = ProRatedComputeCost + ProRatedStorageCost
+            ProRatedStorageCost = FlywheelStorageCost * (entry['storage_bytes'] / FlywheelStorageBytes)
+            ProRatedStorageDiscounts = FlywheelStorageDiscounts * (entry['storage_bytes'] / FlywheelStorageBytes)
+            ProRatedStoragePromotions = FlywheelStoragePromotions * (entry['storage_bytes'] / FlywheelStorageBytes)
 
             if (not (entry['group'] in Groups.keys())):
                 Groups[entry['group']] = initGroup(entry['group'])
 
             group = Groups[entry['group']]
 
-            if (ProRatedStorageCost):
+            # flywheel groups compute_ms, compute storage, compute ram, etc into the compute costs
+            # so there isn't a consitent unit/usage to add to the charge
+            if (abs(ProRatedComputeCost) >= 0.01):
                 c = initCharge(
                     group=entry['group'],
                     project=entry['project'],
-                    sku_description='flywheel cost allocation',
+                    sku_description='flywheel compute cost allocation',
+                    cost_type='compute',
+                    compute=ProRatedComputeCost,
+                )
+                group['Charges'].append(c)
+
+            if (abs(ProRatedComputeDiscounts) >= 0.01):
+                c = initCharge(
+                    group=entry['group'],
+                    project=entry['project'],
+                    sku_description='flywheel compute discounts allocation',
+                    cost_type='discounts',
+                    discounts=ProRatedComputeDiscounts,
+                )
+                group['Charges'].append(c)
+
+            if (abs(ProRatedComputePromotions) >= 0.01):
+                c = initCharge(
+                    group=entry['group'],
+                    project=entry['project'],
+                    sku_description='flywheel compute promotions allocation',
+                    cost_type='promotions',
+                    promotions=ProRatedComputePromotions,
+                )
+                group['Charges'].append(c)
+
+            if (abs(ProRatedStorageCost) >= 0.01):
+                c = initCharge(
+                    group=entry['group'],
+                    project=entry['project'],
+                    sku_description='flywheel storage cost allocation',
                     cost_type='storage',
                     usage_amount=entry['storage_bytes'] / GibiByte,
                     usage_unit='gibibyte',
@@ -469,18 +566,25 @@ if (args.flywheel):
                 )
                 group['Charges'].append(c)
 
-            # flywheel groups compute_ms, compute storage, compute ram, etc into the compute costs
-            # so there isn't a consitent unit/usage to add to the charge
-            if (ProRatedComputeCost):
+            if (abs(ProRatedStorageDiscounts) >= 0.01):
                 c = initCharge(
                     group=entry['group'],
                     project=entry['project'],
-                    sku_description='flywheel cost allocation',
-                    cost_type='compute',
-                    compute=ProRatedComputeCost,
+                    sku_description='flywheel storage discounts allocation',
+                    cost_type='discounts',
+                    discounts=ProRatedStorageDiscounts,
                 )
                 group['Charges'].append(c)
-                
+
+            if (abs(ProRatedStoragePromotions) >= 0.01):
+                c = initCharge(
+                    group=entry['group'],
+                    project=entry['project'],
+                    sku_description='flywheel storage promotions allocation',
+                    cost_type='promotions',
+                    promotions=ProRatedStoragePromotions,
+                )
+                group['Charges'].append(c)
 
             """
             print("{}, {}, {}, {}, {}, {}, {}".format(
@@ -493,8 +597,10 @@ if (args.flywheel):
                 Total,
                 ))
             """
-
 CenterGroup = initGroup("BSC")
+
+if (args.iLab):
+    formatGroupChargesiLab(Groups)
 
 formatGroupChargesCSV(Groups)
 
