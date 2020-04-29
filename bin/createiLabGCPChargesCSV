@@ -271,14 +271,6 @@ def formatGroupChargesCSV(Groups):
 
     ChargeTemplate = initCharge('ChargeTemplate')
 
-    PromotionsColumn = get_column_letter(list(ChargeTemplate.keys()).index('promotions') + 1)
-    DiscountsColumn = get_column_letter(list(ChargeTemplate.keys()).index('discounts') + 1)
-    InvalidColumn = get_column_letter(list(ChargeTemplate.keys()).index('invalid') + 1)
-    UnknownColumn = get_column_letter(list(ChargeTemplate.keys()).index('unknown') + 1)
-    MiscColumn = get_column_letter(list(ChargeTemplate.keys()).index('misc') + 1)
-    StorageColumn = get_column_letter(list(ChargeTemplate.keys()).index('storage') + 1)
-    ComputeColumn = get_column_letter(list(ChargeTemplate.keys()).index('compute') + 1)
-
     group_column_indexes = {}
     column_indexes = {}
 
@@ -290,15 +282,11 @@ def formatGroupChargesCSV(Groups):
         group_column_indexes[gk] = get_column_letter(list(ChargeTemplate.keys()).index(gk) + 1)
         column_indexes[k] = get_column_letter(list(ChargeTemplate.keys()).index(k) + 1)
 
-    print(json.dumps(group_column_indexes), file=sys.stderr)
+    MinGroupColumnIndex = group_column_indexes[min(group_column_indexes.keys(), key=(lambda k: column_index_from_string(group_column_indexes[k])))]
+    MaxGroupColumnIndex = group_column_indexes[max(group_column_indexes.keys(), key=(lambda k: column_index_from_string(group_column_indexes[k])))]
 
-    GroupPromotionsColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_promotions') + 1)
-    GroupDiscountsColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_discounts') + 1)
-    GroupInvalidColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_invalid') + 1)
-    GroupUnknownColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_unknown') + 1)
-    GroupMiscColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_misc') + 1)
-    GroupStorageColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_storage') + 1)
-    GroupComputeColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_compute') + 1)
+    MinColumnIndex = column_indexes[min(column_indexes.keys(), key=(lambda k: column_index_from_string(column_indexes[k])))]
+    MaxColumnIndex = column_indexes[max(column_indexes.keys(), key=(lambda k: column_index_from_string(column_indexes[k])))]
 
     if (args.group_summary_only):
         LastLine = FirstLine + len(Groups.keys())
@@ -313,14 +301,14 @@ def formatGroupChargesCSV(Groups):
 
     charge = initCharge(
         center='Brain Science Center',
-        group_promotions="=sum({}{}:{}{})".format(GroupPromotionsColumn, FirstLine, GroupPromotionsColumn, LastLine),
-        group_discounts="=sum({}{}:{}{})".format(GroupDiscountsColumn, FirstLine, GroupDiscountsColumn, LastLine),
-        group_invalid="=sum({}{}:{}{})".format(GroupInvalidColumn, FirstLine, GroupInvalidColumn, LastLine),
-        group_unknown="=sum({}{}:{}{})".format(GroupUnknownColumn, FirstLine, GroupUnknownColumn, LastLine),
-        group_misc="=sum({}{}:{}{})".format(GroupMiscColumn, FirstLine, GroupMiscColumn, LastLine),
-        group_storage="=sum({}{}:{}{})".format(GroupStorageColumn, FirstLine, GroupStorageColumn, LastLine),
-        group_compute="=sum({}{}:{}{})".format(GroupComputeColumn, FirstLine, GroupComputeColumn, LastLine),
-        group_total="=sum({}{}:{}{})".format(GroupPromotionsColumn, lineno, GroupComputeColumn, lineno),
+        group_promotions="=sum({}{}:{}{})".format(group_column_indexes['group_promotions'], FirstLine, group_column_indexes['group_promotions'], LastLine),
+        group_discounts="=sum({}{}:{}{})".format(group_column_indexes['group_discounts'], FirstLine, group_column_indexes['group_discounts'], LastLine),
+        group_invalid="=sum({}{}:{}{})".format(group_column_indexes['group_invalid'], FirstLine, group_column_indexes['group_invalid'], LastLine),
+        group_unknown="=sum({}{}:{}{})".format(group_column_indexes['group_unknown'], FirstLine, group_column_indexes['group_unknown'], LastLine),
+        group_misc="=sum({}{}:{}{})".format(group_column_indexes['group_misc'], FirstLine, group_column_indexes['group_misc'], LastLine),
+        group_storage="=sum({}{}:{}{})".format(group_column_indexes['group_storage'], FirstLine, group_column_indexes['group_storage'], LastLine),
+        group_compute="=sum({}{}:{}{})".format(group_column_indexes['group_compute'], FirstLine, group_column_indexes['group_compute'], LastLine),
+        group_total="=sum({}{}:{}{})".format(MinGroupColumnIndex, lineno, MaxGroupColumnIndex, lineno),
     )
 
     writer = csv.DictWriter(sys.stdout, charge.keys())
@@ -340,7 +328,7 @@ def formatGroupChargesCSV(Groups):
                 group_misc=sumCostType(group, 'misc'),
                 group_storage=sumCostType(group, 'storage'),
                 group_compute=sumCostType(group, 'compute'),
-                group_total="=sum({}{}:{}{})".format(PromotionsColumn, lineno, ComputeColumn, lineno),
+                group_total="=sum({}{}:{}{})".format(MinColumnIndex, lineno, MaxColumnIndex, lineno),
             )
 
         else:
@@ -348,14 +336,14 @@ def formatGroupChargesCSV(Groups):
 
             charge = initCharge(
                 group=groupname,
-                group_promotions="=sum({}{}:{}{})".format(PromotionsColumn, FirstLine, PromotionsColumn, LastLine),
-                group_discounts="=sum({}{}:{}{})".format(DiscountsColumn, FirstLine, DiscountsColumn, LastLine),
-                group_invalid="=sum({}{}:{}{})".format(InvalidColumn, FirstLine, InvalidColumn, LastLine),
-                group_unknown="=sum({}{}:{}{})".format(UnknownColumn, FirstLine, UnknownColumn, LastLine),
-                group_misc="=sum({}{}:{}{})".format(MiscColumn, FirstLine, MiscColumn, LastLine),
-                group_storage="=sum({}{}:{}{})".format(StorageColumn, FirstLine, StorageColumn, LastLine),
-                group_compute="=sum({}{}:{}{})".format(ComputeColumn, FirstLine, ComputeColumn, LastLine),
-                group_total="=sum({}{}:{}{})".format(GroupPromotionsColumn, lineno, GroupComputeColumn, lineno),
+                group_promotions="=sum({}{}:{}{})".format(column_indexes['promotions'], FirstLine, column_indexes['promotions'], LastLine),
+                group_discounts="=sum({}{}:{}{})".format(column_indexes['discounts'], FirstLine, column_indexes['discounts'], LastLine),
+                group_invalid="=sum({}{}:{}{})".format(column_indexes['invalid'], FirstLine, column_indexes['invalid'], LastLine),
+                group_unknown="=sum({}{}:{}{})".format(column_indexes['unknown'], FirstLine, column_indexes['unknown'], LastLine),
+                group_misc="=sum({}{}:{}{})".format(column_indexes['misc'], FirstLine, column_indexes['misc'], LastLine),
+                group_storage="=sum({}{}:{}{})".format(column_indexes['storage'], FirstLine, column_indexes['storage'], LastLine),
+                group_compute="=sum({}{}:{}{})".format(column_indexes['compute'], FirstLine, column_indexes['compute'], LastLine),
+                group_total="=sum({}{}:{}{})".format(MinGroupColumnIndex, lineno, MaxGroupColumnIndex, lineno),
             )
 
         writer.writerow(charge)
