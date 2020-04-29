@@ -166,7 +166,6 @@ def getProjectGroup(iLabServiceRequestIDMap,alias):
         return(None)
 
 def getServiceId(iLabServiceRequestIDMap,alias):
-    print(alias, file=sys.stderr)
     res = pyjq.all('.["ServiceIDs"][]|select(.aliases[]|match("^{}$")) | .service_id'.format(alias), iLabServiceRequestIDMap)
     if (len(res)):
           return(res[0])
@@ -186,7 +185,6 @@ def sumCostType(Group, costtype, cat=None):
     return(total)
 
 def getServiceRequestId(iLabServiceRequestIDMap,alias):
-     print(alias, file=sys.stderr)
      res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .service_request_id'.format(alias), iLabServiceRequestIDMap)
      if (len(res)):
           return(res[0])
@@ -271,53 +269,63 @@ def formatGroupChargesCSV(Groups):
 
     FirstLine = 3
 
+    ChargeTemplate = initCharge('ChargeTemplate')
+
+    PromotionsColumn = get_column_letter(list(ChargeTemplate.keys()).index('promotions') + 1)
+    DiscountsColumn = get_column_letter(list(ChargeTemplate.keys()).index('discounts') + 1)
+    InvalidColumn = get_column_letter(list(ChargeTemplate.keys()).index('invalid') + 1)
+    UnknownColumn = get_column_letter(list(ChargeTemplate.keys()).index('unknown') + 1)
+    MiscColumn = get_column_letter(list(ChargeTemplate.keys()).index('misc') + 1)
+    StorageColumn = get_column_letter(list(ChargeTemplate.keys()).index('storage') + 1)
+    ComputeColumn = get_column_letter(list(ChargeTemplate.keys()).index('compute') + 1)
+
+    group_column_indexes = {}
+    column_indexes = {}
+
+    for gk in list(filter(lambda k: re.search('^group_', k), ChargeTemplate.keys())):
+        if (gk == 'group_total'):
+            continue
+
+        k = re.sub('group_', '', gk)
+        group_column_indexes[gk] = get_column_letter(list(ChargeTemplate.keys()).index(gk) + 1)
+        column_indexes[k] = get_column_letter(list(ChargeTemplate.keys()).index(k) + 1)
+
+    print(json.dumps(group_column_indexes), file=sys.stderr)
+
+    GroupPromotionsColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_promotions') + 1)
+    GroupDiscountsColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_discounts') + 1)
+    GroupInvalidColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_invalid') + 1)
+    GroupUnknownColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_unknown') + 1)
+    GroupMiscColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_misc') + 1)
+    GroupStorageColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_storage') + 1)
+    GroupComputeColumn = get_column_letter(list(ChargeTemplate.keys()).index('group_compute') + 1)
+
     if (args.group_summary_only):
         LastLine = FirstLine + len(Groups.keys())
-        PromotionsColumn = 'U'
     else:
         TotalNumberOfCharges = 0
         for n, g in Groups.items():
             TotalNumberOfCharges += len(g['Charges'])
             
         LastLine = FirstLine + TotalNumberOfCharges + len(Groups.keys()) - 1
-        PromotionsColumn = 'N'
-
-    GroupPromotionsColumn = 'U'
-    GroupComputeColumn = 'AA'
-
-    DiscountsColumn = get_column_letter(column_index_from_string(PromotionsColumn) + 1)
-    InvalidColumn = get_column_letter(column_index_from_string(DiscountsColumn) + 1)
-    UnknownColumn = get_column_letter(column_index_from_string(InvalidColumn) + 1)
-    MiscColumn = get_column_letter(column_index_from_string(UnknownColumn) + 1)
-    StorageColumn = get_column_letter(column_index_from_string(MiscColumn) + 1)
-    ComputeColumn = get_column_letter(column_index_from_string(StorageColumn) + 1)
 
     lineno = 2
 
     charge = initCharge(
         center='Brain Science Center',
-        group_promotions="=sum({}{}:{}{})".format(PromotionsColumn, FirstLine, PromotionsColumn, LastLine),
-        group_discounts="=sum({}{}:{}{})".format(DiscountsColumn, FirstLine, DiscountsColumn, LastLine),
-        group_invalid="=sum({}{}:{}{})".format(InvalidColumn, FirstLine, InvalidColumn, LastLine),
-        group_unknown="=sum({}{}:{}{})".format(UnknownColumn, FirstLine, UnknownColumn, LastLine),
-        group_misc="=sum({}{}:{}{})".format(MiscColumn, FirstLine, MiscColumn, LastLine),
-        group_storage="=sum({}{}:{}{})".format(StorageColumn, FirstLine, StorageColumn, LastLine),
-        group_compute="=sum({}{}:{}{})".format(ComputeColumn, FirstLine, ComputeColumn, LastLine),
+        group_promotions="=sum({}{}:{}{})".format(GroupPromotionsColumn, FirstLine, GroupPromotionsColumn, LastLine),
+        group_discounts="=sum({}{}:{}{})".format(GroupDiscountsColumn, FirstLine, GroupDiscountsColumn, LastLine),
+        group_invalid="=sum({}{}:{}{})".format(GroupInvalidColumn, FirstLine, GroupInvalidColumn, LastLine),
+        group_unknown="=sum({}{}:{}{})".format(GroupUnknownColumn, FirstLine, GroupUnknownColumn, LastLine),
+        group_misc="=sum({}{}:{}{})".format(GroupMiscColumn, FirstLine, GroupMiscColumn, LastLine),
+        group_storage="=sum({}{}:{}{})".format(GroupStorageColumn, FirstLine, GroupStorageColumn, LastLine),
+        group_compute="=sum({}{}:{}{})".format(GroupComputeColumn, FirstLine, GroupComputeColumn, LastLine),
         group_total="=sum({}{}:{}{})".format(GroupPromotionsColumn, lineno, GroupComputeColumn, lineno),
     )
 
     writer = csv.DictWriter(sys.stdout, charge.keys())
     writer.writeheader()
     writer.writerow(charge)
-
-    if (args.group_summary_only):
-        PromotionsColumn = 'U'
-        DiscountsColumn = get_column_letter(column_index_from_string(PromotionsColumn) + 1)
-        InvalidColumn = get_column_letter(column_index_from_string(DiscountsColumn) + 1)
-        UnknownColumn = get_column_letter(column_index_from_string(InvalidColumn) + 1)
-        MiscColumn = get_column_letter(column_index_from_string(UnknownColumn) + 1)
-        StorageColumn = get_column_letter(column_index_from_string(MiscColumn) + 1)
-        ComputeColumn = get_column_letter(column_index_from_string(StorageColumn) + 1)
 
     for groupname, group in Groups.items():
         lineno += 1
@@ -337,8 +345,6 @@ def formatGroupChargesCSV(Groups):
 
         else:
             LastLine = lineno + len(group['Charges'])
-            GroupPromotionsColumn = 'U'
-            GroupComputeColumn = 'AA'
 
             charge = initCharge(
                 group=groupname,
