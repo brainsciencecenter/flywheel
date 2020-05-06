@@ -81,6 +81,7 @@ def initCharge(center=None,
                project=None, 
                service_id=None,
                service_request_id=None,
+               ilab_comment=None,
                service_description=None,
                gcp_service_id=None,
                sku_description=None,
@@ -113,6 +114,7 @@ def initCharge(center=None,
             ( 'project', project ),
             ( 'service_id', service_id),
             ( 'service_request_id', service_request_id),
+            ( 'ilab_comment', ilab_comment),
             ( 'service_description', service_description),
             ( 'gcp_service_id', gcp_service_id),
             ( 'sku_description', sku_description),
@@ -191,10 +193,26 @@ def getServiceRequestId(iLabServiceRequestIDMap,alias):
      else:
           return(None)
 
+def setiLabComment(c):
+    
+    if (c['group'] == 'flywheel'):
+        Major = 'flywheel'
+    else:
+        Major = 'gcp'
+
+    costtype = costClassifier(c)
+    Minor = costClassifier(c, primary=True)
+
+    if (re.search('discount|invalid|promotion|misc|unknown',costtype)):
+        Misc = costtype
+    else:
+        Misc = ''
+        
+    c['ilab_comment'] = "'{}' '{}' '{}' '{}'".format(c['project'], Major, Minor, Misc)
+
 def costClassifier(charge, primary=False):
     if (charge == "all"):
         return(ChargeTypes)
-
 
     if (not primary):
         if (re.search("Egress", charge["sku_description"])):
@@ -237,21 +255,6 @@ with open(iLabServiceRequestIDMapFile) as file:
     d = yaml.load(file, Loader=yaml.FullLoader)
     iLabServiceRequestIDMap = json.loads(json.dumps(d))
 
-# 1. Billing account name,
-# 2. Billing account ID,
-# 3. Project name,
-# 4. Project ID,
-# 5. Service description,
-# 6. Service ID, - GCP service id -- not ilab service id
-# 7. SKU description,
-# 8. SKU ID,
-# 9. Cost type,
-# 10. Usage start date,
-# 11. Usage end date,
-# 12. Usage amount,
-# 13. Usage unit,
-# 14. Cost ($),
-
 # Usage Unit
 # None
 # count
@@ -262,6 +265,23 @@ with open(iLabServiceRequestIDMapFile) as file:
 
 GCPChargeTotals = {}
 Charges = []
+
+def formatiLabChargesCSV(Groups):
+    ChargeTemplate = initCharge('ChargeTemplate')
+
+    print("service_id,note,service_quantity,price,purchased_on,service_request_id,owner_email,pi_email_or_group_id,payment_number")
+    for k, g in Groups.items():
+        for c in g['Charges']:
+            service_id = c['service_id']
+            note = c['ilab_comment']
+            quantity = c['cost']
+            service_request_id = c['service_request_id']
+
+            if (args.billable):
+                if ((not service_id) or (not service_request_id) or (re.search('default-service-request', str(service_request_id)))):
+                    continue
+
+            print("{},{},{},,,{},,,".format(service_id, note, quantity, service_request_id))
 
 def formatGroupChargesCSV(Groups):
     global Charges
@@ -401,13 +421,20 @@ for c in SortedCharges:
     group = Groups[c['group']]
 
     costtype = costClassifier(c)
-
     c[costtype] = c['cost']
-    c['service_id'] = getServiceId(iLabServiceRequestIDMap,'{}'.format(costtype))
+
+    if (group['name'] == 'flywheel'):
+        ServiceIDAlias = 'Flywheel {}'.format(costtype)
+    else:
+        ServiceIDAlias = '{}'.format(costtype)
+
+    c['service_id'] = getServiceId(iLabServiceRequestIDMap,ServiceIDAlias)
 
     c['service_request_id'] = getServiceRequestId(iLabServiceRequestIDMap,
                                                   '{}'.format(c['project']))
 
+
+    setiLabComment(c)
 
     group['Charges'].append(c)
 
@@ -437,31 +464,37 @@ if (args.flywheel):
     c = initCharge(
         group=group['name'],
         project='pennbrain-center',
+        service_description='flywheel invalid cost allocation',
         sku_description='flywheel invalid cost allocation',
-        cost_type=FlywheelInvalidCost,
+        cost_type='Usage',
         invalid=FlywheelInvalidCost,
     )
 
+    setiLabComment(c)
     group['Charges'].append(c)
 
     c = initCharge(
         group=group['name'],
         project='pennbrain-center',
+        service_description='flywheel misc cost allocation',
         sku_description='flywheel misc cost allocation',
         cost_type='misc',
         misc=FlywheelMiscCost,
     )
 
+    setiLabComment(c)
     group['Charges'].append(c)
 
     c = initCharge(
         group=group['name'],
         project='pennbrain-center',
+        service_description='flywheel unknown cost allocation',
         sku_description='flywheel unknown cost allocation',
         cost_type='unknown',
         misc=FlywheelUnknownCost,
     )
 
+    setiLabComment(c)
     group['Charges'].append(c)
     
     
@@ -502,101 +535,147 @@ if (args.flywheel):
                 'storage_bytes': storage_bytes,
             })
 
-        for entry in FlywheelUsageEntries:
-            ProRatedComputeCost = FlywheelComputeCost * (entry['compute_ms'] / FlywheelComputeMS)
-            ProRatedComputePromotions = FlywheelComputePromotions * (entry['compute_ms'] / FlywheelComputeMS)
-            ProRatedComputeDiscounts = FlywheelComputeDiscounts * (entry['compute_ms'] / FlywheelComputeMS)
+    for entry in FlywheelUsageEntries:
+        ProRatedComputeCost = FlywheelComputeCost * (entry['compute_ms'] / FlywheelComputeMS)
+        ProRatedComputePromotions = FlywheelComputePromotions * (entry['compute_ms'] / FlywheelComputeMS)
+        ProRatedComputeDiscounts = FlywheelComputeDiscounts * (entry['compute_ms'] / FlywheelComputeMS)
 
-            ProRatedStorageCost = FlywheelStorageCost * (entry['storage_bytes'] / FlywheelStorageBytes)
-            ProRatedStorageDiscounts = FlywheelStorageDiscounts * (entry['storage_bytes'] / FlywheelStorageBytes)
-            ProRatedStoragePromotions = FlywheelStoragePromotions * (entry['storage_bytes'] / FlywheelStorageBytes)
+        ProRatedStorageCost = FlywheelStorageCost * (entry['storage_bytes'] / FlywheelStorageBytes)
+        ProRatedStorageDiscounts = FlywheelStorageDiscounts * (entry['storage_bytes'] / FlywheelStorageBytes)
+        ProRatedStoragePromotions = FlywheelStoragePromotions * (entry['storage_bytes'] / FlywheelStorageBytes)
 
-            if (not (entry['group'] in Groups.keys())):
-                Groups[entry['group']] = initGroup(entry['group'])
+        if (not (entry['group'] in Groups.keys())):
+            Groups[entry['group']] = initGroup(entry['group'])
 
-            group = Groups[entry['group']]
+        group = Groups[entry['group']]
 
-            # flywheel groups compute_ms, compute storage, compute ram, etc into the compute costs
-            # so there isn't a consitent unit/usage to add to the charge
-            if (abs(ProRatedComputeCost) >= 0.01):
-                c = initCharge(
-                    group=entry['group'],
-                    project=entry['project'],
-                    sku_description='flywheel compute cost allocation',
-                    cost_type='compute',
-                    compute=ProRatedComputeCost,
-                )
-                group['Charges'].append(c)
+        # flywheel groups compute_ms, compute storage, compute ram, etc into the compute costs
+        # so there isn't a consistent unit/usage to add to the charge
 
-            if (abs(ProRatedComputeDiscounts) >= 0.01):
-                c = initCharge(
-                    group=entry['group'],
-                    project=entry['project'],
-                    sku_description='flywheel compute discounts allocation',
-                    cost_type='discounts',
-                    discounts=ProRatedComputeDiscounts,
-                )
-                group['Charges'].append(c)
+        service_request_id = getServiceRequestId(iLabServiceRequestIDMap,
+                                                  '{}'.format(entry['project']))
 
-            if (abs(ProRatedComputePromotions) >= 0.01):
-                c = initCharge(
-                    group=entry['group'],
-                    project=entry['project'],
-                    sku_description='flywheel compute promotions allocation',
-                    cost_type='promotions',
-                    promotions=ProRatedComputePromotions,
-                )
-                group['Charges'].append(c)
+        if (abs(ProRatedComputeCost) >= 0.01):
+            ServiceIDAlias = 'Flywheel {}'.format('compute')
+            service_id = getServiceId(iLabServiceRequestIDMap,ServiceIDAlias)
 
-            if (abs(ProRatedStorageCost) >= 0.01):
-                c = initCharge(
-                    group=entry['group'],
-                    project=entry['project'],
-                    sku_description='flywheel storage cost allocation',
-                    cost_type='storage',
-                    usage_amount=entry['storage_bytes'] / GibiByte,
-                    usage_unit='gibibyte',
-                    storage=ProRatedStorageCost,
-                )
-                group['Charges'].append(c)
+            c = initCharge(
+                service_id=service_id,
+                service_request_id=service_request_id,
+                group=entry['group'],
+                project=entry['project'],
+                service_description='flywheel compute cost allocation',
+                sku_description='flywheel compute cost allocation',
+                cost_type='compute',
+                compute=ProRatedComputeCost,
+            )
+            setiLabComment(c)
+            group['Charges'].append(c)
 
-            if (abs(ProRatedStorageDiscounts) >= 0.01):
-                c = initCharge(
-                    group=entry['group'],
-                    project=entry['project'],
-                    sku_description='flywheel storage discounts allocation',
-                    cost_type='discounts',
-                    discounts=ProRatedStorageDiscounts,
-                )
-                group['Charges'].append(c)
+        if (abs(ProRatedComputeDiscounts) >= 0.01):
+            ServiceIDAlias = 'Flywheel {}'.format('compute discounts')
+            service_id = getServiceId(iLabServiceRequestIDMap,ServiceIDAlias)
 
-            if (abs(ProRatedStoragePromotions) >= 0.01):
-                c = initCharge(
-                    group=entry['group'],
-                    project=entry['project'],
-                    sku_description='flywheel storage promotions allocation',
-                    cost_type='promotions',
-                    promotions=ProRatedStoragePromotions,
-                )
-                group['Charges'].append(c)
+            c = initCharge(
+                service_id=service_id,
+                service_request_id=service_request_id,
+                group=entry['group'],
+                project=entry['project'],
+                service_description='flywheel compute discounts allocation',
+                sku_description='flywheel compute discounts allocation',
+                cost_type='discounts',
+                discounts=ProRatedComputeDiscounts,
+            )
+            setiLabComment(c)
+            group['Charges'].append(c)
 
-            """
-            print("{}, {}, {}, {}, {}, {}, {}".format(
-                entry['group'],
-                entry['project'],
-                entry['storage_bytes'], 
-                entry['compute_ms'], 
-                ProRatedStorageCost,
-                ProRatedComputeCost,
-                Total,
-                ))
-            """
+        if (abs(ProRatedComputePromotions) >= 0.01):
+            ServiceIDAlias = 'Flywheel {}'.format('compute promotions')
+            service_id = getServiceId(iLabServiceRequestIDMap,ServiceIDAlias)
+
+            c = initCharge(
+                service_id=service_id,
+                service_request_id=service_request_id,
+                group=entry['group'],
+                project=entry['project'],
+                service_description='flywheel compute promotions allocation',
+                sku_description='flywheel compute promotions allocation',
+                cost_type='promotions',
+                promotions=ProRatedComputePromotions,
+            )
+            setiLabComment(c)
+            group['Charges'].append(c)
+
+        if (abs(ProRatedStorageCost) >= 0.01):
+            ServiceIDAlias = 'Flywheel {}'.format('storage')
+            service_id = getServiceId(iLabServiceRequestIDMap,ServiceIDAlias)
+
+            c = initCharge(
+                service_id=service_id,
+                service_request_id=service_request_id,
+                group=entry['group'],
+                project=entry['project'],
+                service_description='flywheel storage cost allocation',
+                sku_description='flywheel storage cost allocation',
+                cost_type='storage',
+                usage_amount=entry['storage_bytes'] / GibiByte,
+                usage_unit='gibibyte',
+                storage=ProRatedStorageCost,
+            )
+            setiLabComment(c)
+            group['Charges'].append(c)
+
+        if (abs(ProRatedStorageDiscounts) >= 0.01):
+            ServiceIDAlias = 'Flywheel {}'.format('storage discounts')
+            service_id = getServiceId(iLabServiceRequestIDMap,ServiceIDAlias)
+
+            c = initCharge(
+                service_id=service_id,
+                service_request_id=service_request_id,
+                group=entry['group'],
+                project=entry['project'],
+                service_description='flywheel storage discounts allocation',
+                sku_description='flywheel storage discounts allocation',
+                cost_type='discounts',
+                discounts=ProRatedStorageDiscounts,
+            )
+            setiLabComment(c)
+            group['Charges'].append(c)
+
+        if (abs(ProRatedStoragePromotions) >= 0.01):
+            ServiceIDAlias = 'Flywheel {}'.format('storage promotions')
+            service_id = getServiceId(iLabServiceRequestIDMap,ServiceIDAlias)
+
+            c = initCharge(
+                service_id=service_id,
+                service_request_id=service_request_id,
+                group=entry['group'],
+                project=entry['project'],
+                service_description='flywheel storage promotions allocation',
+                sku_description='flywheel storage promotions allocation',
+                cost_type='promotions',
+                promotions=ProRatedStoragePromotions,
+            )
+            setiLabComment(c)
+            group['Charges'].append(c)
+
+        """
+        print("{}, {}, {}, {}, {}, {}, {}".format(
+            entry['group'],
+            entry['project'],
+            entry['storage_bytes'], 
+            entry['compute_ms'], 
+            ProRatedStorageCost,
+            ProRatedComputeCost,
+            Total,
+            ))
+        """
 CenterGroup = initGroup("BSC")
 
 if (args.iLab):
-    formatGroupChargesiLab(Groups)
-
-formatGroupChargesCSV(Groups)
+    formatiLabChargesCSV(Groups)
+else:
+    formatGroupChargesCSV(Groups)
 
 #print(json.dumps(CenerGroup, indent=2))
 

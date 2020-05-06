@@ -18,29 +18,14 @@ ServiceIDs:
     aliases:
       - total_compute_ms
       - Flywheel Compute Charge
-      - flywheel compute
+      - Flywheel compute
       - Compute Charges (Gross)
  
-  - service_id: 455018
-    aliases:
-      - SC7T
-      - Flywheel MRI Scan - SC7T
-
-  - service_id: 454998
-    aliases:
-     - Flywheel MRI Scan - SC3T
-     - SC3T
-
-  - service_id: 455017
-    aliases:
-      - Flywheel MRI Scan - HUP6
-      - HUP6
-
   - service_id:  455012
     aliases:
       - total_storage_bytes
       - Flywheel Storage Charge
-      - storage
+      - Flywheel storage
       - Storage Charges (Gross)
 
   - service_id: 455013
@@ -66,6 +51,22 @@ ServiceIDs:
       - discounts
       - promotions      
 
+  - service_id: 455018
+    aliases:
+      - SC7T
+      - Flywheel MRI Scan - SC7T
+
+  - service_id: 454998
+    aliases:
+     - Flywheel MRI Scan - SC3T
+     - SC3T
+
+  - service_id: 455017
+    aliases:
+      - Flywheel MRI Scan - HUP6
+      - HUP6
+
+
 RequestIDs:
   #
   # Group:
@@ -83,67 +84,8 @@ RequestIDs:
         - Radiology/MRIScans
         - default
 
-  BBL:
-    - service_id: bbl-default-ben-number
-      ben: defaultBBLBenNumber
-      aliases:
-        - 22Q_807982
-        - 22Q_812481
-        - ABCD
-        - ABCD_test
-        - AFFECT2_804847
-        - AFFECT_346200
-        - AGGY_808689
-        - ALPRAZ_805556
-        - BBLReward
-        - BPD
-        - BigDev
-        - Brain RF1
-        - CONTE2_704060
-        - CONTE_815814
-        - CS-DSI
-        - DAY2_808799
-        - DEFACE_708311
-        - E-EXT_826854
-        - EFR01
-        - EFR01_829744
-        - EONSX_810366
-        - Evolution_833922
-        - ExtraLong
-        - FNDM1_810211
-        - FNDM2_810211
-        - Fiberfox
-        - GLUCEST_828612
-        - GLUDEPR_7T_825834
-        - GLUPSY_825940
-        - GRMPY_822831
-        - MEDLEGAL
-        - MGI_808922
-        - MOTIVE
-        - MRSP-7_811940
-        - NASA_821559
-        - NEFF_818028
-        - NODRA_816281
-        - NOFACE_809108
-        - OLIFE_807360
-        - ONM_816275
-        - PNC_CS_810336
-        - PNC_LG_810336
-        - Q7DSI
-        - ReproBrainChart
-        - SYRP_818621
-        - SYRP_818621_7T
-        - TRIO_2_PRISMA
-        - Trash
-        - Unsorted
-        - WORDEN_700205
-        - alpraz
-        - gear_testing
-        - grmpy
-        - scratch
-
   Yushkevich:
-    - service_id: abc
+    - service_id: yushkevich-60-default-service-request-id
       percent: 60%
       ben: 400-4452-4-571661-xxxx-2810-2992
       group: hippogang
@@ -153,7 +95,7 @@ RequestIDs:
         - hippogang-pennbrain-upenn-edu
         - cfn-cluster-test
 
-    - service_id: default
+    - service_id: yushkevich-40-default-service-request-id
       percent: 40%
       ben: 400-4452-4-574453-xxxx-2810-2992
       aliases:
@@ -205,7 +147,7 @@ RequestIDs:
       - unknown/Unsorted
 
   PennFTDCenter:
-    - service_request_id: BogusPennFTDServiceRequest
+    - service_request_id: pennftdcenter-default-service-request-id
       group: pennftdcenter
       aliases:
         - pennftdcenter/7T_invivo_pilot
@@ -233,8 +175,14 @@ RequestIDs:
         - pennftdcenter/SC7T
         - pennftdcenter/Unsorted
       
+  Irwin_Group:
+    - service_request_id: irwin-group-default-service-request-id
+      group: irwin
+      aliases:
+        - irwin-group
+
   Oathes_Lab:
-    - service_request_id: BogusOathesServiceRequest
+    - service_request_id: oathes-lab-default-service-request-id
       group: oathes_lab
       aliases:
         - oathes_lab/CURE
@@ -251,7 +199,7 @@ RequestIDs:
         - oathes_lab/ximo_test2
 
   CMROI:
-    - service_request_id: BogusCMROIServiceRequest
+    - service_request_id: cmroi-default-service-request-id
       group: cmroi
       aliases:
         - cmroi/Abby Techdev
@@ -266,7 +214,7 @@ RequestIDs:
         - cmroi/Unsorted
 
   dwolklab:
-    - service_request_id: BogusDwolkServiceRequest
+    - service_request_id: dwolklab-default-service-request-id
       group: dwolklab
       aliases:
         - dwolkgroup/NACC-SC
@@ -275,7 +223,7 @@ RequestIDs:
         - dwolklab/Unsorted
 
   CNDS:
-    - service_request_id: BogusCNDSServiceRequest
+    - service_request_id: cnds-default-service-request-id
       group: cnds
       aliases:
         - cnds/CCBT
@@ -288,7 +236,7 @@ RequestIDs:
         - cnds/Unsorted
 
   cnet:
-    - service_request_id: BoguscnetServiceRequest
+    - service_request_id: cnet-default-service-request-id
       group: cnet
       aliases:
         - cnet/7T-age-span-techdev
@@ -300,7 +248,7 @@ RequestIDs:
         - cnet/Unsorted
 
   medaglia:
-    - service_request_id: BogusMedgliaServiceRequest
+    - service_request_id: medaglia-default-service-request-id
       group: medaglia
       aliases:
         - medaglia/Archive
@@ -311,7 +259,7 @@ RequestIDs:
         - medaglia/Unsorted
 
   bassett:
-    - service_request_id: BogusBassettServiceRequest
+    - service_request_id: bassett-default-service-request-id
       group: bassett
       aliases:
         - bassett/Epilepsy
@@ -322,7 +270,7 @@ RequestIDs:
         - bassett/Unsorted
 
   chao:
-    - service_request_id: BogusChaoServiceRequest
+    - service_request_id: chao-
       group: chao
       aliases:
         - chao/bento
@@ -332,7 +280,7 @@ RequestIDs:
         - chao/Unsorted
 
   BBL:
-    - service_request_id: BogusBBLServiceRequest
+    - service_request_id: bbl-default-service-request-id
       group: bbl
       aliases:
         - bbl/22Q_807982
@@ -411,13 +359,13 @@ RequestIDs:
         - holder/Test3
 
   Techdev:
-    - service_request_id: BogusTechdevServiceRequestID
+    - service_request_id: techdev-default-service-request-id
       group: techdev
       aliases:
         - techdev/Unsorted
 
   CfN:
-    - service_request_id: BogusCFNServiceRequestID
+    - service_request_id: cfn-default-service-request-id
       group: cfn
       aliases: 
         - cfn/Glymphatic
