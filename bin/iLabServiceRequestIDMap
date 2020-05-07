@@ -19,6 +19,7 @@ ServiceIDs:
       - total_compute_ms
       - Flywheel Compute Charge
       - Flywheel compute
+      - Flywheel compute promotion
       - Compute Charges (Gross)
  
   - service_id:  455012
@@ -26,6 +27,7 @@ ServiceIDs:
       - total_storage_bytes
       - Flywheel Storage Charge
       - Flywheel storage
+      - Flywheel storage promotion
       - Storage Charges (Gross)
 
   - service_id: 455013

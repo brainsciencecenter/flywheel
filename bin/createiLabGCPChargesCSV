@@ -14,10 +14,19 @@ from openpyxl.utils.cell import get_column_letter, column_index_from_string
 from collections import OrderedDict
 
 #
+# Open the downloaded cost table for the month from google
+# Run through the charges assigning service id and request id
+# There should be one routine for creating a charge entry so all the charges work the same
+# Sort all the charges into groups and tally the charges for all groups
+# For flywheel:
+#  Prorate each flywheel charge against each entry from the flywheel cost allocation report for the month and move the charge to the appropriate group
+#  Flywheel only reports on computing and storage usage, so those are the only classifications to prorate
+# 
+
 # ToDo
 #   toggle formulas on or off
 #   Try/except for reading in ilabmap and other files
-#
+#   Download the cost table directly for the given month direct from google billing
 
 # *** Flywheel cost allocation report only deals with storage and compute
 #     But there are also promotions, discounts, invalid and misc costs to allocate
@@ -195,7 +204,7 @@ def getServiceRequestId(iLabServiceRequestIDMap,alias):
 
 def setiLabComment(c):
     
-    if (c['group'] == 'flywheel'):
+    if (re.match('flywheel', c['sku_description'])):
         Major = 'flywheel'
     else:
         Major = 'gcp'
@@ -215,11 +224,11 @@ def costClassifier(charge, primary=False):
         return(ChargeTypes)
 
     if (not primary):
-        if (re.search("Egress", charge["sku_description"])):
+        if (re.search("Egress", charge["sku_description"], flags=re.IGNORECASE)):
             return("invalid")
 
 
-        if (re.search("Promotions", charge["sku_description"])):
+        if (re.search("Promotions", charge["sku_description"], flags=re.IGNORECASE)):
             return("promotions")
 
         if (re.search("Discounts", charge["sku_description"], flags=re.IGNORECASE)):
@@ -230,23 +239,25 @@ def costClassifier(charge, primary=False):
 
 
     
-    if (re.search("Compute", charge["service_description"]) and re.search("Instance Core", charge["sku_description"])):
+    if (re.search("Compute", charge["service_description"], flags=re.IGNORECASE) and re.search("Instance Core", charge["sku_description"], flags=re.IGNORECASE)):
           return("compute")
 
     # Only flywheel related charges are in the Flywheel Charges list
-    if (re.search("Compute", charge["service_description"]) and (float(charge["cost"]))):
+    if (re.search("Compute", charge["service_description"], flags=re.IGNORECASE) and (float(charge["cost"]))):
          return("compute")
 
-    if (re.search("Compute", charge["service_description"]) and re.search("Sustained", charge["sku_description"])):
+    if (re.search("Compute", charge["service_description"], flags=re.IGNORECASE) and re.search("Sustained", charge["sku_description"], flags=re.IGNORECASE)):
          return("compute")
 
-    if (re.search("Compute", charge["service_description"]) and re.search("Promotions", charge["sku_description"])):
+    if (re.search("Compute", charge["service_description"], flags=re.IGNORECASE) and re.search("Promotions", charge["sku_description"], flags=re.IGNORECASE)):
          return("compute")
 
 
-    if (re.search("Storage", charge["service_description"])):
+    if (re.search("Storage", charge["service_description"], flags=re.IGNORECASE)):
          return("storage")
 
+    print("primary = {}".format(primary), file=sys.stderr)
+    print(json.dumps(charge, indent=2), file=sys.stderr)
     return('unknown')
 
 iLabServiceRequestIDMap = None
@@ -267,9 +278,12 @@ GCPChargeTotals = {}
 Charges = []
 
 def formatiLabChargesCSV(Groups):
+    global args
+
     ChargeTemplate = initCharge('ChargeTemplate')
 
     print("service_id,note,service_quantity,price,purchased_on,service_request_id,owner_email,pi_email_or_group_id,payment_number")
+    
     for k, g in Groups.items():
         for c in g['Charges']:
             service_id = c['service_id']
@@ -278,7 +292,12 @@ def formatiLabChargesCSV(Groups):
             service_request_id = c['service_request_id']
 
             if (args.billable):
-                if ((not service_id) or (not service_request_id) or (re.search('default-service-request', str(service_request_id)))):
+                if ((not service_id) or 
+                    (service_id == "None") or
+                    (not service_request_id) or 
+                    (not re.search('^[0-9]+$', str(service_request_id))) or
+                    (abs(quantity) < 0.01)
+                ):
                     continue
 
             print("{},{},{},,,{},,,".format(service_id, note, quantity, service_request_id))
@@ -567,6 +586,7 @@ if (args.flywheel):
                 service_description='flywheel compute cost allocation',
                 sku_description='flywheel compute cost allocation',
                 cost_type='compute',
+                cost=ProRatedComputeCost,
                 compute=ProRatedComputeCost,
             )
             setiLabComment(c)
@@ -584,6 +604,7 @@ if (args.flywheel):
                 service_description='flywheel compute discounts allocation',
                 sku_description='flywheel compute discounts allocation',
                 cost_type='discounts',
+                cost=ProRatedComputeDiscounts,
                 discounts=ProRatedComputeDiscounts,
             )
             setiLabComment(c)
@@ -601,6 +622,7 @@ if (args.flywheel):
                 service_description='flywheel compute promotions allocation',
                 sku_description='flywheel compute promotions allocation',
                 cost_type='promotions',
+                cost=ProRatedComputePromotions,
                 promotions=ProRatedComputePromotions,
             )
             setiLabComment(c)
@@ -620,6 +642,7 @@ if (args.flywheel):
                 cost_type='storage',
                 usage_amount=entry['storage_bytes'] / GibiByte,
                 usage_unit='gibibyte',
+                cost=ProRatedStorageCost,
                 storage=ProRatedStorageCost,
             )
             setiLabComment(c)
@@ -637,6 +660,7 @@ if (args.flywheel):
                 service_description='flywheel storage discounts allocation',
                 sku_description='flywheel storage discounts allocation',
                 cost_type='discounts',
+                cost=ProRatedStorageDiscounts,
                 discounts=ProRatedStorageDiscounts,
             )
             setiLabComment(c)
@@ -654,6 +678,7 @@ if (args.flywheel):
                 service_description='flywheel storage promotions allocation',
                 sku_description='flywheel storage promotions allocation',
                 cost_type='promotions',
+                cost=ProRatedStoragePromotions,
                 promotions=ProRatedStoragePromotions,
             )
             setiLabComment(c)
