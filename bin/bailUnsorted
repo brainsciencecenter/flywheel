@@ -15,4 +15,4 @@ CSVFile="$opt_c"
 RegEx="$1"
 Group="$2"
 
-grep -i "$RegEx" "$CSVFile" | csvcut -c 3 | sed 's/^.*$/& &/; s/ unknown/ '"$Group"'/; s/^/echo fwmv -f /' | bash 
+grep -i "$RegEx" "$CSVFile" | csvcut -c 3 | sed 's/^.*$/"&" "&"/; s/ "unknown/ "'"$Group"'/; s/^/fwmv -f /'

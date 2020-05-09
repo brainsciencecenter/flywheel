@@ -110,12 +110,9 @@ RequestIDs:
       ben:  400-4322-4-567799-5340-2810-1100 
       group: detre-group
       aliases:
-      - detre-group-dd34a9
-      - detre_group/CBFLOW
-      - detre_group/Jianxun
       - detre_group/PHARMA
       - detre_group/Unsorted
-      - detre_group/VCID
+      - detre-group-dd34a9
       - detre-demo-proj-a
       - detre-demo-proj-b
       - detre_group/ASL_pipeline
@@ -123,12 +120,8 @@ RequestIDs:
       - detre_group/presurgicalEpilepsy
       - detre-group/respiract
       - detre_group/testProject
-      - detre_group/ASL_pipeline_testing
       - detre_group/NewPerf
-      - detre_group/fmriprep_testing
       - garcea-demo-proj-a
-      - detre_group/pipedream
-      - detre_group/respiract
       - sudipto proj
       - upenn-admins/Example Dicom Dataset
       - upenn-admins/infra-troubleshooting
@@ -147,6 +140,25 @@ RequestIDs:
       - unknown/LFContrast_
       - unknown/Unknown
       - unknown/Unsorted
+
+    - service_request_id: fund1
+      ben:  400-4322-4-577865-xxxx-2810-1100
+      group: detre-group
+      aliases:
+        - detre_group/VCID
+        - detre_group/CBFLOW
+        - detre_group/PHARMA
+        - detre_group/NewPerf
+
+    - service_request_id: fund2
+      ben:  400-4322-4-577000-xxxx-2810-1100
+      group: detre-group
+      aliases:
+        - detre_group/ASL_pipeline_testing
+        - detre_group/fmriprep_testing
+        - detre_group/Jianxun
+        - detre_group/Respiract
+        - detre_group/pipedream
 
   PennFTDCenter:
     - service_request_id: pennftdcenter-default-service-request-id
@@ -380,25 +392,29 @@ RequestIDs:
     - service_request_id: aguirre-defeult-service-request-id
       group: gkaguirrelab
       aliases:
-        - gkaguirrelab/canineFovea
         - gkaguirrelab/Ex-vivo anatomy
         - gkaguirrelab/fBIRN
         - gkaguirrelab/gearDev
         - gkaguirrelab/melaSpatial
-        - gkaguirrelab/mtSinaiFlicker
-        - gkaguirrelab/myVisionProject
         - gkaguirrelab/realtime
         - gkaguirrelab/scnLight
-        - gkaguirrelab/Unsorted
         - gkaguirrelab/York retinotopy
 
     - service_request_id: 3240884
       fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - Expires 9/29/2020
       ben: 400-4322-4-567594-5340-2810-2779
+      ben2: USC Subcontract – 400-4322-4-575392-xxxx-2810-2779
       aliases:
         - tome/tempToSort
         - tome/testUpload
         - tome/tome
+
+    - service_request_id: vhup/chop_service_request_id
+      group: gkaguirrelab
+      fund: VHUP/CHOP Beltran - 400-4322-4-577885-xxxx-2000-2779
+      ben: 400-4322-4-577885-xxxx-2000-2779
+      aliases:
+        - gkaguirrelab/canineFovea
 
 
     - service_request_id: 3240859
