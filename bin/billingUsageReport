@@ -2,11 +2,11 @@
 
 # Get per/project costs from flywheel for given month
 
-import flywheel
-import csv
 import argparse
-import sys
+import csv
+import flywheel
 import fwgearutils
+import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-m', '--month', action='store', nargs=1, type=str, help='Month number, 1 = January, 12 = December')

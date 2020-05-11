@@ -137,9 +137,6 @@ RequestIDs:
       - upenn-admins/trash
       - upenn-admins/willDemoData
       - upenn-admins/XNATUploads-test
-      - unknown/LFContrast_
-      - unknown/Unknown
-      - unknown/Unsorted
 
     - service_request_id: fund1
       ben:  400-4322-4-577865-xxxx-2810-1100
@@ -371,6 +368,9 @@ RequestIDs:
         - holder/Test1
         - holder/Test2
         - holder/Test3
+        - unknown/LFContrast_
+        - unknown/Unknown
+        - unknown/Unsorted
 
   Techdev:
     - service_request_id: techdev-default-service-request-id

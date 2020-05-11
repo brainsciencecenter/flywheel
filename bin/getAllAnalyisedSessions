@@ -1,0 +1,22 @@
+#!/usr/bin/python3
+
+# from Jeff Meier
+
+import argparse
+import csv
+import flywheel
+import fwgearutils
+import json
+import sys
+
+parser = argparse.ArgumentParser()
+args = parser.parse_args()
+
+fw = fwgearutils.getFW(args)
+
+for session in fw.get_all_sessions(exhaustive=True):
+  session=session.reload()
+  for analysis in session.analyses:
+    analysis=analysis.reload()
+    if session.analyses:
+      print('%s, %s, %s, %s, %s' % (session.project,session.parents.group,session.id,analysis.id,analysis.created))
