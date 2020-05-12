@@ -19,7 +19,7 @@ ServiceIDs:
       - total_compute_ms
       - Flywheel Compute Charge
       - Flywheel compute
-      - Flywheel compute promotion
+      - Flywheel compute promotions
       - Compute Charges (Gross)
  
   - service_id:  455012
@@ -27,7 +27,7 @@ ServiceIDs:
       - total_storage_bytes
       - Flywheel Storage Charge
       - Flywheel storage
-      - Flywheel storage promotion
+      - Flywheel storage promotions
       - Storage Charges (Gross)
 
   - service_id: 455013
@@ -39,11 +39,13 @@ ServiceIDs:
   - service_id: 455000
     aliases:
       - compute
+      - compute promotions
       - GCP Compute
 
   - service_id: 455009
     aliases:
       - storage
+      - storage promotions
       - GCP Storage
 
   - service_id: 455010

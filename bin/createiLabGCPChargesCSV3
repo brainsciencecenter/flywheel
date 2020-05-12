@@ -267,11 +267,30 @@ def getProjectGroup(iLabServiceRequestIDMap,alias):
         return(None)
 
 def getServiceId(iLabServiceRequestIDMap,alias):
+
+    print("getServiceId: {}".format(alias), file=sys.stderr)
+
     res = pyjq.all('.["ServiceIDs"][]|select(.aliases[]|match("^{}$")) | .service_id'.format(alias), iLabServiceRequestIDMap)
     if (len(res)):
           return(res[0])
     else:
           return(None)
+
+def getChargeServiceId(iLabServiceRequestIDMap,c):
+    if (c['group'] == 'flywheel'):
+        ServiceIdAlias = costtype
+        if (not (re.search('compute|storage', costtype, flags=re.IGNORECASE))):
+            Major = costClassifier(c, primary=True)
+            ServiceIdAlias = '{} {}'.format(Major, ServiceIdAlias)
+
+        ServiceIdAlias = 'Flywheel {}'.format(ServiceIdAlias)
+    else:
+        ServiceIdAlias = '{}'.format(costtype)
+
+    ServiceId = getServiceId(iLabServiceRequestIDMap,ServiceIdAlias)
+    print("getChargeServiceId: {}".format(ServiceIdAlias), file=sys.stderr)
+
+    return(ServiceId)
 
 def sumCostType(Group, costtype, cat=None):
     total = 0.0
@@ -448,6 +467,7 @@ def formatGroupChargesCSV(Groups):
         print("groupname",groupname, file=sys.stderr)
 
         lineno += 1
+
         FirstLine = lineno + 1
         if (args.group_summary_only):
             charge = initCharge(
@@ -465,17 +485,20 @@ def formatGroupChargesCSV(Groups):
         else:
             LastLine = lineno + len(group['Charges'])
 
-            charge = initCharge(
-                group=groupname,
-                group_promotions="=sum({}{}:{}{})".format(column_indexes['promotions'], FirstLine, column_indexes['promotions'], LastLine),
-                group_discounts="=sum({}{}:{}{})".format(column_indexes['discounts'], FirstLine, column_indexes['discounts'], LastLine),
-                group_invalid="=sum({}{}:{}{})".format(column_indexes['invalid'], FirstLine, column_indexes['invalid'], LastLine),
-                group_unknown="=sum({}{}:{}{})".format(column_indexes['unknown'], FirstLine, column_indexes['unknown'], LastLine),
-                group_misc="=sum({}{}:{}{})".format(column_indexes['misc'], FirstLine, column_indexes['misc'], LastLine),
-                group_storage="=sum({}{}:{}{})".format(column_indexes['storage'], FirstLine, column_indexes['storage'], LastLine),
-                group_compute="=sum({}{}:{}{})".format(column_indexes['compute'], FirstLine, column_indexes['compute'], LastLine),
-                group_total="=sum({}{}:{}{})".format(MinGroupColumnIndex, lineno, MaxGroupColumnIndex, lineno),
-            )
+            if (len(group['Charges']) == 0):
+                charge = initCharge(group=groupname)
+            else:
+                charge = initCharge(
+                    group=groupname,
+                    group_promotions="=sum({}{}:{}{})".format(column_indexes['promotions'], FirstLine, column_indexes['promotions'], LastLine),
+                    group_discounts="=sum({}{}:{}{})".format(column_indexes['discounts'], FirstLine, column_indexes['discounts'], LastLine),
+                    group_invalid="=sum({}{}:{}{})".format(column_indexes['invalid'], FirstLine, column_indexes['invalid'], LastLine),
+                    group_unknown="=sum({}{}:{}{})".format(column_indexes['unknown'], FirstLine, column_indexes['unknown'], LastLine),
+                    group_misc="=sum({}{}:{}{})".format(column_indexes['misc'], FirstLine, column_indexes['misc'], LastLine),
+                    group_storage="=sum({}{}:{}{})".format(column_indexes['storage'], FirstLine, column_indexes['storage'], LastLine),
+                    group_compute="=sum({}{}:{}{})".format(column_indexes['compute'], FirstLine, column_indexes['compute'], LastLine),
+                    group_total="=sum({}{}:{}{})".format(MinGroupColumnIndex, lineno, MaxGroupColumnIndex, lineno),
+                )
 
         writer.writerow(charge)
 
@@ -536,12 +559,20 @@ for c in SortedCharges:
         
     group = Groups[c['group']]
 
+    """
     if (group['name'] == 'flywheel'):
-        ServiceIdAlias = 'Flywheel {}'.format(costtype)
+        ServiceIdAlias = costtype
+        if (re.search('promotions|discounts', costtype, flags=re.IGNORECASE)):
+            Major = costClassifier(c, primary=True)
+            ServiceIdAlias = '{} {}'.format(Major, ServiceIdAlias)
+
+        ServiceIdAlias = 'Flywheel {}'.format(ServiceIdAlias)
     else:
         ServiceIdAlias = '{}'.format(costtype)
 
     c['service_id'] = getServiceId(iLabServiceRequestIDMap,ServiceIdAlias)
+    """
+    c['service_id'] = getChargeServiceId(iLabServiceRequestIDMap,c)
 
     setiLabNote(c)
     group['Charges'].append(c)
@@ -729,11 +760,14 @@ MinGroupColumnIndex = ChargeTypes[list(ChargeTypes.keys())[-1]]['group_index']
 
 if (args.project_summary):
     OutputGroups = {}
-    lineno = 2
 
-    for k in Groups.keys():
+    # Lineno is the current row number
+    lineno = 3
+    ProjectStartLine = None
+
+    for k in sorted(Groups.keys()):
         inputgroup = Groups[k]
-        lineno += 1
+        lineno += 1 #group summary row
 
         outputgroup = initGroup(k)
         print("outputgroup", file=sys.stderr)
@@ -748,6 +782,7 @@ if (args.project_summary):
         # for CurrentPojectChargeSummary, and put the whole mess on the outputgroup charge array
         #
         for c in sorted(inputgroup['Charges'], key=lambda c: '{}/{}'.format(c['group'],c['project'])):
+            print("lineno", lineno, "ProjectStartline", ProjectStartLine, file=sys.stderr)
             if (c['project'] != CurrentProjectChargeSummary['project']):
                 print("New Project", c['project'], "old project", CurrentProjectChargeSummary['project'], file=sys.stderr)
                 if (CurrentProjectChargeSummary['project']):
@@ -764,24 +799,26 @@ if (args.project_summary):
                         tc = initCharge(
                             group=CurrentProjectChargeSummary['group'],
                             project=CurrentProjectChargeSummary['project'],
-                            service_id=getServiceId(iLabServiceRequestIDMap,ServiceIdAlias),
+                            service_id=getChargeServiceId(iLabServiceRequestIDMap,c),
                             service_request_id=CurrentProjectChargeSummary['service_request_id'],
                         )
+
                         if (CurrentProjectChargeSummary[k] != None):
                             tc['cost'] = CurrentProjectChargeSummary[k]
                             tc[k] = CurrentProjectChargeSummary[k]
                             outputgroup['Charges'].append(tc)
                             lineno += 1
 
+                    print("lineno2", lineno, "ProjectStartline", ProjectStartLine, file=sys.stderr)
                     ProjectSummaryCharge = initCharge(
                         group=CurrentProjectChargeSummary['group'],
                         project=CurrentProjectChargeSummary['project'],
                         service_request_id=CurrentProjectChargeSummary['service_request_id'],
                         cost='=sum({}{}:{}{})'.format(
                             get_column_letter(MinColumnIndex),
-                            lineno,
+                            ProjectStartLine,
                             get_column_letter(MaxColumnIndex),
-                            lineno+len(outputgroup['Charges']) - 1,
+                            lineno-1,
                         )
                     )
 
@@ -789,18 +826,18 @@ if (args.project_summary):
                     print(json.dumps(outputgroup, indent=2), file=sys.stderr)
 
                     outputgroup['Charges'].insert(InsertIndex,ProjectSummaryCharge)
-                    lineno += 1
 
                     print("ProjectSummaryCharge", file=sys.stderr)
                     print(json.dumps(ProjectSummaryCharge, indent=2), file=sys.stderr)
 
+                lineno += 1
                 CurrentProjectChargeSummary = initCharge(
                     group=c['group'], 
                     project=c['project'],
                     service_request_id=c['service_request_id'],
                 )
-                # CurrentProjectChargeSummary = initCharge(charge=c)
-                # zeroCharge(CurrentProjectChargeSummary)
+                ProjectStartLine = lineno
+
                 print("Setting CurrentProjectChargeSummary", file=sys.stderr)
                 print(json.dumps(CurrentProjectChargeSummary, indent=2), file=sys.stderr)
 
@@ -835,22 +872,22 @@ if (args.project_summary):
                     outputgroup['Charges'].append(tc)
                     lineno += 1
 
+            print("lineno3", lineno, "ProjectStartline", ProjectStartLine, file=sys.stderr)
             ProjectSummaryCharge = initCharge(
                 group=CurrentProjectChargeSummary['group'],
                 project=CurrentProjectChargeSummary['project'],
                 service_request_id=CurrentProjectChargeSummary['service_request_id'],
                 cost='=sum({}{}:{}{})'.format(
                     get_column_letter(MinColumnIndex),
-                    lineno,
+                    ProjectStartLine,
                     get_column_letter(MaxColumnIndex),
-                    lineno+len(outputgroup['Charges'])-1,
+                    lineno-1,
                 )
             )
 
             print("pre insert2", outputgroup['name'], file=sys.stderr)
 
             outputgroup['Charges'].insert(InsertIndex,ProjectSummaryCharge)
-            lineno += 1
 
             print(json.dumps(outputgroup, indent=2), file=sys.stderr)
 
