@@ -277,6 +277,7 @@ def getServiceId(iLabServiceRequestIDMap,alias):
           return(None)
 
 def getChargeServiceId(iLabServiceRequestIDMap,c):
+    costtype = costClassifier(c)
     if (c['group'] == 'flywheel'):
         ServiceIdAlias = costtype
         if (not (re.search('compute|storage', costtype, flags=re.IGNORECASE))):
@@ -288,7 +289,8 @@ def getChargeServiceId(iLabServiceRequestIDMap,c):
         ServiceIdAlias = '{}'.format(costtype)
 
     ServiceId = getServiceId(iLabServiceRequestIDMap,ServiceIdAlias)
-    print("getChargeServiceId: {}".format(ServiceIdAlias), file=sys.stderr)
+    print("getChargeServiceId: {} costtype {} alias {} ".format(ServiceIdAlias, costtype, ServiceIdAlias), file=sys.stderr)
+    print(json.dumps(c, indent=2), file=sys.stderr)
 
     return(ServiceId)
 
@@ -336,7 +338,6 @@ def costClassifier(charge, primary=False):
         if (re.search("Egress", charge["sku_description"], flags=re.IGNORECASE)):
             return("invalid")
 
-
         if (re.search("Promotions", charge["sku_description"], flags=re.IGNORECASE)):
             return("promotions")
 
@@ -346,8 +347,6 @@ def costClassifier(charge, primary=False):
         if (re.search("IP Charge", charge["sku_description"], flags=re.IGNORECASE)):
             return("misc")
 
-
-    
     if (re.search("Compute", charge["service_description"], flags=re.IGNORECASE) and re.search("Instance Core", charge["sku_description"], flags=re.IGNORECASE)):
           return("compute")
 
@@ -546,6 +545,7 @@ SortedCharges = sorted(Charges, key=lambda c: c['group'])
 
 for c in SortedCharges:
     costtype = costClassifier(c)
+# ***
     c[costtype] = c['cost']
 
     print("costtype",costtype, file=sys.stderr)
@@ -696,15 +696,16 @@ if (args.flywheel):
                 else:
                     ProRatedPromotions = charge['promotions'] * (entry['storage_bytes'] / FlywheelStorageBytes)
                     CostType = "Flywheel storage promotion allocation"
+
                 if (abs(ProRatedPromotions) >= 0.01):
                     c = initCharge(
                         charge=charge,
                         service_request_id=ServiceRequestID,
                         group=entry['group'],
                         project=entry['project'],
-                        cost_type='Flywheel compute promotions allocation',
                         cost=ProRatedPromotions,
                         promotions=ProRatedPromotions,
+                        cost_type=CostType,
                     )
                     setiLabNote(c)
                     group['Charges'].append(c)
@@ -720,9 +721,9 @@ if (args.flywheel):
                         service_request_id=ServiceRequestID,
                         group=entry['group'],
                         project=entry['project'],
-                        cost_type='Flywheel storage cost allocation',
                         cost=ProRatedStorageCost,
                         storage=ProRatedStorageCost,
+                        cost_type='Flywheel storage cost allocation',
                     )
                     setiLabNote(c)
                     group['Charges'].append(c)
@@ -791,10 +792,6 @@ if (args.project_summary):
                     print("CurrentProjectChargeSummary exists", c['project'], file=sys.stderr)
                     print(json.dumps(CurrentProjectChargeSummary, indent=2), file=sys.stderr)
                     for k in ChargeTypes.keys():
-                        if (re.search('flywheel', c['cost_type'],  flags=re.IGNORECASE)):
-                            ServiceIdAlias = 'Flywheel {}'.format(k)
-                        else:
-                            ServiceIdAlias = '{}'.format(k)
 
                         tc = initCharge(
                             group=CurrentProjectChargeSummary['group'],
@@ -855,15 +852,11 @@ if (args.project_summary):
             print("CurrentProjectChargeSummary exists2", c['project'], file=sys.stderr)
             print(json.dumps(CurrentProjectChargeSummary, indent=2), file=sys.stderr)
             for k in ChargeTypes.keys():
-                if (re.search('flywheel', c['cost_type'],  flags=re.IGNORECASE)):
-                    ServiceIdAlias = 'Flywheel {}'.format(k)
-                else:
-                    ServiceIdAlias = '{}'.format(k)
 
                 tc = initCharge(
                     group=CurrentProjectChargeSummary['group'],
                     project=CurrentProjectChargeSummary['project'],
-                    service_id=getServiceId(iLabServiceRequestIDMap,ServiceIdAlias),
+                    service_id=getChargeServiceId(iLabServiceRequestIDMap,c),
                     service_request_id=CurrentProjectChargeSummary['service_request_id'],
                 )
                 if (CurrentProjectChargeSummary[k] != None):

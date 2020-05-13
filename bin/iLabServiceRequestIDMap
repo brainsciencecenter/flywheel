@@ -45,7 +45,7 @@ ServiceIDs:
   - service_id: 455009
     aliases:
       - storage
-      - storage promotions
+      -  promotions
       - GCP Storage
 
   - service_id: 455010
