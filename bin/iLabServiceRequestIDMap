@@ -1,4 +1,6 @@
 #
+# *** need to allow empty aliases
+#
 # yq -jP r - < iLabServiceRequestIDMap | jq '.["ServiceIDs"][]|select(.aliases[]|match("^compute$")) | .service_id'
 # 455000
 #
@@ -45,7 +47,7 @@ ServiceIDs:
   - service_id: 455009
     aliases:
       - storage
-      -  promotions
+      - promotions
       - GCP Storage
 
   - service_id: 455010
@@ -107,22 +109,16 @@ RequestIDs:
 
   
   Detre Lab:
-    - service_request_id: 3241014
-      fund: Developing a multi-modality, paradigm-shifting approach for in vivo assessment of the human placenta and the impact of maternal nutrition on its development and function - expires 6/30/2020 
-      ben:  400-4322-4-567799-5340-2810-1100 
+    - service_request_id: default-detre-group-service_request_id
       group: detre-group
       aliases:
-      - detre_group/PHARMA
+      - detre_group/bids-test
+      - detre_group/presurgicalEpilepsy
+      - detre_group/testProject
       - detre_group/Unsorted
       - detre-group-dd34a9
       - detre-demo-proj-a
       - detre-demo-proj-b
-      - detre_group/ASL_pipeline
-      - detre_group/bids-test
-      - detre_group/presurgicalEpilepsy
-      - detre-group/respiract
-      - detre_group/testProject
-      - detre_group/NewPerf
       - garcea-demo-proj-a
       - sudipto proj
       - upenn-admins/Example Dicom Dataset
@@ -140,24 +136,45 @@ RequestIDs:
       - upenn-admins/willDemoData
       - upenn-admins/XNATUploads-test
 
-    - service_request_id: fund1
-      ben:  400-4322-4-577865-xxxx-2810-1100
-      group: detre-group
+    - service_request_id: 3306479
+      fund: Novel Biomarkers of Small Vessel Contributions to Vascular Cognitive Impairment and Dementia (VCID) - 400-4322-4-577865-5340-2810-1100 (Expires on June 30, 2024)
+      ben: 400-4322-4-577865-5340-2810-1100
       aliases:
-        - detre_group/VCID
-        - detre_group/CBFLOW
-        - detre_group/PHARMA
+        - detre_group/VCID  
+        - detre_group/Jianxun
         - detre_group/NewPerf
 
-    - service_request_id: fund2
+    - service_request_id: 3306472
+      fund: Optical Monitoring of Cerebral Hemodynamics during Mechanical Thrombectomy - 400-4322-4-578204-5340-2810-1100 (Expires on August 31, 2024)
+      ben: 400-4322-4-578204-5340-2810-1100 (Expires on August 31, 2024)
+      aliases:
+        - detre_group/Respiract
+
+    - service_request_id: 3305251
+      fund: Alzheimer's Disease Core Center - 400-4322-4-577000-5340-2810-1100 (Expires on June 30, 2020)
       ben:  400-4322-4-577000-xxxx-2810-1100
       group: detre-group
       aliases:
         - detre_group/ASL_pipeline_testing
+        - detre_group/CBFLOW
+        - detre_group/PHARMA
         - detre_group/fmriprep_testing
-        - detre_group/Jianxun
-        - detre_group/Respiract
-        - detre_group/pipedream
+        - detre_group/Pipedream
+
+    - service_request_id: unknown_service_request_id
+      fund: Developing a multi-modality, paradigm-shifting approach for in vivo assessment of the human placenta and the impact of maternal nutrition on its development and function - 400-4322-4-567799-5340-2810-1100 (Expires on June 30, 2020)
+      aliases:
+        - placeholder
+
+    - service_request_id: unknown_service_request_id
+      fund: Examining elderly TBI in Pennsylvania and risk for neurodegeneration - 400-4322-4-575545-5340-2810-1100 (Expires on December 31, 2020)
+      aliases:
+        - placeholder
+
+    - service_request_id: unknown_service_request_id
+      fund: Examining elderly TBI in Pennsylvania and risk for neurodegeneration - 400-4322-4-575545-5340-2810-1100 (Expires on December 31, 2020)
+      aliases:
+        - placeholder
 
   PennFTDCenter:
     - service_request_id: pennftdcenter-default-service-request-id
@@ -391,48 +408,84 @@ RequestIDs:
         - cfn/TestPermsProject      
   
   GKAguirre Lab:
-    - service_request_id: aguirre-defeult-service-request-id
+    - service_request_id: aguirre-default-service-request-id
       group: gkaguirrelab
       aliases:
-        - gkaguirrelab/Ex-vivo anatomy
-        - gkaguirrelab/fBIRN
         - gkaguirrelab/gearDev
-        - gkaguirrelab/melaSpatial
-        - gkaguirrelab/realtime
-        - gkaguirrelab/scnLight
-        - gkaguirrelab/York retinotopy
+
+    - service_request_id: 3305117
+      group: gkaguirrelab
+      fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - 400-4322-4-567594-5340-2810-2779 (Expires on September 29, 2020)
+      knownas:
+        - MELA
+      ben: 400-4322-4-567594-5340-2810-2779
+      aliases:
+         - gkaguirrelab/melaSpatial
+         - gkaguirrelab/mtSinaiFlicker
+         - gkaguirrelab/scnLight
+         - gkaguirrelab/York retinotopy
 
     - service_request_id: 3240884
+      group: gkaguirrelab
       fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - Expires 9/29/2020
-      ben: 400-4322-4-567594-5340-2810-2779
-      ben2: USC Subcontract – 400-4322-4-575392-xxxx-2810-2779
+      ben: 400-4322-4-575392-xxxx-2810-2779
+      knownas: 
+         - TOME
+         - USC Subcontract
       aliases:
+        - gkaguirrelab/fBIRN
+        - gkaguirrelab/realtime
         - tome/tempToSort
         - tome/testUpload
         - tome/tome
 
-    - service_request_id: vhup/chop_service_request_id
+    - service_request_id: 3305267
       group: gkaguirrelab
-      fund: VHUP/CHOP Beltran - 400-4322-4-577885-xxxx-2000-2779
-      ben: 400-4322-4-577885-xxxx-2000-2779
+      fund: Canine retinal disease models for translational photoreceptor regeneration - 400-4322-4-577885-5340-2000-2779 (Expires on August 31, 2020)
+      knownas:
+        - VHUP/CHOP Beltran - 400-4322-4-577885-xxxx-2000-2779
+      ben: 400-4322-4-577885-5340-2000-2779
+      knownas:
+        - canine
       aliases:
         - gkaguirrelab/canineFovea
-
+        - gkaguirrelab/realtime
+        - gkaguirrelab/Ex-vivo anatomy
 
     - service_request_id: 3240859
       fund: Melanopsin and cone signals in human visual processing - Expires 8/31/2020
       ben:   020-0120-4-567527-5340-2000-0712 
       aliases:
-        - gkaguirrelab/melaSpatial
+        - placeholder
 
     - service_request_id: 3237104
       fund: Melanopsin and cone signals in human visual processing - Expires 8/31/2020
       ben: 400-4322-4-567527-5340-2810-2779
       aliases:
-        - fie
+        - placeholder
 
     - service_request_id: 3240955
       fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - Expires 9/29/2020
       ben: 020-0120-4-567594-5340-2000-0712
       aliases:
-         - fum
+        - placeholder
+
+    - service_request_id: 3305246
+      fund: DEVELOPMENT AND ASSESSMENT OF NOVEL THERAPIES FOR RETINAL DEGENERATIVE DISEASES - 400-4322-4-544343-5340-2810-2779 (Expires on June 30, 2020)
+      ben: 400-4322-4-544343-5340-2810-2779
+      aliases:
+        - placeholder
+
+    - service_request_id: 3305251
+      fund: Photoreceptor-specific mechanisms of light aversive behavior in a rodent model of migraine - 
+      ben: 400-4322-4-577526-5340-2810-2779
+      aliases:
+        - placeholder
+
+    - service_request_id: 3305261
+      fund: "The good, the bad, and the different: Understanding stigma towards people with facial differences - 400-4322-4-578033-5340-2810-2779 (Expires on September  8, 2020) "
+      ben: 400-4322-4-578033-5340-2810-2779
+      aliases:
+        - placeholder
+
+

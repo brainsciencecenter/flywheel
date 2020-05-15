@@ -36,4 +36,4 @@ if __name__ == '__main__':
         print("e",e, file=sys.stderr)
         sys.exit(1)
 
-    print(json.dumps(fwgearutils.sloppyCopy(Container)))
+    print(json.dumps(fwgearutils.sloppyCopy(Container), indent=2))

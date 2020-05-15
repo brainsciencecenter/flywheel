@@ -276,23 +276,21 @@ def getServiceId(iLabServiceRequestIDMap,alias):
     else:
           return(None)
 
-def getChargeServiceId(iLabServiceRequestIDMap,c):
+def getChargeServiceIdAlias(c):
     costtype = costClassifier(c)
-    if (c['group'] == 'flywheel'):
-        ServiceIdAlias = costtype
-        if (not (re.search('compute|storage', costtype, flags=re.IGNORECASE))):
-            Major = costClassifier(c, primary=True)
-            ServiceIdAlias = '{} {}'.format(Major, ServiceIdAlias)
+    ServiceIdAlias = costtype
+    if (not (re.search('compute|storage', costtype, flags=re.IGNORECASE))):
+        Major = costClassifier(c, primary=True)
+        ServiceIdAlias = '{} {}'.format(Major, ServiceIdAlias)
 
-        ServiceIdAlias = 'Flywheel {}'.format(ServiceIdAlias)
-    else:
-        ServiceIdAlias = '{}'.format(costtype)
+    if (re.search('Flywheel', c['cost_type'], flags=re.IGNORECASE)):
+        ServiceIdAlias = '{} {}'.format("Flywheel", ServiceIdAlias)
 
-    ServiceId = getServiceId(iLabServiceRequestIDMap,ServiceIdAlias)
-    print("getChargeServiceId: {} costtype {} alias {} ".format(ServiceIdAlias, costtype, ServiceIdAlias), file=sys.stderr)
-    print(json.dumps(c, indent=2), file=sys.stderr)
+    ServiceId = getServiceId(iLabServiceRequestIDMap, ServiceIdAlias)
+    
+    print("getChargeServiceIdAlias:", ServiceIdAlias, "c[cost_type]", c['cost_type'], "costtype", costtype, "ServiceId", ServiceId, file=sys.stderr)
 
-    return(ServiceId)
+    return(ServiceIdAlias)
 
 def sumCostType(Group, costtype, cat=None):
     total = 0.0
@@ -329,6 +327,14 @@ def setiLabNote(c):
         c['ilab_note'] = "'{}' '{}' '{}' '{}'".format(c['project'], Major, Minor, Misc)
 
         
+def initCurrentProjectInfo(group=None, project=None, service_request_id=None, StartLine=None):
+    return({
+        'group': group,
+        'project': project,
+        'service_request_id': service_request_id,
+        'StartLine': StartLine,
+        'Charges': {},
+    })
 
 def costClassifier(charge, primary=False):
     if (charge == "all"):
@@ -347,19 +353,8 @@ def costClassifier(charge, primary=False):
         if (re.search("IP Charge", charge["sku_description"], flags=re.IGNORECASE)):
             return("misc")
 
-    if (re.search("Compute", charge["service_description"], flags=re.IGNORECASE) and re.search("Instance Core", charge["sku_description"], flags=re.IGNORECASE)):
+    if (re.search("Compute", charge["service_description"], flags=re.IGNORECASE)):
           return("compute")
-
-    # Only flywheel related charges are in the Flywheel Charges list
-    if (re.search("Compute", charge["service_description"], flags=re.IGNORECASE) and (charge["cost"])):
-         return("compute")
-
-    if (re.search("Compute", charge["service_description"], flags=re.IGNORECASE) and re.search("Sustained", charge["sku_description"], flags=re.IGNORECASE)):
-         return("compute")
-
-    if (re.search("Compute", charge["service_description"], flags=re.IGNORECASE) and re.search("Promotions", charge["sku_description"], flags=re.IGNORECASE)):
-         return("compute")
-
 
     if (re.search("Storage", charge["service_description"], flags=re.IGNORECASE)):
          return("storage")
@@ -572,7 +567,8 @@ for c in SortedCharges:
 
     c['service_id'] = getServiceId(iLabServiceRequestIDMap,ServiceIdAlias)
     """
-    c['service_id'] = getChargeServiceId(iLabServiceRequestIDMap,c)
+    c['service_id'] = getServiceId(iLabServiceRequestIDMap,
+                                   getChargeServiceIdAlias(c))
 
     setiLabNote(c)
     group['Charges'].append(c)
@@ -647,7 +643,7 @@ if (args.flywheel):
             # The charge group name may be different from the group name
             #
             if (charge['compute']):
-                ProRatedComputeCost = charge['compute'] * (entry['compute_ms'] / FlywheelComputeMS)
+                ProRatedComputeCost = round(charge['compute'] * (entry['compute_ms'] / FlywheelComputeMS), 2)
                 if (abs(ProRatedComputeCost) > 0.01):
                     c = initCharge(
                         charge=charge,
@@ -660,6 +656,7 @@ if (args.flywheel):
                     )
 
                     setiLabNote(c)
+                    c['service_id'] = getServiceId(iLabServiceRequestIDMap,getChargeServiceIdAlias(c))
                     group['Charges'].append(c)
 
 #                    print("ProRating Compute Cost = {}".format(ProRatedComputeCost), file=sys.stderr)
@@ -667,10 +664,10 @@ if (args.flywheel):
 
             if (charge['discounts']):
                 if (costClassifier(charge,primary=True) == 'compute'):
-                    ProRatedDiscounts = charge['discounts'] * (entry['compute_ms'] / FlywheelComputeMS)
+                    ProRatedDiscounts = round(charge['discounts'] * (entry['compute_ms'] / FlywheelComputeMS), 2)
                     CostType = "Flywheel compute discount allocation"
                 else:
-                    ProRatedDiscounts = charge['discounts'] * (entry['storage_bytes'] / FlywheelStorageBytes)
+                    ProRatedDiscounts = round(charge['discounts'] * (entry['storage_bytes'] / FlywheelStorageBytes), 2)
                     CostType = "Flywheel storage discount allocation"
 
                 if (abs(ProRatedDiscounts) >= 0.01):
@@ -684,17 +681,15 @@ if (args.flywheel):
                         cost_type=CostType,
                     )
                     setiLabNote(c)
+                    c['service_id'] = getServiceId(iLabServiceRequestIDMap,getChargeServiceIdAlias(c))
                     group['Charges'].append(c)
-
-#                    print("ProRating Compute Discounts", file=sys.stderr)
-#                    print(json.dumps(c, indent=2), file=sys.stderr)
 
             if (charge['promotions']):
                 if (costClassifier(charge,primary=True) == 'compute'):
-                    ProRatedPromotions = charge['promotions'] * (entry['compute_ms'] / FlywheelComputeMS)
+                    ProRatedPromotions = round(charge['promotions'] * (entry['compute_ms'] / FlywheelComputeMS), 2)
                     CostType = "Flywheel compute promotion allocation"
                 else:
-                    ProRatedPromotions = charge['promotions'] * (entry['storage_bytes'] / FlywheelStorageBytes)
+                    ProRatedPromotions = round(charge['promotions'] * (entry['storage_bytes'] / FlywheelStorageBytes), 2)
                     CostType = "Flywheel storage promotion allocation"
 
                 if (abs(ProRatedPromotions) >= 0.01):
@@ -708,13 +703,11 @@ if (args.flywheel):
                         cost_type=CostType,
                     )
                     setiLabNote(c)
+                    c['service_id'] = getServiceId(iLabServiceRequestIDMap,getChargeServiceIdAlias(c))
                     group['Charges'].append(c)
 
-#                    print("ProRating Compute Promotions", file=sys.stderr)
-#                    print(json.dumps(c, indent=2), file=sys.stderr)
-
             if (charge['storage']):
-                ProRatedStorageCost = charge['storage'] * (entry['storage_bytes'] / FlywheelStorageBytes)
+                ProRatedStorageCost = round(charge['storage'] * (entry['storage_bytes'] / FlywheelStorageBytes), 2)
                 if (abs(ProRatedStorageCost) >= 0.01):
                     c = initCharge(
                         charge=charge,
@@ -726,24 +719,10 @@ if (args.flywheel):
                         cost_type='Flywheel storage cost allocation',
                     )
                     setiLabNote(c)
+                    c['service_id'] = getServiceId(iLabServiceRequestIDMap,getChargeServiceIdAlias(c))
                     group['Charges'].append(c)
 
-#                    print("ProRating Storage", file=sys.stderr)
-#                    print(json.dumps(c, indent=2), file=sys.stderr)
 
-#            print(json.dumps(charge, indent=2), file=sys.stderr)
-
-        """
-        print("{}, {}, {}, {}, {}, {}, {}".format(
-            entry['group'],
-            entry['project'],
-            entry['storage_bytes'], 
-            entry['compute_ms'], 
-            ProRatedStorageCost,
-            ProRatedComputeCost,
-            Total,
-            ))
-        """
     del(Groups['flywheel'])
 
 for groupname, group in Groups.items():
@@ -774,115 +753,107 @@ if (args.project_summary):
         print("outputgroup", file=sys.stderr)
         print(json.dumps(outputgroup, indent=2), file=sys.stderr)
 
-        CurrentProjectChargeSummary = initCharge()
+        CurrentProjectInfo = initCurrentProjectInfo()
 
         #
-        # Use CurrentProjectChargeSummary to accumulate all the charge types for each project
-        # Then create a charge entry with service_id for each type of charge
-        # Finally, insert the ProjectSummaryCharge at the beginning of the charges 
-        # for CurrentPojectChargeSummary, and put the whole mess on the outputgroup charge array
+        # Store totals of the project costs types in CurrentProjectInfo.
+        # Each cost type is sorted by the key returned from getChargeServiceIdAlias()
+        # Once the project is done, push a summary on the outputgroup charges
+        #  and copy the cost summaries to the output group sorted by keys
         #
         for c in sorted(inputgroup['Charges'], key=lambda c: '{}/{}'.format(c['group'],c['project'])):
             print("lineno", lineno, "ProjectStartline", ProjectStartLine, file=sys.stderr)
-            if (c['project'] != CurrentProjectChargeSummary['project']):
-                print("New Project", c['project'], "old project", CurrentProjectChargeSummary['project'], file=sys.stderr)
-                if (CurrentProjectChargeSummary['project']):
-                    InsertIndex = len(outputgroup['Charges'])
+            if (c['project'] != CurrentProjectInfo['project']):
+                # Switching Projects
+                print("New Project", c['project'], "old project", CurrentProjectInfo['project'], file=sys.stderr)
+                print("getChargeServiceIdAlias",getChargeServiceIdAlias(c), file=sys.stderr)
+                if (CurrentProjectInfo['project']):
+                    # Push out old project information
+                    
+                    print("CurrentProjectInfo exists", c['project'], file=sys.stderr)
+                    print(json.dumps(CurrentProjectInfo, indent=2), file=sys.stderr)
 
-                    print("CurrentProjectChargeSummary exists", c['project'], file=sys.stderr)
-                    print(json.dumps(CurrentProjectChargeSummary, indent=2), file=sys.stderr)
-                    for k in ChargeTypes.keys():
-
-                        tc = initCharge(
-                            group=CurrentProjectChargeSummary['group'],
-                            project=CurrentProjectChargeSummary['project'],
-                            service_id=getChargeServiceId(iLabServiceRequestIDMap,c),
-                            service_request_id=CurrentProjectChargeSummary['service_request_id'],
-                        )
-
-                        if (CurrentProjectChargeSummary[k] != None):
-                            tc['cost'] = CurrentProjectChargeSummary[k]
-                            tc[k] = CurrentProjectChargeSummary[k]
-                            outputgroup['Charges'].append(tc)
-                            lineno += 1
-
-                    print("lineno2", lineno, "ProjectStartline", ProjectStartLine, file=sys.stderr)
-                    ProjectSummaryCharge = initCharge(
-                        group=CurrentProjectChargeSummary['group'],
-                        project=CurrentProjectChargeSummary['project'],
-                        service_request_id=CurrentProjectChargeSummary['service_request_id'],
+                    tc = initCharge(
+                        group=CurrentProjectInfo['group'],
+                        project=CurrentProjectInfo['project'],
+                        service_request_id=CurrentProjectInfo['service_request_id'],
                         cost='=sum({}{}:{}{})'.format(
                             get_column_letter(MinColumnIndex),
-                            ProjectStartLine,
+                            CurrentProjectInfo['StartLine'],
                             get_column_letter(MaxColumnIndex),
-                            lineno-1,
+                            lineno+len(CurrentProjectInfo['Charges'].keys()),
                         )
                     )
 
-                    print("pre insert", file=sys.stderr)
-                    print(json.dumps(outputgroup, indent=2), file=sys.stderr)
-
-                    outputgroup['Charges'].insert(InsertIndex,ProjectSummaryCharge)
-
-                    print("ProjectSummaryCharge", file=sys.stderr)
-                    print(json.dumps(ProjectSummaryCharge, indent=2), file=sys.stderr)
-
-                lineno += 1
-                CurrentProjectChargeSummary = initCharge(
-                    group=c['group'], 
-                    project=c['project'],
-                    service_request_id=c['service_request_id'],
-                )
-                ProjectStartLine = lineno
-
-                print("Setting CurrentProjectChargeSummary", file=sys.stderr)
-                print(json.dumps(CurrentProjectChargeSummary, indent=2), file=sys.stderr)
-
-            for k in ChargeTypes.keys():
-                if (c[k] != None):
-                    if (CurrentProjectChargeSummary[k] == None):
-                        CurrentProjectChargeSummary[k] = c[k]
-                    else:
-                        CurrentProjectChargeSummary[k] += c[k]
-
-        # write out the last project summary for the group
-        if (CurrentProjectChargeSummary['project']):
-            InsertIndex = len(outputgroup['Charges'])
-
-            print("CurrentProjectChargeSummary exists2", c['project'], file=sys.stderr)
-            print(json.dumps(CurrentProjectChargeSummary, indent=2), file=sys.stderr)
-            for k in ChargeTypes.keys():
-
-                tc = initCharge(
-                    group=CurrentProjectChargeSummary['group'],
-                    project=CurrentProjectChargeSummary['project'],
-                    service_id=getChargeServiceId(iLabServiceRequestIDMap,c),
-                    service_request_id=CurrentProjectChargeSummary['service_request_id'],
-                )
-                if (CurrentProjectChargeSummary[k] != None):
-                    tc['cost'] = CurrentProjectChargeSummary[k]
-                    tc[k] = CurrentProjectChargeSummary[k]
                     outputgroup['Charges'].append(tc)
                     lineno += 1
 
-            print("lineno3", lineno, "ProjectStartline", ProjectStartLine, file=sys.stderr)
-            ProjectSummaryCharge = initCharge(
-                group=CurrentProjectChargeSummary['group'],
-                project=CurrentProjectChargeSummary['project'],
-                service_request_id=CurrentProjectChargeSummary['service_request_id'],
+                    for k,tc in sorted(CurrentProjectInfo['Charges'].items()):
+                        outputgroup['Charges'].append(tc)
+                        lineno += 1
+
+
+                # init new project info
+                CurrentProjectInfo = initCurrentProjectInfo(
+                    group=c['group'],
+                    project=c['project'],
+                    service_request_id=c['service_request_id'],
+                    StartLine=lineno+1,
+                )
+
+                print("Setting CurrentProjectInfo", file=sys.stderr)
+                print(json.dumps(CurrentProjectInfo, indent=2), file=sys.stderr)
+
+            # update current project costs
+            ChargeServiceRequestAlias = getChargeServiceIdAlias(c)
+            costtype = costClassifier(c)
+            service_id = getServiceId(iLabServiceRequestIDMap,ChargeServiceRequestAlias)
+            print("CurrentProjectInfo", costtype, file=sys.stderr)
+            print(json.dumps(c, indent=2), file=sys.stderr)
+
+            print("ChargeServiceRequestAlias '{}' costtype '{}' service_id '{}'".format(ChargeServiceRequestAlias,costtype, service_id), file=sys.stderr)
+            if (not (ChargeServiceRequestAlias in CurrentProjectInfo['Charges'].keys())):
+                CurrentProjectInfo['Charges'][ChargeServiceRequestAlias] = initCharge(
+                    group=c['group'],
+                    project=c['project'],
+                    ilab_note=c['ilab_note'],
+                    service_id=service_id,
+                    service_request_id=c['service_request_id'],
+                    cost=c['cost'],
+                )
+                CurrentProjectInfo['Charges'][ChargeServiceRequestAlias][costtype] = c[costtype]
+            else:
+                CurrentProjectInfo['Charges'][ChargeServiceRequestAlias][costtype] += c['cost']
+                CurrentProjectInfo['Charges'][ChargeServiceRequestAlias]['cost'] += c['cost']
+
+            print("CurrentProjectInfo2", costtype, file=sys.stderr)
+            print(json.dumps(CurrentProjectInfo, indent=2), file=sys.stderr)
+
+        # write out the last project summary for the group
+        if (CurrentProjectInfo['project']):
+
+            print("CurrentProjectInfo exists2", c['project'], file=sys.stderr)
+            print(json.dumps(CurrentProjectInfo, indent=2), file=sys.stderr)
+
+            tc = initCharge(
+                group=CurrentProjectInfo['group'],
+                project=CurrentProjectInfo['project'],
+                service_request_id=CurrentProjectInfo['service_request_id'],
                 cost='=sum({}{}:{}{})'.format(
                     get_column_letter(MinColumnIndex),
-                    ProjectStartLine,
+                    CurrentProjectInfo['StartLine'],
                     get_column_letter(MaxColumnIndex),
-                    lineno-1,
+                    lineno+len(CurrentProjectInfo['Charges'].keys()),
                 )
             )
 
-            print("pre insert2", outputgroup['name'], file=sys.stderr)
+            outputgroup['Charges'].append(tc)
+            lineno += 1
 
-            outputgroup['Charges'].insert(InsertIndex,ProjectSummaryCharge)
+            for k,tc in sorted(CurrentProjectInfo['Charges'].items()):
+                outputgroup['Charges'].append(tc)
+                lineno += 1
 
-            print(json.dumps(outputgroup, indent=2), file=sys.stderr)
 
         OutputGroups[outputgroup['name']] = outputgroup
 
