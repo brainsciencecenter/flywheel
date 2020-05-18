@@ -46,13 +46,28 @@ if (args.filter):
 else:
   sessions = fw.get_all_sessions(exhaustive=args.exhaustive, limit=args.limit)
 
+maxtries = 10
+
 l = len(sessions)
 i = 0
 InitialSessions = {}
 
 for session in sessions:
   i += 1
-  session=session.reload()
+  n = 0
+
+  if (args.progressbar):
+      progress(i, l)
+
+  while (n < maxtries):
+      try:
+          session=session.reload()
+          break
+
+      except (flywheel.rest.ApiException) as e:
+          print("session reload failed for {} ({}/{})".format(session.id, n, maxtries))
+          n += 1
+
   for analysis in session.analyses:
     analysis=analysis.reload()
     if session.analyses:
@@ -74,7 +89,6 @@ for session in sessions:
           if (args.verbose):
             print("Session {} ({}/{})".format(session.label, i, l))
 
-          progress(i, l)
 
 for k,s in InitialSessions.items():
   project = fw.get(s['project_id'])

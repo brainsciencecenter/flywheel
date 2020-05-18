@@ -9,14 +9,33 @@ import fwgearutils
 import json
 import sys
 
+def progress(count, total, status=''):
+    bar_len = 60
+    filled_len = int(round(bar_len * count / float(total)))
+
+    percents = round(100.0 * count / float(total), 1)
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+
+    sys.stderr.write('%s/%s [%s] %s%s ...%s\r' % (i, total, bar, percents, '%', status))
+    sys.stderr.flush()  # As suggested by Rom Ruben (see: http://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console/27871113#comment50529068_27871113)
+
+
 parser = argparse.ArgumentParser()
 args = parser.parse_args()
 
 fw = fwgearutils.getFW(args)
 
-for session in fw.get_all_sessions(exhaustive=True):
-  session=session.reload()
-  for analysis in session.analyses:
-    analysis=analysis.reload()
-    if session.analyses:
-      print('%s, %s, %s, %s, %s' % (session.project,session.parents.group,session.id,analysis.id,analysis.created))
+sessions = fw.get_all_sessions(exhaustive=True, limit=1000000)
+l = len(sessions)
+
+print("Got all sessions", file=sys.stderr)
+i = 0
+for session in sessions:
+    i += 1
+    session = session.reload()
+    for analysis in session.analyses:
+        progress(i, l)
+
+        analysis = analysis.reload()
+        if session.analyses:
+            print('%s, %s, %s, %s, %s' % (session.project,session.parents.group,session.id,analysis.id,analysis.created))
