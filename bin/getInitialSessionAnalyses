@@ -60,21 +60,34 @@ for session in sessions:
         progress(i, l)
 
     while (n < maxtries):
+        n += 1
         try:
             s = session.reload()
             if (s):
                 session = s
                 break
             else:
-                print("session reload returned None for {} ({}/{})".format(session.id, n, maxtries))
+                print("session reload returned None for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
 
         except (flywheel.rest.ApiException) as e:
-            print("session reload failed for {} ({}/{})".format(session.id, n, maxtries))
+            print("session reload failed for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
 
-        n += 1
 
+    m = 0
     for analysis in session.analyses:
-        analysis=analysis.reload()
+        m += 1
+        while (m < maxtries):
+            try:
+                a = analysis.reload()
+                if (a):
+                    analysis = a
+                    break
+                else:
+                    print("analysis reload returned None for {} ({}/{})".format(analysis.id, n, maxtries), file=sys.stderr)
+            except (flywheel.rest.ApiException) as e:
+                print("analysis reload failed for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
+            
+
         if session.analyses:
             if (not session.id in InitialSessions.keys()):
                 if (analysis.gear_info == None):
@@ -88,6 +101,7 @@ for session in sessions:
                         'subject_id': session.parents.subject,
                         'session_id': session.id,
                         'analysis_id': analysis.id,
+                        'origin_id': analysis.inputs.origin.id
                         'gear': gear,
                         'created': analysis.created,
                     }
