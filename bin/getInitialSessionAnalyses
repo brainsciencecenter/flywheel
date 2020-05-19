@@ -86,26 +86,29 @@ for session in sessions:
                 print("session reload returned None for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
 
         except (flywheel.rest.ApiException) as e:
-            print("session reload failed for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
+            print("session reload failed for {} ({}/{}) ({})".format(session.id, n, maxtries, e), file=sys.stderr)
+    if (n >= maxtries):
+        print("session reload retries failed for {} ({}/{}), skipping".format(session.id, n, maxtries), file=sys.stderr)
+        continue
 
 
-    m = 0
-    for analysis in session.analyses:
-        m += 1
-        while (m < maxtries):
-            try:
-                a = analysis.reload()
-                if (a):
-                    analysis = a
-                    break
-                else:
-                    print("analysis reload returned None for {} ({}/{})".format(analysis.id, n, maxtries), file=sys.stderr)
-            except (flywheel.rest.ApiException) as e:
-                print("analysis reload failed for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
+    if (session.analyses):
+        # *** Need to verify this is a reaped session, and not uploaded
+
+        m = 0
+        for analysis in session.analyses:
+            m += 1
+            while (m < maxtries):
+                try:
+                    a = analysis.reload()
+                    if (a):
+                        analysis = a
+                        break
+                    else:
+                        print("analysis reload returned None for {} ({}/{})".format(analysis.id, n, maxtries), file=sys.stderr)
+                except (flywheel.rest.ApiException) as e:
+                    print("analysis reload failed for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
             
-
-        if session.analyses:
-            # *** Need to verify this is a reaped session, and not uploaded
 
             if (not session.id in InitialSessions.keys()):
                 if (analysis.gear_info == None):
