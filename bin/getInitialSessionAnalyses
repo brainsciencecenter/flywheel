@@ -53,55 +53,60 @@ i = 0
 InitialSessions = {}
 
 for session in sessions:
-  i += 1
-  n = 0
+    i += 1
+    n = 0
 
-  if (args.progressbar):
-      progress(i, l)
+    if (args.progressbar):
+        progress(i, l)
 
-  while (n < maxtries):
-      try:
-          session=session.reload()
-          break
+    while (n < maxtries):
+        try:
+            s = session.reload()
+            if (s):
+                session = s
+                break
+            else:
+                print("session reload returned None for {} ({}/{})".format(session.id, n, maxtries))
 
-      except (flywheel.rest.ApiException) as e:
-          print("session reload failed for {} ({}/{})".format(session.id, n, maxtries))
-          n += 1
+        except (flywheel.rest.ApiException) as e:
+            print("session reload failed for {} ({}/{})".format(session.id, n, maxtries))
 
-  for analysis in session.analyses:
-    analysis=analysis.reload()
-    if session.analyses:
-      if (not session.id in InitialSessions.keys()):
-        if (analysis.gear_info == None):
-          print("No gear info for session {} ({})".format(session.label, session.id), file=sys.stderr)
-          continue
-        else:
-          gear = analysis.gear_info.name
-          InitialSessions[session.id] = {
-            'group_label': session.parents.group,
-            'project_id': session.parents.project,
-            'subject_id': session.parents.subject,
-            'session_id': session.id,
-            'analysis_id': analysis.id,
-            'gear': gear,
-            'created': analysis.created,
-          }
-          if (args.verbose):
-            print("Session {} ({}/{})".format(session.label, i, l))
+        n += 1
+
+    for analysis in session.analyses:
+        analysis=analysis.reload()
+        if session.analyses:
+            if (not session.id in InitialSessions.keys()):
+                if (analysis.gear_info == None):
+                    print("No gear info for session {} ({})".format(session.label, session.id), file=sys.stderr)
+                    continue
+                else:
+                    gear = analysis.gear_info.name
+                    InitialSessions[session.id] = {
+                        'group_label': session.parents.group,
+                        'project_id': session.parents.project,
+                        'subject_id': session.parents.subject,
+                        'session_id': session.id,
+                        'analysis_id': analysis.id,
+                        'gear': gear,
+                        'created': analysis.created,
+                    }
+                    if (args.verbose):
+                        print("Session {} ({}/{})".format(session.label, i, l))
 
 
 for k,s in InitialSessions.items():
-  project = fw.get(s['project_id'])
-  subject = fw.get(s['subject_id'])
-  session = fw.get(s['session_id'])
-
-  print('%s,%s,%s,%s,%s,%s,%s,%s' % (
-    s['group_label'],
-    project.label,
-    subject.label,
-    session.label,
-    s['gear'],
-    session.id,
-    s['analysis_id'],
-    s['created']))
+    project = fw.get(s['project_id'])
+    subject = fw.get(s['subject_id'])
+    session = fw.get(s['session_id'])
+    
+    print('%s,%s,%s,%s,%s,%s,%s,%s' % (
+        s['group_label'],
+        project.label,
+        subject.label,
+        session.label,
+        s['gear'],
+        session.id,
+        s['analysis_id'],
+        s['created']))
 
