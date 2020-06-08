@@ -148,7 +148,7 @@ RequestIDs:
       fund: Optical Monitoring of Cerebral Hemodynamics during Mechanical Thrombectomy - 400-4322-4-578204-5340-2810-1100 (Expires on August 31, 2024)
       ben: 400-4322-4-578204-5340-2810-1100 (Expires on August 31, 2024)
       aliases:
-        - detre_group/Respiract
+        - odetre_group/Respiract
 
     - service_request_id: 3305251
       fund: Alzheimer's Disease Core Center - 400-4322-4-577000-5340-2810-1100 (Expires on June 30, 2020)

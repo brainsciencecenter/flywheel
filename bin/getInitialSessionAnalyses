@@ -46,13 +46,6 @@ if (args.filter):
 else:
   sessions = fw.get_all_sessions(exhaustive=args.exhaustive, limit=args.limit)
 
-Scanners = {}
-Devices = fw.get_all_devices()
-
-for d in Devices:
-  if (d.type == "reaper"):
-    Scanners[d.id] = d.name
-
 projects = fw.get_all_projects(exhaustive=args.exhaustive, limit=args.limit)
 
 UIDs2Labels = {}
@@ -100,8 +93,6 @@ for session in sessions:
 
 
     if (session.analyses):
-        # *** Need to verify this is a reaped session, and not uploaded
-
         m = 0
         for analysis in session.analyses:
             m += 1
@@ -126,28 +117,13 @@ for session in sessions:
 
                     gear = analysis.gear_info.name
 
-                    SessionReapers = []
-                    if (analysis.inputs):
-                        for input in analysis.inputs:
-                            try:
-                                if (input.origin and input.origin.type == 'device'):
-                                    if (input.origin.id in Scanners.keys()):
-                                        SessionReapers.append(Scanners[input.origin.id])
-                            except (AttributeError) as e:
-#                                print("no origin for session id({}), analyses id ({}), input id ({})".format(session.id, analysis.id, input.id), file=sys.stderr)
-                                print("no origin for session id({})".format(session.id), file=sys.stderr)
-
-                    # No scanner reapers, session wasn't reaped from our scanners
-                    if (len(SessionReapers) <= 0):
-                        SessionReapers = [ 'Non-Reaped' ]
-
                     print('%s,%s,%s,%s,%s,%s,%s,%s,%s' % (
-                        analysis.created,
+                        analysis.timestamp,
+                        session.timestamp,
                         session.parents.group,
                         UIDs2Labels[session.parents.project],
                         UIDs2Labels[session.parents.subject],
                         UIDs2Labels[session.id],
-                        ":".join(SessionReapers),
                         gear,
                         session.id,
                         analysis.id,

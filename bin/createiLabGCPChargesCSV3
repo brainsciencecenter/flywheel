@@ -97,7 +97,7 @@ TerraByte = 1024 * 1024 * 1024 * 1042
 CmdName = os.path.basename(sys.argv[0])
 
 SessionConversionCharge = 25
-iLabServiceRequestIDMapFile = "/home/holder/Work/CfN/flywheel/bin/iLabServiceRequestIDMap"
+iLabServiceRequestIDMapFile = "/home/holder/flywheel/bin/iLabServiceRequestIDMap"
 NonRegisteredGroupName = 'NonRegistered'
 
 ap = argparse.ArgumentParser()
@@ -108,6 +108,7 @@ ap.add_argument('-g', '--group-summary-only', action='store_true', help='summari
 ap.add_argument('-i', '--iLab', action='store_true', help='produce ilab charges (may want -b)')
 ap.add_argument('-m', '--mapfile', action='store', help='iLab service id and service request id yaml file') 
 ap.add_argument('-p', '--project-summary', action='store_true', help='summarize by project.  leave out individual charges')
+ap.add_argument('-s', '--simple', action='store_true', help='simple aggregation, do not move invalid, misc, or unknown charges into bsc-admin')
 ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Cost Table Report CSV')
 
 args = ap.parse_args()
@@ -401,7 +402,7 @@ def formatiLabChargesCSV(Groups):
                 ):
                     continue
 
-            print("{},{},{},,,{},,,".format(service_id, note, quantity, service_request_id))
+            print("{},{},{},{},,{},,,".format(service_id, note, quantity, "0.00", service_request_id))
 
 def formatGroupChargesCSV(Groups):
     global Charges
@@ -544,7 +545,7 @@ for c in SortedCharges:
     c[costtype] = c['cost']
 
     print("costtype",costtype, file=sys.stderr)
-    if (re.search('invalid|misc|unknown',costtype)):
+    if ((not args.simple) and re.search('invalid|misc|unknown',costtype)):
         print("switching group to bsc-admin", file=sys.stderr)
         c['project'] = '{}/{}'.format(c['group'],c['project'])
         c['group'] = 'bsc-admin'
@@ -554,19 +555,6 @@ for c in SortedCharges:
         
     group = Groups[c['group']]
 
-    """
-    if (group['name'] == 'flywheel'):
-        ServiceIdAlias = costtype
-        if (re.search('promotions|discounts', costtype, flags=re.IGNORECASE)):
-            Major = costClassifier(c, primary=True)
-            ServiceIdAlias = '{} {}'.format(Major, ServiceIdAlias)
-
-        ServiceIdAlias = 'Flywheel {}'.format(ServiceIdAlias)
-    else:
-        ServiceIdAlias = '{}'.format(costtype)
-
-    c['service_id'] = getServiceId(iLabServiceRequestIDMap,ServiceIdAlias)
-    """
     c['service_id'] = getServiceId(iLabServiceRequestIDMap,
                                    getChargeServiceIdAlias(c))
 
@@ -623,9 +611,7 @@ if (args.flywheel):
                 iLabServiceRequestIDMap,
                 "{}/{}".format(entry['group'],entry['project']))
 
-#            print("ServiceRequestID for {}/{} = ".format(entry['group'], entry['project']), ServiceRequestID, file=sys.stderr)
             BillingGroupName = getProjectGroup(iLabServiceRequestIDMap,"{}/{}".format(entry['group'], entry['project']))
-#            print("BillingGroupName = ", BillingGroupName, file=sys.stderr)
 
             if (BillingGroupName):
                 if (not (BillingGroupName in Groups.keys())):
@@ -722,6 +708,68 @@ if (args.flywheel):
                     c['service_id'] = getServiceId(iLabServiceRequestIDMap,getChargeServiceIdAlias(c))
                     group['Charges'].append(c)
 
+            if (charge['invalid']):
+                print("Invalid Charge Allocation", file=sys.stderr)
+                print(json.dumps(charge, indent=2), file=sys.stderr)
+                ProRatedInvalidCost = round(charge['invalid'] * (entry['compute_ms'] / FlywheelComputeMS), 2)
+                if (abs(ProRatedInvalidCost) > 0.01):
+                    c = initCharge(
+                        charge=charge,
+                        service_request_id=ServiceRequestID,
+                        group=entry['group'],
+                        project=entry['project'],
+                        cost=ProRatedInvalidCost,
+                        invalid=ProRatedInvalidCost,
+                        cost_type="Flywheel invalid cost allocation",
+                    )
+
+                    setiLabNote(c)
+                    c['service_id'] = getServiceId(iLabServiceRequestIDMap,getChargeServiceIdAlias(c))
+                    print("ProRated Charge", file=sys.stderr)
+                    print(json.dumps(c, indent=2), file=sys.stderr)
+                    group['Charges'].append(c)
+
+            if (charge['unknown']):
+                print("Unknown Charge Allocation", file=sys.stderr)
+                print(json.dumps(charge, indent=2), file=sys.stderr)
+                ProRatedUnknownCost = round(charge['unknown'] * (entry['compute_ms'] / FlywheelComputeMS), 2)
+                if (abs(ProRatedUnknownCost) > 0.01):
+                    c = initCharge(
+                        charge=charge,
+                        service_request_id=ServiceRequestID,
+                        group=entry['group'],
+                        project=entry['project'],
+                        cost=ProRatedUnknownCost,
+                        unknown=ProRatedUnknownCost,
+                        cost_type="Flywheel unknown cost allocation",
+                    )
+
+                    setiLabNote(c)
+                    c['service_id'] = getServiceId(iLabServiceRequestIDMap,getChargeServiceIdAlias(c))
+                    print("ProRated Charge", file=sys.stderr)
+                    print(json.dumps(c, indent=2), file=sys.stderr)
+                    group['Charges'].append(c)
+
+            if (charge['misc']):
+                print("Misc Charge Allocation", file=sys.stderr)
+                print(json.dumps(charge, indent=2), file=sys.stderr)
+                ProRatedMiscCost = round(charge['misc'] * (entry['compute_ms'] / FlywheelComputeMS), 2)
+                if (abs(ProRatedMiscCost) > 0.01):
+                    c = initCharge(
+                        charge=charge,
+                        service_request_id=ServiceRequestID,
+                        group=entry['group'],
+                        project=entry['project'],
+                        cost=ProRatedMiscCost,
+                        misc=ProRatedMiscCost,
+                        cost_type="Flywheel Misc cost allocation",
+                    )
+
+                    setiLabNote(c)
+                    c['service_id'] = getServiceId(iLabServiceRequestIDMap,getChargeServiceIdAlias(c))
+                    print("ProRated Charge", file=sys.stderr)
+                    print(json.dumps(c, indent=2), file=sys.stderr)
+                    group['Charges'].append(c)
 
     del(Groups['flywheel'])
 
