@@ -32,6 +32,7 @@ if __name__ == '__main__':
     cap = ap.add_mutually_exclusive_group()
     cap.add_argument('-a', '--acquisitions',  action='store_true', help='find acquisition information')
 #    cap.add_argument('-A', '--analyses',  action='store_true', help='find analyses information')
+    cap.add_argument('-j', '--jobs',  action='store_true', help='find job information')
     cap.add_argument('-p', '--projects',  action='store_true', help='find project information')
     cap.add_argument('-s', '--subjects',  action='store_true', help='find subject information')
     cap.add_argument('-S', '--sessions',  action='store_true', help='find session information')
@@ -53,6 +54,8 @@ if __name__ == '__main__':
 #    if (args.analyses):
 #        print(fw.__dir__())
 #        res = fw.analyses.find(*args.findargs)
+    if (args.jobs):
+        res = fw.jobs.iter_find(*args.findargs)
     if (args.projects):
         res = fw.projects.iter_find(*args.findargs)
     if (args.subjects):
@@ -77,5 +80,5 @@ if __name__ == '__main__':
 
         Outputs.append(Output)
 
-    print(json.dumps(Outputs))
+    print(json.dumps(Outputs,indent=2))
 

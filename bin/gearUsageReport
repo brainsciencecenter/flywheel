@@ -1,0 +1,54 @@
+#!/usr/bin/python3
+
+import flywheel
+import csv
+
+fw = flywheel.Client('upenn.flywheel.io:L3dqtPiM2XDsfjC7jF', root=True)
+
+
+project_data = []
+search = 'state=complete,created>2020-06-08'
+for job in fw.jobs.iter_find(filter=search):
+  try:
+    job=job.reload()
+    elapsed = job['profile']['elapsed_time_ms']
+    cpus= job['profile']['executor']['cpu_cores']
+    gear = fw.get_gear(job.gear_id)
+    adj_elapsed=elapsed*cpus
+    date = job.created
+    req = job.get('inputs')
+    for nested in req.values():
+      if nested["type"] == 'project':
+        id=nested["id"]
+        project = fw.get(id)   
+      elif nested["type"] == 'analysis':
+        id=nested["id"]
+        cont = fw.get(id)
+        group = cont.parents.group
+        project = fw.get_project(cont.parents.project)
+      elif nested["type"] == 'acquisition':
+        id=nested["id"]
+        cont = fw.get(id)
+        project = fw.get_project(cont.parents.project)
+        group = project.group
+
+        project_data.append({
+            'job_id': job.id,
+            'gear_name': gear.gear.name,
+            'gear_version': gear.gear.version,
+            'group': group,
+            'project': project.label,
+            'elapsed(ms)': elapsed,
+            'cpus': cpus,
+            'adj_elapsed(ms)': adj_elapsed,
+            'date': date
+          })
+  except:
+    job = job.reload() 
+
+with open('may_jobs.csv', 'w') as fp:
+  writer = csv.DictWriter(fp, ['job_id', 'gear_name', 'gear_version', 'group', 'project','elapsed(ms)','cpus','adj_elapsed(ms)','date'])
+  writer.writeheader()
+
+  for row in project_data:
+    writer.writerow(row)

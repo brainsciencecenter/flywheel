@@ -206,10 +206,14 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
 
     if (Get):
         try:
-            r = fw.get(r._id)
+           if (type(r) == flywheel.models.job_list_entry.JobListEntry):
+              r = r.reload()
+           else:
+              r = fw.get(r._id)
         except (flywheel.rest.ApiException) as e:
-            print("%s : Exception : %s" % (CmdName, e), file=sys.stderr)
-            True
+           print("%s : Exception : %s" % (CmdName, e), file=sys.stderr)
+           print("%s : r is type : %s" % (CmdName, type(r)), file=sys.stderr)
+           True
 
     if (Debug):
         print(type(r), file=sys.stderr)
