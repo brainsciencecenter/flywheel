@@ -1,0 +1,246 @@
+#!/usr/bin/python3
+#Reaped Sessions
+
+import argparse
+import csv
+import flywheel
+import fwgearutils
+import json
+import re
+import sys
+from pprint import pprint
+
+from collections import OrderedDict
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-f', '--flywheel-usage-report', action='store', help='Flywheel Usage Report in csv format')
+parser.add_argument('-v', '--verbose', action='store_true', help='verbose')
+parser.add_argument('gcp_cost_table', nargs=1, help='GCP Cost Table Report in csv format')
+args = parser.parse_args()
+
+fw = fwgearutils.getFW(args)
+
+FlywheelComputeMS = 0.0
+FlywheelStorageBytes = 0.0
+FlywheelProjectEntries = {}
+
+def initFlywheelProjectEntry(compute_ms=None, storage_bytes=None):
+    return({ 
+        'compute': {
+            'used': compute_ms,
+            'percent': 0.0,
+        },
+        'storage': {
+            'used': storage_bytes,
+            'percent': 0.0,
+        }
+    })
+        
+
+def initGCPEntry(
+        BillingAccountName=None,
+        BillingAccountID=None,
+        Group=None,
+        ProjectName=None,
+        ProjectID=None,
+        ServiceDescription=None,
+        ServiceID=None,
+        SKUDescription=None,
+        SKUID=None,
+        CostType=None,
+        UsageStartDate=None,
+        UsageEndDate=None,
+        UsageAmount=None,
+        UsageUnit=None,
+        Cost=None,
+):
+    Entry = OrderedDict([
+        ('Billing account name', BillingAccountName),
+        ('Billing account ID', BillingAccountID),
+        ( 'Group', group ),
+        ( 'Project name', ProjectName ),
+        ( 'Project ID', ProjectID),
+        ( 'Service description', ServiceDescription),
+        ( 'Service ID', ServiceID),
+        ( 'SKU description', SKUDescription),
+        ( 'SKU ID',  SKUID),
+        ( 'Cost type', CostType),
+        ( 'Usage start date', UsageStartDate),
+        ( 'Usage end date', UsageEndDate),
+        ( 'Usage amount', UsageAmount),
+        ( 'Usage unit', UsageUnit),
+        ( 'Cost ($)', Cost),
+    ])
+
+    return(Entry)
+
+def isCostClassifier(CostType,Type):
+    return(re.search(Type, CostType))
+    
+with open(args.flywheel_usage_report, newline='') as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+    for row in reader:
+        if (not (row['project_label'])):
+            # Just skip rows with group summary info
+            continue
+
+        group = row['group']
+        project = row['project_label']
+
+        storage_bytes = float(row['total_storage_byte_day'])/float(row['days'])
+        FlywheelStorageBytes += storage_bytes
+
+        compute_ms = float(row['total_compute_ms'])
+        FlywheelComputeMS += compute_ms
+
+        FlywheelProjectKey = '{},{}'.format(group,project)
+        if (FlywheelProjectKey in FlywheelProjectEntries.keys()):
+            FlywheelProjectEntries[FlywheelProjectKey]['compute']['used'] += compute_ms
+            FlywheelProjectEntries[FlywheelProjectKey]['storage']['used'] += storage_bytes
+        else:
+            FlywheelProjectEntries[FlywheelProjectKey] = initFlywheelProjectEntry(
+                compute_ms=compute_ms,
+                storage_bytes=storage_bytes)
+
+FlywheelComputePercents = 0.0
+FlywheelStoragePercents = 0.0
+
+for e in FlywheelProjectEntries.values():
+    e['compute']['percent'] = e['compute']['used']/FlywheelComputeMS
+    FlywheelComputePercents += e['compute']['used']/FlywheelComputeMS
+
+    e['storage']['percent'] = e['storage']['used']/FlywheelStorageBytes
+    FlywheelStoragePercents += e['storage']['used']/FlywheelStorageBytes
+
+if (args.verbose):
+    print("FlywheelComputeMS = {}".format(FlywheelComputeMS), file=sys.stderr)
+    print("FlywheelStorageBytes = {}".format(FlywheelStorageBytes), file=sys.stderr)
+
+print("FlywheelComputePercents = {}".format(FlywheelComputePercents), file=sys.stderr)
+print("FlywheelStoragePercents = {}".format(FlywheelStoragePercents), file=sys.stderr)
+
+Entries = []
+
+FlywheelCharges = 0.0
+SummedFlywheelStorage = 0.0
+with open(args.gcp_cost_table[0], newline='') as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+    for row in reader:
+        Entry = {}
+
+        if (row['Project name'] == ""):
+            # Skipping cost type = Rounding error, Total
+            continue
+
+        if (row['Project name'] == 'upenn-flywheel'):
+            if (float(row['Cost ($)']) > 0.0):
+                FlywheelCharges += float(row['Cost ($)'])
+
+            if (    (re.search('upenn-flywheel', row['Project ID']))
+                and (re.search('Cloud Storage', row['Service description']))
+                and (re.search('Standard Storage', row['SKU description']))
+            ):
+                SummedFlywheelStorage += float(re.sub(',','', row['Usage amount']))
+                print("Units = {}".format(row['Usage unit']), file=sys.stderr)
+
+            for k, e in FlywheelProjectEntries.items():
+                if (args.verbose):
+                    print("k = '{}', split = {}".format(k, k.split(',')), file=sys.stderr)
+
+                (group, project) = k.split(',')
+
+                if (args.verbose):
+                    print("'{}', '{}', '{}'".format(row['Service description'], row['SKU description'],row['Usage amount']), file=sys.stderr)
+
+                try:
+                    UsageAmount = float(re.sub(',', '',row['Usage amount']))
+                except (ValueError):
+                    UsageAmount = 0
+
+                try:
+                    Cost = float(re.sub(',', '',row['Cost ($)']))
+                except (ValueError):
+                    Cost = 0
+                    
+                if (isCostClassifier(row['Service description'],'Compute Engine')):
+                    cost = Cost * e['compute']['percent']
+                    usage = UsageAmount * e['compute']['percent']
+                elif (isCostClassifier(row['Service description'],'Cloud Storage')):
+                    cost = Cost * e['storage']['percent']
+                    usage = UsageAmount * e['storage']['percent']
+                else:
+                    cost = Cost * e['compute']['percent']
+                    usage = UsageAmount * e['compute']['percent']
+
+                Entry = initGCPEntry(
+                    BillingAccountName=row['Billing account name'],
+                    BillingAccountID=row['Billing account ID'],
+                    Group=group,
+                    ProjectName=project,
+                    ProjectID=row['Project ID'],
+                    ServiceDescription=row['Service description'],
+                    ServiceID=row['Service ID'],
+                    SKUDescription=row['SKU description'],
+                    SKUID=row['SKU ID'],
+                    CostType=row['Cost type'],
+                    UsageStartDate=row['Usage start date'],
+                    UsageEndDate=row['Usage end date'],
+                    UsageAmount=usage,
+                    UsageUnit=row['Usage unit'],
+                    Cost=cost,
+                )
+
+                Entries.append(Entry)
+        else:
+            # *** Need to look up the project in the iLab Mapping file
+            group = 'BogusGroup'
+
+            Entry = initGCPEntry(
+                BillingAccountName=row['Billing account name'],
+                BillingAccountID=row['Billing account ID'],
+                Group=group,
+                ProjectName=row['Project name'],
+                ProjectID=row['Project ID'],
+                ServiceDescription=row['Service description'],
+                ServiceID=row['Service ID'],
+                SKUDescription=row['SKU description'],
+                SKUID=row['SKU ID'],
+                CostType=row['Cost type'],
+                UsageStartDate=row['Usage start date'],
+                UsageEndDate=row['Usage end date'],
+                UsageAmount=row['Usage amount'],
+                UsageUnit=row['Usage unit'],
+                Cost=row['Cost ($)'],
+            )
+
+            Entries.append(Entry)
+
+if (args.verbose):
+    print("Entries is {} long".format(len(Entries)), file=sys.stderr)
+    print("Entries[0] = {}".format(type(Entries[0])), file=sys.stderr)
+
+print("FlywheelCharges = {}".format(FlywheelCharges), file=sys.stderr)
+
+writer = csv.DictWriter(sys.stdout, Entries[0].keys())
+writer.writeheader()
+
+CalculatedFlywheelCharges = 0.0
+CalculatedFlywheelStorage = 0.0
+for row in Entries:
+    if (re.search('upenn-flywheel', row['Project ID']) and (row['Cost ($)'] > 0.0)):
+        CalculatedFlywheelCharges += row['Cost ($)']
+
+    if (    (re.search('upenn-flywheel', row['Project ID']))
+        and (re.search('Cloud Storage', row['Service description']))
+        and (re.search('Standard Storage', row['SKU description']))
+    ):
+        CalculatedFlywheelStorage += row['Usage amount']
+
+    writer.writerow(row)
+
+# Flywheel costs should be 33595.61 for May 2020
+print("CalculatedFlywheelCharges = {}".format(CalculatedFlywheelCharges), file=sys.stderr)
+print("CalculatedFlywheelStorage = {}".format(CalculatedFlywheelStorage), file=sys.stderr)
+print("SummedFlywheelStorage = {}".format(SummedFlywheelStorage), file=sys.stderr)

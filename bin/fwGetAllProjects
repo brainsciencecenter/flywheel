@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+
+#
+# get all the analysises from flywheel
+# filter the analysises for specified date range
+# get the session ids for those analysises
+# Get the flywheel paths for those sessions sorting by group/project
+# Tally project totals and group totals
+
+# from Jeff Meier
+
+import argparse
+import csv
+import flywheel
+import fwgearutils
+import json
+import pyprog
+import re
+import sys
+
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument('-b', '--bar-length', action='store', default=40, type=int, help='bar length')
+ap.add_argument('-e', '--exhaustive', action='store_false', default=True, help='exhaustive session flag')
+ap.add_argument('-l', '--limit', action='store', default=1000000, type=int, help='Flywheel cost allocation csv file')
+ap.add_argument('-p', '--progressbar', action='store_true', help='show progress bar')
+
+ap.add_argument('filter', nargs='?', type=str, default=None, help='arguments to fw.find()')
+
+args = ap.parse_args()
+
+fw = fwgearutils.getFW(args, Root=True)
+
+Projects = fw.get_all_projects()
+
+AllProjects = []
+
+for p in Projects:
+  AllProjects.append(p.label)
+
+print(json.dumps(AllProjects, indent=2))
