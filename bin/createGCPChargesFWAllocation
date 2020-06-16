@@ -6,6 +6,7 @@ import csv
 import flywheel
 import fwgearutils
 import json
+import os
 import pyjq
 import re
 import sys
@@ -13,6 +14,8 @@ import yaml
 from pprint import pprint
 
 from collections import OrderedDict
+
+CmdName = os.path.basename(sys.argv[0])
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-f', '--flywheel-usage-report', action='store', help='Flywheel Usage Report in csv format')
@@ -80,6 +83,24 @@ def initGCPEntry(
 def isCostClassifier(CostType,Type):
     return(re.search(Type, CostType))
     
+def getProjectGroup(iLabMap,alias):
+    try:
+        # way too many backslashes
+        # may need to do lots of re.escapes()
+        SafeAlias = re.sub('([\(\)])', r'\\\\\1', alias)
+
+        print("alias = '{}'".format(alias), file=sys.stderr)
+
+        res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .group'.format(SafeAlias), iLabMap)
+    except:
+        print("{}: No alias for '{}' '{}' in iLabMap".format(CmdName, alias, SafeAlias), file=sys.stderr)
+        res = []
+
+    if (len(res)):
+        return(res[0])
+    else:
+        return(None)
+
 with open(args.flywheel_usage_report, newline='') as csvfile:
     reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
 
@@ -200,10 +221,15 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
 
                 Entries.append(Entry)
         else:
-            res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("proj$")) | .keys[0]', iLabMap)
+            res = getProjectGroup(iLabMap,row['Project ID'])
             print("res = {}".format(res), file=sys.stderr)
+            if (row['Project ID'] == 'holder'):
+                print(row, file=sys.stderr)
 
-            group = 'BogusGroup'
+            if (res == None):
+                group = 'BogusGroup'
+            else:
+                group = res
 
             Entry = initGCPEntry(
                 BillingAccountName=row['Billing account name'],
