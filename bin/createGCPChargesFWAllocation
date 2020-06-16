@@ -6,14 +6,17 @@ import csv
 import flywheel
 import fwgearutils
 import json
+import pyjq
 import re
 import sys
+import yaml
 from pprint import pprint
 
 from collections import OrderedDict
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-f', '--flywheel-usage-report', action='store', help='Flywheel Usage Report in csv format')
+parser.add_argument('-m', '--ilabmap', action='store', help='iLab Service Request Map in yaml')
 parser.add_argument('-v', '--verbose', action='store_true', help='verbose')
 parser.add_argument('gcp_cost_table', nargs=1, help='GCP Cost Table Report in csv format')
 args = parser.parse_args()
@@ -102,6 +105,9 @@ with open(args.flywheel_usage_report, newline='') as csvfile:
             FlywheelProjectEntries[FlywheelProjectKey] = initFlywheelProjectEntry(
                 compute_ms=compute_ms,
                 storage_bytes=storage_bytes)
+
+with open(args.ilabmap) as ilabmapfile:
+    iLabMap = yaml.load(ilabmapfile, Loader=yaml.FullLoader)
 
 FlywheelComputePercents = 0.0
 FlywheelStoragePercents = 0.0
@@ -194,7 +200,9 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
 
                 Entries.append(Entry)
         else:
-            # *** Need to look up the project in the iLab Mapping file
+            res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("proj$")) | .keys[0]', iLabMap)
+            print("res = {}".format(res), file=sys.stderr)
+
             group = 'BogusGroup'
 
             Entry = initGCPEntry(
