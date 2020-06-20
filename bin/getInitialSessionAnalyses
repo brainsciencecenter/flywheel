@@ -14,8 +14,28 @@ import csv
 import flywheel
 import fwgearutils
 import json
+import os
 import re
 import sys
+
+# *** Need to add comments to suss out techdev scans
+
+from collections import OrderedDict
+
+CmdName = os.path.basename(sys.argv[0])
+
+def findOrigin(acquisitions):
+    for a in acquisitions:
+        for f in a.files:
+            if (f.origin.type == 'device'):
+                return(f.origin)
+
+    for a in acquisitions:
+        for f in a.files:
+            if (f.origin.type == 'user'):
+                return(f.origin)
+
+    return("Error")
 
 def progress(count, total, status=''):
     bar_len = 60
@@ -39,97 +59,194 @@ ap.add_argument('filter', nargs='?', type=str, default=None, help='arguments to 
 
 args = ap.parse_args()
 
+UIDs2Labels = {}
+
 fw = fwgearutils.getFW(args, Root=True)
+
+reapers = fw.get_all_devices()
+for r in reapers:
+    UIDs2Labels[r.id] = r.name
+
+projects = fw.get_all_projects(exhaustive=args.exhaustive, limit=args.limit)
+for p in projects:
+    UIDs2Labels[p.id] = p.label
+
+subjects = fw.get_all_subjects(exhaustive=args.exhaustive, limit=args.limit)
+for s in subjects:
+    UIDs2Labels[s.id] = s.label
 
 if (args.filter):
   sessions = fw.get_all_sessions(exhaustive=args.exhaustive, limit=args.limit, filter=args.filter)
 else:
   sessions = fw.get_all_sessions(exhaustive=args.exhaustive, limit=args.limit)
 
-projects = fw.get_all_projects(exhaustive=args.exhaustive, limit=args.limit)
-
-UIDs2Labels = {}
-
-for p in projects:
-    UIDs2Labels[p.id] = p.label
-
+print("Len sessions = ",len(sessions), file=sys.stderr)
 for s in sessions:
     UIDs2Labels[s.id] = s.label
 
-subjects = fw.get_all_subjects(exhaustive=args.exhaustive, limit=args.limit)
-for s in subjects:
-    UIDs2Labels[s.id] = s.label
-
 print("Got projects, subjects and sessions", file=sys.stderr)
+
+DicomFields = {
+    'imagecomments':			 	'ImageComments',
+    'institutionname':				'InstitutionName', 
+    'manufacturermodelname':			'ManufacturerModelName',
+    'performedprocedurestepdescription':	'PerformedProcedureStepDescription',
+    'performingphysicianname':			'PerformingPhysicianName',
+    'procedurestepdescription':			'ProcedureStepDescription',
+    'referringphysicianname':			'ReferringpPysicianName',
+    'requestingphysician':			'RequestingPhysician',
+    'studycomments':				'StudyComments',
+    'studydescription':				'StudyDescription',
+}
+    
 
 maxtries = 10
 
 l = len(sessions)
 i = 0
-InitialSessions = {}
+
+def initRow(
+        created=None,
+        group=None,
+        project=None,
+        subject=None,
+        session=None,
+        session_id=None,
+        imagecomments=None,
+        institutionname=None,
+        manufacturermodelname=None,
+        performedprocedurestepdescription=None,
+        performingphysicianname=None,
+        procedurestepdescription=None,
+        referringphysicianname=None,
+        requestingphysician=None,
+        studycomments=None,
+        studydescription=None,
+        origin_id=None,
+        origin_type=None,
+        gear_name=None,
+        gear_version=None,
+        job_date=None,
+        job_id=None,
+        job_origin_type=None,
+        job_origin_id=None,
+
+    ):
+    row = OrderedDict([
+        ('created', created),
+        ('group', group),
+        ('project', project),
+        ('subject', subject),
+        ('session', session),
+        ('session_id', session_id),
+        ('imagecomments', imagecomments),
+        ('institutionname', institutionname),
+        ('manufacturermodelname', manufacturermodelname),
+        ('performedprocedurestepdescription', performedprocedurestepdescription),
+        ('performingphysicianname', performingphysicianname),
+        ('procedurestepdescription', procedurestepdescription),
+        ('referringphysicianname', referringphysicianname),
+        ('requestingphysician', requestingphysician),
+        ('studycomments', studycomments),
+        ('studydescription', studydescription),
+        ('origin_id', origin_id),
+        ('origin_type', origin_type),
+        ('gear_name', gear_name),
+        ('gear_version', gear_version),
+        ('job_date', job_date),
+        ('job_id', job_id),
+        ('job_origin_type', job_origin_type),
+        ('job_origin_id', job_origin_id),
+    ])
+    return(row)
+
+
+header = True
+out = initRow()
+writer = csv.DictWriter(sys.stdout, out.keys(),lineterminator='\n' )
 
 for session in sessions:
-    i += 1
-    n = 0
-
     if (args.progressbar):
         progress(i, l)
 
-    while (n < maxtries):
-        n += 1
-        try:
-            s = session.reload()
-            if (s):
-                session = s
-                break
-            else:
-                print("session reload returned None for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
+    out = initRow(
+        created=session.created,
+        group=session.parents.group,
+        project=UIDs2Labels[session.parents.project],
+        subject=UIDs2Labels[session.parents.subject],
+        session=session.label,
+        session_id=session.id
+    )
 
-        except (flywheel.rest.ApiException) as e:
-            print("session reload failed for {} ({}/{}) ({})".format(session.id, n, maxtries, e), file=sys.stderr)
-    if (n >= maxtries):
-        print("session reload retries failed for {} ({}/{}), skipping".format(session.id, n, maxtries), file=sys.stderr)
+    try:
+        s = session.reload()
+        if (s):
+            session = s
+        else:
+            print("session reload returned None for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
+
+    except (flywheel.rest.ApiException) as e:
+        print("session reload failed for {} ({}/{}) ({})".format(session.id, n, maxtries, e), file=sys.stderr)
         continue
 
 
+
+    # query = 'state=complete,created>{},parents.parents.session={}'.format(session.created,session.id)
+    # fw.get_all_analyses()
+    # *** sort by created date, grab the first one
     if (session.analyses):
-        m = 0
-        for analysis in session.analyses:
-            m += 1
-            while (m < maxtries):
-                try:
-                    a = analysis.reload()
-                    if (a):
-                        analysis = a
-                        break
-                    else:
-                        print("analysis reload returned None for {} ({}/{})".format(analysis.id, n, maxtries), file=sys.stderr)
-                except (flywheel.rest.ApiException) as e:
-                    print("analysis reload failed for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
-            
+        analysis = session.analyses[0]
+        a = analysis.reload()
+        if (a):
+            analysis = a
 
-            if (not session.id in InitialSessions.keys()):
-                if (analysis.gear_info == None):
-                    print("No gear info for session {} ({})".format(session.label, session.id), file=sys.stderr)
-                    continue
-                else:
-                    InitialSessions[session.id] = True
+            if (getattr(analysis,'gear_info')):
+                out['job_date'] = analysis.created
+                out['gear_name'] = analysis.gear_info.name
+                out['gear_version'] = analysis.gear_info.version
+                out['job_id'] = analysis.job.id
+                out['job_origin_type'] =  analysis.job.origin.type
+                out['job_origin_id'] = analysis.job.origin.id
+            else:
+                print("analysis has no gear_info {}".format(analysis.id), file=sys.stderr)
 
-                    gear = analysis.gear_info.name
+        else:
+            print("analysis reload returned None for {}".format(analysis.id), file=sys.stderr)
 
-                    print('%s,%s,%s,%s,%s,%s,%s,%s,%s' % (
-                        analysis.timestamp,
-                        session.timestamp,
-                        session.parents.group,
-                        UIDs2Labels[session.parents.project],
-                        UIDs2Labels[session.parents.subject],
-                        UIDs2Labels[session.id],
-                        gear,
-                        session.id,
-                        analysis.id,
-                        ))
 
-                    if (args.verbose):
-                        print("Session {} ({}/{})".format(session.label, i, l))
+    query = 'parents.session={}'.format(session.id)
+    acquisitions = fw.acquisitions.find(query, exhaustive=True)
+    if (len(acquisitions)):
+        origin = findOrigin(acquisitions)
+
+        if (origin.id in UIDs2Labels.keys()):
+            out['origin_id'] = UIDs2Labels[origin.id]
+        else:
+            out['origin_id'] = origin.id
+
+        out['origin_type'] = origin.type
+
+        for acquisition in acquisitions:
+            a = fw.get(acquisition.id)
+            for f in a.files:
+                if (re.search('.dicom.zip', f.name)):
+                    info = f.info
+                    for k,v in DicomFields.items():
+                        try:
+                            print("{} {}".format(k,info.keys()), file=sys.stderr)
+                            out[k] = info[v]
+                        except (AttributeError, KeyError) as e:
+                            True
+
+    if (header):
+        writer.writeheader()
+        header = False
+
+    writer.writerow(out)
+
+    print(json.dumps(fwgearutils.sloppyCopy(session, recurse=True), indent=2), file=sys.stderr)
+
+    if (args.verbose):
+        print("Session {} ({}/{})".format(session.label, i, l), file=sys.stderr)
 
 

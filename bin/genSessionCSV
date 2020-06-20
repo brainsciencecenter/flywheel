@@ -46,7 +46,7 @@ fwfind -l -s 'created>2018-01-01' | jq . > ${WorkDir}/Subjects.json
 jq -r '[ .[] | { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
 jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ .[] | { (._id): ($Projects::Projects[][.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > ${WorkDir}/SubjectMap.json
 
-if echo "$1" | grep -q '='
+if echo "$1" | grep -qr '=|<|>'
 then
     fwfind -S "$@" | jq -r '.[]._id' > ${WorkDir}/SessionUIDs
 else

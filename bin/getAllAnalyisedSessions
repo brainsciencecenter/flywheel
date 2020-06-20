@@ -7,7 +7,10 @@ import csv
 import flywheel
 import fwgearutils
 import json
+import os
 import sys
+
+CmdName = os.path.basename(sys.argv[0])
 
 def progress(count, total, status=''):
     bar_len = 60
@@ -25,17 +28,52 @@ args = parser.parse_args()
 
 fw = fwgearutils.getFW(args)
 
-sessions = fw.get_all_sessions(exhaustive=True, limit=1000000)
+Projects = {}
+projects = fw.get_all_projects(exhaustive=True, limit=1000000)
+print("Got all projects", file=sys.stderr)
+for c in projects:
+    Projects[c._id] = c
+
+Subjects = {}
+subjects = fw.get_all_subjects(exhaustive=True, limit=1000000)
+print("Got all subjects", file=sys.stderr)
+for c in subjects:
+    Subjects[c._id] = c
+
+Sessions = {}
+sessions = fw.get_all_sessions(exhaustive=True, limit=1000000, filter='created>2020-05-01')
+print("Got all sessions", file=sys.stderr)
+
 l = len(sessions)
 
-print("Got all sessions", file=sys.stderr)
 i = 0
 for session in sessions:
     i += 1
     session = session.reload()
+    if (session.project in Projects.keys()):
+        ProjectLabel = Projects[session.project].label
+    else:
+        print("{}: Missing project id '{}'".format(CmdName, session.project), file=sys.stderr)
+        ProjectLabel = "Missing"
+
+    if (session.parents.subject in Subjects.keys()):
+        SubjectLabel = Subjects[session.parents.subject].label
+    else:
+        print("{}: Missing subject id '{}'".format(CmdName, session.parents.subject), file=sys.stderr)
+        SubjectLabel = session.parents.subject
+
     for analysis in session.analyses:
         progress(i, l)
 
         analysis = analysis.reload()
-        if session.analyses:
-            print('%s, %s, %s, %s, %s' % (session.project,session.parents.group,session.id,analysis.id,analysis.created))
+
+        print('%s, %s, %s, %s, %s, %s, %s, %s' % (
+            session.parents.group,
+            ProjectLabel,
+            SubjectLabel,
+            session.label,
+            analysis.label,
+            session.id,
+            analysis.id,
+            analysis.created,
+        ))

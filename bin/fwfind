@@ -5,13 +5,22 @@
 # Numeric strings must be _Double_Quoted_ to be correctly interpeted as strings -- otherwise comparing strings vs numbers.
 # 
 
-import sys
-import re
-import os
-import flywheel
-import json
 import argparse
 import fwgearutils
+import flywheel
+import json
+import pyjq
+import os
+import re
+import sys
+
+def rr(r):
+    for a in dict(r).keys():
+        try:
+            print(json.dumps(a, indent=2))
+        except (TypeError) as e:
+            print("dumping {} failed".format(a), file=sys.stderr)
+            
 
 if __name__ == '__main__':
 
@@ -21,6 +30,7 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-d', '--debug',  action='store_true', help='print debug info')
+    ap.add_argument('-D', '--devices',  action='store_true', help='find device info')
     ap.add_argument('-l', '--localtime',  action='store_true', help='print times in local timezone instead of UTC')
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-r', '--recurse',  action='store_true', help='recurse through data structure')
@@ -64,6 +74,14 @@ if __name__ == '__main__':
         res = fw.subjects.iter_find(*args.findargs)
     if (args.sessions):
         res = fw.sessions.iter_find(*args.findargs)
+
+    if (args.devices):
+        res = fw.get_all_devices()
+        Outputs = fwgearutils.sloppyCopy(res, recurse=True, UTC=(not args.localtime))
+        RealScanners = pyjq.all('.[] | select(.name) | select(.name | match("SC3T|SC7T|HUP6"))', Outputs)
+        RealScanners = pyjq.all('.[] | select(.name)', Outputs)
+        print(json.dumps(RealScanners, indent=2))
+        sys.exit(0)
 
     #
     # Want to add analyses

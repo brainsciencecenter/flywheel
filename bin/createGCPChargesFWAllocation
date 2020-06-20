@@ -223,8 +223,6 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
         else:
             res = getProjectGroup(iLabMap,row['Project ID'])
             print("res = {}".format(res), file=sys.stderr)
-            if (row['Project ID'] == 'holder'):
-                print(row, file=sys.stderr)
 
             if (res == None):
                 group = 'BogusGroup'
@@ -235,7 +233,7 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                 BillingAccountName=row['Billing account name'],
                 BillingAccountID=row['Billing account ID'],
                 Group=group,
-                ProjectName=row['Project name'],
+                ProjectName=row['Project ID'],  # promoting project id to project name as it is most unique
                 ProjectID=row['Project ID'],
                 ServiceDescription=row['Service description'],
                 ServiceID=row['Service ID'],

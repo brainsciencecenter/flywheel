@@ -1,0 +1,280 @@
+#!/usr/bin/python3
+
+import argparse
+import csv
+import json
+import os
+import pyjq
+import re
+import sys
+import yaml
+
+from openpyxl.utils.cell import get_column_letter, column_index_from_string
+
+from collections import OrderedDict
+
+GibiByte = 1024 * 1024 * 1024
+TerraByte = 1024 * 1024 * 1024 * 1042
+
+CmdName = os.path.basename(sys.argv[0])
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument('-m', '--ilabmapfile', action='store', help='iLab service id and service request id yaml file') 
+ap.add_argument('-z', '--zero', action='store_true', help='include all charges zero and below') 
+ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Cost Table Report CSV')
+
+args = ap.parse_args()
+
+def initTotalCosts():
+    TotalCosts = {}
+
+    for c in ChargeTypes:
+        TotalCosts[c] = 0.0
+
+    return(TotalCosts)
+
+def initCharge(center=None,
+               group=None,
+               project_name=None, 
+               project_id=None, 
+               service_description=None,
+               service_id=None,
+               sku_description=None,
+               sku_id=None,
+               cost_type=None,
+               usage_start_date=None,
+               usage_end_date=None,
+               usage_amount=None,
+               usage_unit=None,
+               cost=0.0,
+):
+
+    return(
+        OrderedDict([
+            ( 'group', group ),
+            ( 'project_name', project_name ),
+            ( 'project_id', project_id ),
+            ( 'service_description', service_description),
+            ( 'sku_description', sku_description),
+            ( 'sku_id', sku_id),
+            ( 'cost_type', cost_type),
+            ( 'usage_amount', usage_amount),
+            ( 'usage_start_date', usage_start_date),
+            ( 'usage_end_date', usage_end_date),
+            ( 'usage_unit', usage_unit),
+            ( 'cost', cost),
+        ]))
+
+def initiLabCharge(
+               service_id=None,
+               note=None, 
+               service_quantity=None,
+               price=None,
+               purchased_on=None,
+               service_request_id=None,
+               owner_email=None,
+               pi_email_or_group_id=None,
+               payment_number=None,
+    ):
+
+    return(
+        OrderedDict([
+            ( 'service_id', service_id ),
+            ( 'note', note),
+            ( 'service_quantity', service_quantity),
+
+            ( 'price', price),
+            ( 'purchased_on', purchased_on),
+            ( 'service_request_id', service_request_id),
+
+            ( 'owner_email', owner_email),
+            ( 'pi_email_or_group_id', pi_email_or_group_id),
+            ( 'payment_number', payment_number),
+        ]))
+
+Groups = {}
+
+def initProject(name=None):
+     Project = {
+         'name': name,
+         'Charges': {
+             'usage_start_date': None,
+             'usage_end_date': None,
+             'flywheel_compute': 0.0,
+             'flywheel_storage': 0.0,
+             'flywheel_initial_analysis': 0.0,
+             'flywheel_misc': 0.0,
+             'gcp_compute': 0.0, 
+             'gcp_storage': 0.0,
+             'gcp_misc': 0.0,
+         },
+     }
+
+     return(Project)
+
+def getProjectGroup(iLabServiceRequestIDMap,alias):
+    try:
+        # way too many backslashes
+        # may need to do lots of re.escapes()
+        SafeAlias = re.sub('([\(\)])', r'\\\\\1', alias)
+
+        res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .group'.format(SafeAlias), iLabServiceRequestIDMap)
+    except:
+        print("{}: No alias for '{}' '{}' in iLabServiceRequestMap".format(CmdName, alias, SafeAlias), file=sys.stderr)
+        res = []
+
+    if (len(res)):
+        return(res[0])
+    else:
+        return(None)
+
+def getServiceId(iLabServiceRequestIDMap,alias):
+    print("ServiceID alias = {}".format(alias), file=sys.stderr)
+    res = pyjq.all('.["ServiceIDs"][]|select(.aliases[]|match("^{}$";"i")) | .service_id'.format(alias), iLabServiceRequestIDMap)
+    if (len(res)):
+          return(res[0])
+    else:
+          return(None)
+
+def getServiceRequestId(iLabServiceRequestIDMap,alias):
+    print("ServiceRequestID alias = {}".format(alias), file=sys.stderr)
+    res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$";"i")) | .service_request_id'.format(alias), iLabServiceRequestIDMap)
+    if (len(res)):
+          return(res[0])
+    else:
+          return(None)
+
+def costClassifier(c):
+    if (re.search('upenn-flywheel',c['project_id'])):
+        major = 'flywheel'
+    else:
+        major = 'gcp'
+
+    if (re.search('Compute Engine', c['service_description'])):
+        minor = 'compute'
+    elif (re.search('Cloud Storage', c['service_description'])):
+        minor = 'storage'
+    else:
+        print("c['service_description'] = '{}'".format(c['service_description']), file=sys.stderr)
+        minor = 'misc'
+
+    return("{}_{}".format(major,minor))
+            
+
+def mkGroupProjectKey(group,project):
+    return('{}/{}'.format(group,project))
+
+iLabMap = None
+
+with open(args.ilabmapfile) as file:
+    d = yaml.load(file, Loader=yaml.FullLoader)
+    iLabMap = json.loads(json.dumps(d))
+
+GCPChargeTotals = {}
+Charges = []
+
+with open(args.gcpcharges[0], newline='') as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+    for row in reader:
+
+        Cost=float(row['Cost ($)'])
+
+        if (Cost < 0.0):
+            continue
+
+        Charge = initCharge(
+            group=row['Group'],
+            project_name=row['Project name'],
+            project_id=row['Project ID'],
+            service_description=row['Service description'],
+            sku_description=row['SKU description'],
+            sku_id=row['SKU ID'],
+            cost_type=row['Cost type'],
+            usage_start_date=row['Usage start date'],
+            usage_end_date=row['Usage end date'],
+            usage_amount=row['Usage amount'],
+            usage_unit=row['Usage unit'],
+            cost=(float(row['Cost ($)'])+0.0)
+        )
+
+        Charges.append(Charge)
+
+SortedCharges = sorted(Charges, key=lambda c: c['group'])
+
+# *** Need project based iLab charge accumulation, not group based
+
+Projects = {}
+for c in SortedCharges:
+    GroupProjectKey = mkGroupProjectKey(c['group'],c['project_name'])
+    if (not (GroupProjectKey in Projects.keys())):
+        Projects[GroupProjectKey] = initProject(GroupProjectKey)
+        
+    Project = Projects[GroupProjectKey]
+
+    costtype = costClassifier(c)
+    Project['Charges'][costtype] += c['cost']
+
+    if (   Project['Charges']['usage_start_date'] == None 
+        or c['usage_start_date'] < Project['Charges']['usage_start_date']):
+
+        Project['Charges']['usage_start_date'] = c['usage_start_date']
+
+    if (   Project['Charges']['usage_end_date'] == None
+        or Project['Charges']['usage_end_date'] > c['usage_end_date']):
+
+        Project['Charges']['usage_end_date'] = c['usage_end_date']
+        
+print(json.dumps(Projects, indent=2), file=sys.stderr)
+
+iLabCharges = []
+
+for k, v in Projects.items():
+    service_request_id_alias = k
+
+    service_request_id = getServiceRequestId(iLabMap,service_request_id_alias)
+    print("Service Request ID = '{}'".format(service_request_id), file=sys.stderr)
+
+    if (service_request_id == None or (not re.match('^[0-9]+$', str(service_request_id)))):
+        print("{}: No Service Request ID for {}. Skipping.".format(CmdName,service_request_id_alias), file=sys.stderr)
+        continue
+
+    for chargetype,charge in v['Charges'].items():
+        service_id = getServiceId(iLabMap,chargetype)
+        print("ServiceID res = {}".format(service_id), file=sys.stderr)
+        if (service_id == None or (not re.match('^[0-9]+$', str(service_id)))):
+            print("{}: No Service ID for {}. Skipping.".format(CmdName,chargetype), file=sys.stderr)
+            continue
+
+        note = "Usage {} - {} : {} {}".format(
+            v['Charges']['usage_start_date'],
+            v['Charges']['usage_end_date'],
+            service_request_id_alias,
+            chargetype)
+        quantity = v['Charges'][chargetype]
+        print("v[{}].[Charges][{}] = {}".format(k,chargetype, v['Charges'][chargetype]), file=sys.stderr)
+        charge = 0.0
+
+        if (quantity > 0.0 or args.zero):
+            iLabCharge = initiLabCharge(
+                service_id=service_id,
+                note=note,
+                service_quantity=quantity,
+                price=charge,
+                service_request_id=service_request_id,
+            )
+
+            print("appending iLabCharge", iLabCharge, file=sys.stderr)
+            iLabCharges.append(iLabCharge)
+        else:
+            print("note = '{}', quantity = '{}', args.zero = '{}'".format(note,quantity, args.zero), file=sys.stderr)
+
+writer = csv.DictWriter(sys.stdout, iLabCharges[0].keys())
+writer.writeheader()
+
+for row in iLabCharges:
+    writer.writerow(row)
+
+
+

@@ -19,6 +19,7 @@ ServiceIDs:
   - service_id: 455011
     aliases:
       - total_compute_ms
+      - flywheel_compute
       - Flywheel Compute Charge
       - Flywheel compute
       - Flywheel compute promotions
@@ -27,6 +28,7 @@ ServiceIDs:
   - service_id:  455012
     aliases:
       - total_storage_bytes
+      - flywheel_storage
       - Flywheel Storage Charge
       - Flywheel storage
       - Flywheel storage promotions
@@ -35,6 +37,7 @@ ServiceIDs:
   - service_id: 455013
     aliases:
       - Flywheel Initial Analysis Gear Charge
+      - flywheel_initial_analysis
       - firstanalaysis
       - Converted Sessions (New)
 
@@ -42,12 +45,14 @@ ServiceIDs:
     aliases:
       - compute
       - compute promotions
+      - gcp_compute
       - GCP Compute
 
   - service_id: 455009
     aliases:
       - storage
       - promotions
+      - gcp_storage
       - GCP Storage
 
   - service_id: 455010
@@ -112,31 +117,32 @@ RequestIDs:
     - service_request_id: default-detre-group-service_request_id
       group: detre-group
       aliases:
-      - detre_group/bids-test
-      - detre_group/presurgicalEpilepsy
-      - detre_group/testProject
-      - detre_group/Unsorted
-      - detre-group-dd34a9
-      - detre-demo-proj-a
-      - detre-demo-proj-b
-      - garcea-demo-proj-a
-      - sudipto proj
-      - upenn-admins/Example Dicom Dataset
-      - upenn-admins/infra-troubleshooting
-      - upenn-admins/presurgicalEpilepsy
-      - upenn-admins/Presurgical Epilepsy fMRI
-      - upenn-admins/presurgicalEpilepsy_FULLDATASET
-      - upenn-admins/proj
-      - upenn-admins/project
-      - upenn-admins/sc3t_fbirn
-      - upenn-admins/test_project
-      - upenn-admins/test_project2
-      - upenn-admins/to-be-sorted
-      - upenn-admins/trash
-      - upenn-admins/willDemoData
-      - upenn-admins/XNATUploads-test
+        - detre-group/detre-group-dd34a9
+        - detre-group/detre-demo-proj-a
+        - detre-group/detre-demo-proj-b
+        - detre-group/garcea-demo-proj-a
+        - detre_group/bids-test
+        - detre_group/presurgicalEpilepsy
+        - detre_group/testProject
+        - detre_group/Unsorted
+        - sudipto proj
+        - upenn-admins/Example Dicom Dataset
+        - upenn-admins/infra-troubleshooting
+        - upenn-admins/presurgicalEpilepsy
+        - upenn-admins/Presurgical Epilepsy fMRI
+        - upenn-admins/presurgicalEpilepsy_FULLDATASET
+        - upenn-admins/proj
+        - upenn-admins/project
+        - upenn-admins/sc3t_fbirn
+        - upenn-admins/test_project
+        - upenn-admins/test_project2
+        - upenn-admins/to-be-sorted
+        - upenn-admins/trash
+        - upenn-admins/willDemoData
+        - upenn-admins/XNATUploads-test
 
     - service_request_id: 3306479
+      group: detre-group
       fund: Novel Biomarkers of Small Vessel Contributions to Vascular Cognitive Impairment and Dementia (VCID) - 400-4322-4-577865-5340-2810-1100 (Expires on June 30, 2024)
       ben: 400-4322-4-577865-5340-2810-1100
       aliases:
@@ -145,23 +151,25 @@ RequestIDs:
         - detre_group/NewPerf
 
     - service_request_id: 3306472
+      group: detre-group
       fund: Optical Monitoring of Cerebral Hemodynamics during Mechanical Thrombectomy - 400-4322-4-578204-5340-2810-1100 (Expires on August 31, 2024)
       ben: 400-4322-4-578204-5340-2810-1100 (Expires on August 31, 2024)
       aliases:
-        - detre_group/Respiract
+        - detre-group/Respiract
 
     - service_request_id: 3305251
       fund: Alzheimer's Disease Core Center - 400-4322-4-577000-5340-2810-1100 (Expires on June 30, 2020)
       ben:  400-4322-4-577000-xxxx-2810-1100
       group: detre-group
       aliases:
-        - detre_group/ASL_pipeline_testing
+        - detre_group/ASL_pipeline
         - detre_group/CBFLOW
         - detre_group/PHARMA
         - detre_group/fmriprep_testing
         - detre_group/Pipedream
 
     - service_request_id: unknown_service_request_id
+      group: detre-group
       fund: Developing a multi-modality, paradigm-shifting approach for in vivo assessment of the human placenta and the impact of maternal nutrition on its development and function - 400-4322-4-567799-5340-2810-1100 (Expires on June 30, 2020)
       aliases:
         - placeholder
