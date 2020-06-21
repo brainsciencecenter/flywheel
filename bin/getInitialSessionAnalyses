@@ -228,12 +228,13 @@ for session in sessions:
 
         for acquisition in acquisitions:
             a = fw.get(acquisition.id)
+            print("acquisition {}".format(a), file=sys.stderr)
             for f in a.files:
                 if (re.search('.dicom.zip', f.name)):
                     info = f.info
                     for k,v in DicomFields.items():
                         try:
-                            print("{} {}".format(k,info.keys()), file=sys.stderr)
+                            print("{} {}".format(k,info[v]), file=sys.stderr)
                             out[k] = info[v]
                         except (AttributeError, KeyError) as e:
                             True
