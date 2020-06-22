@@ -7,7 +7,7 @@ fw = flywheel.Client('upenn.flywheel.io:L3dqtPiM2XDsfjC7jF', root=True)
 
 
 project_data = []
-search = 'state=complete,created>2020-06-08'
+search = 'state=complete,created>2020-05-01,created<2020-06-01'
 for job in fw.jobs.iter_find(filter=search):
   try:
     job=job.reload()

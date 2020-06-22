@@ -35,7 +35,7 @@ def findOrigin(acquisitions):
             if (f.origin.type == 'user'):
                 return(f.origin)
 
-    return("Error")
+    return({'id': 'Error', 'type': 'Error'})
 
 def progress(count, total, status=''):
     bar_len = 60
