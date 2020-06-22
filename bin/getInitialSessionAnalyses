@@ -35,7 +35,7 @@ def findOrigin(acquisitions):
             if (f.origin.type == 'user'):
                 return(f.origin)
 
-    return({'id': 'Error', 'type': 'Error'})
+    return({'id': "acquisition({} missing origin".format(a.id), 'type': 'Error'})
 
 def progress(count, total, status=''):
     bar_len = 60
@@ -219,12 +219,17 @@ for session in sessions:
     if (len(acquisitions)):
         origin = findOrigin(acquisitions)
 
-        if (origin.id in UIDs2Labels.keys()):
-            out['origin_id'] = UIDs2Labels[origin.id]
-        else:
-            out['origin_id'] = origin.id
+        try:
+            out['origin_type'] = origin.type
 
-        out['origin_type'] = origin.type
+            if (origin.id in UIDs2Labels.keys()):
+                out['origin_id'] = UIDs2Labels[origin.id]
+            else:
+                out['origin_id'] = origin.id
+
+        except (AttributeError) as e:
+            out['origin_id'] = "{} missing origin {}".format(session.id,origin)
+
 
         for acquisition in acquisitions:
             a = fw.get(acquisition.id)
