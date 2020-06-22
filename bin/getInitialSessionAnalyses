@@ -228,7 +228,7 @@ for session in sessions:
                 out['origin_id'] = origin.id
 
         except (AttributeError) as e:
-            out['origin_id'] = "{} missing origin {}".format(session.id,origin)
+            print("{} missing origin {}".format(session.id,origin), file=sys.stderr)
 
 
         for acquisition in acquisitions:
