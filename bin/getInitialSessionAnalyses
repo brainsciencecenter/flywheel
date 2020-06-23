@@ -233,7 +233,6 @@ for session in sessions:
 
         for acquisition in acquisitions:
             a = fw.get(acquisition.id)
-            print("acquisition {}".format(a), file=sys.stderr)
             for f in a.files:
                 if (re.search('.dicom.zip', f.name)):
                     info = f.info
