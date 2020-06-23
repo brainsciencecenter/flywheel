@@ -100,8 +100,6 @@ DicomFields = {
 }
     
 
-maxtries = 10
-
 l = len(sessions)
 i = 0
 
@@ -183,10 +181,10 @@ for session in sessions:
         if (s):
             session = s
         else:
-            print("session reload returned None for {} ({}/{})".format(session.id, n, maxtries), file=sys.stderr)
+            print("session reload returned None for {} ".format(session.id), file=sys.stderr)
 
     except (flywheel.rest.ApiException) as e:
-        print("session reload failed for {} ({}/{}) ({})".format(session.id, n, maxtries, e), file=sys.stderr)
+        print("session reload failed for {} ({})".format(session.id, e), file=sys.stderr)
         continue
 
 
@@ -251,7 +249,8 @@ for session in sessions:
 
     writer.writerow(out)
 
-    print(json.dumps(fwgearutils.sloppyCopy(session, recurse=True), indent=2), file=sys.stderr)
+    if (args.verbose):
+        print(json.dumps(fwgearutils.sloppyCopy(session, recurse=True), indent=2), file=sys.stderr)
 
     if (args.verbose):
         print("Session {} ({}/{})".format(session.label, i, l), file=sys.stderr)
