@@ -195,7 +195,7 @@ for session in sessions:
     # fw.get_all_analyses()
     # *** sort by created date, grab the first one
     if (session.analyses):
-        analysis = session.analyses[0]
+        analysis = sorted(session.analyses, key=lambda a: a.created)[0]
         a = analysis.reload()
         if (a):
             analysis = a
@@ -238,7 +238,9 @@ for session in sessions:
                     info = f.info
                     for k,v in DicomFields.items():
                         try:
-                            print("{} {}".format(k,info[v]), file=sys.stderr)
+                            if (args.verbose):
+                                print("{} {}".format(k,info[v]), file=sys.stderr)
+
                             out[k] = info[v]
                         except (AttributeError, KeyError) as e:
                             True
