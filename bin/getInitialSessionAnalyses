@@ -55,7 +55,7 @@ ap.add_argument('-e', '--exhaustive', action='store_false', default=True, help='
 ap.add_argument('-l', '--limit', action='store', default=1000000, type=int, help='Flywheel cost allocation csv file')
 ap.add_argument('-p', '--progressbar', action='store_true', help='show progress bar')
 ap.add_argument('-v', '--verbose', action='store_true', help='verbose')
-ap.add_argument('filter', nargs='?', type=str, default=None, help='arguments to fw.find()')
+ap.add_argument('filter', nargs='*', type=str, default=None, help='arguments to fw.find()')
 
 args = ap.parse_args()
 
@@ -75,8 +75,8 @@ subjects = fw.get_all_subjects(exhaustive=args.exhaustive, limit=args.limit)
 for s in subjects:
     UIDs2Labels[s.id] = s.label
 
-if (args.filter):
-  sessions = fw.get_all_sessions(exhaustive=args.exhaustive, limit=args.limit, filter=args.filter)
+if (len(args.filter)):
+  sessions = fw.get_all_sessions(exhaustive=args.exhaustive, limit=args.limit, ','.join(filter=args.filter))
 else:
   sessions = fw.get_all_sessions(exhaustive=args.exhaustive, limit=args.limit)
 

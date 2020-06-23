@@ -1,14 +1,55 @@
 #!/usr/bin/python3
 
-import flywheel
+import argparse
 import csv
+import flywheel
+import fwgearutils
+import json
+import os
+import re
+import sys
 
-fw = flywheel.Client('upenn.flywheel.io:L3dqtPiM2XDsfjC7jF', root=True)
+CmdName = os.path.basename(sys.argv[0])
 
+ap = argparse.ArgumentParser()
+
+ap.add_argument('-l', '--limit', action='store', default=1000000, type=int, help='Flywheel cost allocation csv file')
+ap.add_argument('-p', '--progressbar', action='store_true', help='show progress bar')
+ap.add_argument('-v', '--verbose', action='store_true', help='verbose')
+ap.add_argument('filter', nargs='*', type=str, default=None, help='arguments to fw.find()')
+
+args = ap.parse_args()
+
+fw = fwgearutils.getFW(args, Root=True)
 
 project_data = []
-search = 'state=complete,created>2020-05-01,created<2020-06-01'
-for job in fw.jobs.iter_find(filter=search):
+search = ','.join(["state=complete"] + args.filter)
+
+print("search = '{}'".format(search), file=sys.stderr)
+
+def progress(count, total, status=''):
+    bar_len = 60
+    filled_len = int(round(bar_len * count / float(total)))
+
+    percents = round(100.0 * count / float(total), 1)
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+
+    sys.stderr.write('%s/%s [%s] %s%s ...%s\r' % (i, total, bar, percents, '%', status))
+    sys.stderr.flush()  # As suggested by Rom Ruben (see: http://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console/27871113#comment50529068_27871113)
+
+jobs = []
+for j in fw.jobs.iter_find(filter=search):
+  jobs.append(j)
+
+i = 0
+l = len(jobs)
+
+print("len = '{}'".format(l), file=sys.stderr)
+
+for job in jobs:
+  progress(i,l)
+  i += 1
+
   try:
     job=job.reload()
     elapsed = job['profile']['elapsed_time_ms']
@@ -46,9 +87,12 @@ for job in fw.jobs.iter_find(filter=search):
   except:
     job = job.reload() 
 
-with open('may_jobs.csv', 'w') as fp:
-  writer = csv.DictWriter(fp, ['job_id', 'gear_name', 'gear_version', 'group', 'project','elapsed(ms)','cpus','adj_elapsed(ms)','date'])
-  writer.writeheader()
+print("writing header", file=sys.stderr)
 
-  for row in project_data:
-    writer.writerow(row)
+writer = csv.DictWriter(sys.stdout, ['job_id', 'gear_name', 'gear_version', 'group', 'project','elapsed(ms)','cpus','adj_elapsed(ms)','date'], lineterminator='\n')
+writer.writeheader()
+
+print("len(project_data) = ",len(project_data), file=sys.stderr)
+
+for row in project_data:
+  writer.writerow(row)
