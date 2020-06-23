@@ -100,9 +100,6 @@ DicomFields = {
 }
     
 
-l = len(sessions)
-i = 0
-
 def initRow(
         created=None,
         group=None,
@@ -159,6 +156,9 @@ def initRow(
     return(row)
 
 
+l = len(sessions)
+i = 0
+
 header = True
 out = initRow()
 writer = csv.DictWriter(sys.stdout, out.keys(),lineterminator='\n' )
@@ -166,6 +166,7 @@ writer = csv.DictWriter(sys.stdout, out.keys(),lineterminator='\n' )
 for session in sessions:
     if (args.progressbar):
         progress(i, l)
+        i += 1
 
     out = initRow(
         created=session.created,
