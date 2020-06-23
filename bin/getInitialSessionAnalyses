@@ -76,7 +76,7 @@ for s in subjects:
     UIDs2Labels[s.id] = s.label
 
 if (len(args.filter)):
-  sessions = fw.get_all_sessions(exhaustive=args.exhaustive, limit=args.limit, ','.join(filter=args.filter))
+  sessions = fw.get_all_sessions(exhaustive=args.exhaustive, limit=args.limit, filter=','.join(args.filter))
 else:
   sessions = fw.get_all_sessions(exhaustive=args.exhaustive, limit=args.limit)
 
