@@ -1,0 +1,172 @@
+#!/usr/bin/python3
+
+#
+# get all jobs run from filter
+# get the session ids for those analyses
+# Get the flywheel paths for those sessions sorting by group/project
+
+import argparse
+import csv
+import flywheel
+import fwgearutils
+import json
+import os
+import re
+import sys
+
+# *** Need to add comments to suss out techdev scans
+
+from collections import OrderedDict
+
+CmdName = os.path.basename(sys.argv[0])
+
+def progress(count, total, status=''):
+    bar_len = 60
+    filled_len = int(round(bar_len * count / float(total)))
+
+    percents = round(100.0 * count / float(total), 1)
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+
+    sys.stderr.write('%s/%s [%s] %s%s ...%s\r' % (i, total, bar, percents, '%', status))
+    sys.stderr.flush()  # As suggested by Rom Ruben (see: http://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console/27871113#comment50529068_27871113)
+
+def initRow(
+	job_date=None,
+	job_id=None,
+	gear_id=None,
+	gear_name=None,
+	gear_version=None,
+	gear_category=None,
+	job_origin_id=None,
+	job_origin_type=None,
+	job_state=None,
+	initial_analysis=None,
+        group=None,
+        project=None,
+        subject=None,
+        session=None,
+        session_id=None,
+	acquisition_name=None,
+	acquisition_id=None,
+    ):
+
+    row = OrderedDict([
+	( 'job_date', job_date ),
+	( 'job_id', job_id ),
+	( 'gear_id', gear_id ),
+	( 'gear_name', gear_name ),
+	( 'gear_version', gear_version ),
+	( 'gear_category', gear_category ),
+	( 'job_origin_id', job_origin_id ),
+	( 'job_origin_type', job_origin_type ),
+	( 'job_state', job_state ),
+	( 'initial_analysis', initial_analysis ),
+        ( 'group', group ),
+        ( 'project', project ),
+        ( 'subject', subject ),
+        ( 'session', session ),
+        ( 'session_id', session_id ),
+	( 'acquisition_name', acquisition_name ),
+	( 'acquisition_id', acquisition_id ),
+    ])
+    return(row)
+
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument('-b', '--bar-length', action='store', default=40, type=int, help='bar length')
+ap.add_argument('-e', '--exhaustive', action='store_false', default=True, help='exhaustive session flag')
+ap.add_argument('-l', '--limit', action='store', default=1000000, type=int, help='Flywheel cost allocation csv file')
+ap.add_argument('-p', '--progressbar', action='store_true', help='show progress bar')
+ap.add_argument('-v', '--verbose', action='store_true', help='verbose')
+ap.add_argument('filter', nargs='*', type=str, default=None, help='arguments to fw.find()')
+
+args = ap.parse_args()
+
+UIDs2Labels = {}
+
+fw = fwgearutils.getFW(args, Root=True)
+
+reapers = fw.get_all_devices()
+for r in reapers:
+    UIDs2Labels[r.id] = r.name
+
+Gears = {}
+gears = fw.get_all_gears()
+for g in gears:
+    UIDs2Labels[g.id] = g.gear.name
+    Gears[g.id] = g
+
+projects = fw.get_all_projects(exhaustive=args.exhaustive, limit=args.limit)
+for p in projects:
+    UIDs2Labels[p.id] = p.label
+
+subjects = fw.get_all_subjects(exhaustive=args.exhaustive, limit=args.limit)
+for s in subjects:
+    UIDs2Labels[s.id] = s.label
+
+if (len(args.filter)):
+  jobs = fw.get_all_jobs(limit=args.limit, filter=','.join(args.filter))
+else:
+  jobs = fw.get_all_jobs(limit=args.limit)
+
+jobs[0] = jobs[0].reload()
+print(jobs[0], file=sys.stderr)
+print("Len jobs = ",len(jobs), file=sys.stderr)
+
+print("detail", fw.get_job_detail(jobs[0].id), file=sys.stderr)
+
+l = len(jobs)
+i = 0
+
+header = True
+out = initRow()
+writer = csv.DictWriter(sys.stdout, out.keys(),lineterminator='\n' )
+
+Sessions = {}
+
+for job in jobs:
+#    job = job.reload()
+
+    if (args.progressbar):
+        progress(i, l)
+        i += 1
+
+    detail = fw.get_job_detail(job.id)
+
+    print("job.id = ", job.id, file=sys.stderr)
+
+    out = initRow(
+	job_date=job.created,
+	job_id=job.id,
+	gear_id=job.gear_id,
+	gear_name=job.gear_info.name,
+	gear_version=job.gear_info.version,
+	gear_category=job.gear_info.category,
+	job_origin_id=job.origin.id,
+	job_origin_type=job.origin.type,
+	job_state=job.state,
+	initial_analysis=None,
+        group=detail.parent_info.group.label,
+        project=detail.parent_info.project.label,
+        subject=detail.parent_info.subject.label,
+        session=detail.parent_info.session.label,
+        session_id=detail.parent_info.session.id,
+	acquisition_id=detail.parent_info.acquisition.id,
+    )
+
+#	acquisition_name=detail.parent_info.acquisition.label,
+
+    if (header):
+        writer.writeheader()
+        header = False
+
+    writer.writerow(out)
+
+    if (args.verbose):
+        print(json.dumps(fwgearutils.sloppyCopy(session, recurse=True), indent=2), file=sys.stderr)
+
+    if (args.verbose):
+        print("Session {} ({}/{})".format(session.label, i, l), file=sys.stderr)
+
+
