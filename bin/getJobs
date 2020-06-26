@@ -217,7 +217,7 @@ for job in jobs:
 
         try:
             cores = job['profile']['executor']['cpu_cores']
-        except (AttributeError) as e:
+        except (AttributeError,TypeError) as e:
             cores = None
 
         if (args.initial_analysis):
