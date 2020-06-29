@@ -239,7 +239,7 @@ for job in jobs:
             job_runtime_ms=job['profile']['total_time_ms'],
             job_cpus=cores,
             initial_analysis=InitialAnalysis,
-            group=detail.parent_info.group.label,
+            group=detail.parent_info.group.id,  #ID is one word lowercase, label can be words and mixed case
             project=detail.parent_info.project.label,
             subject=detail.parent_info.subject.label,
             session=detail.parent_info.session.label,
@@ -261,7 +261,5 @@ for job in jobs:
 #    if (args.verbose):
 #        print(json.dumps(fwgearutils.sloppyCopy(session, recurse=True), indent=2), file=sys.stderr)
 
-    if (args.verbose):
-        print("Session {} ({}/{})".format(session.label, i, l), file=sys.stderr)
 
 
