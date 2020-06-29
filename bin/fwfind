@@ -73,6 +73,8 @@ if __name__ == '__main__':
             print("%s : fw.subjects.iter_find(%s)" % (CmdName, ''.join(*args.findargs)), file=sys.stderr)
         res = fw.subjects.iter_find(*args.findargs)
     if (args.sessions):
+        if (args.verbose):
+            print("%s : fw.sessions.iter_find(%s)" % (CmdName, ''.join(*args.findargs)), file=sys.stderr)
         res = fw.sessions.iter_find(*args.findargs)
 
     if (args.devices):
