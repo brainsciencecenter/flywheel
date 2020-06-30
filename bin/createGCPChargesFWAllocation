@@ -18,6 +18,7 @@ from collections import OrderedDict
 CmdName = os.path.basename(sys.argv[0])
 
 parser = argparse.ArgumentParser()
+parser.add_argument('-c', '--flywheel-cpu-usage-report', action='store', help='Flywheel CPU Usage Report in csv format')
 parser.add_argument('-f', '--flywheel-usage-report', action='store', help='Flywheel Usage Report in csv format')
 parser.add_argument('-m', '--ilabmap', action='store', help='iLab Service Request Map in yaml')
 parser.add_argument('-v', '--verbose', action='store_true', help='verbose')
@@ -89,8 +90,6 @@ def getProjectGroup(iLabMap,alias):
         # may need to do lots of re.escapes()
         SafeAlias = re.sub('([\(\)])', r'\\\\\1', alias)
 
-        print("alias = '{}'".format(alias), file=sys.stderr)
-
         res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .group'.format(SafeAlias), iLabMap)
     except:
         print("{}: No alias for '{}' '{}' in iLabMap".format(CmdName, alias, SafeAlias), file=sys.stderr)
@@ -126,6 +125,42 @@ with open(args.flywheel_usage_report, newline='') as csvfile:
             FlywheelProjectEntries[FlywheelProjectKey] = initFlywheelProjectEntry(
                 compute_ms=compute_ms,
                 storage_bytes=storage_bytes)
+
+for k,v in FlywheelProjectEntries.items():
+    v['compute']['used'] = 0.0
+
+FlywheelComputeMS = 0.0
+
+with open(args.flywheel_cpu_usage_report, newline='') as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+    for row in reader:
+        if (not (row['project'])):
+            # Just skip rows with group summary info
+            continue
+
+        group = row['group']
+        project = row['project']
+
+        try:
+            ms=float(row['job_elapsed_time_ms'])
+        except (ValueError) as e:
+            ms = 0.0
+            
+        try:
+            cpus = float(row['job_elapsed_time_ms'])
+        except (ValueError) as e:
+            cpus = 0.0
+            
+        compute_ms = ms * cpus
+        FlywheelComputeMS += compute_ms
+        FlywheelProjectKey = '{},{}'.format(group,project)
+        if (FlywheelProjectKey in FlywheelProjectEntries.keys()):
+            FlywheelProjectEntries[FlywheelProjectKey]['compute']['used'] += compute_ms
+        else:
+            print("Missing Group/Project {},{}".format(group,project), file=sys.stderr)
+            FlywheelProjectEntries[FlywheelProjectKey] = initFlywheelProjectEntry(
+                compute_ms=compute_ms)
 
 with open(args.ilabmap) as ilabmapfile:
     iLabMap = yaml.load(ilabmapfile, Loader=yaml.FullLoader)
@@ -222,7 +257,6 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                 Entries.append(Entry)
         else:
             res = getProjectGroup(iLabMap,row['Project ID'])
-            print("res = {}".format(res), file=sys.stderr)
 
             if (res == None):
                 group = 'BogusGroup'
