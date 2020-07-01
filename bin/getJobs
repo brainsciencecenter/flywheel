@@ -96,6 +96,7 @@ def initRow(
 	job_origin_type=None,
 	job_state=None,
         job_cpus=None,
+        gcp_cpus=None,
 	initial_analysis=None,
         group=None,
         project=None,
@@ -119,6 +120,7 @@ def initRow(
         ( 'job_elapsed_time_ms', job_elapsed_time_ms ), 
         ( 'job_runtime_ms', job_runtime_ms ), 
         ( 'job_cpus', job_cpus), 
+        ( 'gcp_cpus', gcp_cpus), 
 	( 'initial_analysis', initial_analysis ),
         ( 'group', group ),
         ( 'project', project ),
@@ -220,6 +222,11 @@ for job in jobs:
         except (AttributeError,TypeError) as e:
             cores = None
 
+        if (re.search('hpc', job.gear_info.name)):
+            gcp_cores = 0
+        else:
+            gcp_cores = cores
+
         if (args.initial_analysis):
             InitialAnalysis = isInitialAnalysis(job.id, session_id=session_id)
         else:
@@ -238,6 +245,7 @@ for job in jobs:
             job_elapsed_time_ms=job['profile']['elapsed_time_ms'],
             job_runtime_ms=job['profile']['total_time_ms'],
             job_cpus=cores,
+            gcp_cpus=gcp_cores,
             initial_analysis=InitialAnalysis,
             group=detail.parent_info.group.id,  #ID is one word lowercase, label can be words and mixed case
             project=detail.parent_info.project.label,

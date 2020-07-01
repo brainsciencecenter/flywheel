@@ -148,7 +148,7 @@ with open(args.flywheel_cpu_usage_report, newline='') as csvfile:
             ms = 0.0
             
         try:
-            cpus = float(row['job_elapsed_time_ms'])
+            cpus = float(row['gcp_cpus'])
         except (ValueError) as e:
             cpus = 0.0
             

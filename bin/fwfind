@@ -65,6 +65,7 @@ if __name__ == '__main__':
 #        print(fw.__dir__())
 #        res = fw.analyses.find(*args.findargs)
     if (args.jobs):
+        # Need -gr to do job detail and profile
         res = fw.jobs.iter_find(*args.findargs)
     if (args.projects):
         res = fw.projects.iter_find(*args.findargs)

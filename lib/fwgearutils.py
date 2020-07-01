@@ -234,6 +234,16 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
 
         Output['projects'] = Projects
                 
+    if (  type(r) == flywheel.models.job_list_entry.JobListEntry
+       or type(r) == flywheel.models.job.Job ):
+       Output['detail'] = sloppyCopy(fw.get_job_detail(r.id), UTC=UTC)
+       try:
+          profile = sloppyCopy(r['profile'], UTC=UTC)
+          Output['profile'] = profile
+       except (AttributeError, TypeError) as e:
+          if (Debug):
+             print("No profile for {}".format(r.id), file=sys.stderr)
+
     if (   type(r) == flywheel.models.project.Project 
         or type(r) == flywheel.models.resolver_project_node.ResolverProjectNode 
         or type(r) == flywheel.models.container_project_output.ContainerProjectOutput):
