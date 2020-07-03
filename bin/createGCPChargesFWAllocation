@@ -60,6 +60,8 @@ def initGCPEntry(
         UsageAmount=None,
         UsageUnit=None,
         Cost=None,
+        ComputePercent=None,
+        StoragePercent=None,
 ):
     Entry = OrderedDict([
         ('Billing account name', BillingAccountName),
@@ -77,6 +79,8 @@ def initGCPEntry(
         ( 'Usage amount', UsageAmount),
         ( 'Usage unit', UsageUnit),
         ( 'Cost ($)', Cost),
+        ( 'Compute Percent', ComputePercent),
+        ( 'Storage Percent', StoragePercent),
     ])
 
     return(Entry)
@@ -252,6 +256,8 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                     UsageAmount=usage,
                     UsageUnit=row['Usage unit'],
                     Cost=cost,
+                    ComputePercent=e['compute']['percent'],
+                    StoragePercent=e['storage']['percent'],
                 )
 
                 Entries.append(Entry)

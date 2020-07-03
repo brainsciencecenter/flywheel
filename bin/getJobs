@@ -97,6 +97,7 @@ def initRow(
 	job_state=None,
         job_cpus=None,
         gcp_cpus=None,
+        gcp_compute_percent=None,
 	initial_analysis=None,
         group=None,
         project=None,
@@ -105,6 +106,7 @@ def initRow(
         session_id=None,
 	acquisition_name=None,
 	acquisition_id=None,
+        gcp_compute_cost=None,
     ):
 
     row = OrderedDict([
@@ -121,6 +123,7 @@ def initRow(
         ( 'job_runtime_ms', job_runtime_ms ), 
         ( 'job_cpus', job_cpus), 
         ( 'gcp_cpus', gcp_cpus), 
+        ( 'gcp_compute_percent', gcp_compute_percent),
 	( 'initial_analysis', initial_analysis ),
         ( 'group', group ),
         ( 'project', project ),
@@ -129,6 +132,7 @@ def initRow(
         ( 'session_id', session_id ),
 	( 'acquisition_name', acquisition_name ),
 	( 'acquisition_id', acquisition_id ),
+        ( 'gcp_compute_cost', gcp_compute_cost),
     ])
     return(row)
 
@@ -136,6 +140,8 @@ def initRow(
 ap = argparse.ArgumentParser()
 
 ap.add_argument('-b', '--bar-length', action='store', default=40, type=int, help='bar length')
+ap.add_argument('-c', '--gcp-compute-cost', action='store', default=40, type=float, help='$ Cost for Flywheel in GCP Compute')
+
 ap.add_argument('-e', '--exhaustive', action='store_false', default=True, help='exhaustive session flag')
 ap.add_argument('-i', '--initial-analysis', action='store_true', help='check for initial analysis flag')
 ap.add_argument('-l', '--limit', action='store', default=1000000, type=int, help='Flywheel cost allocation csv file')
@@ -183,11 +189,11 @@ print("Len jobs = ",len(jobs), file=sys.stderr)
 l = len(jobs)
 i = 0
 
-header = True
-out = initRow()
-writer = csv.DictWriter(sys.stdout, out.keys(),lineterminator='\n' )
 
 Sessions = {}
+
+OutputRows = []
+ComputeGCPMs = 0.0
 
 for job in jobs:
     job = job.reload()
@@ -220,8 +226,13 @@ for job in jobs:
         try:
             cores = job['profile']['executor']['cpu_cores']
         except (AttributeError,TypeError) as e:
-            cores = None
+            cores = 0
 
+        if(job['profile']['elapsed_time_ms']):
+            job_elapsed_time_ms = job['profile']['elapsed_time_ms']
+        else:
+            job_elapsed_time_ms = 0.0
+            
         if (re.search('hpc', job.gear_info.name)):
             gcp_cores = 0
         else:
@@ -232,37 +243,54 @@ for job in jobs:
         else:
             InitialAnalysis = None
 
-        out = initRow(
-            job_date=job.created,
-            job_id=job.id,
-            gear_id=job.gear_id,
-            gear_name=job.gear_info.name,
-            gear_version=job.gear_info.version,
-            gear_category=job.gear_info.category,
-            job_origin_id=job.origin.id,
-            job_origin_type=job.origin.type,
-            job_state=job.state,
-            job_elapsed_time_ms=job['profile']['elapsed_time_ms'],
-            job_runtime_ms=job['profile']['total_time_ms'],
-            job_cpus=cores,
-            gcp_cpus=gcp_cores,
-            initial_analysis=InitialAnalysis,
-            group=detail.parent_info.group.id,  #ID is one word lowercase, label can be words and mixed case
-            project=detail.parent_info.project.label,
-            subject=detail.parent_info.subject.label,
-            session=detail.parent_info.session.label,
-            session_id=detail.parent_info.session.id,
-            acquisition_id=acquisition_id
-        )
+        if (detail.parent_info.session.label):
+            session_label = re.sub('\s*$','',re.sub('[\\n\\r]',' ',detail.parent_info.session.label))
+        else:
+            session_label = ""
+
+        try:
+            out = initRow(
+                job_date=job.created,
+                job_id=job.id,
+                gear_id=job.gear_id,
+                gear_name=job.gear_info.name,
+                gear_version=job.gear_info.version,
+                gear_category=job.gear_info.category,
+                job_origin_id=job.origin.id,
+                job_origin_type=job.origin.type,
+                job_state=job.state,
+                job_elapsed_time_ms=job_elapsed_time_ms,
+                job_runtime_ms=job['profile']['total_time_ms'],
+                job_cpus=cores,
+                gcp_cpus=gcp_cores,
+                initial_analysis=InitialAnalysis,
+                group=detail.parent_info.group.id,  #ID is one word lowercase, label can be words and mixed case
+                project=detail.parent_info.project.label,
+                subject=detail.parent_info.subject.label,
+                session=session_label,
+                session_id=detail.parent_info.session.id,
+                acquisition_id=acquisition_id
+            )
+        except (TypeError) as e:
+            print("detail.parent_info.session.label = '{}'".format(detail.parent_info.session.label), file=sys.stderr)
+
+        if (job['profile']['elapsed_time_ms']):
+            ComputeGCPMs += float(gcp_cores) * float(job['profile']['elapsed_time_ms'])
+
+        OutputRows.append(out)
 
     except (AttributeError) as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print(exc_type, fname, exc_tb.tb_lineno, file=sys.stderr)
 
-    if (header):
-        writer.writeheader()
-        header = False
+out = initRow()
+writer = csv.DictWriter(sys.stdout, out.keys(),lineterminator='\n' )
+writer.writeheader()
+for out in OutputRows:
+
+    out['gcp_compute_percent'] = float(out['gcp_cpus']) * float(out['job_elapsed_time_ms']) / ComputeGCPMs
+    out['gcp_compute_cost'] = out['gcp_compute_percent'] * float(args.gcp_compute_cost)
 
     writer.writerow(out)
 
