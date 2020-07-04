@@ -38,7 +38,8 @@ if (len(data) > 0):
                  'session_count',
                  'total_compute_ms',
                  'total_job_count',
-                 'total_storage_byte_day',])
+                 'total_storage_byte_day',],
+                 lineterminator='\n')
 
     writer.writeheader()
 
