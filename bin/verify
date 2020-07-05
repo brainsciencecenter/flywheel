@@ -1,0 +1,157 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+syntax="${CmdName} {-t a|c|g|j} [-F] [-f ] [-g] [-n line[[,line]...] [-v] file"
+
+# Compute
+# Instance Core
+# Storage
+# Buckets
+# Coldline
+
+# Print all of foo
+#	 verify foo
+# Print first line of foo
+# 	verify -n 1p foo
+# Print first line of foo twice
+# 	verify -n '1p;1p' foo
+# Print first line of foo, then lines 2-5 twice
+# 	verify -n '1p;2,5p;2,5p' foo
+# Warning:
+#       verify -n '1p;2p;2p;1p' foo
+# gives line 1 twice, then line 2 twice, not line 1, line 2, line 2, line 1
+
+#
+# SliceNDice does not want a header line
+#
+function sliceNDice {
+    local Fields
+
+	 case "$opt_t" in
+	      c)
+	 	  # Pull Project ID, Service description, SKU description, Usage, Usage Unit, Cost
+		  Fields=4,5,7,12,13,14
+
+		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v '^,,' 
+		  ;;
+	      a)
+		  # Pull days, group, project_label, session_count,total-compute_ms, total_job_count, total_storage_bytes
+		  Fields=4,5,10,11,12,13,14
+		  csvcut -c "$Fields" | awk -F , '{ if ($3 != "") {print $0} }'
+		  ;;
+	 esac
+
+}
+
+function total {
+    local Fields
+    
+    if [ -n "$opt_v" ]
+    then
+	cat
+    else
+	
+	case "$opt_t" in
+	    c)
+		Fields=4,6
+		if [ -n "$1" ]
+		then
+		    csvcut -c "$Fields"
+		else
+		    csvcut -c "$Fields" | awk -F , 'BEGIN {Usage = 0.0; Cost = 0.0;} { Usage = Usage + $1; Cost = Cost + $2; } END {printf("%.2f,%.2f\n",Usage,Cost) }'
+		fi
+		
+		;;
+
+	    a)
+		Fields=1,4,5,6,7
+		if [ -n "$1" ]
+		then
+		    csvcut -c "$Fields"
+		else
+		    ByteDenominator="1024.0/1024.0/1024.0"
+		    if [ -n "$opt_g" ]
+		    then
+			ByteDenominator="1000.0/1000.0/1000.0"
+		    fi
+		    HourDenominator="1000.0/3600.0"
+		    csvcut -c "$Fields" | awk -F , 'BEGIN { Sessions = 0.0; MS = 0.0; Jobs = 0.0; Bytes = 0.0;} { Sessions = Sessions + $2; MS = MS + $3; Jobs = Jobs + $4; Bytes = Bytes + ($5 / $1); } END { printf("%.2f,%.2f,%.2f,%.2f\n",Sessions, MS/'"$HourDenominator"', Jobs, Bytes/'"$ByteDenominator"'); }'
+		fi
+		
+		;;
+
+	esac
+    fi
+    
+}
+
+#
+# Removed internal commas and unquotes fields
+#  a,b,"1,234",c => a,b,1234,c
+#
+function deCommafie {
+	 # From https://unix.stackexchange.com/questions/48672/remove-comma-between-the-quotes-only-in-a-comma-delimited-file
+	 awk -F'"' -v OFS='' '{ for (i=2; i<=NF; i+=2) gsub(",", "", $i) } 1'
+}
+
+function allOrFlywheel {
+    if [ -n "$opt_F" ]
+    then
+	grep '^upenn-flywheel,'
+    else
+	cat
+    fi
+}
+
+function filter {
+    case "$opt_t" in
+	c)
+	    case "$opt_f" in
+		Compute)
+		    allOrFlywheel | grep 'Compute Engine'
+		    ;;
+		Core)
+		    allOrFlywheel | grep 'Compute Engine' | grep 'Instance Core'
+		    ;;
+		Storage)
+		    allOrFlywheel | grep 'Cloud Storage'
+		    ;;
+		Bucket*)
+		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage'
+		    ;;
+		Coldline)
+		    allOrFlywheel | grep 'Cloud Storage' | grep Coldline | grep Multi
+		    ;;
+		*)
+		    allOrFlywheel
+	    esac
+	    ;;
+
+	a)
+	    grep "$opt_f"
+	    ;;
+    esac
+}
+
+opt_n='2,$p'
+
+while getopts Ff:gn:t:v arg
+do
+	case "$arg" in
+	     F|f|g|t|v)
+		 eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	     n)
+		 opt_n="${OPTARG}"
+		 ;;
+	esac
+done
+
+
+shift $(($OPTIND - 1))
+
+SourceFile="$1"
+
+head -n 1 "$SourceFile" | sliceNDice | total "header"
+
+sed -n "${opt_n}" "$SourceFile" | sliceNDice | deCommafie | filter | total
