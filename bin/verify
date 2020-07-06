@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-syntax="${CmdName} {-t a|c|g|j} [-F] [-f ] [-g] [-n line[[,line]...] [-v] file"
+syntax="${CmdName} {-t a|c|g|j} [-F] [-f {Compute|Core|Ram|Storage|Bucket|Coldline} ] [-g] [-n line[[,line]...] [-v] file"
 
 # Compute
 # Instance Core
@@ -21,6 +21,8 @@ syntax="${CmdName} {-t a|c|g|j} [-F] [-f ] [-g] [-n line[[,line]...] [-v] file"
 #       verify -n '1p;2p;2p;1p' foo
 # gives line 1 twice, then line 2 twice, not line 1, line 2, line 2, line 1
 
+# *** should have a warning on Usage where different units are being combined
+
 #
 # SliceNDice does not want a header line
 #
@@ -28,17 +30,30 @@ function sliceNDice {
     local Fields
 
 	 case "$opt_t" in
+	      a)
+		  # Pull days, group, project_label, session_count,total-compute_ms, total_job_count, total_storage_bytes
+		  Fields=4,5,10,11,12,13,14
+		  csvcut -c "$Fields" | awk -F , '{ if ($3 != "") {print $0} }'
+		  ;;
+
+	      g)
+		  # Pull Group, Project name, Project ID, Service description, SKU description, Usage amount, Usage unit, Cost ($)
+		  Fields=3,4,5,6,8,13,14,15
+		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v '^,,' 
+		  ;;
 	      c)
 	 	  # Pull Project ID, Service description, SKU description, Usage, Usage Unit, Cost
 		  Fields=4,5,7,12,13,14
 
 		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v '^,,' 
 		  ;;
-	      a)
-		  # Pull days, group, project_label, session_count,total-compute_ms, total_job_count, total_storage_bytes
-		  Fields=4,5,10,11,12,13,14
-		  csvcut -c "$Fields" | awk -F , '{ if ($3 != "") {print $0} }'
+
+	      j)
+		  # gcp_compute_hours,gcp_compute_percent,initial_analysis,gcp_compute_cost
+		  Fields=4,7,10,13,14,15,16,17,23
+		  csvcut -c "$Fields"
 		  ;;
+		  
 	 esac
 
 }
@@ -52,6 +67,29 @@ function total {
     else
 	
 	case "$opt_t" in
+	    a)
+		Fields=1,4,5,6,7
+		if [ -n "$1" ]
+		then
+		    units=gibibytes
+		    if [ -n "$opt_g" ]
+		    then
+			units=gigabytes
+		    fi
+		    
+		    csvcut -c "$Fields" | sed 's/days,//; s/total_compute_ms/total_compute_hours/; s/byte_day/'"$units"'/'
+		else
+		    ByteDenominator="1024.0/1024.0/1024.0"
+		    if [ -n "$opt_g" ]
+		    then
+			ByteDenominator="1000.0/1000.0/1000.0"
+		    fi
+		    HourDenominator="1000.0/3600.0"
+		    csvcut -c "$Fields" | awk -F , 'BEGIN { Sessions = 0.0; MS = 0.0; Jobs = 0.0; Bytes = 0.0;} { Sessions = Sessions + $2; MS = MS + $3; Jobs = Jobs + $4; Bytes = Bytes + ($5 / $1); } END { printf("%.2f,%.2f,%.2f,%.2f\n",Sessions, MS/'"$HourDenominator"', Jobs, Bytes/'"$ByteDenominator"'); }'
+		fi
+		
+		;;
+
 	    c)
 		Fields=4,6
 		if [ -n "$1" ]
@@ -63,21 +101,24 @@ function total {
 		
 		;;
 
-	    a)
-		Fields=1,4,5,6,7
+	    g)
+		Fields=6,8
 		if [ -n "$1" ]
 		then
 		    csvcut -c "$Fields"
 		else
-		    ByteDenominator="1024.0/1024.0/1024.0"
-		    if [ -n "$opt_g" ]
-		    then
-			ByteDenominator="1000.0/1000.0/1000.0"
-		    fi
-		    HourDenominator="1000.0/3600.0"
-		    csvcut -c "$Fields" | awk -F , 'BEGIN { Sessions = 0.0; MS = 0.0; Jobs = 0.0; Bytes = 0.0;} { Sessions = Sessions + $2; MS = MS + $3; Jobs = Jobs + $4; Bytes = Bytes + ($5 / $1); } END { printf("%.2f,%.2f,%.2f,%.2f\n",Sessions, MS/'"$HourDenominator"', Jobs, Bytes/'"$ByteDenominator"'); }'
+		    csvcut -c "$Fields" | awk -F , 'BEGIN {Usage = 0.0; Cost = 0.0;} { Usage = Usage + $1; Cost = Cost + $2; } END {printf("%.2f,%.2f\n",Usage,Cost) }'
 		fi
+		;;
 		
+	    j)
+		Fields=3,4,5,6,9
+		if [ -n "$1" ]
+		then
+		    csvcut -c "$Fields" | sed 's/job_elapsed_time_ms,gcp_cpus/gcp_compute_hours/'
+		else
+		    csvcut -c "$Fields" | awk -F , 'BEGIN { MS = 0.0; GCPPercent = 0.0; InitialAnalysis = 0.0; GCPComputeCost = 0.0;} {MS = MS + $1 * $2; GCPPercent = GCPPercent + $3; if ($4 == "True" || $4 == "TRUE") {InitialAnalysis = InitialAnalysis + 1}; GCPCost = GCPCost + $5; } END { printf("%.2f,%.2f,%.2f,%.2f\n",MS/1000.0/3600.0,GCPPercent,InitialAnalysis,GCPCost); }'
+		fi
 		;;
 
 	esac
@@ -95,9 +136,16 @@ function deCommafie {
 }
 
 function allOrFlywheel {
+    if [ "$opt_t" == c ]
+    then
+	RegEx='^upenn-flywheel,'
+    else
+	RegEx=',upenn-flywheel,'
+    fi
+    
     if [ -n "$opt_F" ]
     then
-	grep '^upenn-flywheel,'
+	grep "$RegEx"
     else
 	cat
     fi
@@ -105,30 +153,37 @@ function allOrFlywheel {
 
 function filter {
     case "$opt_t" in
-	c)
+	c|g)
 	    case "$opt_f" in
 		Compute)
 		    allOrFlywheel | grep 'Compute Engine'
 		    ;;
 		Core)
-		    allOrFlywheel | grep 'Compute Engine' | grep 'Instance Core'
+		    allOrFlywheel | grep 'Compute Engine' | grep 'Predefined Instance Core'
+		    ;;
+		Ram)
+		    allOrFlywheel | grep 'Compute Engine' | grep 'Instance Ram'
 		    ;;
 		Storage)
 		    allOrFlywheel | grep 'Cloud Storage'
 		    ;;
 		Bucket*)
-		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage'
+		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage' | grep Multi
 		    ;;
 		Coldline)
 		    allOrFlywheel | grep 'Cloud Storage' | grep Coldline | grep Multi
 		    ;;
+
 		*)
 		    allOrFlywheel
 	    esac
 	    ;;
 
-	a)
+	a|j)
 	    grep "$opt_f"
+	    ;;
+	*)
+	    cat
 	    ;;
     esac
 }

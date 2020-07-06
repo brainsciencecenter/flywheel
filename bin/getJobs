@@ -19,6 +19,7 @@ import sys
 from collections import OrderedDict
 
 CmdName = os.path.basename(sys.argv[0])
+Epoch = '2020-01-01'
 
 def progress(count, total, status=''):
     bar_len = 60
@@ -34,27 +35,62 @@ def progress(count, total, status=''):
 
 InitialSessionAnalysis = {}
 
+def isSessionReaped(session_id=None, debug=False):
+    session = fw.get(session_id)
+    for a in session.acquisitions():
+        try:
+            acquisition_origin_id = a.files[0].origin.id
+            if (acquisition_origin_id in UIDs2Labels.keys()):
+                if (debug):
+                    print("id {} from {}".format(acquisition_origin_id, UIDs2Labels[acquisition_origin_id]), file=sys.stderr)
+                return(True)
+
+        except (AttributeError) as e:
+            True
+
+    return(False)
+
+def isLegacySession(session_id=None, debug=False):
+    try:
+        session = fw.get(session_id)
+    except (flywheel.rest.ApiException) as e:
+        # If the session is no longer in flywheel, then it is has been consigned to a Legacy
+        return(True)
+
+    if (debug):
+        print("session.created.strftime() = {}, Epoch = {}".format(session.created.strftime("%Y-%m-%d"),Epoch), file=sys.stderr)
+    if (session.created.strftime("%Y-%m-%d") < Epoch):
+        return(True)
+
+    return(False)
+        
+
 def isInitialAnalysis(job_id, session_id=None, debug=False):
+    
+    if (debug):
+        print("session_id = {}".format(session_id), file=sys.stderr)
+
     if (session_id in InitialSessionAnalysis.keys()):
-        return(job_id == InitialSessionAnalysis[session_id])
+        if (job_id == InitialSessionAnalysis[session_id]):
+            print("job_id = {} in InitialSessionAnalysis[{}]".format(job_id,session_id), file=sys.stderr)
+            return(not isLegacySession(session_id, debug=debug))
 
     try:
         jobs = fw.jobs.find("_id={}".format(job_id), limit=100000)
     except (flywheel.rest.ApiException) as e:
-        print("job_id {} not found".format(job_id), file=sys.stderr)
         return(False)
 
     if (len(jobs)):
         job = jobs[0].reload()
 
         if (debug):
-            print("job.id = {}".format(job.id), file=sys.stderr)
+            try:
+                print("job.id = {}".format(job.id), file=sys.stderr)
+            except (AttributeError) as e:
+                print("No job for job[0]", file=sys.stderr)
 
         detail = fw.get_job_detail(job.id)
         session_id = detail.parent_info.session.id
-
-        if (debug):
-            print("session_id = {}".format(session_id), file=sys.stderr)
 
         try:
             session = fw.get(session_id)
@@ -65,23 +101,20 @@ def isInitialAnalysis(job_id, session_id=None, debug=False):
 
         analyses = sorted(session.analyses, key=lambda a: a.created)
         if (len(analyses)):
-            InitialSessionAnalysis[session_id] = analyses[0].job.id
-
             if (job_id == analyses[0].job.id):
+                InitialSessionAnalysis[session_id] = analyses[0].job.id
                 if (debug):
                     print("match {} = {}".format(job_id, analyses[0].job.id), file=sys.stderr)
 
-                return(True)
+                return(not isLegacySession(session_id=session_id, debug=debug))
 
-            else:
-                if (debug):
-                    print("no match {} = {}".format(job_id, analyses[0].job.id), file=sys.stderr)
+        if (debug):
+            print("Not initial session {} for job {}".format(session_id,job_id), file=sys.stderr)
+    else:
+        if (debug):
+            print("len(jobs) = {} for session id {}".format(len(jobs),session_id), file=sys.stderr)
 
-                    for a in analyses:
-                        print(a.job.id, file=sys.stderr)
-                return(False)
-
-    return(None)
+    return(False)
      
 def initRow(
 	job_date=None,
@@ -141,8 +174,10 @@ ap = argparse.ArgumentParser()
 
 ap.add_argument('-b', '--bar-length', action='store', default=40, type=int, help='bar length')
 ap.add_argument('-c', '--gcp-compute-cost', action='store', default=40, type=float, help='$ Cost for Flywheel in GCP Compute')
+ap.add_argument('-d', '--debug', action='store_true', help='debug')
 
 ap.add_argument('-e', '--exhaustive', action='store_false', default=True, help='exhaustive session flag')
+ap.add_argument('-E', '--epoch', type=str, help='Epoch date YYYY-MM-DD')
 ap.add_argument('-i', '--initial-analysis', action='store_true', help='check for initial analysis flag')
 ap.add_argument('-l', '--limit', action='store', default=1000000, type=int, help='Flywheel cost allocation csv file')
 ap.add_argument('-p', '--progressbar', action='store_true', help='show progress bar')
@@ -150,6 +185,9 @@ ap.add_argument('-v', '--verbose', action='store_true', help='verbose')
 ap.add_argument('filter', nargs='*', type=str, default=None, help='arguments to fw.find()')
 
 args = ap.parse_args()
+
+if (args.epoch):
+    Epoch = args.epoch
 
 UIDs2Labels = {}
 
@@ -210,8 +248,16 @@ for job in jobs:
         job_id = job.id
         gear_id = job.gear_id
         job_origin_id = job.origin.id
+        job_origin_type = job.origin.type
 
-        
+        if (getattr(detail.parent_info, 'session') and getattr(detail.parent_info.session, 'id')):
+            session_id = detail.parent_info.session.id
+        else:
+            session_id = None
+
+        if (job_origin_id and job_origin_id in UIDs2Labels.keys()):
+            job_origin_id = UIDs2Labels[job_origin_id]
+
         if (getattr(detail.parent_info, 'session') and getattr(detail.parent_info.session, 'id')):
             session_id = detail.parent_info.session.id
         else:
@@ -238,10 +284,12 @@ for job in jobs:
         else:
             gcp_cores = cores
 
+        InitialAnalysis = None
         if (args.initial_analysis):
-            InitialAnalysis = isInitialAnalysis(job.id, session_id=session_id)
-        else:
-            InitialAnalysis = None
+            try:
+                InitialAnalysis = isInitialAnalysis(job.id, session_id=session_id, debug=args.debug)
+            except (AttributeError) as e:
+                True
 
         if (detail.parent_info.session.label):
             session_label = re.sub('\s*$','',re.sub('[\\n\\r]',' ',detail.parent_info.session.label))
@@ -284,12 +332,16 @@ for job in jobs:
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print(exc_type, fname, exc_tb.tb_lineno, file=sys.stderr)
 
+print("len(OutputRows) = ",len(OutputRows), file=sys.stderr)
+
 out = initRow()
 writer = csv.DictWriter(sys.stdout, out.keys(),lineterminator='\n' )
 writer.writeheader()
 for out in OutputRows:
 
-    out['gcp_compute_percent'] = float(out['gcp_cpus']) * float(out['job_elapsed_time_ms']) / ComputeGCPMs
+    # if all the jobs are in HCP, gcp ms == 0
+    if (ComputeGCPMs):
+        out['gcp_compute_percent'] = float(out['gcp_cpus']) * float(out['job_elapsed_time_ms']) / ComputeGCPMs
     out['gcp_compute_cost'] = out['gcp_compute_percent'] * float(args.gcp_compute_cost)
 
     writer.writerow(out)

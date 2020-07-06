@@ -31,10 +31,10 @@ FlywheelComputeHours = 0.0
 FlywheelStorageBytes = 0.0
 FlywheelProjectEntries = {}
 
-def initFlywheelProjectEntry(compute_ms=None, storage_bytes=None):
+def initFlywheelProjectEntry(compute_hours=None, storage_bytes=None):
     return({ 
         'compute': {
-            'used': compute_ms,
+            'used': compute_hours,
             'percent': 0.0,
         },
         'storage': {
@@ -131,11 +131,11 @@ with open(args.flywheel_usage_report, newline='') as csvfile:
 
         FlywheelProjectKey = '{},{}'.format(group,project)
         if (FlywheelProjectKey in FlywheelProjectEntries.keys()):
-            FlywheelProjectEntries[FlywheelProjectKey]['compute']['used'] += compute_ms
+            FlywheelProjectEntries[FlywheelProjectKey]['compute']['used'] += (compute_ms/1000.0/3600.0)
             FlywheelProjectEntries[FlywheelProjectKey]['storage']['used'] += storage_bytes
         else:
             FlywheelProjectEntries[FlywheelProjectKey] = initFlywheelProjectEntry(
-                compute_ms=compute_ms,
+                compute_hours=(compute_ms/1000.0/3600.0),
                 storage_bytes=storage_bytes)
 
 if (args.flywheel_cpu_usage_report):
@@ -170,11 +170,12 @@ if (args.flywheel_cpu_usage_report):
 
             FlywheelProjectKey = '{},{}'.format(group,project)
             if (FlywheelProjectKey in FlywheelProjectEntries.keys()):
-                FlywheelProjectEntries[FlywheelProjectKey]['compute']['used'] += compute_ms
+                FlywheelProjectEntries[FlywheelProjectKey]['compute']['used'] += (compute_ms/1000.0/3600.0)
             else:
                 print("Missing Group/Project {},{}".format(group,project), file=sys.stderr)
                 FlywheelProjectEntries[FlywheelProjectKey] = initFlywheelProjectEntry(
-                    compute_ms=compute_ms)
+                    compute_hours=(compute_ms/100.0/3600.0)
+                )
 
 with open(args.ilabmap) as ilabmapfile:
     iLabMap = yaml.load(ilabmapfile, Loader=yaml.FullLoader)
@@ -245,7 +246,11 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                     
                 if (isCostClassifier(row['Service description'],'Compute Engine')):
                     cost = Cost * e['compute']['percent']
-                    usage = e['compute']['used']
+                    if (isCostClassifier(row['SKU description'],'.*Predefined Instance Core.*')):
+                        usage = e['compute']['used']
+                    else:
+                        usage = UsageAmount * e['compute']['percent']
+
                 elif (isCostClassifier(row['Service description'],'Cloud Storage')):
                     cost = Cost * e['storage']['percent']
                     if (isCostClassifier(row['SKU description'],'Standard Storage')):
@@ -332,6 +337,7 @@ for row in Entries:
     writer.writerow(row)
 
 # Flywheel costs should be 33595.61 for May 2020
+print("FlywheelComputeHours = {}".format(FlywheelComputeHours), file=sys.stderr)
 print("CalculatedFlywheelCharges = $ {}".format(CalculatedFlywheelCharges), file=sys.stderr)
 print("CalculatedFlywheelStorage = {} B".format(CalculatedFlywheelStorage), file=sys.stderr)
 print("SummedFlywheelGoogleStorage = {} TB".format(SummedFlywheelGoogleStorage/1024.0), file=sys.stderr)

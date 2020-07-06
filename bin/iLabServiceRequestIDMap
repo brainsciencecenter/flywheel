@@ -118,9 +118,12 @@ RequestIDs:
       group: detre-group
       aliases:
         - detre-group/detre-group-dd34a9
+        - detre-group-dd34a9
         - detre-group/detre-demo-proj-a
+        - detre-demo-proj-a
         - detre-group/detre-demo-proj-b
         - detre-group/garcea-demo-proj-a
+        - garcea-demo-proj-a
         - detre_group/bids-test
         - detre_group/presurgicalEpilepsy
         - detre_group/testProject

@@ -95,7 +95,8 @@ if __name__ == '__main__':
                 Output.append(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)))
             else:
                 Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
-            
+
+               
         except (flywheel.rest.ApiException) as e:
             Containers = fwgearutils.fwGlobPath(fw, CleanPath)
 
