@@ -14,6 +14,7 @@ if __name__ == '__main__':
     import argparse
 
     CmdName = os.path.basename(sys.argv[0])
+    Containers = []
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-d', '--device-get', default=False,  action='store_true', help='get device info')
@@ -32,8 +33,10 @@ if __name__ == '__main__':
         else:
             Container = fw.get(args.id[0])
 
+        Containers.append(Container)
+
     except (OSError, Exception) as e:
         print("e",e, file=sys.stderr)
         sys.exit(1)
 
-    print(json.dumps(fwgearutils.sloppyCopy(Container), indent=2))
+    print(json.dumps(fwgearutils.sloppyCopy(Containers), indent=2))
