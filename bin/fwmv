@@ -319,44 +319,47 @@ if __name__ == '__main__':
         CleanFromPath = re.sub('[ /]*$', '', re.sub('^fw://', '', FromPath))
 
         try:
-            FromContainer = fw.lookup(CleanFromPath)
+            FromContainer = fw.get(FromPath)
         except (flywheel.rest.ApiException) as e:
-            print("%s : No container '%s'" % (CmdName, CleanFromPath), file=sys.stderr)
-            sys.exit(4)
+            try:
+                FromContainer = fw.lookup(CleanFromPath)
+            except (flywheel.rest.ApiException) as e:
+                print("%s : No container '%s'" % (CmdName, CleanFromPath), file=sys.stderr)
+                sys.exit(4)
 
-        try:
-            if ((len(CleanFromPath.split('/')) == len(CleanToPath.split('/')))
-                and fw.lookup(CleanToPath)):
-                print("%s : %s already exists" % (CmdName, CleanToPath))
-                continue
+            try:
+                if ((len(CleanFromPath.split('/')) == len(CleanToPath.split('/')))
+                    and fw.lookup(CleanToPath)):
+                    print("%s : %s already exists" % (CmdName, CleanToPath))
+                    continue
 
-        except (flywheel.rest.ApiException) as e:
-            True
+            except (flywheel.rest.ApiException) as e:
+                True
 
-        if (re.search('/', CleanFromPath)):
-            if ((len(CleanFromPath.split('/')) - len(CleanToPath.split('/'))) == 1):
-                # Container retains label
-                ToParentPath = CleanToPath
-                ToLabel = FromContainer.label
+            if (re.search('/', CleanFromPath)):
+                if ((len(CleanFromPath.split('/')) - len(CleanToPath.split('/'))) == 1):
+                    # Container retains label
+                    ToParentPath = CleanToPath
+                    ToLabel = FromContainer.label
 
-            elif ((len(CleanFromPath.split('/')) - len(CleanToPath.split('/'))) == 0):
-                # New name for container
-                ToParentPath = '/'.join(CleanToPath.split('/')[0:-1])
-                ToLabel = CleanToPath.split('/')[-1]
+                elif ((len(CleanFromPath.split('/')) - len(CleanToPath.split('/'))) == 0):
+                    # New name for container
+                    ToParentPath = '/'.join(CleanToPath.split('/')[0:-1])
+                    ToLabel = CleanToPath.split('/')[-1]
 
-            else:
-                # Bad path name combination
-                print("%s : From/To paths '%s' '%s' make no sense." % (CmdName, FromPath, ToPath), file=sys.stderr)
-                sys.exit(3)
+                else:
+                    # Bad path name combination
+                    print("%s : From/To paths '%s' '%s' make no sense." % (CmdName, FromPath, ToPath), file=sys.stderr)
+                    sys.exit(3)
 
-            FromParentPath = '/'.join(CleanFromPath.split('/')[0:-1])
-            FromParentContainer = fw.lookup(FromParentPath)
-            ToParent = getOrCreateContainer(fw, FromParentContainer, ToParentPath, args.force)
-            if (ToParent):
-                ToParentID = ToParent._id
-            else:
-                print("%s : Unable to find parent for '%s' : skipping" % (CmdName, ToParentPath), file=sys.stderr)
-                continue
+                FromParentPath = '/'.join(CleanFromPath.split('/')[0:-1])
+                FromParentContainer = fw.lookup(FromParentPath)
+                ToParent = getOrCreateContainer(fw, FromParentContainer, ToParentPath, args.force)
+                if (ToParent):
+                    ToParentID = ToParent._id
+                else:
+                    print("%s : Unable to find parent for '%s' : skipping" % (CmdName, ToParentPath), file=sys.stderr)
+                    continue
 
         else:
             ToParentID = None
