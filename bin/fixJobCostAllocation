@@ -1,0 +1,114 @@
+#!/usr/bin/python3
+
+#
+# Fix the Cost allocation for the Jobs spreadsheet
+
+import argparse
+import csv
+import flywheel
+import fwgearutils
+import json
+import os
+import re
+import sys
+
+# *** Need to add comments to suss out techdev scans
+
+from collections import OrderedDict
+
+CmdName = os.path.basename(sys.argv[0])
+
+def progress(count, total, status=''):
+    bar_len = 60
+    filled_len = int(round(bar_len * count / float(total)))
+
+    percents = round(100.0 * count / float(total), 1)
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+
+    sys.stderr.write('%s/%s [%s] %s%s ...%s\r' % (i, total, bar, percents, '%', status))
+    sys.stderr.flush()  # As suggested by Rom Ruben (see: http://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console/27871113#comment50529068_27871113)
+
+# *** nice to have job duration, cpus,  cpu_sec, where it ran, 
+
+def initRow(
+	job_date=None,
+	job_id=None,
+        job_elapsed_time_ms=None,
+        job_runtime_ms=None,
+	gear_id=None,
+	gear_name=None,
+	gear_version=None,
+	gear_category=None,
+	job_origin_id=None,
+	job_origin_type=None,
+	job_state=None,
+        job_cpus=None,
+        gcp_cpus=None,
+        gcp_compute_percent=None,
+	initial_analysis=None,
+        group=None,
+        project=None,
+        subject=None,
+        session=None,
+        session_id=None,
+	acquisition_name=None,
+	acquisition_id=None,
+        gcp_compute_cost=None,
+    ):
+
+    row = OrderedDict([
+	( 'job_date', job_date ),
+	( 'job_id', job_id ),
+	( 'gear_id', gear_id ),
+	( 'gear_name', gear_name ),
+	( 'gear_version', gear_version ),
+	( 'gear_category', gear_category ),
+	( 'job_origin_id', job_origin_id ),
+	( 'job_origin_type', job_origin_type ),
+	( 'job_state', job_state ),
+        ( 'job_elapsed_time_ms', job_elapsed_time_ms ), 
+        ( 'job_runtime_ms', job_runtime_ms ), 
+        ( 'job_cpus', job_cpus), 
+        ( 'gcp_cpus', gcp_cpus), 
+        ( 'gcp_compute_percent', gcp_compute_percent),
+	( 'initial_analysis', initial_analysis ),
+        ( 'group', group ),
+        ( 'project', project ),
+        ( 'subject', subject ),
+        ( 'session', session ),
+        ( 'session_id', session_id ),
+	( 'acquisition_name', acquisition_name ),
+	( 'acquisition_id', acquisition_id ),
+        ( 'gcp_compute_cost', gcp_compute_cost),
+    ])
+    return(row)
+
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument('-c', '--gcp-compute-cost', action='store', default=40, type=float, help='$ Cost for Flywheel in GCP Compute')
+
+ap.add_argument('-p', '--progressbar', action='store_true', help='show progress bar')
+ap.add_argument('jobfile', nargs='+', type=str, default=None, help='Job csv file')
+
+args = ap.parse_args()
+
+Rows = []
+
+with open(args.jobfile[0], newline='') as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+    for row in reader:
+        Rows.append(row)
+
+row = initRow()
+writer = csv.DictWriter(sys.stdout, row.keys(),lineterminator='\n' )
+writer.writeheader()
+
+for row in Rows:
+    row['gcp_compute_cost'] = float(row['gcp_compute_percent']) * float(args.gcp_compute_cost)
+    writer.writerow(row)
+
+
+
+
