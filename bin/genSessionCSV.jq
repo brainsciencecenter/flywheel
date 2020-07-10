@@ -1,20 +1,22 @@
 import "ScannerMap" as $Scanners;
 import "SubjectMap" as $Subjects;
 [
-	"Scanner",
-	"Date",
-	"Path",
-	"Code",
-        "SessionID",
-        "DeidentificationMethod",
-	"ImageComments",
-	"InstitutionName",
-	"ManufacturerModelName",
-	"PerformedProcedureStepDescription",
-	"PerformingPhysicianName",
-	"ReferringPhysicianName",
-	"StudyComments",
-	"StudyDescription"
+	"Scanner",					# 1
+	"Date",						# 2
+	"Path",						# 3
+	"Code",						# 4 - Subject
+        "SessionID",					# 5
+        "DeidentificationMethod",			# 6
+	"ImageComments",				# 7
+	"InstitutionName",				# 8
+	"ManufacturerModelName",			# 9
+	"PerformedProcedureStepDescription",		# 10
+	"ProcedureStepDescription",			# 11
+	"PerformingPhysicianName",			# 12
+	"ReferringPhysicianName",			# 13
+	"RequestingPhysician",				# 14
+	"StudyComments",				# 15
+	"StudyDescription"				# 16
 ],
 (.[]
    | .label as $SessionLabel
@@ -27,41 +29,41 @@ import "SubjectMap" as $Subjects;
      .acquisitions[0].files[0]
         | .origin.id as $ScannerID
         | .info
-          | [
+          | [									
 
-             if ($ScannerID | in($Scanners::Scanners[])) then
+             if ($ScannerID | in($Scanners::Scanners[])) then			# 1
                $Scanners::Scanners[][$ScannerID]
              else
                $ScannerID
              end,
 
-             $TimeStamp,
+             $TimeStamp,							# 2
 
-             if ($SubjectID | in($Subjects::Subjects[])) then
+             if ($SubjectID | in($Subjects::Subjects[])) then			# 3
                $Subjects::Subjects[][$SubjectID] + "/" + $SessionLabel 
              else
                $SubjectID + "/" + $SessionLabel
              end,
 
-             $Code,
-             $SessionID,
+             $Code,								# 4 - Subject
+             $SessionID,							# 5
 
-             if ((.DeidentificationMethod | type) == "array") then
+             if ((.DeidentificationMethod | type) == "array") then		# 6
                .DeidentificationMethod[0]
              else
                 .DeidentificationMethod
              end,
  
-             .ImageComments,
-             .InstitutionName,
-             .ManufacturerModelName,
-             .PerformedProcedureStepDescription,
-             .PerformingPhysicianName,
-             .ProcedureStepDescription,
-             .ReferringPhysicianName,
-             .RequestingPhysician,
-             .StudyComments,
-             .StudyDescription
+             .ImageComments,							# 7
+             .InstitutionName,							# 8
+             .ManufacturerModelName,						# 9
+             .PerformedProcedureStepDescription,				# 10
+             .PerformingPhysicianName,						# 11
+             .ProcedureStepDescription,						# 12
+             .ReferringPhysicianName,						# 13
+             .RequestingPhysician,						# 14
+             .StudyComments,							# 15
+             .StudyDescription							# 16
 
              ] 
    else
