@@ -49,8 +49,8 @@ function sliceNDice {
 		  ;;
 
 	      j)
-		  # gcp_compute_hours,gcp_compute_percent,initial_analysis,gcp_compute_cost
-		  Fields=4,7,10,13,14,15,16,17,23
+		  # gear_name,job_origin_id,job_state,job_elapsed_time_ms,gcp_cpus,gcp_compute_percent,initial_analysis,group,project,gcp_compute_cost
+		  Fields=4,7,9,10,13,14,15,16,17,23
 		  csvcut -c "$Fields"
 		  ;;
 		  
@@ -112,12 +112,12 @@ function total {
 		;;
 		
 	    j)
-		Fields=3,4,5,6,9
+		Fields=3,4,5,6,7,10
 		if [ -n "$1" ]
 		then
-		    csvcut -c "$Fields" | sed 's/job_elapsed_time_ms,gcp_cpus/gcp_compute_hours/'
+		    csvcut -c "$Fields" | sed 's/job_state/job_count/; s/job_elapsed_time_ms,gcp_cpus/gcp_compute_hours/'
 		else
-		    csvcut -c "$Fields" | awk -F , 'BEGIN { MS = 0.0; GCPPercent = 0.0; InitialAnalysis = 0.0; GCPComputeCost = 0.0;} {MS = MS + $1 * $2; GCPPercent = GCPPercent + $3; if ($4 == "True" || $4 == "TRUE") {InitialAnalysis = InitialAnalysis + 1}; GCPCost = GCPCost + $5; } END { printf("%.2f,%.2f,%.2f,%.2f\n",MS/1000.0/3600.0,GCPPercent,InitialAnalysis,GCPCost); }'
+		    csvcut -c "$Fields" | awk -F , 'BEGIN {JobCount = 0.0;  MS = 0.0; GCPPercent = 0.0; InitialAnalysis = 0.0; GCPComputeCost = 0.0;} {if ($1 == "complete") {JobCount = JobCount + 1}; MS = MS + $2 * $3; GCPPercent = GCPPercent + $4; if ($5 == "True" || $5 == "TRUE") {InitialAnalysis = InitialAnalysis + 1}; GCPCost = GCPCost + $6; } END { printf("%d,%.2f,%.2f,%d,%.2f\n",JobCount,MS/1000.0/3600.0,GCPPercent,InitialAnalysis,GCPCost); }'
 		fi
 		;;
 

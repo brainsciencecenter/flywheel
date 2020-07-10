@@ -184,11 +184,17 @@ FlywheelComputePercents = 0.0
 FlywheelStoragePercents = 0.0
 
 for e in FlywheelProjectEntries.values():
-    e['compute']['percent'] = e['compute']['used']/FlywheelComputeHours
-    FlywheelComputePercents += e['compute']['used']/FlywheelComputeHours
+    if (FlywheelComputeHours > 0 and e['compute']['used'] and e['compute']['used'] > 0):
+        e['compute']['percent'] = e['compute']['used']/FlywheelComputeHours
+        FlywheelComputePercents += e['compute']['used']/FlywheelComputeHours
+    else:
+        e['compute']['percent'] = 0.0
 
-    e['storage']['percent'] = e['storage']['used']/FlywheelStorageBytes
-    FlywheelStoragePercents += e['storage']['used']/FlywheelStorageBytes
+    if (FlywheelStorageBytes > 0 and e['storage']['used'] and e['storage']['used'] > 0):
+        e['storage']['percent'] = e['storage']['used']/FlywheelStorageBytes
+        FlywheelStoragePercents += e['storage']['used']/FlywheelStorageBytes
+    else:
+        e['storage']['percent'] = 0.0
 
 if (args.verbose):
     print("FlywheelComputeHours = {}".format(FlywheelComputeHours), file=sys.stderr)
@@ -255,7 +261,8 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                     cost = Cost * e['storage']['percent']
                     if (isCostClassifier(row['SKU description'],'Standard Storage')):
                         usage = e['storage']['used']
-                        SummedFlywheelStorage += usage
+                        if (usage):
+                            SummedFlywheelStorage += usage
                     else:
                         usage = UsageAmount * e['storage']['percent']
 
@@ -331,6 +338,7 @@ for row in Entries:
     if (    (re.search('upenn-flywheel', row['Project ID']))
         and (re.search('Cloud Storage', row['Service description']))
         and (re.search('Standard Storage', row['SKU description']))
+        and (row['Usage amount'])
     ):
         CalculatedFlywheelStorage += row['Usage amount']
 

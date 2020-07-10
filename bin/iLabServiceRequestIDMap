@@ -128,6 +128,7 @@ RequestIDs:
         - detre_group/presurgicalEpilepsy
         - detre_group/testProject
         - detre_group/Unsorted
+        - detre-demo-proj-b
         - sudipto proj
         - upenn-admins/Example Dicom Dataset
         - upenn-admins/infra-troubleshooting
@@ -390,6 +391,7 @@ RequestIDs:
         - pennbrain-license-82eff5
         - pennbrain-host-3097383fff
         - holder-dd34a9
+        - holder-dd34a9/holder-dd34a9
         - holder3-pennbrain-upenn-edu
         - holder4-pennbrain-upenn-edu
         - holder6-pennbrain-upenn-edu

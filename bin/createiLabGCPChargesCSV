@@ -22,7 +22,7 @@ ap = argparse.ArgumentParser()
 
 ap.add_argument('-m', '--ilabmapfile', action='store', help='iLab service id and service request id yaml file') 
 ap.add_argument('-z', '--zero', action='store_true', help='include all charges zero and below') 
-ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Cost Table Report CSV')
+ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Charges with Flywheel Allocation CSV')
 
 args = ap.parse_args()
 
@@ -260,7 +260,7 @@ for k, v in Projects.items():
             iLabCharge = initiLabCharge(
                 service_id=service_id,
                 note=note,
-                service_quantity=quantity,
+                service_quantity=str(round(quantity,2)),
                 price=charge,
                 service_request_id=service_request_id,
             )
