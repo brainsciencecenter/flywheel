@@ -136,6 +136,7 @@ function deCommafie {
 }
 
 function allOrFlywheel {
+    # the regex is after the first set of csvcut in sliceNDice
     if [ "$opt_t" == c ]
     then
 	RegEx='^upenn-flywheel,'
@@ -168,7 +169,7 @@ function filter {
 		    allOrFlywheel | grep 'Cloud Storage'
 		    ;;
 		Bucket*)
-		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage' | grep Multi
+		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage' 
 		    ;;
 		Coldline)
 		    allOrFlywheel | grep 'Cloud Storage' | grep Coldline | grep Multi
