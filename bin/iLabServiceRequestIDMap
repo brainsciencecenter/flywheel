@@ -148,6 +148,7 @@ RequestIDs:
     - service_request_id: 3306479
       group: detre-group
       fund: Novel Biomarkers of Small Vessel Contributions to Vascular Cognitive Impairment and Dementia (VCID) - 400-4322-4-577865-5340-2810-1100 (Expires on June 30, 2024)
+      service_id: BSSC-JD-35
       ben: 400-4322-4-577865-5340-2810-1100
       aliases:
         - detre_group/VCID  
@@ -157,12 +158,14 @@ RequestIDs:
     - service_request_id: 3306472
       group: detre-group
       fund: Optical Monitoring of Cerebral Hemodynamics during Mechanical Thrombectomy - 400-4322-4-578204-5340-2810-1100 (Expires on August 31, 2024)
+      service_id: BSSC-JD-34
       ben: 400-4322-4-578204-5340-2810-1100 (Expires on August 31, 2024)
       aliases:
         - detre-group/Respiract
 
-    - service_request_id: 3305251
+    - service_request_id: 3337318
       fund: Alzheimer's Disease Core Center - 400-4322-4-577000-5340-2810-1100 (Expires on June 30, 2020)
+      service_id: BSSC-JD-36
       ben:  400-4322-4-577000-xxxx-2810-1100
       group: detre-group
       aliases:
@@ -431,6 +434,7 @@ RequestIDs:
       fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - 400-4322-4-567594-5340-2810-2779 (Expires on September 29, 2020)
       knownas:
         - MELA
+      service_id: BSSC-GA-28
       ben: 400-4322-4-567594-5340-2810-2779
       aliases:
          - gkaguirrelab/melaSpatial
@@ -441,6 +445,7 @@ RequestIDs:
     - service_request_id: 3240884
       group: gkaguirrelab
       fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - Expires 9/29/2020
+      service_id: BSSC-GA-24
       ben: 400-4322-4-575392-xxxx-2810-2779
       knownas: 
          - TOME
@@ -458,6 +463,7 @@ RequestIDs:
       knownas:
         - VHUP/CHOP Beltran - 400-4322-4-577885-xxxx-2000-2779
         - canine
+      service_id: BSSC-GA-32
       ben: 400-4322-4-577885-5340-2000-2779
       aliases:
         - gkaguirrelab/canineFovea
@@ -466,36 +472,42 @@ RequestIDs:
 
     - service_request_id: 3240859
       fund: Melanopsin and cone signals in human visual processing - Expires 8/31/2020
+      service_id: BSSC-GA-22
       ben:   020-0120-4-567527-5340-2000-0712 
       aliases:
         - placeholder
 
     - service_request_id: 3237104
       fund: Melanopsin and cone signals in human visual processing - Expires 8/31/2020
+      service_id: BSSC-GA-23
       ben: 400-4322-4-567527-5340-2810-2779
       aliases:
         - placeholder
 
     - service_request_id: 3240955
       fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - Expires 9/29/2020
+      service_id: BSSC-GA-25
       ben: 020-0120-4-567594-5340-2000-0712
       aliases:
         - placeholder
 
     - service_request_id: 3305246
       fund: DEVELOPMENT AND ASSESSMENT OF NOVEL THERAPIES FOR RETINAL DEGENERATIVE DISEASES - 400-4322-4-544343-5340-2810-2779 (Expires on June 30, 2020)
+      service_id: BSSC-GA-29
       ben: 400-4322-4-544343-5340-2810-2779
       aliases:
         - placeholder
 
     - service_request_id: 3305251
       fund: Photoreceptor-specific mechanisms of light aversive behavior in a rodent model of migraine - 
+      service_id: BSSC-GA-31
       ben: 400-4322-4-577526-5340-2810-2779
       aliases:
         - placeholder
 
     - service_request_id: 3305261
       fund: "The good, the bad, and the different: Understanding stigma towards people with facial differences - 400-4322-4-578033-5340-2810-2779 (Expires on September  8, 2020) "
+      service_id: BSSC-GA-30
       ben: 400-4322-4-578033-5340-2810-2779
       aliases:
         - placeholder
