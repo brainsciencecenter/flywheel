@@ -442,10 +442,10 @@ RequestIDs:
          - gkaguirrelab/scnLight
          - gkaguirrelab/York retinotopy
 
-    - service_request_id: 3240884
+    - service_request_id: 3415624
       group: gkaguirrelab
       fund: Melanopsin-Specific Contributions to Photophobia in Brain Trauma - Expires 9/29/2020
-      service_id: BSSC-GA-24
+      service_id: BSSC-GA-38
       ben: 400-4322-4-575392-xxxx-2810-2779
       knownas: 
          - TOME
