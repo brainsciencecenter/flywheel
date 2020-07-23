@@ -252,7 +252,7 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                     
                 if (isCostClassifier(row['Service description'],'Compute Engine')):
                     cost = Cost * e['compute']['percent']
-                    if (isCostClassifier(row['SKU description'],'.*Predefined Instance Core.*')):
+                    if (isCostClassifier(row['SKU description'],'.*Instance Core.*')):
                         usage = e['compute']['used']
                     else:
                         usage = UsageAmount * e['compute']['percent']
