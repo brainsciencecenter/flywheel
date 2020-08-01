@@ -28,11 +28,28 @@ syntax="${CmdName} {-t a|c|g|j} [-F] [-f {Compute|Core|Ram|Storage|Bucket|Coldli
 
 # *** should have a warning on Usage where different units are being combined
 
+function getHeaderIndicies() {
+    InputFile="$1"
+    shift
+
+    RegEx=""
+    for i in "$@"
+    do
+	RegEx="${RegEx}|($i)"
+    done
+    RegEx="$(echo $RegEx | sed 's/^|//')"
+    echo $RegEx 1>&2
+
+    head -n 1 "$InputFile" | tr ',' '\012' | grep -P -n "^($RegEx)$" | cut -f 1 -d : | (tr '\012' ',';echo) | sed 's/,$//'
+}
+
+
 #
 # SliceNDice does not want a header line
 #
 function sliceNDice {
     local Fields
+    local InputFile="$1"
 
 	 case "$opt_t" in
 	      a)
@@ -47,8 +64,7 @@ function sliceNDice {
 		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v '^,,' 
 		  ;;
 	      c)
-	 	  # Pull Project ID, Service description, SKU description, Usage, Usage Unit, Cost
-		  Fields=4,5,7,12,13,14
+		  Fields=$(getHeaderIndicies "$InputFile" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
 
 		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v '^,,' 
 		  ;;
@@ -213,6 +229,6 @@ shift $(($OPTIND - 1))
 
 SourceFile="$1"
 
-head -n 1 "$SourceFile" | sliceNDice | total "header"
+head -n 1 "$SourceFile" | sliceNDice "$SourceFile" | total "header"
 
-sed -n "${opt_n}" "$SourceFile" | sliceNDice | deCommafie | filter | total
+sed -n "${opt_n}" "$SourceFile" | sliceNDice "$SourceFile" | deCommafie | filter | total

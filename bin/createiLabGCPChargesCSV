@@ -256,7 +256,7 @@ for k, v in Projects.items():
         print("v[{}].[Charges][{}] = {}".format(k,chargetype, v['Charges'][chargetype]), file=sys.stderr)
         charge = 0.0
 
-        if (quantity > 0.0 or args.zero):
+        if (quantity >= 0.01 or args.zero):
             iLabCharge = initiLabCharge(
                 service_id=service_id,
                 note=note,
