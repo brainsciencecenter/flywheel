@@ -38,7 +38,6 @@ function getHeaderIndicies() {
 	RegEx="${RegEx}|($i)"
     done
     RegEx="$(echo $RegEx | sed 's/^|//')"
-    echo $RegEx 1>&2
 
     head -n 1 "$InputFile" | tr ',' '\012' | grep -P -n "^($RegEx)$" | cut -f 1 -d : | (tr '\012' ',';echo) | sed 's/,$//'
 }
