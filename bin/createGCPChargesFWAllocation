@@ -203,6 +203,8 @@ if (args.verbose):
 print("FlywheelComputePercents = {}".format(FlywheelComputePercents), file=sys.stderr)
 print("FlywheelStoragePercents = {}".format(FlywheelStoragePercents), file=sys.stderr)
 
+print("FlywheelProjectEntries[#] = {}".format(len(FlywheelProjectEntries.values())), file=sys.stderr)
+
 Entries = []
 
 FlywheelCharges = 0.0
@@ -218,10 +220,13 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
         # Skip summary lines at the end of the Cost Table report:
         # ,,,,Rounding error,,,,,,
         # ,,,,Total,,,,,0.00,
-        if (row['Project name'] == ""):
+        if (row['Project ID'] == ""):
             continue
 
-        if (row['Project name'] == 'upenn-flywheel'):
+        
+        print(row, file=sys.stderr)
+
+        if (row['Project ID'] == 'upenn-flywheel'):
             if (float(row['Cost ($)']) > 0.0):
                 FlywheelCharges += float(row['Cost ($)'])
 
