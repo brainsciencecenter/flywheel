@@ -18,7 +18,7 @@ from collections import OrderedDict
 CmdName = os.path.basename(sys.argv[0])
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-c', '--flywheel-cpu-usage-report', action='store', help='Flywheel CPU Usage Report in csv format')
+parser.add_argument('-c', '--flywheel-cpu-usage-report', action='store', help='getJobs files in csv format')
 parser.add_argument('-f', '--flywheel-usage-report', action='store', help='Flywheel Usage Report in csv format')
 parser.add_argument('-m', '--ilabmap', action='store', help='iLab Service Request Map in yaml')
 parser.add_argument('-v', '--verbose', action='store_true', help='verbose')
@@ -60,8 +60,16 @@ def initGCPEntry(
         UsageAmount=None,
         UsageUnit=None,
         Cost=None,
+        GearVersion=None,
+        GearCategory=None,
+        JobOriginID=None,
+        JobOriginType=None,
+        JobState=None,
+        JobCpus=None,
+        GCPCpus=None,
+        InitialAnalysis=None,
         ComputePercent=None,
-        StoragePercent=None,
+        StoragePercent=None
 ):
     Entry = OrderedDict([
         ('Billing account name', BillingAccountName),
@@ -79,15 +87,40 @@ def initGCPEntry(
         ( 'Usage amount', UsageAmount),
         ( 'Usage unit', UsageUnit),
         ( 'Cost ($)', Cost),
-        ( 'Compute Percent', ComputePercent),
-        ( 'Storage Percent', StoragePercent),
+        ( 'Gear version', GearVersion),
+        ( 'Gear category', GearCategory),
+        ( 'Job origin ID', JobOriginID),
+        ( 'Job origin type', JobOriginType), 
+        ( 'Job state', JobState),
+        ( 'Job cpus', JobCpus),
+        ( 'GCP cpus', GCPCpus),
+        ( 'Initial analysis', InitialAnalysis),
+        ( 'Compute percent', ComputePercent),
+        ( 'Storage percent', StoragePercent)        
     ])
 
     return(Entry)
 
+def betterFloat(s):
+    if (s == ''):
+        return(0.0)
+
+    return(float(re.sub(',','', s)))
+
+def isCpu(row):
+    return( re.search('Compute Engine', row['Service description'])
+        and re.search('Instance Core', row['SKU description']))
+
+def isStandardStorage(row):
+    return( re.search('Cloud Storage', row['Service description'])
+        and re.search('Standard Storage', row['SKU description']))
+
 def isCostClassifier(CostType,Type):
     return(re.search(Type, CostType))
-    
+
+def isFlywheel(row):
+    return(re.search('upenn-flywheel',row['Project ID']))
+
 def getProjectGroup(iLabMap,alias):
     try:
         # way too many backslashes
@@ -104,8 +137,12 @@ def getProjectGroup(iLabMap,alias):
     else:
         return(None)
 
+def ms2Hours(ms):
+    return(float(ms)/1000.0/3600.0)
+
 FlywheelComputeHours = 0.0
 
+# read flywheel usage report
 with open(args.flywheel_usage_report, newline='') as csvfile:
     reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
 
@@ -127,11 +164,11 @@ with open(args.flywheel_usage_report, newline='') as csvfile:
         FlywheelStorageBytes += storage_bytes
 
         compute_ms = float(row['total_compute_ms'])
-        FlywheelComputeHours += (compute_ms / 1000.0 / 3600.0)
+        FlywheelComputeHours += ms2Hours(compute_ms)
 
         FlywheelProjectKey = '{},{}'.format(group,project)
         if (FlywheelProjectKey in FlywheelProjectEntries.keys()):
-            FlywheelProjectEntries[FlywheelProjectKey]['compute']['used'] += (compute_ms/1000.0/3600.0)
+            FlywheelProjectEntries[FlywheelProjectKey]['compute']['used'] += ms2Hours(compute_ms)
             FlywheelProjectEntries[FlywheelProjectKey]['storage']['used'] += storage_bytes
         else:
             FlywheelProjectEntries[FlywheelProjectKey] = initFlywheelProjectEntry(
@@ -205,11 +242,17 @@ print("FlywheelStoragePercents = {}".format(FlywheelStoragePercents), file=sys.s
 
 print("FlywheelProjectEntries[#] = {}".format(len(FlywheelProjectEntries.values())), file=sys.stderr)
 
-Entries = []
-
 FlywheelCharges = 0.0
 SummedFlywheelStorage = 0.0
 SummedFlywheelGoogleStorage = 0.0
+
+TotalGCPCoreHours = 0.0
+TotalGCPCoreCost = 0.0
+TotalGCPFlywheelStandardStorageGB = 0.0
+TotalGCPFlywheelStandardStorageCost = 0.0
+
+CostTableEntries = []
+FlywheelCostTableEntries = []
 
 with open(args.gcp_cost_table[0], newline='') as csvfile:
     reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
@@ -217,30 +260,111 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
     for row in reader:
         Entry = {}
 
-        # Skip summary lines at the end of the Cost Table report:
+        # Skip summary lines at the end of the Cost Table report which have empty Project ID
         # ,,,,Rounding error,,,,,,
         # ,,,,Total,,,,,0.00,
-        if (row['Project ID'] == ""):
-            continue
+        if (isCpu(row)):
+            TotalGCPCoreHours += betterFloat(row['Usage amount'])
+            TotalGCPCoreCost += betterFloat(row['Cost ($)'])
 
-        
-        print(row, file=sys.stderr)
+        if (isFlywheel(row)):
+            if (isStandardStorage(row)):
+                TotalGCPFlywheelStandardStorageGB += betterFloat(row['Usage amount'])
+                TotalGCPFlywheelStandardStorageCost += betterFloat(row['Cost ($)'])
+            
+        else:
+                res = getProjectGroup(iLabMap,row['Project ID'])
 
-        if (row['Project ID'] == 'upenn-flywheel'):
-            if (float(row['Cost ($)']) > 0.0):
-                FlywheelCharges += float(row['Cost ($)'])
+                if (res == None):
+                    print("Can not find group for {}".format(row['Project ID']), file=sys.stderr)
+                    group = 'BogusGroup'
+                else:
+                    group = res
 
-            if (    (re.search('upenn-flywheel', row['Project ID']))
-                and (re.search('Cloud Storage', row['Service description']))
-                and (re.search('Standard Storage', row['SKU description']))
-            ):
-                SummedFlywheelGoogleStorage += float(re.sub(',','', row['Usage amount']))
+        if (row['Project ID']):
+            Entry = initGCPEntry(
+                BillingAccountName=row['Billing account name'],
+                BillingAccountID=row['Billing account ID'],
+                Group=group,
+                ProjectName=row['Project ID'],  # promoting project id to project name as it is most unique
+                ProjectID=row['Project ID'],
+                ServiceDescription=row['Service description'],
+                ServiceID=row['Service ID'],
+                SKUDescription=row['SKU description'],
+                SKUID=row['SKU ID'],
+                CostType=row['Cost type'],
+                UsageStartDate=row['Usage start date'],
+                UsageEndDate=row['Usage end date'],
+                UsageAmount=betterFloat(row['Usage amount']),
+                UsageUnit=row['Usage unit'],
+                Cost=betterFloat(row['Cost ($)'])
+            )
 
-            for k, e in FlywheelProjectEntries.items():
-                if (args.verbose):
-                    print("k = '{}', split = {}".format(k, k.split(',')), file=sys.stderr)
+            if (isFlywheel(row)):
+                FlywheelCostTableEntries.append(Entry)
+            else:
+                CostTableEntries.append(Entry)
 
-                (group, project) = k.split(',')
+
+print("FlywheelCharges = {}".format(FlywheelCharges), file=sys.stderr)
+print("TotalGCPCoreHours = ",TotalGCPCoreHours, file=sys.stderr)
+print("TotalGCPCoreCost = ",TotalGCPCoreCost, file=sys.stderr)
+print("TotalGCPFlywheelStandarStorageGB = ", TotalGCPFlywheelStandardStorageGB, file=sys.stderr)
+print("TotalGCPFlywheelStandarStorageCost = ", TotalGCPFlywheelStandardStorageCost, file=sys.stderr)
+AverageGCPCostPerCoreHour = TotalGCPCoreCost / TotalGCPCoreHours
+
+print("AverageGCPCostPerCoreHour = ",AverageGCPCostPerCoreHour, file=sys.stderr)
+CalculatedFlywheelCharges = 0.0
+CalculatedFlywheelStorage = 0.0
+
+for fe in FlywheelCostTableEntries:
+
+    # Fix group
+    for k, e in FlywheelProjectEntries.items():
+        if (args.verbose):
+            print("k = '{}', split = {}".format(k, k.split(',')), file=sys.stderr)
+
+        (group, project) = k.split(',')
+
+        if (isCpu(fe)):
+            cost = fe['Cost ($)'] * e['compute']['percent']
+            usage = fe['Usage amount'] * e['compute']['percent']
+
+        if (isStandardStorage(fe)):
+            cost = fe['Cost ($)'] * e['storage']['percent']
+            usage = fe['Usage amount'] * e['storage']['percent']
+
+    # expand charges
+        Entry = initGCPEntry(
+            BillingAccountName=fe['Billing account name'],
+            BillingAccountID=fe['Billing account ID'],
+            Group=group,
+            ProjectName=project,
+            ProjectID=fe['Project ID'],
+            ServiceDescription=fe['Service description'],
+            ServiceID=fe['Service ID'],
+            SKUDescription=fe['SKU description'],
+            SKUID=fe['SKU ID'],
+            CostType=fe['Cost type'],
+            UsageStartDate=fe['Usage start date'],
+            UsageEndDate=fe['Usage end date'],
+            UsageAmount=usage,
+            UsageUnit=fe['Usage unit'],
+            Cost=cost
+        )
+
+        CostTableEntries.append(Entry)
+    
+    
+writer = csv.DictWriter(sys.stdout, CostTableEntries[0].keys())
+writer.writeheader()
+for row in CostTableEntries:
+    writer.writerow(row)
+
+
+'''
+
+
 
                 if (args.verbose):
                     print("'{}', '{}', '{}'".format(row['Service description'], row['SKU description'],row['Usage amount']), file=sys.stderr)
@@ -275,83 +399,14 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                     cost = Cost * e['compute']['percent']
                     usage = UsageAmount * e['compute']['percent']
 
-                Entry = initGCPEntry(
-                    BillingAccountName=row['Billing account name'],
-                    BillingAccountID=row['Billing account ID'],
-                    Group=group,
-                    ProjectName=project,
-                    ProjectID=row['Project ID'],
-                    ServiceDescription=row['Service description'],
-                    ServiceID=row['Service ID'],
-                    SKUDescription=row['SKU description'],
-                    SKUID=row['SKU ID'],
-                    CostType=row['Cost type'],
-                    UsageStartDate=row['Usage start date'],
-                    UsageEndDate=row['Usage end date'],
-                    UsageAmount=usage,
-                    UsageUnit=row['Usage unit'],
-                    Cost=cost,
-                    ComputePercent=e['compute']['percent'],
-                    StoragePercent=e['storage']['percent'],
-                )
 
-                Entries.append(Entry)
-        else:
-            res = getProjectGroup(iLabMap,row['Project ID'])
 
-            if (res == None):
-                print("Can not find group for {}".format(row['Project ID']), file=sys.stderr)
-                group = 'BogusGroup'
-            else:
-                group = res
 
-            Entry = initGCPEntry(
-                BillingAccountName=row['Billing account name'],
-                BillingAccountID=row['Billing account ID'],
-                Group=group,
-                ProjectName=row['Project ID'],  # promoting project id to project name as it is most unique
-                ProjectID=row['Project ID'],
-                ServiceDescription=row['Service description'],
-                ServiceID=row['Service ID'],
-                SKUDescription=row['SKU description'],
-                SKUID=row['SKU ID'],
-                CostType=row['Cost type'],
-                UsageStartDate=row['Usage start date'],
-                UsageEndDate=row['Usage end date'],
-                UsageAmount=row['Usage amount'],
-                UsageUnit=row['Usage unit'],
-                Cost=row['Cost ($)'],
-            )
-
-            Entries.append(Entry)
-
-if (args.verbose):
-    print("Entries is {} long".format(len(Entries)), file=sys.stderr)
-    print("Entries[0] = {}".format(type(Entries[0])), file=sys.stderr)
-
-print("FlywheelCharges = {}".format(FlywheelCharges), file=sys.stderr)
-
-writer = csv.DictWriter(sys.stdout, Entries[0].keys())
-writer.writeheader()
-
-CalculatedFlywheelCharges = 0.0
-CalculatedFlywheelStorage = 0.0
-for row in Entries:
-    if (re.search('upenn-flywheel', row['Project ID']) and (row['Cost ($)'] > 0.0)):
-        CalculatedFlywheelCharges += row['Cost ($)']
-
-    if (    (re.search('upenn-flywheel', row['Project ID']))
-        and (re.search('Cloud Storage', row['Service description']))
-        and (re.search('Standard Storage', row['SKU description']))
-        and (row['Usage amount'])
-    ):
-        CalculatedFlywheelStorage += row['Usage amount']
-
-    writer.writerow(row)
-
+    
 # Flywheel costs should be 33595.61 for May 2020
 print("FlywheelComputeHours = {}".format(FlywheelComputeHours), file=sys.stderr)
 print("CalculatedFlywheelCharges = $ {}".format(CalculatedFlywheelCharges), file=sys.stderr)
 print("CalculatedFlywheelStorage = {} B".format(CalculatedFlywheelStorage), file=sys.stderr)
 print("SummedFlywheelGoogleStorage = {} TB".format(SummedFlywheelGoogleStorage/1024.0), file=sys.stderr)
 print("SummedFlywheelStorage = {} TB".format(SummedFlywheelStorage/1024.0), file=sys.stderr)
+'''
