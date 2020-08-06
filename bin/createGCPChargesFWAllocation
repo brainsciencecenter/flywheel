@@ -18,7 +18,7 @@ from collections import OrderedDict
 CmdName = os.path.basename(sys.argv[0])
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-c', '--flywheel-cpu-usage-report', action='store', help='getJobs files in csv format')
+parser.add_argument('-j', '--flywheel-jobs-report', action='store', help='getJobs files in csv format')
 parser.add_argument('-f', '--flywheel-usage-report', action='store', help='Flywheel Usage Report in csv format')
 parser.add_argument('-m', '--ilabmap', action='store', help='iLab Service Request Map in yaml')
 parser.add_argument('-v', '--verbose', action='store_true', help='verbose')
@@ -27,8 +27,10 @@ args = parser.parse_args()
 
 fw = fwgearutils.getFW(args)
 
-FlywheelComputeHours = 0.0
-FlywheelStorageBytes = 0.0
+FlywheelUsageComputeHours = 0.0
+FlywheelUsageStorageBytes = 0.0
+FlywheelGearCPUHours = 0.0
+
 FlywheelProjectEntries = {}
 
 def initFlywheelProjectEntry(compute_hours=None, storage_bytes=None):
@@ -140,8 +142,6 @@ def getProjectGroup(iLabMap,alias):
 def ms2Hours(ms):
     return(float(ms)/1000.0/3600.0)
 
-FlywheelComputeHours = 0.0
-
 # read flywheel usage report
 with open(args.flywheel_usage_report, newline='') as csvfile:
     reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
@@ -161,10 +161,10 @@ with open(args.flywheel_usage_report, newline='') as csvfile:
 
         # Convert to GibiBytes to be consistent with Google units
         storage_bytes = float(row['total_storage_byte_day'])/float(row['days'])/1024.0/1024.0/1024.0
-        FlywheelStorageBytes += storage_bytes
+        FlywheelUsageStorageBytes += storage_bytes
 
         compute_ms = float(row['total_compute_ms'])
-        FlywheelComputeHours += ms2Hours(compute_ms)
+        FlywheelUsageComputeHours += ms2Hours(compute_ms)
 
         FlywheelProjectKey = '{},{}'.format(group,project)
         if (FlywheelProjectKey in FlywheelProjectEntries.keys()):
@@ -172,77 +172,39 @@ with open(args.flywheel_usage_report, newline='') as csvfile:
             FlywheelProjectEntries[FlywheelProjectKey]['storage']['used'] += storage_bytes
         else:
             FlywheelProjectEntries[FlywheelProjectKey] = initFlywheelProjectEntry(
-                compute_hours=(compute_ms/1000.0/3600.0),
+                compute_hours=ms2Hours(compute_ms),
                 storage_bytes=storage_bytes)
 
-if (args.flywheel_cpu_usage_report):
-    FlywheelComputeHours = 0.0
-
-    for k,v in FlywheelProjectEntries.items():
-        v['compute']['used'] = 0.0
-
-    with open(args.flywheel_cpu_usage_report, newline='') as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
-
-        for row in reader:
-            if (not (row['project'])):
-                # Just skip rows with group summary info
-                continue
-
-            group = row['group']
-            project = row['project']
-
-            try:
-                ms=float(row['job_elapsed_time_ms'])
-            except (ValueError) as e:
-                ms = 0.0
-
-            try:
-                cpus = float(row['gcp_cpus'])
-            except (ValueError) as e:
-                cpus = 0.0
-
-            compute_ms = ms * cpus
-            FlywheelComputeHours += (compute_ms / 1000.0 / 3600.0)
-
-            FlywheelProjectKey = '{},{}'.format(group,project)
-            if (FlywheelProjectKey in FlywheelProjectEntries.keys()):
-                FlywheelProjectEntries[FlywheelProjectKey]['compute']['used'] += (compute_ms/1000.0/3600.0)
-            else:
-                print("Missing Group/Project {},{}".format(group,project), file=sys.stderr)
-                FlywheelProjectEntries[FlywheelProjectKey] = initFlywheelProjectEntry(
-                    compute_hours=(compute_ms/100.0/3600.0)
-                )
 
 with open(args.ilabmap) as ilabmapfile:
     iLabMap = yaml.load(ilabmapfile, Loader=yaml.FullLoader)
 
-FlywheelComputePercents = 0.0
-FlywheelStoragePercents = 0.0
+FlywheelUsageComputePercents = 0.0
+FlywheelUsageStoragePercents = 0.0
 
 for e in FlywheelProjectEntries.values():
-    if (FlywheelComputeHours > 0 and e['compute']['used'] and e['compute']['used'] > 0):
-        e['compute']['percent'] = e['compute']['used']/FlywheelComputeHours
-        FlywheelComputePercents += e['compute']['used']/FlywheelComputeHours
+    if (FlywheelUsageComputeHours > 0.0 and e['compute']['used'] and e['compute']['used'] > 0.0):
+        e['compute']['percent'] = e['compute']['used']/FlywheelUsageComputeHours
+        FlywheelUsageComputePercents += e['compute']['used']/FlywheelUsageComputeHours
     else:
         e['compute']['percent'] = 0.0
 
-    if (FlywheelStorageBytes > 0 and e['storage']['used'] and e['storage']['used'] > 0):
-        e['storage']['percent'] = e['storage']['used']/FlywheelStorageBytes
-        FlywheelStoragePercents += e['storage']['used']/FlywheelStorageBytes
+    if (FlywheelUsageStorageBytes > 0 and e['storage']['used'] and e['storage']['used'] > 0.0):
+        e['storage']['percent'] = e['storage']['used']/FlywheelUsageStorageBytes
+        FlywheelUsageStoragePercents += e['storage']['used']/FlywheelUsageStorageBytes
     else:
         e['storage']['percent'] = 0.0
 
 if (args.verbose):
-    print("FlywheelComputeHours = {}".format(FlywheelComputeHours), file=sys.stderr)
-    print("FlywheelStorageBytes = {}".format(FlywheelStorageBytes), file=sys.stderr)
+    print("FlywheelUsageComputeHours = {}".format(FlywheelUsageComputeHours), file=sys.stderr)
+    print("FlywheelUsageStorageBytes = {}".format(FlywheelUsageStorageBytes), file=sys.stderr)
 
-print("FlywheelComputePercents = {}".format(FlywheelComputePercents), file=sys.stderr)
-print("FlywheelStoragePercents = {}".format(FlywheelStoragePercents), file=sys.stderr)
+print("FlywheelUsageComputePercents = {}".format(FlywheelUsageComputePercents), file=sys.stderr)
+print("FlywheelUsageStoragePercents = {}".format(FlywheelUsageStoragePercents), file=sys.stderr)
 
 print("FlywheelProjectEntries[#] = {}".format(len(FlywheelProjectEntries.values())), file=sys.stderr)
 
-FlywheelCharges = 0.0
+
 SummedFlywheelStorage = 0.0
 SummedFlywheelGoogleStorage = 0.0
 
@@ -250,6 +212,7 @@ TotalGCPCoreHours = 0.0
 TotalGCPCoreCost = 0.0
 TotalGCPFlywheelStandardStorageGB = 0.0
 TotalGCPFlywheelStandardStorageCost = 0.0
+TotalFlywheelCharges = 0.0
 
 CostTableEntries = []
 FlywheelCostTableEntries = []
@@ -268,6 +231,7 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
             TotalGCPCoreCost += betterFloat(row['Cost ($)'])
 
         if (isFlywheel(row)):
+            TotalFlywheelCharges += betterFloat(row['Cost ($)'])
             if (isStandardStorage(row)):
                 TotalGCPFlywheelStandardStorageGB += betterFloat(row['Usage amount'])
                 TotalGCPFlywheelStandardStorageCost += betterFloat(row['Cost ($)'])
@@ -306,14 +270,18 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                 CostTableEntries.append(Entry)
 
 
-print("FlywheelCharges = {}".format(FlywheelCharges), file=sys.stderr)
+print("TotalFlywheelCharges = {}".format(TotalFlywheelCharges), file=sys.stderr)
 print("TotalGCPCoreHours = ",TotalGCPCoreHours, file=sys.stderr)
 print("TotalGCPCoreCost = ",TotalGCPCoreCost, file=sys.stderr)
 print("TotalGCPFlywheelStandarStorageGB = ", TotalGCPFlywheelStandardStorageGB, file=sys.stderr)
 print("TotalGCPFlywheelStandarStorageCost = ", TotalGCPFlywheelStandardStorageCost, file=sys.stderr)
-AverageGCPCostPerCoreHour = TotalGCPCoreCost / TotalGCPCoreHours
 
-print("AverageGCPCostPerCoreHour = ",AverageGCPCostPerCoreHour, file=sys.stderr)
+try:
+    AverageGCPCostPerCoreHour = TotalGCPCoreCost / TotalGCPCoreHours
+except (ZeroDivisionError) as e:
+    AverageGCPCostPerCoreHour = 0.0
+
+print("AverageGCPCostPerCoreHour = ", AverageGCPCostPerCoreHour, file=sys.stderr)
 CalculatedFlywheelCharges = 0.0
 CalculatedFlywheelStorage = 0.0
 
@@ -355,58 +323,57 @@ for fe in FlywheelCostTableEntries:
 
         CostTableEntries.append(Entry)
     
-    
+TotalFlywheelGearCost = 0.0
+if (args.flywheel_jobs_report):
+    with open(args.flywheel_jobs_report, newline='') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+        for row in reader:
+            group = row['group']
+            project = row['project']
+
+            try:
+                ms=float(row['job_elapsed_time_ms'])
+            except (ValueError) as e:
+                ms = 0.0
+
+            try:
+                cpus = float(row['gcp_cpus'])
+            except (ValueError) as e:
+                cpus = 0.0
+
+            compute_ms = ms * cpus
+            FlywheelGearCpuHours = ms2Hours(compute_ms)
+            FlywheelGearCost = AverageGCPCostPerCoreHour * FlywheelGearCpuHours
+
+            TotalFlywheelGearCost += FlywheelGearCost 
+
+            FlywheelProjectKey = '{},{}'.format(group,project)
+
+            Entry = initGCPEntry(
+                Group=group,
+                ProjectName=project,
+                ServiceDescription='Flywheel Gear',
+                SKUDescription=row['gear_name'],
+                UsageStartDate=row['job_date'],
+                UsageAmount=FlywheelGearCpuHours,
+                UsageUnit='hours',
+                Cost=FlywheelGearCost,
+                GearVersion=row['gear_version'],
+                GearCategory=row['gear_category'],
+                JobOriginID=row['job_origin_id'],
+                JobOriginType=row['job_origin_type'],
+                JobState=row['job_state'],
+                JobCpus=row['job_cpus'],
+                GCPCpus=row['gcp_cpus'],
+                InitialAnalysis=row['initial_analysis']
+            )
+
+            CostTableEntries.append(Entry)
+
+print("TotalFlywheelGearCost = ", TotalFlywheelGearCost, file=sys.stderr)
 writer = csv.DictWriter(sys.stdout, CostTableEntries[0].keys())
 writer.writeheader()
 for row in CostTableEntries:
     writer.writerow(row)
 
-
-'''
-
-
-
-                if (args.verbose):
-                    print("'{}', '{}', '{}'".format(row['Service description'], row['SKU description'],row['Usage amount']), file=sys.stderr)
-
-                try:
-                    UsageAmount = float(re.sub(',', '',row['Usage amount']))
-                except (ValueError):
-                    UsageAmount = 0
-
-                try:
-                    Cost = float(re.sub(',', '',row['Cost ($)']))
-                except (ValueError):
-                    Cost = 0
-                    
-                if (isCostClassifier(row['Service description'],'Compute Engine')):
-                    cost = Cost * e['compute']['percent']
-                    if (isCostClassifier(row['SKU description'],'.*Instance Core.*')):
-                        usage = e['compute']['used']
-                    else:
-                        usage = UsageAmount * e['compute']['percent']
-
-                elif (isCostClassifier(row['Service description'],'Cloud Storage')):
-                    cost = Cost * e['storage']['percent']
-                    if (isCostClassifier(row['SKU description'],'Standard Storage')):
-                        usage = e['storage']['used']
-                        if (usage):
-                            SummedFlywheelStorage += usage
-                    else:
-                        usage = UsageAmount * e['storage']['percent']
-
-                else:
-                    cost = Cost * e['compute']['percent']
-                    usage = UsageAmount * e['compute']['percent']
-
-
-
-
-    
-# Flywheel costs should be 33595.61 for May 2020
-print("FlywheelComputeHours = {}".format(FlywheelComputeHours), file=sys.stderr)
-print("CalculatedFlywheelCharges = $ {}".format(CalculatedFlywheelCharges), file=sys.stderr)
-print("CalculatedFlywheelStorage = {} B".format(CalculatedFlywheelStorage), file=sys.stderr)
-print("SummedFlywheelGoogleStorage = {} TB".format(SummedFlywheelGoogleStorage/1024.0), file=sys.stderr)
-print("SummedFlywheelStorage = {} TB".format(SummedFlywheelStorage/1024.0), file=sys.stderr)
-'''

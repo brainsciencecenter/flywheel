@@ -6,7 +6,7 @@ syntax="${CmdName} {-t a|c|g|j} [-F] [-f {Compute|Core|Ram|Storage|Bucket|Coldli
 # c = Cost Table
 # j = Jobs Report
 # g = GCP cost allocation
-# a = Flywheel usage allocation report
+# u = Flywheel usage allocation report
 
 # Compute
 # Instance Core
@@ -51,15 +51,14 @@ function sliceNDice {
     local InputFile="$1"
 
 	 case "$opt_t" in
-	      a)
+	      u)
 		  # Pull days, group, project_label, session_count,total-compute_ms, total_job_count, total_storage_bytes
 		  Fields=4,5,10,11,12,13,14
 		  csvcut -c "$Fields" | awk -F , '{ if ($3 != "") {print $0} }'
 		  ;;
 
 	      g)
-		  # Pull Group, Project name, Project ID, Service description, SKU description, Usage amount, Usage unit, Cost ($)
-		  Fields=3,4,5,6,8,13,14,15
+		  Fields=$(getHeaderIndicies "$InputFile" "Group" "Project name" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
 		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v '^,,' 
 		  ;;
 	      c)
@@ -87,7 +86,7 @@ function total {
     else
 	
 	case "$opt_t" in
-	    a)
+	    u)
 		Fields=1,4,5,6,7
 		if [ -n "$1" ]
 		then
@@ -200,7 +199,7 @@ function filter {
 	    esac
 	    ;;
 
-	a|j)
+	u|j)
 	    grep "$opt_f"
 	    ;;
 	*)

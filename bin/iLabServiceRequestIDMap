@@ -217,6 +217,7 @@ RequestIDs:
         - pennftdcenter/map_test
         - pennftdcenter/mc_debug
         - pennftdcenter/Sandbox_HUP3TLegacy
+        - pennftdcenter/SessionMergeTest
         - pennftdcenter/SC7T
         - pennftdcenter/Unsorted
       
@@ -247,6 +248,7 @@ RequestIDs:
     - service_request_id: cmroi-default-service-request-id
       group: cmroi
       aliases:
+        - cmroi/3D gluCEST
         - cmroi/Abby Techdev
         - cmroi/CSI_gluCEST
         - cmroi/Dushyant Techdev
@@ -254,6 +256,7 @@ RequestIDs:
         - cmroi/OA (Baker)
         - cmroi/Scratch
         - cmroi/techdev
+        - cmroi/TMS_CEST
         - cmroi/TRD 3
         - cmroi/Unknown or Incomplete
         - cmroi/Unsorted
@@ -299,6 +302,7 @@ RequestIDs:
         - medaglia/Archive
         - medaglia/DP5
         - medaglia/TMS/CEST
+        - medaglia/TMS_CEST
         - medaglia/TNI
         - medaglia/TNI_DP5
         - medaglia/Unsorted

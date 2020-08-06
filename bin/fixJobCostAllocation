@@ -97,16 +97,69 @@ Rows = []
 
 with open(args.jobfile[0], newline='') as csvfile:
     reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
-
+        
     for row in reader:
-        Rows.append(row)
+        r = initRow(
+            job_date=row['job_date'],
+            job_id=row['job_id'],
+            job_elapsed_time_ms=row['job_elapsed_time_ms'],
+            job_runtime_ms=row['job_runtime_ms'],
+            gear_id=row['gear_id'],
+            gear_name=row['gear_name'],
+            gear_version=row['gear_version'],
+            gear_category=row['gear_category'],
+            job_origin_id=row['job_origin_id'],
+            job_origin_type=row['job_origin_type'],
+            job_state=row['job_state'],
+            job_cpus=row['job_cpus'],
+            gcp_cpus=row['gcp_cpus'],
+            gcp_compute_percent=row['gcp_compute_percent'],
+            initial_analysis=row['initial_analysis'],
+            group=row['group'],
+            project=row['project'],
+            subject=row['subject'],
+            session=row['session'],
+            session_id=row['session_id'],
+            acquisition_name=row['acquisition_name'],
+            acquisition_id=row['acquisition_id'],
+            gcp_compute_cost=row['gcp_compute_cost']
+        )
+
+        Rows.append(r)
+
+def ms2Hours(ms):
+    return(betterFloat(ms)/1000.0/3600.0)
+
+def betterFloat(s):
+    if (s == ''):
+        return(0.0)
+
+    return(float(re.sub(',','', s)))
+
+TotalGCPCpuHours = 0.0
+for r in Rows:
+    TotalGCPCpuHours += ms2Hours(r['job_runtime_ms'])
+
+print("TotalGCPCpuHours = ",TotalGCPCpuHours, file=sys.stderr)    
+
+TotalGCPComputePercent = 0.0
+TotalGCPComputeCost = 0.0
+
+for r in Rows:
+    r['gcp_compute_percent'] = ms2Hours(r['job_runtime_ms'])/TotalGCPCpuHours
+    r['gcp_compute_cost'] = float(args.gcp_compute_cost) * r['gcp_compute_percent']
+
+    TotalGCPComputePercent += r['gcp_compute_percent']
+    TotalGCPComputeCost += r['gcp_compute_cost']
+
+print("TotalGCPComputePercent = ",TotalGCPComputePercent, file=sys.stderr)    
+print("TotalGCPComputeCost = ",TotalGCPComputeCost, file=sys.stderr)    
 
 row = initRow()
 writer = csv.DictWriter(sys.stdout, row.keys(),lineterminator='\n' )
 writer.writeheader()
 
 for row in Rows:
-    row['gcp_compute_cost'] = float(row['gcp_compute_percent']) * float(args.gcp_compute_cost)
     writer.writerow(row)
 
 
