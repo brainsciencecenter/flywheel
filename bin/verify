@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-syntax="${CmdName} {-t a|c|g|j} [-F] [-f {Compute|Core|Ram|Storage|Bucket|Coldline} ] [-g] [-n line[[,line]...] [-v] file"
+syntax="${CmdName} {-t a|c|g|j} [-D YYYY-MM-DD] [-d YYYY-MM-DD] [-F] [-f {Compute|Core|Ram|Storage|Bucket|Coldline} ] [-g] [-n line[[,line]...] [-v] file"
 
 # c = Cost Table
 # j = Jobs Report
@@ -42,6 +42,22 @@ function getHeaderIndicies() {
     head -n 1 "$InputFile" | tr ',' '\012' | grep -P -n "^($RegEx)$" | cut -f 1 -d : | (tr '\012' ',';echo) | sed 's/,$//'
 }
 
+function filterByDates () {
+    local From='.'
+    local To='.'
+
+    if [ -n "$opt_D" ]
+    then
+	From="$opt_D"
+    fi
+
+    if [ -n "$opt_d" ]
+    then
+	To="$opt_d"
+    fi
+
+    grep ",${From}[^,]*,${To}"
+}
 
 #
 # SliceNDice does not want a header line
@@ -59,7 +75,8 @@ function sliceNDice {
 
 	      g)
 		  Fields=$(getHeaderIndicies "$InputFile" "Group" "Project name" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
-		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v '^,,' 
+#		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v '^,,'
+		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount 
 		  ;;
 	      c)
 		  Fields=$(getHeaderIndicies "$InputFile" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
@@ -175,23 +192,30 @@ function filter {
     case "$opt_t" in
 	c|g)
 	    case "$opt_f" in
+		Bucket*)
+		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage' 
+		    ;;
+		Coldline)
+		    allOrFlywheel | grep 'Cloud Storage' | grep Coldline | grep Multi
+		    ;;
+		Misc)
+		    allOrFlywheel | grep -v -P 'Regional Kubernetes Clusters|Instance Core|Small Instance|PD Capacity|Instance Ram|Cloud Storage|Coldline'
+		    ;;
+
 		Compute)
 		    allOrFlywheel | grep 'Compute Engine'
 		    ;;
 		Core)
 		    allOrFlywheel | grep 'Compute Engine' | grep 'Instance Core'
 		    ;;
+		Gcp)
+		    allOrFlywheel | grep -v 'Flywheel Gear'
+		    ;;
 		Ram)
 		    allOrFlywheel | grep 'Compute Engine' | grep 'Instance Ram'
 		    ;;
 		Storage)
 		    allOrFlywheel | grep 'Cloud Storage'
-		    ;;
-		Bucket*)
-		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage' 
-		    ;;
-		Coldline)
-		    allOrFlywheel | grep 'Cloud Storage' | grep Coldline | grep Multi
 		    ;;
 
 		*)
@@ -210,10 +234,10 @@ function filter {
 
 opt_n='2,$p'
 
-while getopts Ff:gn:t:v arg
+while getopts D:d:Ff:gn:t:v arg
 do
 	case "$arg" in
-	     F|f|g|t|v)
+	     D|d|F|f|g|t|v)
 		 eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	     n)
@@ -229,4 +253,5 @@ SourceFile="$1"
 
 head -n 1 "$SourceFile" | sliceNDice "$SourceFile" | total "header"
 
-sed -n "${opt_n}" "$SourceFile" | sliceNDice "$SourceFile" | deCommafie | filter | total
+#sed -n "${opt_n}" "$SourceFile" | filterByDates 
+sed -n "${opt_n}" "$SourceFile" | filterByDates | sliceNDice "$SourceFile" | deCommafie | filter | total

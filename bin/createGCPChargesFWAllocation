@@ -29,7 +29,7 @@ fw = fwgearutils.getFW(args)
 
 FlywheelUsageComputeHours = 0.0
 FlywheelUsageStorageBytes = 0.0
-FlywheelGearCPUHours = 0.0
+FlywheelGearGCPCpuHours = 0.0
 
 FlywheelProjectEntries = {}
 
@@ -97,17 +97,26 @@ def initGCPEntry(
         ( 'Job cpus', JobCpus),
         ( 'GCP cpus', GCPCpus),
         ( 'Initial analysis', InitialAnalysis),
-        ( 'Compute percent', ComputePercent),
-        ( 'Storage percent', StoragePercent)        
+        ( 'Compute Percent', ComputePercent),
+        ( 'Storage Percent', StoragePercent)        
     ])
 
     return(Entry)
+
+def fixDate(d):
+    if (re.search('^\d{4}-\d{2}-\d{2}$', d)):
+        return(re.sub('$', ' 00:00:00 UTC', d))
+    else:
+        return(re.sub('\+00:00',' UTC',d))
 
 def betterFloat(s):
     if (s == ''):
         return(0.0)
 
     return(float(re.sub(',','', s)))
+
+def isCompute(row):
+    return( re.search('Compute Engine', row['Service description']))
 
 def isCpu(row):
     return( re.search('Compute Engine', row['Service description'])
@@ -176,6 +185,63 @@ with open(args.flywheel_usage_report, newline='') as csvfile:
                 storage_bytes=storage_bytes)
 
 
+FlywheelJobEntries = []
+FlywheelGearGCPCpuHours = 0.0
+TotalFlywheelGearGCPCpuHours = 0.0
+
+# Stomp over the cpu percents from the usage report
+for e in FlywheelProjectEntries.values():
+    e['compute']['used'] = 0.0
+
+if (args.flywheel_jobs_report):
+    with open(args.flywheel_jobs_report, newline='') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+        for row in reader:
+            try:
+                ms=float(row['job_elapsed_time_ms'])
+            except (ValueError) as e:
+                ms = 0.0
+
+            try:
+                cpus = float(row['gcp_cpus'])
+            except (ValueError) as e:
+                cpus = 0.0
+
+            compute_ms = ms * cpus
+            FlywheelGearGCPCpuHours = ms2Hours(compute_ms)
+            TotalFlywheelGearGCPCpuHours += FlywheelGearGCPCpuHours
+
+            FlywheelJobEntries.append(row)
+
+    for row in FlywheelJobEntries:
+        try:
+            ms=float(row['job_elapsed_time_ms'])
+        except (ValueError) as e:
+            ms = 0.0
+
+        try:
+            cpus = float(row['gcp_cpus'])
+        except (ValueError) as e:
+            cpus = 0.0
+
+        compute_ms = ms * cpus
+
+        group = row['group']
+        project = row['project']
+
+        FlywheelProjectKey = '{},{}'.format(group,project)
+
+        if (FlywheelProjectKey in FlywheelProjectEntries.keys()):
+            FlywheelProjectEntries[FlywheelProjectKey]['compute']['used'] += ms2Hours(compute_ms)
+        else:
+            FlywheelProjectEntries[FlywheelProjectKey] = initFlywheelProjectEntry(
+                compute_hours=ms2Hours(compute_ms),
+                storage_bytes=0.0)
+
+FlywheelUsageComputeHours = TotalFlywheelGearGCPCpuHours
+
+
 with open(args.ilabmap) as ilabmapfile:
     iLabMap = yaml.load(ilabmapfile, Loader=yaml.FullLoader)
 
@@ -210,8 +276,11 @@ SummedFlywheelGoogleStorage = 0.0
 
 TotalGCPCoreHours = 0.0
 TotalGCPCoreCost = 0.0
+TotalFlywheelCoreHours = 0.0
+TotalFlywheelCoreCost = 0.0
 TotalGCPFlywheelStandardStorageGB = 0.0
 TotalGCPFlywheelStandardStorageCost = 0.0
+
 TotalFlywheelCharges = 0.0
 
 CostTableEntries = []
@@ -226,16 +295,25 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
         # Skip summary lines at the end of the Cost Table report which have empty Project ID
         # ,,,,Rounding error,,,,,,
         # ,,,,Total,,,,,0.00,
+        if (not row['Project ID']):
+            continue
+
         if (isCpu(row)):
-            TotalGCPCoreHours += betterFloat(row['Usage amount'])
-            TotalGCPCoreCost += betterFloat(row['Cost ($)'])
+            if (betterFloat(row['Cost ($)']) > 0.0):
+                TotalGCPCoreHours += betterFloat(row['Usage amount'])
+                TotalGCPCoreCost += betterFloat(row['Cost ($)'])
 
         if (isFlywheel(row)):
-            TotalFlywheelCharges += betterFloat(row['Cost ($)'])
-            if (isStandardStorage(row)):
-                TotalGCPFlywheelStandardStorageGB += betterFloat(row['Usage amount'])
-                TotalGCPFlywheelStandardStorageCost += betterFloat(row['Cost ($)'])
+            if (betterFloat(row['Cost ($)']) > 0.0):
+                TotalFlywheelCharges += betterFloat(row['Cost ($)'])
+
+                if (isStandardStorage(row)):
+                    TotalGCPFlywheelStandardStorageGB += betterFloat(row['Usage amount'])
+                    TotalGCPFlywheelStandardStorageCost += betterFloat(row['Cost ($)'])
             
+                if (isCpu(row)):
+                    TotalFlywheelCoreHours += betterFloat(row['Usage amount'])
+                    TotalFlywheelCoreCost += betterFloat(row['Cost ($)'])
         else:
                 res = getProjectGroup(iLabMap,row['Project ID'])
 
@@ -257,8 +335,8 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                 SKUDescription=row['SKU description'],
                 SKUID=row['SKU ID'],
                 CostType=row['Cost type'],
-                UsageStartDate=row['Usage start date'],
-                UsageEndDate=row['Usage end date'],
+                UsageStartDate=fixDate(row['Usage start date']),
+                UsageEndDate=fixDate(row['Usage end date']),
                 UsageAmount=betterFloat(row['Usage amount']),
                 UsageUnit=row['Usage unit'],
                 Cost=betterFloat(row['Cost ($)'])
@@ -273,6 +351,9 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
 print("TotalFlywheelCharges = {}".format(TotalFlywheelCharges), file=sys.stderr)
 print("TotalGCPCoreHours = ",TotalGCPCoreHours, file=sys.stderr)
 print("TotalGCPCoreCost = ",TotalGCPCoreCost, file=sys.stderr)
+print("TotalFlywheelGearGCPCpuHours = ", TotalFlywheelGearGCPCpuHours, file=sys.stderr)
+print("TotalFlywheelCoreHours = ",TotalFlywheelCoreHours, file=sys.stderr)
+print("TotalFlywheelCoreCost = ",TotalFlywheelCoreCost, file=sys.stderr)
 print("TotalGCPFlywheelStandarStorageGB = ", TotalGCPFlywheelStandardStorageGB, file=sys.stderr)
 print("TotalGCPFlywheelStandarStorageCost = ", TotalGCPFlywheelStandardStorageCost, file=sys.stderr)
 
@@ -294,7 +375,7 @@ for fe in FlywheelCostTableEntries:
 
         (group, project) = k.split(',')
 
-        if (isCpu(fe)):
+        if (isCompute(fe)):
             cost = fe['Cost ($)'] * e['compute']['percent']
             usage = fe['Usage amount'] * e['compute']['percent']
 
@@ -324,6 +405,12 @@ for fe in FlywheelCostTableEntries:
         CostTableEntries.append(Entry)
     
 TotalFlywheelGearCost = 0.0
+TotalJobCount = 0
+
+# rezero this 
+TotalFlywheelGearGCPCpuHours = 0.0
+TotalInitialAnalysis = 0
+
 if (args.flywheel_jobs_report):
     with open(args.flywheel_jobs_report, newline='') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
@@ -343,20 +430,28 @@ if (args.flywheel_jobs_report):
                 cpus = 0.0
 
             compute_ms = ms * cpus
-            FlywheelGearCpuHours = ms2Hours(compute_ms)
-            FlywheelGearCost = AverageGCPCostPerCoreHour * FlywheelGearCpuHours
+            FlywheelGearGCPCpuHours = ms2Hours(compute_ms)
+            FlywheelGearCost = AverageGCPCostPerCoreHour * FlywheelGearGCPCpuHours
 
+            if (row['job_state'] == 'complete'):
+                TotalJobCount += 1
+
+            TotalFlywheelGearGCPCpuHours += FlywheelGearGCPCpuHours
             TotalFlywheelGearCost += FlywheelGearCost 
+            if (row['initial_analysis'] == "True"):
+                TotalInitialAnalysis += 1
 
             FlywheelProjectKey = '{},{}'.format(group,project)
 
             Entry = initGCPEntry(
                 Group=group,
                 ProjectName=project,
+                ProjectID='upenn-flywheel',
                 ServiceDescription='Flywheel Gear',
                 SKUDescription=row['gear_name'],
-                UsageStartDate=row['job_date'],
-                UsageAmount=FlywheelGearCpuHours,
+                UsageStartDate=fixDate(row['job_date']),
+                UsageEndDate=fixDate(row['job_date']),
+                UsageAmount=FlywheelGearGCPCpuHours,
                 UsageUnit='hours',
                 Cost=FlywheelGearCost,
                 GearVersion=row['gear_version'],
@@ -371,7 +466,10 @@ if (args.flywheel_jobs_report):
 
             CostTableEntries.append(Entry)
 
-print("TotalFlywheelGearCost = ", TotalFlywheelGearCost, file=sys.stderr)
+print("TotalFlywheelGearCpuCost = ", TotalFlywheelGearCost, file=sys.stderr)
+print("TotalFlywheelGearGCPCpuHours = ", TotalFlywheelGearGCPCpuHours, file=sys.stderr)
+print("TotalJobCount = ", TotalJobCount, file=sys.stderr)
+print("TotalInitialAnalysis = ", TotalInitialAnalysis, file=sys.stderr)
 writer = csv.DictWriter(sys.stdout, CostTableEntries[0].keys())
 writer.writeheader()
 for row in CostTableEntries:
