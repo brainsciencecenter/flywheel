@@ -18,9 +18,11 @@ from collections import OrderedDict
 CmdName = os.path.basename(sys.argv[0])
 
 parser = argparse.ArgumentParser()
+
 parser.add_argument('-j', '--flywheel-jobs-report', action='store', help='getJobs files in csv format')
 parser.add_argument('-f', '--flywheel-usage-report', action='store', help='Flywheel Usage Report in csv format')
 parser.add_argument('-m', '--ilabmap', action='store', help='iLab Service Request Map in yaml')
+parser.add_argument('-d', '--dynamic-gcp-hours', action='store', help='static VM gcp hours')
 parser.add_argument('-v', '--verbose', action='store_true', help='verbose')
 parser.add_argument('gcp_cost_table', nargs=1, help='GCP Cost Table Report in csv format')
 args = parser.parse_args()
@@ -70,6 +72,7 @@ def initGCPEntry(
         JobCpus=None,
         GCPCpus=None,
         InitialAnalysis=None,
+        DynamicVMRatio=None,
         ComputePercent=None,
         StoragePercent=None
 ):
@@ -97,6 +100,7 @@ def initGCPEntry(
         ( 'Job cpus', JobCpus),
         ( 'GCP cpus', GCPCpus),
         ( 'Initial analysis', InitialAnalysis),
+        ( 'Dynamic VM Ratio', DynamicVMRatio),
         ( 'Compute Percent', ComputePercent),
         ( 'Storage Percent', StoragePercent)        
     ])
@@ -121,6 +125,9 @@ def isCompute(row):
 def isCpu(row):
     return( re.search('Compute Engine', row['Service description'])
         and re.search('Instance Core', row['SKU description']))
+
+def isStorage(row):
+    return( re.search('Cloud Storage', row['Service description']))
 
 def isStandardStorage(row):
     return( re.search('Cloud Storage', row['Service description'])
@@ -241,7 +248,6 @@ if (args.flywheel_jobs_report):
 
 FlywheelUsageComputeHours = TotalFlywheelGearGCPCpuHours
 
-
 with open(args.ilabmap) as ilabmapfile:
     iLabMap = yaml.load(ilabmapfile, Loader=yaml.FullLoader)
 
@@ -280,6 +286,8 @@ TotalFlywheelCoreHours = 0.0
 TotalFlywheelCoreCost = 0.0
 TotalGCPFlywheelStandardStorageGB = 0.0
 TotalGCPFlywheelStandardStorageCost = 0.0
+TotalGCPFlywheelStorageGB = 0.0
+TotalGCPFlywheelStorageCost = 0.0
 
 TotalFlywheelCharges = 0.0
 
@@ -307,6 +315,10 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
             if (betterFloat(row['Cost ($)']) > 0.0):
                 TotalFlywheelCharges += betterFloat(row['Cost ($)'])
 
+                if (isStorage(row)):
+                    TotalGCPFlywheelStorageGB += betterFloat(row['Usage amount'])
+                    TotalGCPFlywheelStorageCost += betterFloat(row['Cost ($)'])
+            
                 if (isStandardStorage(row)):
                     TotalGCPFlywheelStandardStorageGB += betterFloat(row['Usage amount'])
                     TotalGCPFlywheelStandardStorageCost += betterFloat(row['Cost ($)'])
@@ -347,15 +359,22 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
             else:
                 CostTableEntries.append(Entry)
 
+if (args.dynamic_gcp_hours):
+    DynamicVMRatio = betterFloat(args.dynamic_gcp_hours) / TotalFlywheelCoreHours
+else:
+    DynamicVMRatio = 1.0
 
+print("DynamicVMRatio = {}".format(DynamicVMRatio), file=sys.stderr)
 print("TotalFlywheelCharges = {}".format(TotalFlywheelCharges), file=sys.stderr)
 print("TotalGCPCoreHours = ",TotalGCPCoreHours, file=sys.stderr)
 print("TotalGCPCoreCost = ",TotalGCPCoreCost, file=sys.stderr)
 print("TotalFlywheelGearGCPCpuHours = ", TotalFlywheelGearGCPCpuHours, file=sys.stderr)
 print("TotalFlywheelCoreHours = ",TotalFlywheelCoreHours, file=sys.stderr)
 print("TotalFlywheelCoreCost = ",TotalFlywheelCoreCost, file=sys.stderr)
-print("TotalGCPFlywheelStandarStorageGB = ", TotalGCPFlywheelStandardStorageGB, file=sys.stderr)
-print("TotalGCPFlywheelStandarStorageCost = ", TotalGCPFlywheelStandardStorageCost, file=sys.stderr)
+print("TotalGCPFlywheelStorageGB = ", TotalGCPFlywheelStorageGB, file=sys.stderr)
+print("TotalGCPFlywheelStorageCost = ", TotalGCPFlywheelStorageCost, file=sys.stderr)
+print("TotalGCPFlywheelStandardStorageGB = ", TotalGCPFlywheelStandardStorageGB, file=sys.stderr)
+print("TotalGCPFlywheelStandardStorageCost = ", TotalGCPFlywheelStandardStorageCost, file=sys.stderr)
 
 try:
     AverageGCPCostPerCoreHour = TotalGCPCoreCost / TotalGCPCoreHours
@@ -379,7 +398,7 @@ for fe in FlywheelCostTableEntries:
             cost = fe['Cost ($)'] * e['compute']['percent']
             usage = fe['Usage amount'] * e['compute']['percent']
 
-        if (isStandardStorage(fe)):
+        if (isStorage(fe)):
             cost = fe['Cost ($)'] * e['storage']['percent']
             usage = fe['Usage amount'] * e['storage']['percent']
 
@@ -399,7 +418,8 @@ for fe in FlywheelCostTableEntries:
             UsageEndDate=fe['Usage end date'],
             UsageAmount=usage,
             UsageUnit=fe['Usage unit'],
-            Cost=cost
+            Cost=cost,
+            DynamicVMRatio=DynamicVMRatio
         )
 
         CostTableEntries.append(Entry)

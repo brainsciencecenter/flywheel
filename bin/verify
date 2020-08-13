@@ -85,8 +85,7 @@ function sliceNDice {
 		  ;;
 
 	      j)
-		  # gear_name,job_origin_id,job_state,job_elapsed_time_ms,gcp_cpus,gcp_compute_percent,initial_analysis,group,project,gcp_compute_cost
-		  Fields=4,7,9,10,13,14,15,16,17,23
+		  Fields=$(getHeaderIndicies "$InputFile" gear_name gear_category job_origin_id job_state job_elapsed_time_ms gcp_cpus gcp_compute_percent initial_analysis group project gcp_compute_cost)
 		  csvcut -c "$Fields"
 		  ;;
 		  
@@ -148,7 +147,7 @@ function total {
 		;;
 		
 	    j)
-		Fields=3,4,5,6,7,10
+		Fields=4,5,6,7,8,11
 		if [ -n "$1" ]
 		then
 		    csvcut -c "$Fields" | sed 's/job_state/job_count/; s/job_elapsed_time_ms,gcp_cpus/gcp_compute_hours/'
@@ -193,13 +192,17 @@ function filter {
 	c|g)
 	    case "$opt_f" in
 		Bucket*)
-		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage' 
+E		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage' 
 		    ;;
 		Coldline)
 		    allOrFlywheel | grep 'Cloud Storage' | grep Coldline | grep Multi
 		    ;;
 		Misc)
-		    allOrFlywheel | grep -v -P 'Regional Kubernetes Clusters|Instance Core|Small Instance|PD Capacity|Instance Ram|Cloud Storage|Coldline'
+		    allOrFlywheel | grep -v -P '(Kubernetes Engine)|(Cloud Storage)|(Flywheel Gear)|(Instance Core)|(Small Instance)|(PD Capacity)|(Instance Ram)|(GPU running)|(Storage Image)|(Storage Machine Image)|(Storage PD)'
+		    ;;
+
+		MiscStorage)
+		    allOrFlywheel | grep 'Cloud Storage' | grep -v -P 'Standard Storage|Coldline Storage'
 		    ;;
 
 		Compute)
@@ -218,13 +221,16 @@ function filter {
 		    allOrFlywheel | grep 'Cloud Storage'
 		    ;;
 
+		VM)
+		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|Instance Ram'
+		    ;;
 		*)
 		    allOrFlywheel
 	    esac
 	    ;;
 
 	u|j)
-	    grep "$opt_f"
+	    grep -P "$opt_f"
 	    ;;
 	*)
 	    cat
