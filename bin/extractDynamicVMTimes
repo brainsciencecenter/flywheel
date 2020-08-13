@@ -1,0 +1,55 @@
+#!/usr/bin/python3
+
+import argparse
+import csv
+import json
+import os
+import pyjq
+import re
+import sys
+import yaml
+
+if __name__ == '__main__':
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+
+    ap.add_argument('jsonfile', nargs='?', 
+    				help='path to json file to upload to context, defaults to stdin')
+    args = ap.parse_args()
+
+    with open(args.jsonfile, 'r') if args.jsonfile else sys.stdin as jsonfile:
+    	Json = json.load(jsonfile)
+
+    MachinePaths = pyjq.all('.[].protoPayload.resourceName', Json)
+    
+    DynamicMachines = {}
+
+    for LogEntry in Json:
+        ProtoPayload = LogEntry['protoPayload']
+        MachinePath = ProtoPayload['resourceName']
+        TimeStamp = LogEntry['timestamp']
+        MethodName = ProtoPayload['methodName']
+
+        if (MachinePath == 'projects/upenn-flywheel/zones/us-east1-b/instances/tags-extra-large-49a4ced9'):
+            print("{} {} {}".format(MachinePath, MethodName, TimeStamp), file=sys.stderr)
+
+        if (not (MachinePath in DynamicMachines.keys())):
+            DynamicMachines[MachinePath] = {
+                'Start': None,
+                'End': None,
+            }
+
+        if (re.search('insert', MethodName)):
+            if (not (         DynamicMachines[MachinePath]['Start']
+                         and (TimeStamp < DynamicMachines[MachinePath]['Start']))):
+                print("{}[Start] = {}".format(MachinePath,TimeStamp), file=sys.stderr)
+                DynamicMachines[MachinePath]['Start'] = TimeStamp
+            
+        if (re.search('delete', MethodName)):
+            if ((not DynamicMachines[MachinePath]['End']) 
+                or (DynamicMachines[MachinePath]['End'] < TimeStamp)):
+                print("{}[End] = {}".format(MachinePath,TimeStamp), file=sys.stderr)
+                DynamicMachines[MachinePath]['End'] = TimeStamp
+
+    print(json.dumps(DynamicMachines, indent=2))
