@@ -119,6 +119,15 @@ def betterFloat(s):
 
     return(float(re.sub(',','', s)))
 
+def isVM(row):
+    return( re.search('Compute Engine', row['Service description'])
+        and (  re.search('Instance Core', row['SKU description'])
+            or re.search('Small Instance', row['SKU description'])
+            or re.search('PD Capacity', row['SKU description'])
+            or re.search('Instance Ram', row['SKU description'])
+        ))
+
+
 def isCompute(row):
     return( re.search('Compute Engine', row['Service description']))
 
@@ -284,6 +293,7 @@ TotalGCPCoreHours = 0.0
 TotalGCPCoreCost = 0.0
 TotalFlywheelCoreHours = 0.0
 TotalFlywheelCoreCost = 0.0
+TotalFlywheelVMCost = 0.0
 TotalGCPFlywheelStandardStorageGB = 0.0
 TotalGCPFlywheelStandardStorageCost = 0.0
 TotalGCPFlywheelStorageGB = 0.0
@@ -311,6 +321,7 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                 TotalGCPCoreHours += betterFloat(row['Usage amount'])
                 TotalGCPCoreCost += betterFloat(row['Cost ($)'])
 
+            
         if (isFlywheel(row)):
             if (betterFloat(row['Cost ($)']) > 0.0):
                 TotalFlywheelCharges += betterFloat(row['Cost ($)'])
@@ -326,6 +337,9 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                 if (isCpu(row)):
                     TotalFlywheelCoreHours += betterFloat(row['Usage amount'])
                     TotalFlywheelCoreCost += betterFloat(row['Cost ($)'])
+
+                if (isVM(row)):
+                    TotalFlywheelVMCost += betterFloat(row['Cost ($)'])
         else:
                 res = getProjectGroup(iLabMap,row['Project ID'])
 
@@ -364,6 +378,8 @@ if (args.dynamic_gcp_hours):
 else:
     DynamicVMRatio = 1.0
 
+TotalFlywheelDynamicVMCost = TotalFlywheelVMCost * DynamicVMRatio
+
 print("DynamicVMRatio = {}".format(DynamicVMRatio), file=sys.stderr)
 print("TotalFlywheelCharges = {}".format(TotalFlywheelCharges), file=sys.stderr)
 print("TotalGCPCoreHours = ",TotalGCPCoreHours, file=sys.stderr)
@@ -371,6 +387,8 @@ print("TotalGCPCoreCost = ",TotalGCPCoreCost, file=sys.stderr)
 print("TotalFlywheelGearGCPCpuHours = ", TotalFlywheelGearGCPCpuHours, file=sys.stderr)
 print("TotalFlywheelCoreHours = ",TotalFlywheelCoreHours, file=sys.stderr)
 print("TotalFlywheelCoreCost = ",TotalFlywheelCoreCost, file=sys.stderr)
+print("TotalFlywheelVMCost = ",TotalFlywheelVMCost, file=sys.stderr)
+print("TotalFlywheelDynamicVMCost = ",TotalFlywheelDynamicVMCost, file=sys.stderr)
 print("TotalGCPFlywheelStorageGB = ", TotalGCPFlywheelStorageGB, file=sys.stderr)
 print("TotalGCPFlywheelStorageCost = ", TotalGCPFlywheelStorageCost, file=sys.stderr)
 print("TotalGCPFlywheelStandardStorageGB = ", TotalGCPFlywheelStandardStorageGB, file=sys.stderr)
@@ -428,7 +446,6 @@ TotalFlywheelGearCost = 0.0
 TotalJobCount = 0
 
 # rezero this 
-TotalFlywheelGearGCPCpuHours = 0.0
 TotalInitialAnalysis = 0
 
 if (args.flywheel_jobs_report):
@@ -451,12 +468,11 @@ if (args.flywheel_jobs_report):
 
             compute_ms = ms * cpus
             FlywheelGearGCPCpuHours = ms2Hours(compute_ms)
-            FlywheelGearCost = AverageGCPCostPerCoreHour * FlywheelGearGCPCpuHours
+            FlywheelGearCost = TotalFlywheelDynamicVMCost * FlywheelGearGCPCpuHours/TotalFlywheelGearGCPCpuHours 
 
             if (row['job_state'] == 'complete'):
                 TotalJobCount += 1
 
-            TotalFlywheelGearGCPCpuHours += FlywheelGearGCPCpuHours
             TotalFlywheelGearCost += FlywheelGearCost 
             if (row['initial_analysis'] == "True"):
                 TotalInitialAnalysis += 1
@@ -487,7 +503,6 @@ if (args.flywheel_jobs_report):
             CostTableEntries.append(Entry)
 
 print("TotalFlywheelGearCpuCost = ", TotalFlywheelGearCost, file=sys.stderr)
-print("TotalFlywheelGearGCPCpuHours = ", TotalFlywheelGearGCPCpuHours, file=sys.stderr)
 print("TotalJobCount = ", TotalJobCount, file=sys.stderr)
 print("TotalInitialAnalysis = ", TotalInitialAnalysis, file=sys.stderr)
 writer = csv.DictWriter(sys.stdout, CostTableEntries[0].keys())
