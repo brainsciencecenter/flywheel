@@ -5,7 +5,8 @@
 # Unpack the dicom/nifti image
 
 export FLYWHEEL=${FLYWHEEL:=/flywheel/v0}
-export PATH=${FLYWHEEL}:$PATH
+export PATH=${FLYWHEEL}:/usr/local/flywheel/bin:$PATH
+export PYTHONPATH=/usr/local/pyjq:/usr/local/flywheel/lib
 
 export FLYWHEEL_INPUTDIR="${FLYWHEEL}/input"
 export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"

@@ -67,18 +67,18 @@ then
 elif [ -d "$INPUTDIR" ] ; then 
 	c3d -dicom-series-list $INPUTDIR 
 	series_id=$(c3d -dicom-series-list $INPUTDIR | grep 2 | awk '{ print $NF }')
-	c3d -dicom-series-read $INPUTDIR $series_id -o $TMPDIR/$native_image
+	c3d -dicom-series-read $INPUTDIR $series_id -o "$TMPDIR/$native_image"
 else
 	echo "The folder $INPUTDIR doesn't exist."
 	exit 1
 fi
 
 # Check the image
-width=$(c3d $TMPDIR/$native_image -info-full | grep "Image Dimensions" | awk '{print $4}' | sed 's/[[,]//g')
-height=$(c3d $TMPDIR/$native_image -info-full | grep "Image Dimensions" | awk '{print $5}' | sed 's/[[,]//g')
-sx=$(c3d $TMPDIR/$native_image -info-full | grep "Voxel Spacing" | awk '{print $4}' | sed 's/[][,]//g')
-sy=$(c3d $TMPDIR/$native_image -info-full | grep "Voxel Spacing" | awk '{print $5}' | sed 's/[][,]//g')
-sz=$(c3d $TMPDIR/$native_image -info-full | grep "Voxel Spacing" | awk '{print $6}' | sed 's/[][,]//g')
+width=$(c3d "$TMPDIR/$native_image" -info-full | grep "Image Dimensions" | awk '{print $4}' | sed 's/[[,]//g')
+height=$(c3d "$TMPDIR/$native_image" -info-full | grep "Image Dimensions" | awk '{print $5}' | sed 's/[[,]//g')
+sx=$(c3d "$TMPDIR/$native_image" -info-full | grep "Voxel Spacing" | awk '{print $4}' | sed 's/[][,]//g')
+sy=$(c3d "$TMPDIR/$native_image" -info-full | grep "Voxel Spacing" | awk '{print $5}' | sed 's/[][,]//g')
+sz=$(c3d "$TMPDIR/$native_image" -info-full | grep "Voxel Spacing" | awk '{print $6}' | sed 's/[][,]//g')
 smax=$(python -c "print(max([$sx,$sy,$sz]))")
 smin=$(python -c "print(min([$sx,$sy,$sz]))")
 aspect_ratio_min=$(python -c "print( float($smin)/float($smax))")
@@ -91,7 +91,7 @@ if (( $width > 40 )) && (( $height > 40 )) ; then
 		INTERDIR=$TMPDIR/inter
 		if [ ! -d $MASKDIR ] ; then mkdir -p $MASKDIR ; fi  
 		if [ ! -d $INTERDIR ] ; then mkdir -p $INTERDIR ; fi
-		$trim_script -m $MASKDIR -w $INTERDIR $TMPDIR/$native_image $TMPDIR/$input_image
+		$trim_script -m $MASKDIR -w $INTERDIR "$TMPDIR/$native_image" "$TMPDIR/$input_image"
 	else 
 		echo "Wrong scan input: the aspect ratio of the image is < 0.33 or > 3."
 		exit 1
@@ -103,10 +103,10 @@ fi
 
 # Create input workspace
 input_workspace=${full_id}_input.itksnap
-itksnap-wt -laa $TMPDIR/$input_image -ta T1 -psn "MRI" -ll -o $TMPDIR/$input_workspace
+itksnap-wt -laa "$TMPDIR/$input_image" -ta T1 -psn "MRI" -ll -o "$TMPDIR/$input_workspace"
 
 
-for i in $(itksnap-wt -dss-tickets-list | grep -P 'success|failed' /tmp/cookies | awk '{print $2}')
+for i in $(itksnap-wt -dss-tickets-list | grep -P 'success|failed' | awk '{print $2}')
 do
         itksnap-wt -dss-tickets-delete $i
 done
@@ -119,7 +119,7 @@ if [ -f $ticket_create_out ] ; then rm $ticket_create_out ; fi
 touch $ticket_create_out
 chmod 755 $ticket_create_out
 
-itksnap-wt -i $TMPDIR/$input_workspace -dss-tickets-create $service > $ticket_create_out
+itksnap-wt -i "$TMPDIR/$input_workspace" -dss-tickets-create $service > $ticket_create_out
 ticket_number=$(cat $ticket_create_out | grep "^2> " | awk '{print $2}')
 ticket_code=$(printf %08d $ticket_number)
 
@@ -131,7 +131,7 @@ sleep 30s
 # Rename result files
 itksnap-wt -dss-tickets-download $ticket_number $TMPDIR 
 ticket_workspace=$TMPDIR/ticket_${ticket_code}_results.itksnap
-xnat_workspace=$TMPDIR/${full_id}_results.itksnap
+xnat_workspace="$TMPDIR/${full_id}_results.itksnap"
 
 mri_layer=$(itksnap-wt -i $ticket_workspace -ll | grep MRI | awk '{print $2}')
 icv_layer=$(itksnap-wt -i $ticket_workspace -ll | grep ICV | awk '{print $2}')
