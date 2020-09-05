@@ -1,0 +1,109 @@
+condor:
+  profiles:
+    - condor_id: 'a3f30742b10a'
+      cloud:
+        machineType: n1-standard-1
+        project: upenn-flywheel
+        pollDelay: 180
+        maxCompute: 32
+        diskSize: 300
+        swapSize: 30
+        queueThreshold: 1
+        prefix: tags-small
+      engineMatch:
+        whitelist:
+          tag: [
+            small,
+            vm-n1-standard-1_disk-300G_swap-30G
+          ]
+    - condor_id: 'c8aca0b'
+      cloud:
+        machineType: n1-highmem-2
+        project: upenn-flywheel
+        pollDelay: 60
+        maxCompute: 96
+        queueThreshold: 1
+        prefix: highmem-2core
+      engineMatch:
+        blacklist:
+          gear-name: [
+            dicom-mr-classifier,
+            fw-heudiconv,
+            ashsharpicv,
+            curate-bids,
+            dcm2niix,
+            dicom-mr-classifier,
+            fmriprep,
+            fmriprep-phases,
+            fmriprep-fwheudiconv,
+            qsiprep-fw,
+            qsirecon-fw,
+            xcpenginestruc-fw,
+            sess-uid-inventory,
+            mriqc-fw-hpc,
+            safe-python-singularity,
+            fmriprep-hpc,
+            qsiprep-fw-hpc,
+            xcpengine-fw-hpc,
+            qsirecon-fw-hpc,
+            dcm2niix
+          ]
+          tag: [
+              extra-large,
+              small,
+              large,
+              vm-n1-highmem-4_disk-300GB_swap-30G,
+              vm-n1-standard-1_disk-300G_swap-30G,
+              vm-n1-highmem-8_disk-1500G_swap-60G
+          ]
+    - condor_id: '30da1f68a37b'
+      cloud:
+        machineType: n1-highmem-8
+        project: upenn-flywheel
+        pollDelay: 180
+        maxCompute: 32
+        queueThreshold: 1
+        prefix: highmem-8core
+      engineMatch:
+        whitelist:
+          gear-name: [
+            fw-heudiconv,
+            fmriprep,
+            fmriprep-phases,
+            fmriprep-fwheudiconv,
+            qsiprep-fw,
+            qsirecon-fw,
+            xcpenginestruc-fw
+          ]
+    - condor_id: 'aad79ef78281'
+      cloud:
+        machineType: n1-highmem-4
+        project: upenn-flywheel
+        pollDelay: 180
+        maxCompute: 32
+        diskSize: 300
+        swapSize: 30
+        queueThreshold: 1
+        prefix: tags-large
+      engineMatch:
+        whitelist:
+          tag: [
+            large,
+            vm-n1-highmem-4_disk-300GB_swap-30G
+          ]
+    - condor_id: '8822b13e3853'
+      cloud:
+        machineType: n1-highmem-8
+        project: upenn-flywheel
+        pollDelay: 180
+        maxCompute: 32
+        diskSize: 1500
+        swapSize: 60
+        queueThreshold: 1
+        prefix: tags-extra-large
+      engineMatch:
+        whitelist:
+          tag: [
+            extra-large,
+            vm-n1-highmem-8_disk-1500G_swap-60G
+          ]
