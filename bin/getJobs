@@ -11,8 +11,10 @@ import flywheel
 import fwgearutils
 import json
 import os
+import pyjq
 import re
 import sys
+import yaml
 
 # *** Need to add comments to suss out techdev scans
 
@@ -169,11 +171,52 @@ def initRow(
     ])
     return(row)
 
+CondorYamlFile = "/home/holder/flywheel/etc/condor.yml"
+
+# jq '.[][][]|select(.engineMatch.whitelist and .engineMatch.whitelist["gear-name"] and (.engineMatch.whitelist["gear-name"][]| match("^fmriprep-phases$"))) | .cloud.machineType' /tmp/json
+# 
+
+with open(CondorYamlFile) as f:
+    CondorYaml = yaml.load(f, Loader=yaml.FullLoader)
+
+def getJobMachineType(GearName, Tags):
+    MachineType = 'n1-standard-1'
+
+    MachineTypes = pyjq.all('.[][][]|select(.engineMatch.whitelist and .engineMatch.whitelist["gear-name"] and (.engineMatch.whitelist["gear-name"][]| match("^{}$"))) | .cloud.machineType'.format(GearName), CondorYaml)
+    if (len(MachineTypes) > 0):
+        MachineType = MachineTypes[0]
+    else:
+        # *** Should do something about tags here
+        True
+
+    return(MachineType)
+
+#
+# *** Need to handle tags correctly
+#
+def getJobCpus(job,detail):
+    GearName = detail['gear_info']['name']
+
+    if (re.search('hpc',GearName)):
+        cpus = 0
+    elif (job.profile.executor and job.profile.executor.cpu_cores > 0):
+        cpus = job.profile.executor.cpu_cores 
+    else:
+        MachineType = getJobMachineType(GearName, job.tags)
+
+        m = re.match('^(?P<class>[^-]+)-(?P<type>[^-]+)-(?P<cores>[^-]+)$',MachineType)
+        if (m):
+            cpus = int(m.group('cores'))
+        else:
+            cpus = 0
+
+    return(cpus)
 
 ap = argparse.ArgumentParser()
 
+ap.add_argument('-a', '--augment-cpu-count', action='store_true', help='do extra work to lookup cpu count')
 ap.add_argument('-b', '--bar-length', action='store', default=40, type=int, help='bar length')
-ap.add_argument('-c', '--gcp-compute-cost', action='store', default=40, type=float, help='$ Cost for Flywheel in GCP Compute')
+ap.add_argument('-c', '--gcp-compute-cost', action='store', type=float, help='Total GCP Compute cost for Flywheel ')
 ap.add_argument('-d', '--debug', action='store_true', help='debug')
 
 ap.add_argument('-e', '--exhaustive', action='store_false', default=True, help='exhaustive session flag')
@@ -279,7 +322,9 @@ for job in jobs:
         else:
             job_elapsed_time_ms = 0.0
             
-        if (re.search('hpc', job.gear_info.name)):
+        if (args.augment_cpu_count):
+            gcp_cores = getJobCpus(job, detail)
+        elif (re.search('hpc', job.gear_info.name)):
             gcp_cores = 0
         else:
             gcp_cores = cores
@@ -342,7 +387,7 @@ for out in OutputRows:
     # if all the jobs are in HCP, gcp ms == 0
     if (ComputeGCPMs):
         out['gcp_compute_percent'] = float(out['gcp_cpus']) * float(out['job_elapsed_time_ms']) / ComputeGCPMs
-    out['gcp_compute_cost'] = out['gcp_compute_percent'] * float(args.gcp_compute_cost)
+        out['gcp_compute_cost'] = out['gcp_compute_percent'] * float(args.gcp_compute_cost)
 
     writer.writerow(out)
 

@@ -28,6 +28,11 @@ syntax="${CmdName} {-t c|g|j|u} [-D YYYY-MM-DD] [-d YYYY-MM-DD] [-F] [-f {Comput
 
 # *** should have a warning on Usage where different units are being combined
 
+FlywheelDir=/home/holder/flywheel
+CondorYamlFile="$FlywheelDir/etc/condor.yml"
+
+CondorJson=$(yq -jP r "$CondorYamlFile" | jq .)
+
 function getHeaderIndicies() {
     InputFile="$1"
     shift
