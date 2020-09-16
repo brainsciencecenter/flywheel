@@ -52,8 +52,8 @@ if [[ $DEBUG ]]; then
 fi
 
 # Read script parameters
-SOURCE=${1?}
-TARGET=${2?}
+SOURCE="${1?}"
+TARGET="${2?}"
 
 # Create a temporary directory
 if [[ ! $WORKDIR ]]; then
@@ -96,7 +96,7 @@ SLAB=$WORKDIR/slab.nii.gz
 
 # Quick trim of the image
 c3d $VERBOSE \
-  $SOURCE -swapdim RAS -o $RAS_IMAGE \
+  "$SOURCE" -swapdim RAS -o $RAS_IMAGE \
   -smooth-fast 1vox -resample-mm 2x2x2mm -o $WORKDIR/dsample_ras.nii.gz -as T1 \
   -dup -steig 2.0 4x4x4 \
   -push T1 -dup -scale 0 -lts $WORKDIR/landmarks.txt 15 -o $WORKDIR/samples.nii.gz \
@@ -127,10 +127,10 @@ REGCMD="0x0x0vox ${DIMX}x${DIMY}x${REGZ}vox"
 c3d $VERBOSE $MASK \
   -dilate 1 ${DIMX}x${DIMY}x0vox -trim 0x0x${TRIM}vox \
   -region $REGCMD -thresh -inf inf 1 0 -o $SLAB -popas S \
-  $SOURCE -as I -int 0 -push S -reslice-identity -trim 0vox -as SS -o $WORKDIR/slab_src.nii.gz \
-  -push I -reslice-identity -o $TARGET  
+  "$SOURCE" -as I -int 0 -push S -reslice-identity -trim 0vox -as SS -o $WORKDIR/slab_src.nii.gz \
+  -push I -reslice-identity -o "$TARGET"  
 
 # If mask requested, reslice mask to target space
 if [[ $MASKOUT ]]; then
-  c3d $SOURCE $LEVELSET -reslice-identity -thresh 0 inf 1 0 -o $MASKOUT/mask.nii.gz
+  c3d "$SOURCE" $LEVELSET -reslice-identity -thresh 0 inf 1 0 -o $MASKOUT/mask.nii.gz
 fi

@@ -16,6 +16,10 @@
 #
 
 ServiceIDs:
+  - service_id: 472933
+    aliases:
+      - BSC Flywheel Charge
+      
   - service_id: 455011
     aliases:
       - total_compute_ms

@@ -127,7 +127,6 @@ def isVM(row):
             or re.search('Instance Ram', row['SKU description'])
         ))
 
-
 def isCompute(row):
     return( re.search('Compute Engine', row['Service description']))
 
@@ -298,6 +297,8 @@ TotalGCPFlywheelStandardStorageGB = 0.0
 TotalGCPFlywheelStandardStorageCost = 0.0
 TotalGCPFlywheelStorageGB = 0.0
 TotalGCPFlywheelStorageCost = 0.0
+TotalGCPFlywheelComputeCost = 0.0
+TotalGCPFlywheelKubernetesCost = 0.0
 
 TotalFlywheelCharges = 0.0
 
@@ -326,6 +327,9 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
             if (betterFloat(row['Cost ($)']) > 0.0):
                 TotalFlywheelCharges += betterFloat(row['Cost ($)'])
 
+                if (isCompute(row)):
+                    TotalGCPFlywheelComputeCost += betterFloat(row['Cost ($)'])
+            
                 if (isStorage(row)):
                     TotalGCPFlywheelStorageGB += betterFloat(row['Usage amount'])
                     TotalGCPFlywheelStorageCost += betterFloat(row['Cost ($)'])
@@ -393,6 +397,7 @@ print("TotalGCPFlywheelStorageGB = ", TotalGCPFlywheelStorageGB, file=sys.stderr
 print("TotalGCPFlywheelStorageCost = ", TotalGCPFlywheelStorageCost, file=sys.stderr)
 print("TotalGCPFlywheelStandardStorageGB = ", TotalGCPFlywheelStandardStorageGB, file=sys.stderr)
 print("TotalGCPFlywheelStandardStorageCost = ", TotalGCPFlywheelStandardStorageCost, file=sys.stderr)
+print("TotalGCPFlywheelComputeCost = ", TotalGCPFlywheelComputeCost, file=sys.stderr)
 
 try:
     AverageGCPCostPerCoreHour = TotalGCPCoreCost / TotalGCPCoreHours
@@ -407,18 +412,24 @@ for fe in FlywheelCostTableEntries:
 
     # Fix group
     for k, e in FlywheelProjectEntries.items():
+        cost = 0.0
         if (args.verbose):
             print("k = '{}', split = {}".format(k, k.split(',')), file=sys.stderr)
 
         (group, project) = k.split(',')
 
-        if (isCompute(fe)):
-            cost = fe['Cost ($)'] * e['compute']['percent']
-            usage = fe['Usage amount'] * e['compute']['percent']
-
         if (isStorage(fe)):
             cost = fe['Cost ($)'] * e['storage']['percent']
             usage = fe['Usage amount'] * e['storage']['percent']
+
+        elif (isCompute(fe)):
+            cost = fe['Cost ($)'] * e['compute']['percent']
+            usage = fe['Usage amount'] * e['compute']['percent']
+
+        else:
+            cost = fe['Cost ($)'] * e['compute']['percent']
+            usage = fe['Usage amount'] * e['compute']['percent']
+
 
     # expand charges
         Entry = initGCPEntry(

@@ -203,7 +203,7 @@ E		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage'
 		    allOrFlywheel | grep 'Cloud Storage' | grep Coldline | grep Multi
 		    ;;
 		Misc)
-		    allOrFlywheel | grep -v -P '(Kubernetes Engine)|(Cloud Storage)|(Flywheel Gear)|(Instance Core)|(Small Instance)|(PD Capacity)|(Instance Ram)|(GPU running)|(Storage Image)|(Storage Machine Image)|(Storage PD)'
+		    allOrFlywheel | grep -v -P '(Kubernetes)|(Cloud Storage)|(Flywheel Gear)|(Instance Core)|(Small Instance)|(PD Capacity)|(Instance Ram)|(GPU running)|(Storage Image)|(Storage Machine Image)|(Storage PD)'
 		    ;;
 
 		MiscStorage)
@@ -218,6 +218,12 @@ E		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage'
 		    ;;
 		Gcp)
 		    allOrFlywheel | grep -v 'Flywheel Gear'
+		    ;;
+		Gear)
+		    allOrFlywheel | grep 'Flywheel Gear'
+		    ;;
+		Kubernetes)
+		    allOrFlywheel | grep 'Kubernetes'
 		    ;;
 		Ram)
 		    allOrFlywheel | grep 'Compute Engine' | grep 'Instance Ram'
