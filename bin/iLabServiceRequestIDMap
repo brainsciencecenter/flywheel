@@ -15,7 +15,7 @@
 # 3240955
 #
 
-ServiceIDs:
+ServiceIds:
   - service_id: 472933
     aliases:
       - BSC Flywheel Charge
@@ -82,7 +82,7 @@ ServiceIDs:
       - HUP6
 
 
-RequestIDs:
+RequestIds:
   #
   # Group:
   #  - service_request_id: groupname-default-service-request-id

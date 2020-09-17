@@ -34,92 +34,35 @@ def initTotalCosts():
 
     return(TotalCosts)
 
-def initCharge(center=None,
-               group=None,
-               project_name=None, 
-               project_id=None, 
-               service_description=None,
-               service_id=None,
-               sku_description=None,
-               sku_id=None,
-               cost_type=None,
-               usage_start_date=None,
-               usage_end_date=None,
-               usage_amount=None,
-               usage_unit=None,
-               cost=0.0,
-):
-
-    return(
-        OrderedDict([
-            ( 'group', group ),
-            ( 'project_name', project_name ),
-            ( 'project_id', project_id ),
-            ( 'service_description', service_description),
-            ( 'sku_description', sku_description),
-            ( 'sku_id', sku_id),
-            ( 'cost_type', cost_type),
-            ( 'usage_amount', usage_amount),
-            ( 'usage_start_date', usage_start_date),
-            ( 'usage_end_date', usage_end_date),
-            ( 'usage_unit', usage_unit),
-            ( 'cost', cost),
-        ]))
-
-def initiLabCharge(
-               service_id=None,
-               note=None, 
-               service_quantity=None,
-               price=None,
-               purchased_on=None,
-               service_request_id=None,
-               owner_email=None,
-               pi_email_or_group_id=None,
-               payment_number=None,
+def initGroupProjectCharge(
+        BscOverhead=0.0,
+        Compute=0.0,
+        DynamicVmRatio=1.0,
+        InitialAnalysisCount=0,
+        Misc=0.0,
+        ServiceRequestId=None,
+        Storage=0.0,
+        Vm=0.0,
     ):
+    return({
+        'BscOverhead': BscOverhead,
+        'Compute': Compute,
+        'DynamicVmRatio': DynamicVmRatio,
+        'InitialAnalysisCount': InitialAnalysisCount,
+        'Misc': Misc,
+        'ServiceRequestId': ServiceRequestId,
+        'Storage': Storage,
+        'Vm': Vm,
+    })
 
-    return(
-        OrderedDict([
-            ( 'service_id', service_id ),
-            ( 'note', note),
-            ( 'service_quantity', service_quantity),
 
-            ( 'price', price),
-            ( 'purchased_on', purchased_on),
-            ( 'service_request_id', service_request_id),
-
-            ( 'owner_email', owner_email),
-            ( 'pi_email_or_group_id', pi_email_or_group_id),
-            ( 'payment_number', payment_number),
-        ]))
-
-Groups = {}
-
-def initProject(name=None):
-     Project = {
-         'name': name,
-         'Charges': {
-             'usage_start_date': None,
-             'usage_end_date': None,
-             'flywheel_compute': 0.0,
-             'flywheel_storage': 0.0,
-             'flywheel_initial_analysis': 0.0,
-             'flywheel_misc': 0.0,
-             'gcp_compute': 0.0, 
-             'gcp_storage': 0.0,
-             'gcp_misc': 0.0,
-         },
-     }
-
-     return(Project)
-
-def getProjectGroup(iLabServiceRequestIDMap,alias):
+def getProjectGroup(iLabServiceRequestIdMap,alias):
     try:
         # way too many backslashes
         # may need to do lots of re.escapes()
         SafeAlias = re.sub('([\(\)])', r'\\\\\1', alias)
 
-        res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .group'.format(SafeAlias), iLabServiceRequestIDMap)
+        res = pyjq.all('.["RequestIds"][][]|select((.aliases[])|match("^{}$")) | .group'.format(SafeAlias), iLabServiceRequestIdMap)
     except:
         print("{}: No alias for '{}' '{}' in iLabServiceRequestMap".format(CmdName, alias, SafeAlias), file=sys.stderr)
         res = []
@@ -129,50 +72,65 @@ def getProjectGroup(iLabServiceRequestIDMap,alias):
     else:
         return(None)
 
-def getServiceId(iLabServiceRequestIDMap,alias):
-    print("ServiceID alias = {}".format(alias), file=sys.stderr)
-    res = pyjq.all('.["ServiceIDs"][]|select(.aliases[]|match("^{}$";"i")) | .service_id'.format(alias), iLabServiceRequestIDMap)
+def getServiceId(iLabMap,alias):
+    res = pyjq.all('.["ServiceIds"][]|select(.aliases[]|match("^{}$";"i")) | .service_id'.format(alias), iLabMap)
     if (len(res)):
           return(res[0])
     else:
           return(None)
 
-def getServiceRequestId(iLabServiceRequestIDMap,alias):
-    print("ServiceRequestID alias = {}".format(alias), file=sys.stderr)
-    res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$";"i")) | .service_request_id'.format(alias), iLabServiceRequestIDMap)
+def getServiceRequestId(iLabMap,alias):
+    res = pyjq.all('.["RequestIds"][][]|select((.aliases[])|match("^{}$";"i")) | .service_request_id'.format(alias), iLabMap)
     if (len(res)):
           return(res[0])
     else:
           return(None)
 
-def costClassifier(c):
-    if (re.search('upenn-flywheel',c['project_id'])):
-        major = 'flywheel'
-    else:
-        major = 'gcp'
+def getChargeType(row):
+    ChargeType = None
 
-    if (re.search('Compute Engine', c['service_description'])):
-        minor = 'compute'
-    elif (re.search('Cloud Storage', c['service_description'])):
-        minor = 'storage'
+    if (re.search('Compute Engine', row['Service description'])):
+        ChargeType = 'Compute'
+    elif (re.search('Cloud Storage', row['Service description'])):
+        ChargeType = 'Storage'
     else:
-        print("c['service_description'] = '{}'".format(c['service_description']), file=sys.stderr)
-        minor = 'misc'
+        print("row['Service description'] = '{}'".format(row['Service description']), file=sys.stderr)
+        ChargeType = 'Misc'
 
-    return("{}_{}".format(major,minor))
+    return("{}".format(ChargeType))
             
+def isVmCharge(row):
+    return(   (row['Service description'] == 'Compute Engine')
+              and (
+                  re.search('.*Instance Core.*', row['SKU description'])
+                  or re.search('.*Small Instance.*', row['SKU description'])
+                  or re.search('.*PD Capacity.*', row['SKU description'])
+                  or re.search('.*Instance Ram.*', row['SKU description'])
+              )
+    )
+    
 
-def mkGroupProjectKey(group,project):
-    return('{}/{}'.format(group,project))
+def isInitialAnalysis(row):
+    print("Service description = '{}', Project ID = '{}, Initial analysis = '{}'".format(row['Service description'], row['Project ID'], row['Initial analysis']), file=sys.stderr)
 
+    return(row['Service description'] == 'Flywheel Gear' and row['Initial analysis'] == 'True')
+
+def makeGcpChargeKey(row):
+    Group = row['Group']
+    Project = row['Project name']
+
+    return('{}/{}'.format(Group,Project))
+
+if (not (args.ilabmapfile)):
+    print("{}: -m iLabMapFilePath argument required".format(CmdName), file=sys.stderr)
+    sys.exit(1)
+    
 iLabMap = None
 
 with open(args.ilabmapfile) as file:
-    d = yaml.load(file, Loader=yaml.FullLoader)
-    iLabMap = json.loads(json.dumps(d))
+    iLabMap = yaml.load(file, Loader=yaml.FullLoader)
 
-GCPChargeTotals = {}
-Charges = []
+GcpCharges = {}
 
 with open(args.gcpcharges[0], newline='') as csvfile:
     reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
@@ -184,97 +142,74 @@ with open(args.gcpcharges[0], newline='') as csvfile:
         if (Cost < 0.0):
             continue
 
-        Charge = initCharge(
-            group=row['Group'],
-            project_name=row['Project name'],
-            project_id=row['Project ID'],
-            service_description=row['Service description'],
-            sku_description=row['SKU description'],
-            sku_id=row['SKU ID'],
-            cost_type=row['Cost type'],
-            usage_start_date=row['Usage start date'],
-            usage_end_date=row['Usage end date'],
-            usage_amount=row['Usage amount'],
-            usage_unit=row['Usage unit'],
-            cost=(float(row['Cost ($)'])+0.0)
-        )
+        GcpChargeKey = makeGcpChargeKey(row)
 
-        Charges.append(Charge)
-
-SortedCharges = sorted(Charges, key=lambda c: c['group'])
-
-# *** Need project based iLab charge accumulation, not group based
-
-Projects = {}
-for c in SortedCharges:
-    GroupProjectKey = mkGroupProjectKey(c['group'],c['project_name'])
-    if (not (GroupProjectKey in Projects.keys())):
-        Projects[GroupProjectKey] = initProject(GroupProjectKey)
-        
-    Project = Projects[GroupProjectKey]
-
-    costtype = costClassifier(c)
-    Project['Charges'][costtype] += c['cost']
-
-    if (   Project['Charges']['usage_start_date'] == None 
-        or c['usage_start_date'] < Project['Charges']['usage_start_date']):
-
-        Project['Charges']['usage_start_date'] = c['usage_start_date']
-
-    if (   Project['Charges']['usage_end_date'] == None
-        or Project['Charges']['usage_end_date'] > c['usage_end_date']):
-
-        Project['Charges']['usage_end_date'] = c['usage_end_date']
-        
-print(json.dumps(Projects, indent=2), file=sys.stderr)
-
-iLabCharges = []
-
-for k, v in Projects.items():
-    service_request_id_alias = k
-
-    service_request_id = getServiceRequestId(iLabMap,service_request_id_alias)
-    print("Service Request ID = '{}'".format(service_request_id), file=sys.stderr)
-
-    if (service_request_id == None or (not re.match('^[0-9]+$', str(service_request_id)))):
-        print("{}: No Service Request ID for {}. Skipping.".format(CmdName,service_request_id_alias), file=sys.stderr)
-        continue
-
-    for chargetype,charge in v['Charges'].items():
-        service_id = getServiceId(iLabMap,chargetype)
-        print("ServiceID res = {}".format(service_id), file=sys.stderr)
-        if (service_id == None or (not re.match('^[0-9]+$', str(service_id)))):
-            print("{}: No Service ID for {}. Skipping.".format(CmdName,chargetype), file=sys.stderr)
-            continue
-
-        note = "Usage {} - {} : {} {}".format(
-            v['Charges']['usage_start_date'],
-            v['Charges']['usage_end_date'],
-            service_request_id_alias,
-            chargetype)
-        quantity = v['Charges'][chargetype]
-        print("v[{}].[Charges][{}] = {}".format(k,chargetype, v['Charges'][chargetype]), file=sys.stderr)
-        charge = 0.0
-
-        if (quantity >= 0.01 or args.zero):
-            iLabCharge = initiLabCharge(
-                service_id=service_id,
-                note=note,
-                service_quantity=str(round(quantity,2)),
-                price=charge,
-                service_request_id=service_request_id,
-            )
-
-            print("appending iLabCharge", iLabCharge, file=sys.stderr)
-            iLabCharges.append(iLabCharge)
+        if (GcpChargeKey in GcpCharges):
+            GroupProjectCharges = GcpCharges[GcpChargeKey]
         else:
-            print("note = '{}', quantity = '{}', args.zero = '{}'".format(note,quantity, args.zero), file=sys.stderr)
+            ServiceRequestId = getServiceRequestId(iLabMap,GcpChargeKey)
+            if (ServiceRequestId == None):
+                print("{}: No Service Request Id for '{}'".format(CmdName, GcpChargeKey), file=sys.stderr)
+                continue
+                
+            if (not (re.search('^\d+$',str(ServiceRequestId)))):
+                print("{}: Service Request Id for '{}' not numeric".format(CmdName, GcpChargeKey, ServiceRequestId), file=sys.stderr)
+                continue
 
-writer = csv.DictWriter(sys.stdout, iLabCharges[0].keys())
-writer.writeheader()
+            GroupProjectCharges = initGroupProjectCharge(
+                ServiceRequestId=ServiceRequestId
+            )
+            GcpCharges[GcpChargeKey] = GroupProjectCharges
 
-for row in iLabCharges:
-    writer.writerow(row)
+
+        if (isVmCharge(row)):
+            GroupProjectCharges['Vm'] += float(Cost)
+            GroupProjectCharges['DynamicVmRatio'] = float(row['Dynamic VM Ratio'])
+        elif(isInitialAnalysis(row)):
+            GroupProjectCharges['InitialAnalysisCount'] += 1
+        else:
+            ChargeType = getChargeType(row)
+            GroupProjectCharges[ChargeType] += Cost
+
+print("len(GcpCharges) = {}".format(len(GcpCharges)), file=sys.stderr)
+
+print("service_id,note,service_quantity,price,purchased_on,service_request_id,owner_email,pi_email_or_group_id,payment_number")
+        
+ServiceId = getServiceId(iLabMap, "BSC Flywheel Charge")
+
+for GroupProjectKey, GroupProjectCharge in GcpCharges.items():
+
+    ServiceRequestId = GroupProjectCharge['ServiceRequestId']
+    StorageCharge = GroupProjectCharge['Storage']
+    ComputeCharge = GroupProjectCharge['Compute']
+    DynamicVmCharge = GroupProjectCharge['Vm'] * GroupProjectCharge['DynamicVmRatio']
+    InitialAnalysisCount = GroupProjectCharge['InitialAnalysisCount']
+
+    BscOverheadCharge = (StorageCharge * 0.25) + (InitialAnalysisCount * 25.0)
+
+    # *** ';' work like ',' for iLab.  and you can't quote them
+    Note = "Dynamic Vm: %.2f  Storage: %.2f  BSC Overhead: %.2f  Initial Analysis: %.2f" % (
+        DynamicVmCharge,
+        StorageCharge,
+        BscOverheadCharge,
+        InitialAnalysisCount,
+    )
+
+    Quantity = round(DynamicVmCharge + StorageCharge + BscOverheadCharge,2)
+    
+    Price = ""
+    if (args.zero):
+        Price = 0
+
+    if (Quantity > 0.0):
+        print("{},{},{},{},,{},,,".format(
+            ServiceId,
+            Note,
+            "%.2f" % Quantity,
+            Price,
+            ServiceRequestId))
+
+          
 
 
 
