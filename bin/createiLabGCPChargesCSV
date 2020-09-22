@@ -21,7 +21,10 @@ CmdName = os.path.basename(sys.argv[0])
 ap = argparse.ArgumentParser()
 
 ap.add_argument('-m', '--ilabmapfile', action='store', help='iLab service id and service request id yaml file') 
-ap.add_argument('-z', '--zero', action='store_true', help='include all charges zero and below') 
+ap.add_argument('-a', '--all-group-projects', action='store_true', help='include all group projects, even those without a real service request id') 
+ap.add_argument('-f', '--flywheel-only', action='store_true', help='only process flywheel charges') 
+ap.add_argument('-s', '--show-missing-service-request-ids', action='store_true', help='show missing service request ids') 
+ap.add_argument('-z', '--zero', action='store_true', help='set the price to 0.00') 
 ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Charges with Flywheel Allocation CSV')
 
 args = ap.parse_args()
@@ -94,11 +97,13 @@ def getChargeType(row):
     elif (re.search('Cloud Storage', row['Service description'])):
         ChargeType = 'Storage'
     else:
-        print("row['Service description'] = '{}'".format(row['Service description']), file=sys.stderr)
         ChargeType = 'Misc'
 
     return("{}".format(ChargeType))
             
+def isFlywheel(row):
+    return(row['Project ID'] == 'upenn-flywheel')
+
 def isVmCharge(row):
     return(   (row['Service description'] == 'Compute Engine')
               and (
@@ -111,8 +116,6 @@ def isVmCharge(row):
     
 
 def isInitialAnalysis(row):
-    print("Service description = '{}', Project ID = '{}, Initial analysis = '{}'".format(row['Service description'], row['Project ID'], row['Initial analysis']), file=sys.stderr)
-
     return(row['Service description'] == 'Flywheel Gear' and row['Initial analysis'] == 'True')
 
 def makeGcpChargeKey(row):
@@ -131,6 +134,7 @@ with open(args.ilabmapfile) as file:
     iLabMap = yaml.load(file, Loader=yaml.FullLoader)
 
 GcpCharges = {}
+MissingServiceRequestIds = {}
 
 with open(args.gcpcharges[0], newline='') as csvfile:
     reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
@@ -142,6 +146,9 @@ with open(args.gcpcharges[0], newline='') as csvfile:
         if (Cost < 0.0):
             continue
 
+        if (args.flywheel_only and not (isFlywheel(row))):
+            continue
+        
         GcpChargeKey = makeGcpChargeKey(row)
 
         if (GcpChargeKey in GcpCharges):
@@ -149,10 +156,14 @@ with open(args.gcpcharges[0], newline='') as csvfile:
         else:
             ServiceRequestId = getServiceRequestId(iLabMap,GcpChargeKey)
             if (ServiceRequestId == None):
-                print("{}: No Service Request Id for '{}'".format(CmdName, GcpChargeKey), file=sys.stderr)
+                if (GcpChargeKey in MissingServiceRequestIds.keys()):
+                    True
+                else:
+                    MissingServiceRequestIds[GcpChargeKey] = 1
+                    print("{}: No Service Request Id for '{}'".format(CmdName, GcpChargeKey), file=sys.stderr)
                 continue
                 
-            if (not (re.search('^\d+$',str(ServiceRequestId)))):
+            if (not (args.all_group_projects or re.search('^\d+$',str(ServiceRequestId)))):
                 print("{}: Service Request Id for '{}' not numeric".format(CmdName, GcpChargeKey, ServiceRequestId), file=sys.stderr)
                 continue
 
@@ -164,20 +175,23 @@ with open(args.gcpcharges[0], newline='') as csvfile:
 
         if (isVmCharge(row)):
             GroupProjectCharges['Vm'] += float(Cost)
-            GroupProjectCharges['DynamicVmRatio'] = float(row['Dynamic VM Ratio'])
+            if (row['Dynamic VM Ratio']):
+                GroupProjectCharges['DynamicVmRatio'] = float(row['Dynamic VM Ratio'])
+            else:
+                GroupProjectCharges['DynamicVmRatio'] = 1.0
         elif(isInitialAnalysis(row)):
             GroupProjectCharges['InitialAnalysisCount'] += 1
         else:
             ChargeType = getChargeType(row)
             GroupProjectCharges[ChargeType] += Cost
 
-print("len(GcpCharges) = {}".format(len(GcpCharges)), file=sys.stderr)
-
-print("service_id,note,service_quantity,price,purchased_on,service_request_id,owner_email,pi_email_or_group_id,payment_number")
+if (len(GcpCharges) > 0):
+    print("service_id,note,service_quantity,price,purchased_on,service_request_id,owner_email,pi_email_or_group_id,payment_number")
         
 ServiceId = getServiceId(iLabMap, "BSC Flywheel Charge")
 
-for GroupProjectKey, GroupProjectCharge in GcpCharges.items():
+for GroupProjectKey in sorted(GcpCharges.keys()): 
+    GroupProjectCharge = GcpCharges[GroupProjectKey]
 
     ServiceRequestId = GroupProjectCharge['ServiceRequestId']
     StorageCharge = GroupProjectCharge['Storage']
@@ -188,7 +202,8 @@ for GroupProjectKey, GroupProjectCharge in GcpCharges.items():
     BscOverheadCharge = (StorageCharge * 0.25) + (InitialAnalysisCount * 25.0)
 
     # *** ';' work like ',' for iLab.  and you can't quote them
-    Note = "Dynamic Vm: %.2f  Storage: %.2f  BSC Overhead: %.2f  Initial Analysis: %.2f" % (
+    Note = "%s: Dynamic Vm: %.2f  Storage: %.2f  BSC Overhead: %.2f  Initial Analysis: %.2f" % (
+        GroupProjectKey,
         DynamicVmCharge,
         StorageCharge,
         BscOverheadCharge,
@@ -208,8 +223,4 @@ for GroupProjectKey, GroupProjectCharge in GcpCharges.items():
             "%.2f" % Quantity,
             Price,
             ServiceRequestId))
-
-          
-
-
 
