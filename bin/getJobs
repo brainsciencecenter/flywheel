@@ -52,102 +52,132 @@ def isSessionReaped(session_id=None, debug=False):
             True
 
     return(False)
-
-#
-# Can't check if a session is legacy as it depends on which acquisitions were used in the analysis gear
-#
-def isLegacySession(session_id=None, debug=False):
-    try:
-        session = fw.get(session_id)
-    except (flywheel.rest.ApiException) as e:
-        # If the session is no longer in flywheel, then it is has been consigned to a Legacy
-        return(True)
-
-    if (debug):
-        print("session.created.strftime() = {}, Epoch = {}".format(session.created.strftime("%Y-%m-%d"),Epoch), file=sys.stderr)
-    if (session.created.strftime("%Y-%m-%d") < Epoch):
-        return(True)
-
     return(False)
-        
-
-def isJobInitialSessionAnalysis(job_id=None, session=None, debug=False):
     
-    session_id = session.id
+#
+# category types seem to be:
+# analysis
+# classifier
+# converter
+# qa
+#
+def isAnalysisJob(job):
+    JobCategory = None
+
+    try:
+        JobCategory = job.gear_info.category
+    except (AttributeError) as e:
+        print("{}: Job {} has no gear_info.category".format(e, job.id), file=sys.stderr)
+
+    return(JobCategory == "analysis")
+
+def getPostEpochAcquisitionIds(job=None, debug=False):
+    InputAcquisitionIds = []
+    PostEpochAcquisitionIds = {}
+
+    if (job.config['inputs'] == None):
+        inputs = []
+    elif (type(job.config['inputs']) == dict):
+        inputs = [ job.config['inputs'] ]
+    else:
+        inputs = job.config['inputs']
+
+    for i in inputs:
+        InputAcquisitionIds.extend(pyjq.all('..|select(.type == "acquisition")? | .id',i))
+
+    for aid in InputAcquisitionIds:
+        try:
+            a = fw.get(aid)
+        except (flywheel.rest.ApiException) as e:
+            print("{}: No such acquisition {} in job {}".format(e, aid, job.id), file=sys.stderr)
+            continue
+
+        a = a.reload()
+
+        try:
+            AcquisitionDate = parser.parse(str(a.files[0].info['AcquisitionDate']))
+            if (AcquisitionDate > Epoch):
+                PostEpochAcquisitionIds[aid] = AcquisitionDate
+            else:
+                if (debug):
+                    print("AcqusitionDate for {} of Job {} is {} before the Epoch {}".format(
+                        aid,
+                        job.id,
+                        AcquisitionDate,
+                        Epoch), file=sys.stderr)
+
+        except (KeyError) as e:
+            print("{}: Acquisition {} of job {} has no AcquisitionDate".format(e, aid, job.id), file=sys.stderr)
+
+    return(PostEpochAcquisitionIds)
+
+def acquisitionId2SessionId(AcquisitionId):
+    Acquisition = fw.get(AcquisitionId)
+    return(Acquisition.parents.session)
+
+def isJobInitialSessionAnalysis(JobId=None, SessionId=None, debug=False):
+    
+    session_id = SessionId
+    session = fw.get(SessionId)
 
     if (session_id in InitialSessionAnalysis.keys()):
-        if (job_id == InitialSessionAnalysis[session_id]):
+        if (JobId == InitialSessionAnalysis[session_id]):
+            if (debug):
+                print("{} already in InitialSessionAnalysis".format(session_id), file=sys.stderr)
+
             return(True)
 
-        analyses = sorted(session.analyses, key=lambda a: a.created)
-        if (len(analyses)):
-            if (job_id == analyses[0].job.id):
-                InitialSessionAnalysis[session_id] = analyses[0].job.id
-                if (debug):
-                    print("match {} = {}".format(job_id, analyses[0].job.id), file=sys.stderr)
+    analyses = sorted(session.analyses, key=lambda a: a.created)
+    if (len(analyses)):
+        if (debug):
+            stuff = []
+            for a in analyses:
+                stuff.append({'id': a.job.id, 'date': str(a.created)})
+            print("session({}).analyses = {}".format(session_id,stuff), file=sys.stderr)
 
-                return(True)
+        if (JobId == analyses[0].job.id):
+            InitialSessionAnalysis[session_id] = analyses[0].job.id
+            if (debug):
+                print("match {} = {}".format(JobId, analyses[0].job.id), file=sys.stderr)
+
+            return(True)
 
         if (debug):
-            print("Not initial session {} for job {}".format(session_id,job_id), file=sys.stderr)
-    else:
-        if (debug):
-            print("len(jobs) = {} for session id {}".format(len(jobs),session_id), file=sys.stderr)
+            print("session {} has initial analysis {} not job {}".format(session_id, analyses[0].job.id,JobId), file=sys.stderr)
 
     return(False)
      
-def getBillableSessions(job):
-    debug = True
+def getBillableSessionIds(job=None, debug=False):
+    BillableSessionIds = {}
 
-    BillableSessions = {}
+    if (isAnalysisJob(job)):
+        if (debug):
+            print("Job {} is analysis".format(job.id), file=sys.stderr)
 
-    if (job.gear_info.category == "analysis"):
-    
-        if (job.inputs == None):
-            inputs = []
-        elif (type(job.inputs) == dict):
-            inputs = [ job.inputs ]
+        PostEpochAcquisitionIds = getPostEpochAcquisitionIds(job=job, debug=debug)
+        if (len(PostEpochAcquisitionIds.keys())):
+            if (debug):
+                print("PostEpochAcquisitionIds = {}".format(', '.join(PostEpochAcquisitionIds)), file=sys.stderr)
         else:
-            inputs = job.inputs
+            if (debug):
+                print("job {} has no PostEpochAcquisitionIds".format(job.id), file=sys.stderr)
 
-        for i in inputs:
-            InputAcquisitionIds = pyjq.all('..|select(.type == "acquisition")? | .id',i)
+        for AcquisitionId,AcquisitionDate in PostEpochAcquisitionIds.items():
+            SessionId = acquisitionId2SessionId(AcquisitionId)
+            if (isJobInitialSessionAnalysis(JobId=job.id, SessionId=SessionId, debug=debug)):
+                BillableSessionIds[SessionId] = {
+                    'JobId': job.id,
+                    'AcquisitionId': AcquisitionId,
+                    'AcquisitionDate': str(PostEpochAcquisitionIds[AcquisitionId]),
+                    'JobRunDate': job.created,
+                }
 
-            for aid in InputAcquisitionIds:
-                a = fw.get(aid)
+    else:
+        if (debug):
+            print("{} not analysis job".format(job.id), file=sys.stderr)
 
-                try:
-                    AcquisitionDate = parser.parse(a.files[0].info['AcquisitionDate'])
-                    if (AcquisitionDate > Epoch):
-                        if (not (a.parents.session in BillableSessions.keys())):
-                            BillableSessions[a.parents.session] = []
+    return(BillableSessionIds)
 
-                        if (debug):
-                            print("Gear {} JobID {} AcquisitionDate {}".format(
-                            job.id,
-                            a.id,
-                            AcquisitionDate,
-                            ), file=sys.stderr)
-
-                        BillableSessions[a.parents.session].append({
-                            'gear_id': job.id,
-                            'acquisition_id': a.id,
-                            'AcquisitionDate': "{}".format(AcquisitionDate),
-                            })
-                        if (debug):
-                            print("Session {} AcquisitionId {} AcquisitionDate {}".format(
-                                a.parents.session,
-                                a.id,
-                                AcquisitionDate), file=sys.stderr)
-                except (KeyError) as e:
-                    print ("aid {} has no AcquisitionDate".format(aid), file=sys.stderr)
-
-            for BsId, Bs in BillableSessions.items():
-                if (not isJobInitialSessionAnalysis(job_id=job.id, session=Bs)):
-                    BillableSessions.delete(BsId)
-
-    return(BillableSessions)
-    
 
 def initRow(
 	job_date=None,
@@ -164,7 +194,7 @@ def initRow(
         job_cpus=None,
         gcp_cpus=None,
         gcp_compute_percent=None,
-	initial_analysis_count=None,
+	initial_analysis=None,
         group=None,
         project=None,
         subject=None,
@@ -190,7 +220,7 @@ def initRow(
         ( 'job_cpus', job_cpus), 
         ( 'gcp_cpus', gcp_cpus), 
         ( 'gcp_compute_percent', gcp_compute_percent),
-	( 'initial_analysis_count', initial_analysis_count ),
+	( 'initial_analysis', initial_analysis ),
         ( 'group', group ),
         ( 'project', project ),
         ( 'subject', subject ),
@@ -261,7 +291,7 @@ ap.add_argument('filter', nargs='*', type=str, default=None, help='arguments to 
 args = ap.parse_args()
 
 if (args.epoch):
-    Epoch = parser.pars(args.epoch)
+    Epoch = parser.parse(str(args.epoch))
 
 UIDs2Labels = {}
 
@@ -361,7 +391,7 @@ for job in jobs:
             gcp_cores = cores
 
         if (args.initial_analysis):
-            InitialAnalysisCount = len(getBillableSessions(job))
+            InitialAnalysisCount = (len(getBillableSessionIds(job=job, debug=args.debug)) > 0)
 
         if (detail.parent_info.session.label):
             session_label = re.sub('\s*$','',re.sub('[\\n\\r]',' ',detail.parent_info.session.label))
@@ -383,7 +413,7 @@ for job in jobs:
                 job_runtime_ms=job['profile']['total_time_ms'],
                 job_cpus=cores,
                 gcp_cpus=gcp_cores,
-                initial_analysis_count=InitialAnalysisCount,
+                initial_analysis=InitialAnalysisCount,
                 group=detail.parent_info.group.id,  #ID is one word lowercase, label can be words and mixed case
                 project=detail.parent_info.project.label,
                 subject=detail.parent_info.subject.label,
