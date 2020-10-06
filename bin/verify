@@ -86,7 +86,7 @@ function sliceNDice {
 	      c)
 		  Fields=$(getHeaderIndicies "$InputFile" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
 
-		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v '^,,' 
+		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v "Flywheel Gear" | grep -v '^,,' 
 		  ;;
 
 	      j)
@@ -197,7 +197,7 @@ function filter {
 	c|g)
 	    case "$opt_f" in
 		Bucket*)
-E		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage' 
+		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage' 
 		    ;;
 		Coldline)
 		    allOrFlywheel | grep 'Cloud Storage' | grep Coldline | grep Multi
@@ -228,6 +228,11 @@ E		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage'
 		Ram)
 		    allOrFlywheel | grep 'Compute Engine' | grep 'Instance Ram'
 		    ;;
+
+		Static)
+		    allOrFlywheel 
+		    ;;
+
 		Storage)
 		    allOrFlywheel | grep 'Cloud Storage'
 		    ;;

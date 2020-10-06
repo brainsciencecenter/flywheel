@@ -152,10 +152,11 @@ def getProjectGroup(iLabMap,alias):
         # way too many backslashes
         # may need to do lots of re.escapes()
         SafeAlias = re.sub('([\(\)])', r'\\\\\1', alias)
+        JqString = '.["RequestIds"][][]|select((.aliases[])|match("^{}$")) | .group'.format(SafeAlias)
 
-        res = pyjq.all('.["RequestIDs"][][]|select((.aliases[])|match("^{}$")) | .group'.format(SafeAlias), iLabMap)
+        res = pyjq.all(JqString, iLabMap)
     except:
-        print("{}: No alias for '{}' '{}' in iLabMap".format(CmdName, alias, SafeAlias), file=sys.stderr)
+        print("{}: No alias for '{}' '{}' in iLabMap.  JqString = '{}'".format(CmdName, alias, SafeAlias, JqString), file=sys.stderr)
         res = []
 
     if (len(res)):

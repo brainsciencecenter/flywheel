@@ -1,17 +1,17 @@
 #
 # *** need to allow empty aliases
 #
-# yq -jP r - < iLabServiceRequestIDMap | jq '.["ServiceIDs"][]|select(.aliases[]|match("^compute$")) | .service_id'
+# yq -jP r - < iLabServiceRequestIDMap | jq '.["ServiceIds"][]|select(.aliases[]|match("^compute$")) | .service_id'
 # 455000
 #
-# yq -jP r - < iLabServiceRequestIDMap | jq '.["ServiceIDs"][]|select(.aliases[]|match("^hup6$";"i"))| .service_id '
+# yq -jP r - < iLabServiceRequestIDMap | jq '.["ServiceIds"][]|select(.aliases[]|match("^hup6$";"i"))| .service_id '
 # 455017
 
 #
-# yq -jP r - < iLabServiceRequestIDMap | jq '.["RequestIDs"][][]|select((.aliases[])|match("proj$")) | .service_request_id'
+# yq -jP r - < iLabServiceRequestIDMap | jq '.["RequestIds"][][]|select((.aliases[])|match("proj$")) | .service_request_id'
 # 3241014
 #
-# yq -jP r - < iLabServiceRequestIDMap | jq '.["RequestIDs"][][]|select((.aliases[])|match("fum")) | .service_request_id'
+# yq -jP r - < iLabServiceRequestIDMap | jq '.["RequestIds"][][]|select((.aliases[])|match("fum")) | .service_request_id'
 # 3240955
 #
 
@@ -384,6 +384,9 @@ RequestIds:
         - bbl/PNC_LG_810336
         - bbl/Q7DSI
         - bbl/ReproBrainChart
+        - bbl/RBC_HBC
+        - bbl/RBC_NKI
+        - bbl/RBC_PNC
         - bbl/scratch
         - bbl/SYRP_818621
         - bbl/SYRP_818621_7T
@@ -436,6 +439,7 @@ RequestIds:
       group: gkaguirrelab
       aliases:
         - gkaguirrelab/gearDev
+        - gkaguirrelab/xmtSinaiFlicker
 
     - service_request_id: 3305117
       group: gkaguirrelab

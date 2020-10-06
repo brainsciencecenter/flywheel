@@ -20,10 +20,10 @@ CmdName = os.path.basename(sys.argv[0])
 
 ap = argparse.ArgumentParser()
 
-ap.add_argument('-m', '--ilabmapfile', action='store', help='iLab service id and service request id yaml file') 
-ap.add_argument('-a', '--all-group-projects', action='store_true', help='include all group projects, even those without a real service request id') 
+ap.add_argument('-a', '--all-group-projects', action='store_true', help='include all group projects, even those without a real service request id')
+ap.add_argument('-b', '--bsc-overhead-percent', action='store', help='BSC Overhead Percent') 
 ap.add_argument('-f', '--flywheel-only', action='store_true', help='only process flywheel charges') 
-ap.add_argument('-s', '--show-missing-service-request-ids', action='store_true', help='show missing service request ids') 
+ap.add_argument('-m', '--ilabmapfile', action='store', help='iLab service id and service request id yaml file') 
 ap.add_argument('-z', '--zero', action='store_true', help='set the price to 0.00') 
 ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Charges with Flywheel Allocation CSV')
 
@@ -156,16 +156,20 @@ with open(args.gcpcharges[0], newline='') as csvfile:
         else:
             ServiceRequestId = getServiceRequestId(iLabMap,GcpChargeKey)
             if (ServiceRequestId == None):
-                if (GcpChargeKey in MissingServiceRequestIds.keys()):
-                    True
+                if (args.all_group_projects):
+                    ServiceRequestId = GcpChargeKey
                 else:
-                    MissingServiceRequestIds[GcpChargeKey] = 1
-                    print("{}: No Service Request Id for '{}'".format(CmdName, GcpChargeKey), file=sys.stderr)
-                continue
+                    if (GcpChargeKey in MissingServiceRequestIds.keys()):
+                        True
+                    else:
+                        MissingServiceRequestIds[GcpChargeKey] = 1
+                        print("{}: No Service Request Id for '{}'".format(CmdName, GcpChargeKey), file=sys.stderr)
+                    continue
                 
-            if (not (args.all_group_projects or re.search('^\d+$',str(ServiceRequestId)))):
-                print("{}: Service Request Id for '{}' not numeric".format(CmdName, GcpChargeKey, ServiceRequestId), file=sys.stderr)
-                continue
+            if (re.search('^\d+$',str(ServiceRequestId))):
+                if (not args.all_group_projects):
+                    print("{}: Service Request Id for '{}' not numeric".format(CmdName, GcpChargeKey, ServiceRequestId), file=sys.stderr)
+                    continue
 
             GroupProjectCharges = initGroupProjectCharge(
                 ServiceRequestId=ServiceRequestId
@@ -199,7 +203,12 @@ for GroupProjectKey in sorted(GcpCharges.keys()):
     DynamicVmCharge = GroupProjectCharge['Vm'] * GroupProjectCharge['DynamicVmRatio']
     InitialAnalysisCount = GroupProjectCharge['InitialAnalysisCount']
 
-    BscOverheadCharge = (StorageCharge * 0.25) + (InitialAnalysisCount * 25.0)
+    if (args.bsc_overhead_percent):
+        BscOverheadPercent = float(args.bsc_overhead_percent)
+    else:
+        BscOverheadPercent = 0.36
+
+    BscOverheadCharge = (StorageCharge * BscOverheadPercent) + (InitialAnalysisCount * 25.0)
 
     # *** ';' work like ',' for iLab.  and you can't quote them
     Note = "%s: Dynamic Vm: %.2f  Storage: %.2f  BSC Overhead: %.2f  Initial Analysis: %.2f" % (
@@ -216,11 +225,12 @@ for GroupProjectKey in sorted(GcpCharges.keys()):
     if (args.zero):
         Price = 0
 
-    if (Quantity > 0.0):
+    if (args.all_group_projects or Quantity > 0.0):
         print("{},{},{},{},,{},,,".format(
             ServiceId,
             Note,
-            "%.2f" % Quantity,
+            "%.2f" % float(Quantity),
             Price,
             ServiceRequestId))
+
 
