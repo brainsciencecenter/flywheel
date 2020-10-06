@@ -33,6 +33,7 @@ if __name__ == '__main__':
     ap.add_argument('-D', '--devices',  action='store_true', help='find device info')
     ap.add_argument('-l', '--localtime',  action='store_true', help='print times in local timezone instead of UTC')
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
+    ap.add_argument('-G', '--do-get',  action='store_true', help='do fw.get instead of iter_find')
     ap.add_argument('-r', '--recurse',  action='store_true', help='recurse through data structure')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
@@ -85,6 +86,9 @@ if __name__ == '__main__':
         RealScanners = pyjq.all('.[] | select(.name)', Outputs)
         print(json.dumps(RealScanners, indent=2))
         sys.exit(0)
+
+    if (args.do_get):
+        res = [ fw.get(args.findargs[0]) ]
 
     #
     # Want to add analyses
