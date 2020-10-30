@@ -127,6 +127,9 @@ def isVM(row):
             or re.search('Instance Ram', row['SKU description'])
         ))
 
+def isDiscount(row):
+    return( re.search('(Spending based discounts)|(Sustained use discounts)', row['SKU description']))
+
 def isCompute(row):
     return( re.search('Compute Engine', row['Service description']))
 
@@ -319,14 +322,19 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
             continue
 
         if (isCpu(row)):
-            if (betterFloat(row['Cost ($)']) > 0.0):
+            # *** adjust for incorporating discounts
+            if (   betterFloat(row['Cost ($)']) > 0.0
+                   or isDiscount(row)):
                 TotalGCPCoreHours += betterFloat(row['Usage amount'])
                 TotalGCPCoreCost += betterFloat(row['Cost ($)'])
 
             
         if (isFlywheel(row)):
-            if (betterFloat(row['Cost ($)']) > 0.0):
+            # *** adjust for incorporating discounts
+            if (  betterFloat(row['Cost ($)']) > 0.0
+                  or isDiscount(row) ):
                 TotalFlywheelCharges += betterFloat(row['Cost ($)'])
+
 
                 if (isCompute(row)):
                     TotalGCPFlywheelComputeCost += betterFloat(row['Cost ($)'])
@@ -378,7 +386,7 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
             else:
                 CostTableEntries.append(Entry)
 
-if (args.dynamic_gcp_hours):
+if (args.dynamic_gcp_hours and (TotalFlywheelCoreHours > 0.0)):
     DynamicVMRatio = betterFloat(args.dynamic_gcp_hours) / TotalFlywheelCoreHours
 else:
     DynamicVMRatio = 1.0

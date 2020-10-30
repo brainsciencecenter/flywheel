@@ -1,12 +1,16 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-syntax="${CmdName} {-t c|g|j|u} [-D YYYY-MM-DD] [-d YYYY-MM-DD] [-F] [-f {Compute|Core|Ram|Storage|Bucket|Coldline} ] [-g] [-n line[[,line]...] [-v] file"
+syntax="${CmdName} {-t c|g|i|j|u} [-D YYYY-MM-DD] [-d YYYY-MM-DD] [-F] [-f {Compute|Core|Ram|Storage|Bucket|Coldline} ] [-g] [-n line[[,line]...] [-v] file"
 
 # c = Cost Table
-# j = Jobs Report
 # g = GCP cost allocation
+# i = iLab upload
+# j = Jobs Report
 # u = Flywheel usage allocation report
+
+# *** Need ilab type
+# *** Need a pre-filter flag
 
 # Compute
 # Instance Core
@@ -80,15 +84,19 @@ function sliceNDice {
 
 	      g)
 		  Fields=$(getHeaderIndicies "$InputFile" "Group" "Project name" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
-#		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v '^,,'
-		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount 
+		  csvcut -c "$Fields" | grep -v -i Promotions 
 		  ;;
 	      c)
 		  Fields=$(getHeaderIndicies "$InputFile" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
 
-		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v -i Discount | grep -v "Flywheel Gear" | grep -v '^,,' 
+		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v "Flywheel Gear" | grep -v '^,,' 
 		  ;;
 
+	      i)
+		  Fields=$(getHeaderIndicies "$InputFile" "service_id" "note" "service_quantity" "price" "purchased_on" "service_request_id")
+		  csvcut -c "$Fields" 
+		  ;;
+	      
 	      j)
 		  Fields=$(getHeaderIndicies "$InputFile" gear_name gear_category job_origin_id job_state job_elapsed_time_ms gcp_cpus gcp_compute_percent initial_analysis group project gcp_compute_cost)
 		  csvcut -c "$Fields"
@@ -151,6 +159,16 @@ function total {
 		fi
 		;;
 		
+	    i)
+		Fields=3,4
+		if [ -n "$1" ]
+		then
+		    csvcut -c "$Fields"
+		else
+		    csvcut -c "$Fields" | awk -F , 'BEGIN {Quantity = 0.0; Cost = 0.0;} { Quantity = Quantity + $1; Cost = Cost + $2; } END {printf("%.2f,%.2f\n",Quantity,Cost) }'
+		fi
+		;;
+		
 	    j)
 		Fields=4,5,6,7,8,11
 		if [ -n "$1" ]
@@ -199,9 +217,11 @@ function filter {
 		Bucket*)
 		    allOrFlywheel | grep 'Cloud Storage' | grep 'Standard Storage' 
 		    ;;
+
 		Coldline)
 		    allOrFlywheel | grep 'Cloud Storage' | grep Coldline | grep Multi
 		    ;;
+
 		Misc)
 		    allOrFlywheel | grep -v -P '(Kubernetes)|(Cloud Storage)|(Flywheel Gear)|(Instance Core)|(Small Instance)|(PD Capacity)|(Instance Ram)|(GPU running)|(Storage Image)|(Storage Machine Image)|(Storage PD)'
 		    ;;
@@ -213,15 +233,19 @@ function filter {
 		Compute)
 		    allOrFlywheel | grep 'Compute Engine'
 		    ;;
+
 		Core)
 		    allOrFlywheel | grep 'Compute Engine' | grep 'Instance Core'
 		    ;;
+
 		Gcp)
 		    allOrFlywheel | grep -v 'Flywheel Gear'
 		    ;;
+
 		Gear)
 		    allOrFlywheel | grep 'Flywheel Gear'
 		    ;;
+
 		Kubernetes)
 		    allOrFlywheel | grep 'Kubernetes'
 		    ;;
@@ -245,7 +269,7 @@ function filter {
 	    esac
 	    ;;
 
-	u|j)
+	u|i|j)
 	    grep -P "$opt_f"
 	    ;;
 	*)

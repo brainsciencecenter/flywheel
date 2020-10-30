@@ -6,7 +6,7 @@ syntax="${CmdName} [-s service_request_id] {SessionsCSVFile}"
 
 # ** Read dynamically
 ServiceRequestID=RadiologyiLabBenNumber
-ServiceRequestID=$(yq -jP r - < iLabServiceRequestIDMap | jq '.["RequestIDs"][][]|select((.aliases[])|match("Radiology/MRIScans")) | .service_request_id')
+ServiceRequestID=$(yq -jP r - < iLabServiceRequestIDMap | jq '.["RequestIds"][][]|select((.aliases[])|match("Radiology/MRIScans")) | .service_request_id')
 
 function reformatSessions () {
     local ScannerRegEx='"?('"$Scanners"')"?,'
