@@ -4,6 +4,8 @@ CmdName=$(basename "$0")
 
 syntax="$CmdName [-j jsonfile][-p] fwfindargs....]"
 
+Epoch=2018-01-01
+
 #
 # *** Need to config dynamically
 #
@@ -17,10 +19,10 @@ then
 	fi
 fi
 
-while getopts "j:p" arg 
+while getopts "j:pu" arg 
 do
 	case "$arg" in
-	     j|p)
+	     j|p|u)
 		eval "opt_${arg}=${OPTARG:=1}"
 		;;
 
@@ -38,10 +40,17 @@ else
 	SessionJsonFile="${WorkDir}/Session.json"
 fi
 
+if [ -n "$opt_u" ]
+then
+    TimeZone=""
+else
+    TimeZone="-l"
+fi
+
 # Subjects don't have a created or timestamp field. Created works.  timestamp doesn't - G 2020/2/6
 #
-fwfind -l -p 'created>2018-01-01' | jq . > ${WorkDir}/Projects.json
-fwfind -l -s 'created>2018-01-01' | jq . > ${WorkDir}/Subjects.json
+fwfind $TimeZone -p "created>${Epoch}" | jq . > ${WorkDir}/Projects.json
+fwfind $TimeZone -s "created>${Epoch}" | jq . > ${WorkDir}/Subjects.json
 
 jq -r '[ .[] | { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
 jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ .[] | { (._id): ($Projects::Projects[][.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > ${WorkDir}/SubjectMap.json
@@ -55,9 +64,9 @@ fi
 
 if [ -n "$opt_p" ]
 then
-	(fw2json -p -alg $(< ${WorkDir}/SessionUIDs) | jq . > "$SessionJsonFile" ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
+	(fw2json -p -ag $TimeZone $(< ${WorkDir}/SessionUIDs) | jq . > "$SessionJsonFile" ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
 else
-	fw2json -alg $(< ${WorkDir}/SessionUIDs) | jq . > "$SessionJsonFile"
+	fw2json -ag $Timezone $(< ${WorkDir}/SessionUIDs) | jq . > "$SessionJsonFile"
 fi
 
 jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${FlywheelUtilsDir}/bin/genSessionCSV.jq" "$SessionJsonFile"
