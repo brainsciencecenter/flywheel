@@ -6,20 +6,6 @@ syntax="$CmdName [-j jsonfile][-p] fwfindargs....]"
 
 Epoch=1970-01-01
 
-DicomHeaderFields="
-	ImageComments
-	InstitutionName
-	ManufacturerModelName
-	PerformedProcedureStepDescription
-	ProcedureStepDescription
-	PerformingPhysicianName
-	ReferringPhysicianName
-	RequestingPhysician
-	StudyComments
-	StudyDescription
-"
-
-
 #
 # *** Need to config dynamically
 #
@@ -33,10 +19,10 @@ then
 	fi
 fi
 
-while getopts "j:pu" arg 
+while getopts "d:j:pu" arg 
 do
 	case "$arg" in
-	     j|p|u)
+	     d|j|p|u)
 		eval "opt_${arg}=${OPTARG:=1}"
 		;;
 
@@ -46,6 +32,24 @@ done
 shift $(($OPTIND - 1))
 
 WorkDir=$(mktemp -d /tmp/genSessionCSV-XXXXX)
+
+if [ -n "$opt_d" ]
+then
+	DicomHeaderFields=$(echo $opt_d | sed 's/,/ /g')
+else
+	DicomHeaderFields="
+		ImageComments
+		InstitutionName
+		ManufacturerModelName
+		PerformedProcedureStepDescription
+		ProcedureStepDescription
+		PerformingPhysicianName
+		ReferringPhysicianName
+		RequestingPhysician
+		StudyComments
+		StudyDescription
+	 "
+fi
 
 if [ -n "$opt_j" ]
 then
@@ -82,6 +86,6 @@ then
 else
 	fw2json -ag $Timezone $(< ${WorkDir}/SessionUIDs) | jq . > "$SessionJsonFile"
 fi
-genSessionAndDicomHeaderTemplate $DicomHeadersFields > "${WorkDir}/genSessionCSV.jq"
+genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
 
 jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile"

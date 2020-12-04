@@ -76,8 +76,11 @@ if __name__ == '__main__':
         res = fw.subjects.iter_find(*args.findargs)
     if (args.sessions):
         if (args.verbose):
-            print("%s : fw.sessions.iter_find(%s)" % (CmdName, ''.join(*args.findargs)), file=sys.stderr)
-        res = fw.sessions.iter_find(*args.findargs)
+            print("%s : fw.sessions.find(%s,exhaustive=True)" % (CmdName, ''.join(*args.findargs)), file=sys.stderr)
+        try:
+            res = fw.sessions.find(*args.findargs,exhaustive=True)
+        except (flywheel.rest.ApiException) as e:
+            res = [ fw.lookup(*args.findargs) ]
 
     if (args.devices):
         res = fw.get_all_devices()
