@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-import sys
-import re
-import os
-import flywheel
-import json
 import argparse
+import flywheel
 import fwgearutils
+import json
+import os
+import re
+import sys
 
 
 if __name__ == '__main__':
@@ -17,10 +17,10 @@ if __name__ == '__main__':
     Containers = []
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('-d', '--device-get', default=False,  action='store_true', help='get device info')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
+    ap.add_argument('-s', '--size', default=100000,  action='store_true', help='query return size')
 
-    ap.add_argument('id', nargs=1, type=str, default=None, help='group/project|ProjectID')
+    ap.add_argument('query', nargs='+', type=str, default=None, help='fw.search() query string')
 
     args = ap.parse_args()
 
@@ -30,12 +30,8 @@ if __name__ == '__main__':
         sys.exit(1)
 
     try:
-        if (args.device_get):
-            Container = fw.get_device(args.id[0])
-        else:
-            Container = fw.get(args.id[0])
-
-        Containers.append(Container)
+        print("query",*args.query, file=sys.stderr)
+        Containers = fw.search({'structured_query': args.query[0], 'return_type': 'acquisition', 'all_data': True},  size=10000)
 
     except (OSError, Exception) as e:
         print("e",e, file=sys.stderr)

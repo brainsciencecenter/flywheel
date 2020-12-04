@@ -88,16 +88,16 @@ def getApiKey(args):
 def getFW(args, Root=False):
    
     try:
-        fw = flywheel.Client(exaustive=Root)
+        fw = flywheel.Client()
         return(fw)
-    except (OSError, Exception) as e:
+    except (OSError, Exception, flywheel.rest.ApiException) as e:
         try:
            ApiKey = getApiKey(args)
 
-           fw = flywheel.Client(ApiKey, root=Root)
+           fw = flywheel.Client(ApiKey)
            return(fw)
         
-        except (OSError, Exception) as e2:
+        except (OSError, Exception, flywheel.rest.ApiException) as e2:
            print("e2",e2, file=sys.stderr)
            print("e",e, file=sys.stderr)
            sys.exit(1)

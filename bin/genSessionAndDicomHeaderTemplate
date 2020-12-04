@@ -1,26 +1,30 @@
+#!/bin/bash
+
+Args=( "$@" )
+
+cat << 'EOL'
 import "ScannerMap" as $Scanners;
 import "SubjectMap" as $Subjects;
-[
-	"Scanner",					# 1
-	"Date",						# 2
-	"Path",						# 3
-	"Code",						# 4 - Subject
-        "SessionID",					# 5
-        "DeidentificationMethod",			# 6
-	"ImageComments",				# 7
-	"InstitutionName",				# 8
-	"ManufacturerModelName",			# 9
-	"PerformedProcedureStepDescription",		# 10
-	"ProcedureStepDescription",			# 11
-	"PerformingPhysicianName",			# 12
-	"ReferringPhysicianName",			# 13
-	"RequestingPhysician",				# 14
-	"StudyComments",				# 15
-	"StudyDescription",				# 16
-	"Manufacturer",					# 17
-	"MagneticFieldStrength"				# 18
 
-],
+[
+    "Scanner",
+    "Date",
+    "Path",
+    "Code",
+    "SessionID",
+    "DeidentificationMethod",
+EOL
+
+for i in "${Args[@]:0:$((${#Args[@]} - 1))}"
+do
+	echo "    \"$i\","
+done
+
+echo "    \"${Args[@]:$((${#Args[@]} - 1))}\""
+
+echo "],"
+
+cat << 'EOL'
 (.[]
    | .label as $SessionLabel
    | ._id as $SessionID
@@ -56,24 +60,22 @@ import "SubjectMap" as $Subjects;
              else
                 .DeidentificationMethod
              end,
- 
-             .ImageComments,							# 7
-             .InstitutionName,							# 8
-             .ManufacturerModelName,						# 9
-             .PerformedProcedureStepDescription,				# 10
-             .PerformingPhysicianName,						# 11
-             .ProcedureStepDescription,						# 12
-             .ReferringPhysicianName,						# 13
-             .RequestingPhysician,						# 14
-             .StudyComments,							# 15
-             .StudyDescription,							# 16
-	     .Manufacturer,							# 17
-	     .MagneticFieldStrength						# 18
+EOL
 
-             ] 
+for i in "${Args[@]:0:$((${#Args[@]} - 1))}"
+do
+	echo "             .$i,"
+done
+
+echo "             .${Args[@]:$((${#Args[@]} - 1))}"
+
+echo "            ]"
+
+cat << 'EOL'
    else
-     #"no acqusitions for \($SessionLabel) \($SessionID)"
+     #"no acquisitions for \($SessionLabel) \($SessionID)"
      empty
    end
    ) | @csv
 
+EOL

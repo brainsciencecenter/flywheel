@@ -4,7 +4,21 @@ CmdName=$(basename "$0")
 
 syntax="$CmdName [-j jsonfile][-p] fwfindargs....]"
 
-Epoch=2018-01-01
+Epoch=1970-01-01
+
+DicomHeaderFields="
+	ImageComments
+	InstitutionName
+	ManufacturerModelName
+	PerformedProcedureStepDescription
+	ProcedureStepDescription
+	PerformingPhysicianName
+	ReferringPhysicianName
+	RequestingPhysician
+	StudyComments
+	StudyDescription
+"
+
 
 #
 # *** Need to config dynamically
@@ -55,7 +69,7 @@ fwfind $TimeZone -s "created>${Epoch}" | jq . > ${WorkDir}/Subjects.json
 jq -r '[ .[] | { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
 jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ .[] | { (._id): ($Projects::Projects[][.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > ${WorkDir}/SubjectMap.json
 
-if echo "$1" | grep -qr '=|<|>'
+if echo "$@" | grep -qr '=|<|>'
 then
     fwfind -S "$@" | jq -r '.[]._id' > ${WorkDir}/SessionUIDs
 else
@@ -68,5 +82,6 @@ then
 else
 	fw2json -ag $Timezone $(< ${WorkDir}/SessionUIDs) | jq . > "$SessionJsonFile"
 fi
+genSessionAndDicomHeaderTemplate $DicomHeadersFields > "${WorkDir}/genSessionCSV.jq"
 
-jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${FlywheelUtilsDir}/bin/genSessionCSV.jq" "$SessionJsonFile"
+jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile"
