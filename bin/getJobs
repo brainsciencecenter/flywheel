@@ -316,7 +316,7 @@ for s in subjects:
     UIDs2Labels[s.id] = s.label
 
 filter=','.join(args.filter)
-print("filter = filter={}".format(filter), file=sys.stderr)
+#print("filter = filter={}".format(filter), file=sys.stderr)
 jobs = []
 if (len(args.filter)):
 #  jobs = fw.get_all_jobs(limit=args.limit, filter=filter)
