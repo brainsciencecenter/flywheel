@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# Need:
+#  CostTable - YYYY-MM-CostTable.csv
+#
+# Will collect if not specified:
+#  JobsReport - YYYY-MM-Jobs.csv
+#  FlywheelAllocationReport.csv -- YYYY-MM-FlywheelAllocationReport.csv
+#  GCPChargesWithFlywheelAllocation -- YYYY-MM-GCPChargesWithFlywheelAllocation.csv
+
+CmdName=$(basename "$0")
+
+FlywheelStaticLabel='flywheel:infrastructure'
+PromotionRegEx='PROMOTION'
+iLabServiceRequestMapFile=~/flywheel/bin/iLabServiceRequestIDMap
+
+while getopts a:c:d:fg:i:j:m:uy: arg
+do
+	case "$arg" in
+	     a|c|d|f|g|i|j|m|u|y)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+ReportDir=/tmp
+[ -n "$opt_d" ] && ReportDir="$opt_d"
+
+Year=$(date +%Y)
+[ -n "$opt_y" ] && Year="$opt_y"
+
+Month=$(date +%m)
+[ -n "$opt_m" ] && Month="$opt_m"
+
+NextYear="$Year"
+NextMonth=$(("$Month" + 1))
+if [ "$NextMonth" -gt 12 ]
+then
+	NextMonth=$(printf "%02d" $(("$NextMonth" - 12)))
+	NextYear=$(printf "%02d" $(("$NextYear" + 1)))
+fi
+NextYearMonth="${NextYear}-${NextMonth}"
+
+CostTableFile="${ReportDir}/${Year}-${Month}-CostTable.csv"
+[ -n "$opt_c" ] && CostTableFile="$opt_c"
+
+if [ ! -e "$CostTableFile" ]
+then
+	echo "${CmdName} : cannot access CostTableFile '$CostTableFile'" 1>&2
+	exit 1
+fi
+
+
+UsageColumn=$(csvcut -n "$CostTableFile" | grep 'Usage amount' | cut -f 1 -d :)
+FlywheelTotalGCPComputeCost=$(verify -F -f Compute -t c "$CostTableFile" | csvcut -c 2 | tail -n 1)
+
+FlywheelTotalCoreHours=$(verify -F -f Core -t c "$CostTableFile" | csvcut -c 1 | tail -n 1)
+FlywheelStaticCoreHours=$(verify -F -f Static-Core -t c "$CostTableFile" | csvcut -c 1 | tail -n 1)
+FlywheelDynamicCoreHours=$(echo "scale = 2; $FlywheelTotalCoreHours - $FlywheelStaticCoreHours" | bc)
+
+FlywheelAllocationReportFile="${ReportDir}/${Year}-${Month}-FlywheelAllocationReport"
+[ -n "$opt_a" ] && FlywheelAllocationReportFile="$opt_a"
+
+if [ -n "$opt_f" ] || [ ! -e "$FlywheelAllocationReportFile" ]
+then
+	flywheelGroupAllocationReport -m "$Month" -y "$Year" "$FlywheelAllocationReportFile"
+fi
+
+FlywheelJobsFile="${ReportDir}/${Year}-${Month}-Jobs.csv"
+[ -n "$opt_j" ] && FlywheelJobsFile="${opt_j}"
+
+if [ -n "$opt_f" ] || [ ! -e "$FlywheelJobsFile" ]
+then
+	getJobs -i -p -c "$FlywheelTotalGCPComputeCost" -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$FlywheelJobsFile"
+fi
+
+GCPChargesWithFlywheelAllocationFile="${ReportDir}/${Year}-${Month}-GCPChargesWithFlywheelAllocation.csv"
+[ -n "$opt_g" ] && GCPChargesWithFlywheelAllocationFile="$opt_g"
+
+if [ -n "$opt_f" ] || [ ! -e "$GCPChargesWithFlywheelAllocationFile" ]
+then
+	createGCPChargesFWAllocation -d "$FlywheelDynamicCoreHours" -j "$FlywheelJobsFile" -f "$FlywheelAllocationReportFile" -m "$iLabServiceRequestMapFile" "$CostTableFile" > "$GCPChargesWithFlywheelAllocationFile"
+fi
+
+if [ -n "$opt_u" ]
+then
+	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --autodetect --noreplace --source_format=CSV BillingAllocation.GCPChargesWithFlywheelAllocation "$GCPChargesWithFlywheelAllocationFile"
+fi
