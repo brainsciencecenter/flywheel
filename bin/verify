@@ -38,17 +38,17 @@ CondorYamlFile="$FlywheelDir/etc/condor.yml"
 CondorJson=$(yq -jP r "$CondorYamlFile" | jq .)
 
 function getHeaderIndicies() {
-    InputFile="$1"
-    shift
 
-    RegEx=""
+    local RegEx=""
+    local i=
+
     for i in "$@"
     do
 	RegEx="${RegEx}|($i)"
     done
     RegEx="$(echo $RegEx | sed 's/^|//')"
 
-    head -n 1 "$InputFile" | tr ',' '\012' | grep -P -n "^($RegEx)$" | cut -f 1 -d : | (tr '\012' ',';echo) | sed 's/,$//'
+    tr ',' '\012' | grep -P -n "^($RegEx)$" | cut -f 1 -d : | (tr '\012' ','; echo) | sed 's/,$//'
 }
 
 function filterByDates () {
@@ -69,55 +69,74 @@ function filterByDates () {
 }
 
 #
-# SliceNDice does not want a header line
+# SliceNDice needs a header line
 #
-function sliceNDice {
-    local Fields
-    local InputFile="$1"
+# *** cat > "$InputFile"; getHeaderIndicies "$InputFile"; csvcut -c "$Fields" "$InputFile |
+# can be replaced by
+# read Headers
+# getHeaderIndicies <(echo "$Headers")
+# csvcut -c "$Fields" | 
 
+function sliceNDice {
+    local Fields=
+    
+    read HeaderLine
+    
 	 case "$opt_t" in
 	      u)
-		  # Pull days, group, project_label, session_count,total-compute_ms, total_job_count, total_storage_bytes
-		  Fields=4,5,10,11,12,13,14
+		  # Pull days, group, project_label, session_count,total_compute_ms, total_job_count, total_storage_byte_day
+		  Fields=$(echo "$HeaderLine" | getHeaderIndicies "days" "group" "project_label" "session_count" "total_compute_ms" "total_job_count" "total_storage_byte_day")
+
+		  echo "$HeaderLine" | csvcut -c "$Fields"
+
 		  csvcut -c "$Fields" | awk -F , '{ if ($3 != "") {print $0} }'
 		  ;;
 
 	      g)
-		  Fields=$(getHeaderIndicies "$InputFile" "Group" "Project name" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
-		  csvcut -c "$Fields" | grep -v -i Promotions 
+		  Fields=$(echo "$HeaderLine" | getHeaderIndicies "Group" "Project name" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
+		  echo "$HeaderLine" | csvcut -c "$Fields"
+		  csvcut -c "$Fields" | grep -v -i Promotion 
 		  ;;
+	      
 	      c)
-		  Fields=$(getHeaderIndicies "$InputFile" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
+		  Fields=$(echo "$HeaderLine" | getHeaderIndicies "Project ID" "Service description" "SKU description" "Credit type" "Labels" "Usage amount" "Usage unit" "Cost \(\\\$\)")
 
-		  csvcut -c "$Fields" | grep -v -i Promotions | grep -v "Flywheel Gear" | grep -v '^,,' 
+		  echo "$HeaderLine" | csvcut -c "$Fields"
+		  csvcut -c "$Fields" | grep -v -i Promotion | grep -v "Flywheel Gear" | grep -v '^,,' 
 		  ;;
 
 	      i)
-		  Fields=$(getHeaderIndicies "$InputFile" "service_id" "note" "service_quantity" "price" "purchased_on" "service_request_id")
-		  csvcut -c "$Fields" 
+		  Fields=$(echo "$HeaderLine" | getHeaderIndicies "service_id" "note" "service_quantity" "price" "purchased_on" "service_request_id")
+		  echo "$HeaderLine" | csvcut -c "$Fields"
+		  csvcut -c "$Fields"
 		  ;;
 	      
 	      j)
-		  Fields=$(getHeaderIndicies "$InputFile" gear_name gear_category job_origin_id job_state job_elapsed_time_ms gcp_cpus gcp_compute_percent initial_analysis group project gcp_compute_cost)
+		  Fields=$(echo "$HeaderLine" | getHeaderIndicies gear_name gear_category job_origin_id job_state job_elapsed_time_ms gcp_cpus gcp_compute_percent initial_analysis group project gcp_compute_cost)
+		  echo "$HeaderLine" | csvcut -c "$Fields"
 		  csvcut -c "$Fields"
 		  ;;
-		  
-	 esac
 
+	      *)
+		  echo "$CmdName : unknown report type '$opt_t'" 1>&1
+		  ;;
+	 esac
 }
 
 function total {
-    local Fields
-    
+    local Fields=
+    local Header=$1
+
     if [ -n "$opt_v" ]
     then
 	cat
     else
-	
+	read HeaderLine
+
 	case "$opt_t" in
 	    u)
-		Fields=1,4,5,6,7
-		if [ -n "$1" ]
+		Fields=$(echo "$HeaderLine" | getHeaderIndicies days session_count total_compute_ms total_job_count total_storage_byte_day)
+		if [ -n "$Header" ]
 		then
 		    units=gibibytes
 		    if [ -n "$opt_g" ]
@@ -125,7 +144,7 @@ function total {
 			units=gigabytes
 		    fi
 		    
-		    csvcut -c "$Fields" | sed 's/days,//; s/total_compute_ms/total_compute_hours/; s/byte_day/'"$units"'/'
+		    echo "$HeaderLine" | csvcut -c "$Fields" | sed 's/days,//; s/total_compute_ms/total_compute_hours/; s/byte_day/'"$units"'/'
 		else
 		    ByteDenominator="1024.0/1024.0/1024.0"
 		    if [ -n "$opt_g" ]
@@ -133,48 +152,61 @@ function total {
 			ByteDenominator="1000.0/1000.0/1000.0"
 		    fi
 		    HourDenominator="1000.0/3600.0"
+
+		    units=gibibytes
+		    if [ -n "$opt_g" ]
+		    then
+			units=gigabytes
+		    fi
+
+		    echo "$HeaderLine" | csvcut -c "$Fields" | sed 's/days,//; s/total_compute_ms/total_compute_hours/; s/byte_day/'"$units"'/'
 		    csvcut -c "$Fields" | awk -F , 'BEGIN { Sessions = 0.0; MS = 0.0; Jobs = 0.0; Bytes = 0.0;} { Sessions = Sessions + $2; MS = MS + $3; Jobs = Jobs + $4; Bytes = Bytes + ($5 / $1); } END { printf("%.2f,%.2f,%.2f,%.2f\n",Sessions, MS/'"$HourDenominator"', Jobs, Bytes/'"$ByteDenominator"'); }'
 		fi
 		
 		;;
 
 	    c)
-		Fields=4,6
-		if [ -n "$1" ]
+		Fields=$(echo "$HeaderLine" | getHeaderIndicies "Usage amount" "Cost \(\\\$\)")
+		if [ -n "$Header" ]
 		then
-		    csvcut -c "$Fields"
+		    echo "$HeaderLine" | csvcut -c "$Fields" 
 		else
+		    echo "$HeaderLine" | csvcut -c "$Fields" 
+
 		    csvcut -c "$Fields" | awk -F , 'BEGIN {Usage = 0.0; Cost = 0.0;} { Usage = Usage + $1; Cost = Cost + $2; } END {printf("%.2f,%.2f\n",Usage,Cost) }'
 		fi
 		
 		;;
 
 	    g)
-		Fields=6,8
-		if [ -n "$1" ]
+		Fields=$(echo "$HeaderLine" | getHeaderIndicies "Usage amount" "Cost \(\\\$\)")
+		if [ -n "$Header" ]
 		then
-		    csvcut -c "$Fields"
+		    echo "$HeaderLine" | csvcut -c "$Fields" 
 		else
+		    echo "$HeaderLine" | csvcut -c "$Fields" 
 		    csvcut -c "$Fields" | awk -F , 'BEGIN {Usage = 0.0; Cost = 0.0;} { Usage = Usage + $1; Cost = Cost + $2; } END {printf("%.2f,%.2f\n",Usage,Cost) }'
 		fi
 		;;
 		
 	    i)
-		Fields=3,4
-		if [ -n "$1" ]
+		Fields=$(echo "$HeaderLine" | getHeaderIndicies 'service_quantity' 'price' )
+		if [ -n "$Header" ]
 		then
-		    csvcut -c "$Fields"
+		    echo "$HeaderLine" | csvcut -c "$Fields" 
 		else
+		    echo "$HeaderLine" | csvcut -c "$Fields" 
 		    csvcut -c "$Fields" | awk -F , 'BEGIN {Quantity = 0.0; Cost = 0.0;} { Quantity = Quantity + $1; Cost = Cost + $2; } END {printf("%.2f,%.2f\n",Quantity,Cost) }'
 		fi
 		;;
 		
 	    j)
-		Fields=4,5,6,7,8,11
-		if [ -n "$1" ]
+		Fields=$(echo "$HeaderLine" | getHeaderIndicies gear_name gear_version gear_category job_origin_id job_origin_type job_runtime_ms)
+		if [ -n "$Header" ]
 		then
-		    csvcut -c "$Fields" | sed 's/job_state/job_count/; s/job_elapsed_time_ms,gcp_cpus/gcp_compute_hours/'
+		    echo "$HeaderLine" | csvcut -c "$Fields" | sed 's/job_state/job_count/; s/job_elapsed_time_ms,gcp_cpus/gcp_compute_hours/'
 		else
+		    echo "$HeaderLine" | csvcut -c "$Fields" | sed 's/job_state/job_count/; s/job_elapsed_time_ms,gcp_cpus/gcp_compute_hours/'
 		    csvcut -c "$Fields" | awk -F , 'BEGIN {JobCount = 0.0;  MS = 0.0; GCPPercent = 0.0; InitialAnalysis = 0.0; GCPComputeCost = 0.0;} {if ($1 == "complete") {JobCount = JobCount + 1}; MS = MS + $2 * $3; GCPPercent = GCPPercent + $4; if ($5 == "True" || $5 == "TRUE") {InitialAnalysis = InitialAnalysis + 1}; GCPCost = GCPCost + $6; } END { printf("%d,%.2f,%.2f,%d,%.2f\n",JobCount,MS/1000.0/3600.0,GCPPercent,InitialAnalysis,GCPCost); }'
 		fi
 		;;
@@ -194,6 +226,8 @@ function deCommafie {
 }
 
 function allOrFlywheel {
+    local RegEx
+
     # the regex is after the first set of csvcut in sliceNDice
     if [ "$opt_t" == c ]
     then
@@ -211,6 +245,12 @@ function allOrFlywheel {
 }
 
 function filter {
+    local Header
+
+    read Header
+
+    echo "$Header"
+
     case "$opt_t" in
 	c|g)
 	    case "$opt_f" in
@@ -249,12 +289,17 @@ function filter {
 		Kubernetes)
 		    allOrFlywheel | grep 'Kubernetes'
 		    ;;
+		
 		Ram)
 		    allOrFlywheel | grep 'Compute Engine' | grep 'Instance Ram'
 		    ;;
 
 		Static)
-		    allOrFlywheel 
+		    allOrFlywheel | grep 'flywheel:infrastructure'
+		    ;;
+
+		Static-Core)
+		    allOrFlywheel | grep 'flywheel:infrastructure' | grep 'Core'
 		    ;;
 
 		Storage)
@@ -264,21 +309,24 @@ function filter {
 		VM)
 		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|Instance Ram'
 		    ;;
+
 		*)
 		    allOrFlywheel
+		    ;;
 	    esac
 	    ;;
 
 	u|i|j)
-	    grep -P "$opt_f"
+	    grep -P "$opt_f" 
 	    ;;
+
 	*)
 	    cat
 	    ;;
     esac
 }
 
-opt_n='2,$p'
+opt_n='1,$p'
 
 while getopts D:d:Ff:gn:t:v arg
 do
@@ -297,7 +345,7 @@ shift $(($OPTIND - 1))
 
 SourceFile="$1"
 
-head -n 1 "$SourceFile" | sliceNDice "$SourceFile" | total "header"
+#head -n 1 "$SourceFile" | sliceNDice | total "header"
 
-#sed -n "${opt_n}" "$SourceFile" | filterByDates 
-sed -n "${opt_n}" "$SourceFile" | filterByDates | sliceNDice "$SourceFile" | deCommafie | filter | total
+sed -n "${opt_n}" "$SourceFile" | filterByDates | sliceNDice | deCommafie | filter | total
+#sed -n "${opt_n}" "$SourceFile" | filterByDates | sliceNDice | deCommafie | filter | total
