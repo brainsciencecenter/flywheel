@@ -53,10 +53,12 @@ if __name__ == '__main__':
 
     args = ap.parse_args()
 
-    fw = fwgearutils.getFW(args,Root=True)
+    fw = fwgearutils.getFW(args)
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
+
+    ExhaustiveFlag = fw.get_current_user().root
 
     res = None
 
@@ -69,16 +71,16 @@ if __name__ == '__main__':
         # Need -gr to do job detail and profile
         res = fw.jobs.iter_find(*args.findargs)
     if (args.projects):
-        res = fw.projects.iter_find(*args.findargs)
+        res = fw.projects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag)
     if (args.subjects):
         if (args.verbose):
-            print("%s : fw.subjects.iter_find(%s)" % (CmdName, ''.join(*args.findargs)), file=sys.stderr)
-        res = fw.subjects.iter_find(*args.findargs)
+            print("%s : fw.subjects.iter_find(%s,exhaustive=%s)" % (CmdName, ''.join(*args.findargs),ExhaustiveFlag), file=sys.stderr)
+        res = fw.subjects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag)
     if (args.sessions):
         if (args.verbose):
-            print("%s : fw.sessions.find(%s,exhaustive=True)" % (CmdName, ''.join(*args.findargs)), file=sys.stderr)
+            print("%s : fw.sessions.find(%s,exhaustive=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag), file=sys.stderr)
         try:
-            res = fw.sessions.find(*args.findargs,exhaustive=True)
+            res = fw.sessions.find(*args.findargs,exhaustive=ExhaustiveFlag)
         except (flywheel.rest.ApiException) as e:
             res = [ fw.lookup(*args.findargs) ]
 
