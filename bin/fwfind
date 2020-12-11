@@ -31,6 +31,7 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('-d', '--debug',  action='store_true', help='print debug info')
     ap.add_argument('-D', '--devices',  action='store_true', help='find device info')
+    ap.add_argument('-L', '--limit',  action='store_true', default=100000, help='Maximum number of results to return.  Defaults to 100000')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-G', '--do-get',  action='store_true', help='do fw.get instead of iter_find')
@@ -63,24 +64,24 @@ if __name__ == '__main__':
     res = None
 
     if (args.acquisitions):
-        res = fw.acquisitions.iter_find(*args.findargs)
+        res = fw.acquisitions.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
 #    if (args.analyses):
 #        print(fw.__dir__())
 #        res = fw.analyses.find(*args.findargs)
     if (args.jobs):
         # Need -gr to do job detail and profile
-        res = fw.jobs.iter_find(*args.findargs)
+        res = fw.jobs.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
     if (args.projects):
-        res = fw.projects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag)
+        res = fw.projects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
     if (args.subjects):
         if (args.verbose):
-            print("%s : fw.subjects.iter_find(%s,exhaustive=%s)" % (CmdName, ''.join(*args.findargs),ExhaustiveFlag), file=sys.stderr)
-        res = fw.subjects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag)
+            print("%s : fw.subjects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs),ExhaustiveFlag,args.limit), file=sys.stderr)
+        res = fw.subjects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
     if (args.sessions):
         if (args.verbose):
-            print("%s : fw.sessions.find(%s,exhaustive=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag), file=sys.stderr)
+            print("%s : fw.sessions.find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         try:
-            res = fw.sessions.find(*args.findargs,exhaustive=ExhaustiveFlag)
+            res = fw.sessions.find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
         except (flywheel.rest.ApiException) as e:
             res = [ fw.lookup(*args.findargs) ]
 

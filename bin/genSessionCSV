@@ -6,6 +6,11 @@ syntax="$CmdName [-j jsonfile][-p] fwfindargs....]"
 
 Epoch=1970-01-01
 
+function sys() {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
 #
 # *** Need to config dynamically
 #
@@ -19,10 +24,10 @@ then
 	fi
 fi
 
-while getopts "d:j:pu" arg 
+while getopts "d:j:npuv" arg 
 do
 	case "$arg" in
-	     d|j|p|u)
+	     d|j|n|p|u|v)
 		eval "opt_${arg}=${OPTARG:=1}"
 		;;
 
@@ -67,25 +72,25 @@ fi
 
 # Subjects don't have a created or timestamp field. Created works.  timestamp doesn't - G 2020/2/6
 #
-fwfind $TimeZone -p "created>${Epoch}" | jq . > ${WorkDir}/Projects.json
-fwfind $TimeZone -s "created>${Epoch}" | jq . > ${WorkDir}/Subjects.json
+sys fwfind $TimeZone -p "created>${Epoch}" | jq . > ${WorkDir}/Projects.json
+sys fwfind $TimeZone -s "created>${Epoch}" | jq . > ${WorkDir}/Subjects.json
 
 jq -r '[ .[] | { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
 jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ .[] | { (._id): ($Projects::Projects[][.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > ${WorkDir}/SubjectMap.json
 
 if echo "$@" | grep -qP '=|<|>'
 then
-    fwfind -S "$@" | jq -r '.[]._id' > ${WorkDir}/SessionUIDs
+    sys fwfind -S "$@" | jq -r '.[]._id' > ${WorkDir}/SessionUIDs
 else
-    fw2json "$1" | jq -r '.[].subjects[].sessions[]._id' > ${WorkDir}/SessionUIDs
+    sys fw2json -R "$1" | jq -r '.[].subjects[].sessions[]._id' > ${WorkDir}/SessionUIDs
 fi
 
 if [ -n "$opt_p" ]
 then
 	(fw2json -p -ag $TimeZone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile" ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
 else
-	fw2json -ag $Timezone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile"
+	sys fw2json -ag $Timezone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile"
 fi
-genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
+sys genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
 
-jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile"
+sys jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile"
