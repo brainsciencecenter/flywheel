@@ -64,10 +64,10 @@ EOL
 
 for i in "${Args[@]:0:$((${#Args[@]} - 1))}"
 do
-	echo "             .$i,"
+	echo "             (.$i|@text),"
 done
 
-echo "             .${Args[@]:$((${#Args[@]} - 1))}"
+echo "             (.${Args[@]:$((${#Args[@]} - 1))}|@text)"
 
 echo "            ]"
 
