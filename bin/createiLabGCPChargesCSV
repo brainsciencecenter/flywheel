@@ -159,6 +159,7 @@ with open(args.gcpcharges[0], newline='') as csvfile:
             GroupProjectCharges = GcpCharges[GcpChargeKey]
         else:
             ServiceRequestId = getServiceRequestId(iLabMap,GcpChargeKey)
+            print("Service Request for {} is '{}'".format(GcpChargeKey,ServiceRequestId), file=sys.stderr)
             if (ServiceRequestId == None):
                 if (args.all_group_projects):
                     ServiceRequestId = GcpChargeKey
@@ -170,9 +171,9 @@ with open(args.gcpcharges[0], newline='') as csvfile:
                         print("{}: No Service Request Id for '{}'".format(CmdName, GcpChargeKey), file=sys.stderr)
                     continue
                 
-            if (re.search('^\d+$',str(ServiceRequestId))):
+            if (not re.search('^\d+$',str(ServiceRequestId))):
                 if (not args.all_group_projects):
-                    print("{}: Service Request Id for '{}' not numeric".format(CmdName, GcpChargeKey, ServiceRequestId), file=sys.stderr)
+                    print("{}: Service Request Id '{}' for '{}' not numeric".format(CmdName, ServiceRequestId, GcpChargeKey), file=sys.stderr)
                     continue
 
             GroupProjectCharges = initGroupProjectCharge(
