@@ -90,6 +90,14 @@ RequestIds:
   #      groupname-default-service-request-id
   #
 
+  ChatLab:
+    - service_request_id: 3050653
+      ben:  400-4322-2-014003-1520-3407-0128
+      fund: Beauty2Wellness - Expires 12/31/2020
+      aliases:
+        - CHA
+        - chatterjee/CHA
+
   Radiology:
     - service_request_id: 3050653
       ben:  400-4744-1-000011-5340-7006-1100
