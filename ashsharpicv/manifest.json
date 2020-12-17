@@ -2,7 +2,7 @@
 	"name": "ashsharpicv",
 	"label": "AshsHarpICV",
 	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
-	"version": "0.2.42",
+	"version": "0.2.44",
 	"inputs": {
 		"api-key": {
 			"base": "api-key"
@@ -65,8 +65,8 @@
 		},
 		"gear-builder": {
 			"category": "analysis",
-			"container": "d8c442e7f6287867351a5458af69acfe92f8527f67efd59ba920cff073513621",
-			"image": "gear-builder-gslalvncpz-20201215140404"
+			"container": "5b242324aa283dd5e34e1851423f10fa14f7ca3c698e8f182d4f822a87cdba1b",
+			"image": "gear-builder-vzebdzdatd-20201217104208"
 		}
 	}
 }
