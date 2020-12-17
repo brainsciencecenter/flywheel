@@ -18,6 +18,7 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-d', '--device-get', default=False,  action='store_true', help='get device info')
+    ap.add_argument('-g', '--get-all-gears', default=False,  action='store_true', help='get list of gears')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-u', '--get-all-users', default=False,  action='store_true', help='all user info')
 
@@ -33,6 +34,8 @@ if __name__ == '__main__':
     try:
         if (args.device_get):
             Container = fw.get_device(args.id[0])
+        elif (args.get_all_gears):
+            Container = fw.get_all_gears()
         elif (args.get_all_users):
             Container = fw.get_all_users()
         else:

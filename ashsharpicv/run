@@ -55,11 +55,11 @@ do
     #
     # Want to get the input dicom id from the config file, look it up in flywheel and pass the output to jq
 
-    ProjectName=$(getGearParam "${CONFIG_FILE}:.config.ProjectName" "fwget:${CONFIG_FILE},.destination.id,.parents.project,.label" "${CONFIG_FILE}:.inputs.dicom.object.info.ImageComments" default:UnknownProjectName)
+    ProjectName=$(getGearParam "${CONFIG_FILE}:.config.ProjectName" "fwget:${CONFIG_FILE},.destination.id,.[].parents.project,.[].label" "${CONFIG_FILE}:.inputs.dicom.object.info.ImageComments" default:UnknownProjectName)
 
-    SubjectID=$(getGearParam "${CONFIG_FILE}:.config.SubjectID" "fwget:${CONFIG_FILE},.destination.id,.parents.subject,.label" "${CONFIG_FILE}:.inputs.dicom.object.info.SeriesDescription" UnknownSubjectID)
+    SubjectID=$(getGearParam "${CONFIG_FILE}:.config.SubjectID" "fwget:${CONFIG_FILE},.destination.id,.[].parents.subject,.[].label" "${CONFIG_FILE}:.inputs.dicom.object.info.SeriesDescription" UnknownSubjectID)
 
-    SessionID=$(getGearParam "${CONFIG_FILE}:.config.SessionID" "fwget:${CONFIG_FILE},.destination.id,.parents.session,.label" "${CONFIG_FILE}:.inputs.dicom.object.info.StudyDescription" UnknownSession)
+    SessionID=$(getGearParam "${CONFIG_FILE}:.config.SessionID" "fwget:${CONFIG_FILE},.destination.id,.[].parents.session,.[].label" "${CONFIG_FILE}:.inputs.dicom.object.info.StudyDescription" UnknownSession)
 
     Age=$(getGearParam "${CONFIG_FILE}:.config.Age" "${CONFIG_FILE}:.inputs.dicom.object.info.PatientAge" UnknownAge)
 
