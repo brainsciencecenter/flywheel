@@ -1,6 +1,8 @@
 #!/bin/bash -x
 set -x -e
 
+PATH="$PATH:."
+
 # Print usage by default
 if [[ $# -lt 1 || $1 == "h" || $1 == "-help" || $1 == "--help" ]] ; then
   cat << USAGETEXT
@@ -135,7 +137,7 @@ xnat_workspace="$TMPDIR/${full_id}_results.itksnap"
 
 mri_layer=$(itksnap-wt -i $ticket_workspace -ll | grep MRI | awk '{print $2}')
 icv_layer=$(itksnap-wt -i $ticket_workspace -ll | grep ICV | awk '{print $2}')
-harp_layer=$(itksnap-wt -i $ticket_workspace -ll | grep HARP | awk '{print $2}')
+harp_layer=$(itksnap-wt -i $ticket_workspace -ll | grep -P 'JLF/CL-lite|HARP' | awk '{print $2}')
 
 itksnap-wt -i $ticket_workspace \
 	        -layers-pick $mri_layer -props-rename-file $TMPDIR/${full_id}_mri.nii.gz \
