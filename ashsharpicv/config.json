@@ -1,32 +1,33 @@
 {
     "config": {
-        "Age": "",
-        "ProjectName": "dwolklab/NACC-SC",
-        "SessionID": "121668_20190919_3T",
-        "Subject": "121668"
+        "Age": "60",
+        "ProjectName": "",
+        "SessionID": "",
+        "Subject": ""
     },
     "destination": {
-	    "id": "aex"
+        "id": "5fdb59b05e4facd6eab4b758",
+        "type": "analysis"
     },
     "inputs": {
         "api-key": {
             "base": "api-key",
-            "key": "upenn.flywheel.io:L3dqtPiM2XDsfjC7jF"
+            "key": "upenn.flywheel.io:kqCo7gdezqd9JJrf9D"
         },
         "dicom": {
             "base": "file",
             "hierarchy": {
-                "id": "5d83b9870f98b700478135e5",
+                "id": "5f4eb1014df50cae444b912b",
                 "type": "acquisition"
             },
             "location": {
-                "name": "1.3.12.2.1107.5.2.43.66044.2019091913040113864640285.0.0.0.dicom.zip",
-                "path": "/tmp/1.3.12.2.1107.5.2.43.66044.2019091913040113864640285.0.0.0.dicom/MR.1.3.12.2.1107.5.2.43.66044.20190919130407935440291.dcm"
+                "name": "1.3.12.2.1107.5.2.43.167024.2020090116331392180219787.0.0.0.dicom.zip",
+                "path": "/flywheel/v0/input/dicom/1.3.12.2.1107.5.2.43.167024.2020090116331392180219787.0.0.0.dicom.zip"
             },
             "object": {
                 "classification": {
                     "Features": [
-                        "3D"
+                        "MPRAGE"
                     ],
                     "Intent": [
                         "Structural"
@@ -36,38 +37,38 @@
                     ]
                 },
                 "info": {
-                    "AcquisitionDate": "20190919",
+                    "AcquisitionDate": "20200901",
                     "AcquisitionMatrix": [
                         0,
-                        320,
-                        300,
+                        256,
+                        240,
                         0
                     ],
                     "AcquisitionNumber": 1,
-                    "AcquisitionTime": "130842.740000",
+                    "AcquisitionTime": "163315.130000",
                     "AngioFlag": "N",
                     "BitsAllocated": 16,
                     "BitsStored": 12,
                     "BodyPartExamined": "BRAIN",
                     "CSAHeader": {
-                        "AcquisitionMatrixText": "300*320",
-                        "Actual3DImaPartNumber": 66,
-                        "EchoColumnPosition": 160,
-                        "EchoLinePosition": 150,
+                        "AcquisitionMatrixText": "240*256",
+                        "Actual3DImaPartNumber": 99,
+                        "EchoColumnPosition": 128,
+                        "EchoLinePosition": 120,
                         "EchoPartitionPosition": 104,
                         "GSWDDataType": "measured",
-                        "ICE_Dims": "X_1_1_1_1_1_67_1_1_1_1_1_121",
+                        "ICE_Dims": "X_1_1_1_1_1_100_1_1_1_1_1_413",
                         "ImaAbsTablePosition": [
                             0,
                             0,
-                            -1248
+                            -1247
                         ],
                         "ImaCoilString": "HC1-7;NC1",
                         "ImaPATModeText": "p2",
                         "ImaRelTablePosition": [
                             0,
                             0,
-                            0
+                            -14
                         ],
                         "ImageHistory": [
                             "ChannelMixing:ND=true_CMM=1_CDM=1",
@@ -76,98 +77,95 @@
                         ],
                         "MeasuredFourierLines": 0,
                         "MultistepIndex": 0,
-                        "NonPlanarImage": 0,
+                        "NonPlanarImage": 1,
                         "PhaseEncodingDirectionPositive": 1,
                         "ProtocolSliceNumber": 0,
                         "RFSWDDataType": "measured",
-                        "RealDwellTime": 7400,
-                        "SequenceMask": 134217729,
-                        "SliceMeasurementDuration": 395660.0,
+                        "RealDwellTime": 8200,
+                        "SequenceMask": 134217728,
+                        "SliceMeasurementDuration": 309677.5,
                         "SlicePosition_PCS": [
-                            -34.5351732,
-                            -116.24363931,
-                            170.81859131
+                            -0.0330286,
+                            -129.82733727,
+                            127.7972569
                         ],
                         "UsedChannelString": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                     },
-                    "Columns": 300,
-                    "ContentDate": "20190919",
-                    "ContentTime": "131530.233000",
-                    "DeviceSerialNumber": "66044",
+                    "Columns": 240,
+                    "ContentDate": "20200901",
+                    "ContentTime": "163842.213000",
+                    "DeidentificationMethod": "Penn_BSC_profile_v1.0",
+                    "DeviceSerialNumber": "167024",
                     "EchoNumbers": 1,
-                    "EchoTime": 2.24,
+                    "EchoTime": 2.98,
                     "EchoTrainLength": 1,
-                    "FlipAngle": 8,
-                    "FrameOfReferenceUID": "1.3.12.2.1107.5.2.43.66044.1.20190919130329110.0.0.0",
+                    "FlipAngle": 9,
+                    "FrameOfReferenceUID": "1.3.12.2.1107.5.2.43.167024.2.20200901163114600.0.0.0",
                     "HighBit": 11,
-                    "ImageComments": "121668@dwolklab:NACC-SC",
+                    "ImageComments": "126324@dwolklab:NACC-SC",
                     "ImageOrientationPatient": [
-                        -0.020845386709,
-                        0.97550967892647,
-                        -0.2189665183852,
-                        0.02115099616122,
-                        -0.2185348014378,
-                        -0.975599905659
+                        0.0,
+                        1.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        -1.0
                     ],
                     "ImagePositionPatient": [
-                        -34.535173195628,
-                        -116.24363930985,
-                        170.81859130542
+                        -0.0330286026001,
+                        -129.82733726501,
+                        113.79725690186
                     ],
                     "ImageType": [
                         "ORIGINAL",
                         "PRIMARY",
                         "M",
-                        "ND",
-                        "NORM"
+                        "NORM",
+                        "DIS3D",
+                        "DIS2D"
                     ],
                     "ImagedNucleus": "1H",
-                    "ImagingFrequency": 123.255263,
+                    "ImagingFrequency": 123.261679,
                     "InPlanePhaseEncodingDirection": "ROW",
-                    "InstanceCreationDate": "20190919",
-                    "InstanceCreationTime": "131530.233000",
-                    "InstanceNumber": 67,
-                    "InstitutionAddress": "Curie Blvd. 422,Philadelphia,PA,US,19104",
-                    "InstitutionName": "SC3T",
-                    "InversionTime": 1060,
-                    "LargestImagePixelValue": 1059,
+                    "InstanceCreationDate": "20200901",
+                    "InstanceCreationTime": "163842.213000",
+                    "InstanceNumber": 100,
+                    "InstitutionAddress": "Spruce Street 3400,Philadelphia,Pennsylvania,US,19104",
+                    "InstitutionName": "HUP",
+                    "InversionTime": 900,
+                    "LargestImagePixelValue": 1138,
                     "MRAcquisitionType": "3D",
                     "MagneticFieldStrength": 3,
                     "Manufacturer": "SIEMENS",
-                    "ManufacturerModelName": "Prisma",
+                    "ManufacturerModelName": "Prisma_fit",
                     "Modality": "MR",
                     "NumberOfAverages": 1,
-                    "NumberOfPhaseEncodingSteps": 299,
-                    "OperatorsName": "TK",
-                    "PatientAge": "081Y",
+                    "NumberOfPhaseEncodingSteps": 239,
+                    "OperatorsName": "JZ",
                     "PatientPosition": "HFS",
-                    "PatientSex": "M",
-                    "PatientSize": 1.8034036091667,
-                    "PatientWeight": 66.2244944442,
+                    "PatientSex": "F",
                     "PercentPhaseFieldOfView": 93.75,
                     "PercentSampling": 100,
-                    "PerformedProcedureStepDescription": "121668_20190919_3T",
-                    "PerformedProcedureStepID": "MR20190919125819",
-                    "PerformedProcedureStepStartDate": "20190919",
-                    "PerformedProcedureStepStartTime": "125819.512000",
+                    "PerformedProcedureStepDescription": "MR HEAD WO IV CONTRAST",
+                    "PerformedProcedureStepID": "E6783686",
+                    "PerformedProcedureStepStartDate": "20200901",
+                    "PerformedProcedureStepStartTime": "163114.454000",
                     "PhotometricInterpretation": "MONOCHROME2",
-                    "PixelBandwidth": 210,
+                    "PixelBandwidth": 240,
                     "PixelRepresentation": 0,
                     "PixelSpacing": [
-                        0.80000001192093,
-                        0.80000001192093
+                        1.0,
+                        1.0
                     ],
-                    "ProtocolName": "T1_3D_0.8x0.8x0.8",
-                    "RepetitionTime": 2400,
-                    "Rows": 320,
-                    "SAR": 0.07002368642817,
+                    "ProtocolName": "Accelerated Sagittal MPRAGE",
+                    "RepetitionTime": 2300,
+                    "RequestedProcedureDescription": "MR HEAD WO IV CONTRAST",
+                    "Rows": 256,
+                    "SAR": 0.04696951032087,
                     "SOPClassUID": "MR Image Storage",
-                    "SOPInstanceUID": "1.3.12.2.1107.5.2.43.66044.2019091913153011245845684",
+                    "SOPInstanceUID": "1.3.12.2.1107.5.2.43.167024.2020090116384137050021136",
                     "SamplesPerPixel": 1,
-                    "ScanOptions": [
-                        "IR",
-                        "WE"
-                    ],
+                    "ScanOptions": "IR",
                     "ScanningSequence": [
                         "GR",
                         "IR"
@@ -178,38 +176,38 @@
                         "SP",
                         "MP"
                     ],
-                    "SeriesDate": "20190919",
-                    "SeriesDescription": "T1_3D_0.8x0.8x0.8_ND",
-                    "SeriesInstanceUID": "1.3.12.2.1107.5.2.43.66044.2019091913152525696144849.0.0.0",
-                    "SeriesNumber": 11,
-                    "SeriesTime": "131525.726000",
-                    "SliceLocation": -34.675980478473,
-                    "SliceThickness": 0.79999995231628,
+                    "SeriesDate": "20200901",
+                    "SeriesDescription": "Accelerated Sagittal MPRAGE",
+                    "SeriesInstanceUID": "1.3.12.2.1107.5.2.43.167024.2020090116331392180219787.0.0.0",
+                    "SeriesNumber": 2,
+                    "SeriesTime": "163841.380000",
+                    "SliceLocation": -0.0330286026001,
+                    "SliceThickness": 1,
                     "SmallestImagePixelValue": 0,
                     "SoftwareVersions": "syngo MR E11",
                     "SpecificCharacterSet": "ISO_IR 100",
-                    "StationName": "AWP66044",
-                    "StudyComments": "121668@dwolklab:NACC-SC",
-                    "StudyDate": "20190919",
-                    "StudyDescription": "121668_20190919_3T",
-                    "StudyID": "1",
-                    "StudyInstanceUID": "1.3.12.2.1107.5.2.43.66044.30000019091913224771600000010",
-                    "StudyTime": "125819.425000",
+                    "StationName": "HUP FNDBA MR2",
+                    "StudyComments": "126324@dwolklab:NACC-SC",
+                    "StudyDate": "20200901",
+                    "StudyDescription": "BRAIN RESEARCH^WOLK",
+                    "StudyID": "450240997",
+                    "StudyInstanceUID": "1.2.840.114350.2.87.2.798268.2.450240995.1",
+                    "StudyTime": "163114.256000",
                     "TransmitCoilName": "Body",
                     "VariableFlipAngleFlag": "N",
-                    "WindowCenter": 489,
+                    "WindowCenter": 441,
                     "WindowCenterWidthExplanation": "Algo1",
-                    "WindowWidth": 987,
+                    "WindowWidth": 962,
                     "dBdt": 0
                 },
                 "measurements": [
                     "Structural",
-                    "3D",
+                    "MPRAGE",
                     "T1"
                 ],
                 "mimetype": "application/zip",
                 "modality": "MR",
-                "size": 25587440,
+                "size": 15462501,
                 "tags": [],
                 "type": "dicom"
             }

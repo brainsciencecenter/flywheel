@@ -106,8 +106,8 @@ qahvl=$INPUTDIR/bootstrap_corr_nogray_harp_left_qa.png
 qahvr=$INPUTDIR/bootstrap_corr_nogray_harp_right_qa.png
 
 wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep ICV | grep multiatlas | grep nogray | grep left | awk '{print $2}')") -O $qaicv
-wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep HARP | grep bootstrap | grep nogray | grep left | awk '{print $2}')") -O $qahvl
-wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep HARP | grep bootstrap | grep nogray | grep right | awk '{print $2}')") -O $qahvr
+wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep -P 'JLF/CL-lite|HARP' | grep bootstrap | grep nogray | grep left | awk '{print $2}')") -O $qahvl
+wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep -P 'JLF/CL-lite|HARP' | grep bootstrap | grep nogray | grep right | awk '{print $2}')") -O $qahvr
 
 echo "$OUTPUTDIR"
 
