@@ -105,9 +105,9 @@ qaicv=$INPUTDIR/multiatlas_corr_nogray_icv_qa.png
 qahvl=$INPUTDIR/bootstrap_corr_nogray_harp_left_qa.png
 qahvr=$INPUTDIR/bootstrap_corr_nogray_harp_right_qa.png
 
-wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep ICV | grep multiatlas | grep nogray | grep left | awk '{print $2}')") -O $qaicv
-wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep -P 'JLF/CL-lite|HARP' | grep bootstrap | grep nogray | grep left | awk '{print $2}')") -O $qahvl
-wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep -P 'JLF/CL-lite|HARP' | grep bootstrap | grep nogray | grep right | awk '{print $2}')") -O $qahvr
+wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep 'Seg.*QC.*left.*multi.*nogray' | tail -n 1 | awk '{print $2}')") -O $qaicv
+wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep 'Seg.*QC.*left.*boot.*nogray' | head -n 1 | awk '{print $2}')") -O $qahvl
+wget $(echo "$(itksnap-wt -dss-tickets-log $ticket | grep 'Seg.*QC.*right.*boot.*nogray' | head -n 1 | awk '{print $2}')") -O $qahvr
 
 echo "$OUTPUTDIR"
 
