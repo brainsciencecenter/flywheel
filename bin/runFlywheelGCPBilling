@@ -8,6 +8,25 @@
 #  FlywheelAllocationReport.csv -- YYYY-MM-FlywheelAllocationReport.csv
 #  GCPChargesWithFlywheelAllocation -- YYYY-MM-GCPChargesWithFlywheelAllocation.csv
 
+#
+# syntax
+# -d Report Directory - Directory to find the cost table and where to put the other reports
+# -y 4 digit year
+# -m 2 digit month
+# -c CostTable File path
+# -a Flywheel Allocation Report File Path
+# -j Jobs Report File Path
+# -f overwrite found reports
+# -g GCP Charges with Flywheel Allocation File Path
+# -u update the Big Query database
+#
+# Generate the data
+#    ./runnFlywheelGCPBilling 
+# Verify it
+# Rerun and upload
+#    ./runnFlywheelGCPBilling  -u
+
+
 CmdName=$(basename "$0")
 
 FlywheelStaticLabel='flywheel:infrastructure'
@@ -28,20 +47,19 @@ shift $(($OPTIND - 1))
 ReportDir=/tmp
 [ -n "$opt_d" ] && ReportDir="$opt_d"
 
-Year=$(date +%Y)
+#
+# We don't run this reports until the month has past
+# so we need last month for YYYY-MM
+# From: https://unix.stackexchange.com/questions/207617/how-does-the-1-month-ago-option-in-date-command-work
+
+nowmonth=$(date +%Y-%m-15)
+Year=$(date --date="$nowmonth -1 month" +'%Y')
 [ -n "$opt_y" ] && Year="$opt_y"
 
-Month=$(date +%m)
+Month=$(date --date="$nowmonth -1 month" +'%m')
 [ -n "$opt_m" ] && Month="$opt_m"
 
-NextYear="$Year"
-NextMonth=$(("$Month" + 1))
-if [ "$NextMonth" -gt 12 ]
-then
-	NextMonth=$(printf "%02d" $(("$NextMonth" - 12)))
-	NextYear=$(printf "%02d" $(("$NextYear" + 1)))
-fi
-NextYearMonth="${NextYear}-${NextMonth}"
+NextYearMonth=$(date --date="${Year}-${Month}-15 next month" +%Y-%m)
 
 CostTableFile="${ReportDir}/${Year}-${Month}-CostTable.csv"
 [ -n "$opt_c" ] && CostTableFile="$opt_c"
@@ -67,6 +85,7 @@ if [ -n "$opt_f" ] || [ ! -e "$FlywheelAllocationReportFile" ]
 then
 	flywheelGroupAllocationReport -m "$Month" -y "$Year" "$FlywheelAllocationReportFile"
 fi
+
 
 FlywheelJobsFile="${ReportDir}/${Year}-${Month}-Jobs.csv"
 [ -n "$opt_j" ] && FlywheelJobsFile="${opt_j}"
