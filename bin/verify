@@ -35,7 +35,7 @@ syntax="${CmdName} {-t c|g|i|j|u} [-D YYYY-MM-DD] [-d YYYY-MM-DD] [-F] [-f {Comp
 FlywheelDir=/home/holder/flywheel
 CondorYamlFile="$FlywheelDir/etc/condor.yml"
 
-CondorJson=$(yq -jP r "$CondorYamlFile" | jq .)
+CondorJson=$(yq -jP eval < "$CondorYamlFile" | jq .)
 
 function getHeaderIndicies() {
 

@@ -8,14 +8,16 @@ import os
 import re
 import sys
 
+from operator import itemgetter, attrgetter, methodcaller
+
 if __name__ == '__main__':
 
     CmdName = os.path.basename(sys.argv[0])
 
     ap = argparse.ArgumentParser()
 
-    ap.add_argument('-f', '--force', default=True,  action='store_true', help='overwrite existing deid profile already in projects')
-    ap.add_argument('-n', '--noop', default=True,  action='store_true', help='do not upload, only show what would be uploaded and to where')
+    ap.add_argument('-f', '--force', action='store_true', help='overwrite existing deid profile already in projects')
+    ap.add_argument('-n', '--noop', action='store_true', help='do not upload, only show what would be uploaded and to where')
     ap.add_argument('-p', '--deid-profile', type=str, help='file containing the de-id profile to upload')
     ap.add_argument('-r', '--root', default=True,  action='store_true', help='enable manager mode')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
@@ -23,7 +25,10 @@ if __name__ == '__main__':
 
     args = ap.parse_args()
 
+    ProfileFile = args.deid_profile
+
     fw = fwgearutils.getFW(args,args.root)
+
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
@@ -34,12 +39,13 @@ if __name__ == '__main__':
     else:
         projects = fw.get_all_projects(exhaustive=True)
 
-    for project in projects:
+    for project in sorted(projects, key=lambda p: "{}/{}".format(p.group, p.label)):
         project=project.reload()
-        print(project.group,project.label)
-        if (args.force or (not project.get_file('deid_profile.yaml'))):
-            #replace with local path of deid_profile.yaml
-            project.upload_file('deid_profile.yaml')
+        if (args.force or (not project.get_file(ProfileFile))):
+            if (args.noop or args.verbose):
+                print("{} uploading {} to {}/{}".format(CmdName,ProfileFile,project.group,project.label), file=sys.stderr)
+            if (not args.noop):
+                project.upload_file(ProfileFile)
         else:
-            print("deid_profile already in {}/{}".format(project.group,project.label))
+            print("{}: {} already in {}/{} and no -f".format(CmdName, ProfileFile, project.group, project.label))
 
