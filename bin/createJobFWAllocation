@@ -1,0 +1,242 @@
+#!/usr/bin/python3
+#Reaped Sessions
+
+import argparse
+import csv
+import flywheel
+import fwgearutils
+import json
+import os
+import pyjq
+import re
+import sys
+import yaml
+from pprint import pprint
+
+from collections import OrderedDict
+
+CmdName = os.path.basename(sys.argv[0])
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('-d', '--dynamic-flywheel-cost', action='store', help='Cost of dynamic vms')
+parser.add_argument('-m', '--ilabmap', action='store', help='iLab Service Request Map in yaml')
+parser.add_argument('-v', '--verbose', action='store_true', help='verbose')
+parser.add_argument('jobreport', nargs=1, help='Job Report in csv format')
+args = parser.parse_args()
+
+fw = fwgearutils.getFW(args)
+
+
+def initGCPEntry(
+        BillingAccountName=None,
+        BillingAccountID=None,
+        Group=None,
+        ProjectName=None,
+        ProjectID=None,
+        ServiceDescription=None,
+        ServiceID=None,
+        SKUDescription=None,
+        SKUID=None,
+        CostType=None,
+        UsageStartDate=None,
+        UsageEndDate=None,
+        UsageAmount=None,
+        UsageUnit=None,
+        Cost=None,
+        GearVersion=None,
+        GearCategory=None,
+        JobOriginID=None,
+        JobOriginType=None,
+        JobState=None,
+        JobCpus=None,
+        GCPCpus=None,
+        InitialAnalysis=None,
+        DynamicVMRatio=None,
+        ComputePercent=None,
+        StoragePercent=None
+):
+    Entry = OrderedDict([
+        ('Billing account name', BillingAccountName),
+        ('Billing account ID', BillingAccountID),
+        ( 'Group', group ),
+        ( 'Project name', ProjectName ),
+        ( 'Project ID', ProjectID),
+        ( 'Service description', ServiceDescription),
+        ( 'Service ID', ServiceID),
+        ( 'SKU description', SKUDescription),
+        ( 'SKU ID',  SKUID),
+        ( 'Cost type', CostType),
+        ( 'Usage start date', UsageStartDate),
+        ( 'Usage end date', UsageEndDate),
+        ( 'Usage amount', UsageAmount),
+        ( 'Usage unit', UsageUnit),
+        ( 'Cost ($)', Cost),
+        ( 'Gear version', GearVersion),
+        ( 'Gear category', GearCategory),
+        ( 'Job origin ID', JobOriginID),
+        ( 'Job origin type', JobOriginType), 
+        ( 'Job state', JobState),
+        ( 'Job cpus', JobCpus),
+        ( 'GCP cpus', GCPCpus),
+        ( 'Initial analysis', InitialAnalysis),
+        ( 'Dynamic VM Ratio', DynamicVMRatio),
+        ( 'Compute Percent', ComputePercent),
+        ( 'Storage Percent', StoragePercent)        
+    ])
+
+    return(Entry)
+
+def fixDate(d):
+    if (re.search('^\d{4}-\d{2}-\d{2}$', d)):
+        return(re.sub('$', ' 00:00:00 UTC', d))
+    else:
+        return(re.sub('\+00:00',' UTC',d))
+
+def betterFloat(s):
+    if (s == ''):
+        return(0.0)
+
+    return(float(re.sub(',','', s)))
+
+def isVM(row):
+    return( re.search('Compute Engine', row['Service description'])
+        and (  re.search('Instance Core', row['SKU description'])
+            or re.search('Small Instance', row['SKU description'])
+            or re.search('PD Capacity', row['SKU description'])
+            or re.search('Instance Ram', row['SKU description'])
+        ))
+
+def isDiscount(row):
+    return( re.search('(Spending based discounts)|(Sustained use discounts)', row['SKU description']))
+
+def isCompute(row):
+    return( re.search('Compute Engine', row['Service description']))
+
+def isCpu(row):
+    return( re.search('Compute Engine', row['Service description'])
+        and re.search('Instance Core', row['SKU description']))
+
+def isStorage(row):
+    return( re.search('Cloud Storage', row['Service description']))
+
+def isStandardStorage(row):
+    return( re.search('Cloud Storage', row['Service description'])
+        and re.search('Standard Storage', row['SKU description']))
+
+def isCostClassifier(CostType,Type):
+    return(re.search(Type, CostType))
+
+def isFlywheel(row):
+    return(re.search('upenn-flywheel',row['Project ID']))
+
+def getProjectGroup(iLabMap,alias):
+    try:
+        # way too many backslashes
+        # may need to do lots of re.escapes()
+        SafeAlias = re.sub('([\(\)])', r'\\\\\1', alias)
+        JqString = '.["RequestIds"][][]|select((.aliases[])|match("^{}$")) | .group'.format(SafeAlias)
+
+        res = pyjq.all(JqString, iLabMap)
+    except:
+        print("{}: No alias for '{}' '{}' in iLabMap.  JqString = '{}'".format(CmdName, alias, SafeAlias, JqString), file=sys.stderr)
+        res = []
+
+    if (len(res)):
+        return(res[0])
+    else:
+        return(None)
+
+def ms2Hours(ms):
+    return(float(ms)/1000.0/3600.0)
+
+
+CostTableEntries = []
+FlywheelJobEntries = []
+
+FlywheelGearGCPCpuHours = 0.0
+TotalFlywheelGearGCPCpuHours = 0.0
+
+TotalFlywheelDynamicVMCost = betterFloat(args.dynamic_flywheel_cost)
+
+with open(args.ilabmap) as ilabmapfile:
+    iLabMap = yaml.load(ilabmapfile, Loader=yaml.FullLoader)
+
+print("TotalFlywheelDynamicVMCost = ",TotalFlywheelDynamicVMCost, file=sys.stderr)
+
+TotalFlywheelGearCost = 0.0
+TotalCompletedJobCount = 0
+TotalNonCompletedJobCount = 0
+TotalInitialAnalysis = 0
+
+with open(args.jobreport[0], newline='') as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+    for row in reader:
+        group = row['group']
+        project = row['project']
+
+        try:
+            ms=betterFloat(row['job_elapsed_time_ms'])
+        except (ValueError) as e:
+            ms = 0.0
+
+        try:
+            cpus = betterFloat(row['gcp_cpus'])
+        except (ValueError) as e:
+            cpus = 0.0
+
+        if (row['job_state'] == 'complete'):
+            TotalCompletedJobCount += 1
+        else:
+            TotalNonCompletedJobCount += 1
+
+        try:
+            cpus = float(row['gcp_cpus'])
+        except (ValueError) as e:
+            cpus = 0.0
+
+        compute_ms = ms * cpus
+        FlywheelGearGCPCpuHours = ms2Hours(compute_ms)
+        TotalFlywheelGearGCPCpuHours += FlywheelGearGCPCpuHours
+
+        if (row['initial_analysis'] == "True"):
+            TotalInitialAnalysis += 1
+
+        Entry = initGCPEntry(
+            Group=group,
+            ProjectName=project,
+            ProjectID='upenn-flywheel',
+            ServiceDescription='Flywheel Gear',
+            SKUDescription=row['gear_name'],
+            UsageStartDate=fixDate(row['job_date']),
+            UsageEndDate=fixDate(row['job_date']),
+            UsageAmount=FlywheelGearGCPCpuHours,
+            UsageUnit='hours',
+            GearVersion=row['gear_version'],
+            GearCategory=row['gear_category'],
+            JobOriginID=row['job_origin_id'],
+            JobOriginType=row['job_origin_type'],
+            JobState=row['job_state'],
+            JobCpus=row['job_cpus'],
+            GCPCpus=row['gcp_cpus'],
+            InitialAnalysis=row['initial_analysis']
+        )
+
+        CostTableEntries.append(Entry)
+
+for Entry in CostTableEntries:
+    Entry['Cost ($)'] = TotalFlywheelDynamicVMCost * Entry['Usage amount']/TotalFlywheelGearGCPCpuHours 
+    TotalFlywheelGearCost += Entry['Cost ($)']
+
+print("TotalFlywheelGearCost = ", TotalFlywheelGearCost, file=sys.stderr)
+print("TotalCompletedJobCount = ", TotalCompletedJobCount, file=sys.stderr)
+print("TotalNonCompletedJobCount = ", TotalNonCompletedJobCount, file=sys.stderr)
+print("TotalJobCount = ", TotalNonCompletedJobCount + TotalCompletedJobCount, file=sys.stderr)
+print("TotalInitialAnalysis = ", TotalInitialAnalysis, file=sys.stderr)
+
+writer = csv.DictWriter(sys.stdout, CostTableEntries[0].keys())
+writer.writeheader()
+for row in CostTableEntries:
+    writer.writerow(row)
+
