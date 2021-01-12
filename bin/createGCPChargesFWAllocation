@@ -321,6 +321,9 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
         if (not row['Project ID']):
             continue
 
+#        if (re.search('PROMOTION',row['Credit type'])):
+#            continue
+
         if (isCpu(row)):
             # *** adjust for incorporating discounts
             if (   betterFloat(row['Cost ($)']) > 0.0
@@ -504,7 +507,7 @@ if (args.flywheel_jobs_report):
                 ProjectName=project,
                 ProjectID='upenn-flywheel',
                 ServiceDescription='Flywheel Gear',
-                SKUDescription=row['gear_name'],
+                 SKUDescription=row['gear_name'],
                 UsageStartDate=fixDate(row['job_date']),
                 UsageEndDate=fixDate(row['job_date']),
                 UsageAmount=FlywheelGearGCPCpuHours,

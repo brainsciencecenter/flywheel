@@ -112,7 +112,7 @@ function sliceNDice {
 		  ;;
 	      
 	      j)
-		  Fields=$(echo "$HeaderLine" | getHeaderIndicies gear_name gear_category job_origin_id job_state job_elapsed_time_ms gcp_cpus gcp_compute_percent initial_analysis group project gcp_compute_cost)
+		  Fields=$(echo "$HeaderLine" | getHeaderIndicies gear_name gear_version gear_category job_origin_id job_origin_type job_state job_elapsed_time_ms job_runtime_ms gcp_cpus gcp_compute_percent initial_analysis group project gcp_compute_cost)
 		  echo "$HeaderLine" | csvcut -c "$Fields"
 		  csvcut -c "$Fields"
 		  ;;
@@ -201,7 +201,7 @@ function total {
 		;;
 		
 	    j)
-		Fields=$(echo "$HeaderLine" | getHeaderIndicies gear_name gear_version gear_category job_origin_id job_origin_type job_runtime_ms)
+		Fields=$(echo "$HeaderLine" | getHeaderIndicies job_state job_runtime_ms gcp_cpus gcp_compute_percent initial_analysis gcp_compute_cost)
 		if [ -n "$Header" ]
 		then
 		    echo "$HeaderLine" | csvcut -c "$Fields" | sed 's/job_state/job_count/; s/job_elapsed_time_ms,gcp_cpus/gcp_compute_hours/'
