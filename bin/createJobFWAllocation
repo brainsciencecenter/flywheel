@@ -230,6 +230,7 @@ for Entry in CostTableEntries:
     TotalFlywheelGearCost += Entry['Cost ($)']
 
 print("TotalFlywheelGearCost = ", TotalFlywheelGearCost, file=sys.stderr)
+print("AverageGearCostPerCPUHour = ", TotalFlywheelGearCost / TotalFlywheelGearGCPCpuHours, file=sys.stderr)
 print("TotalCompletedJobCount = ", TotalCompletedJobCount, file=sys.stderr)
 print("TotalNonCompletedJobCount = ", TotalNonCompletedJobCount, file=sys.stderr)
 print("TotalJobCount = ", TotalNonCompletedJobCount + TotalCompletedJobCount, file=sys.stderr)
