@@ -93,7 +93,7 @@ function sliceNDice {
 		  ;;
 
 	      g)
-		  Fields=$(echo "$HeaderLine" | getHeaderIndicies "Group" "Project name" "Project ID" "Service description" "SKU description" "Usage amount" "Usage unit" "Cost \(\\\$\)")
+		  Fields=$(echo "$HeaderLine" | getHeaderIndicies "Group" "Project name" "Project ID" "Service description" "SKU description" 'Labels' "Usage amount" "Usage unit" "Cost \(\\\$\)")
 		  echo "$HeaderLine" | csvcut -c "$Fields"
 		  csvcut -c "$Fields" | grep -v -i Promotion 
 		  ;;

@@ -78,7 +78,7 @@ FlywheelTotalCoreHours=$(verify -F -f Core -t c "$CostTableFile" | csvcut -c 1 |
 FlywheelStaticCoreHours=$(verify -F -f Static-Core -t c "$CostTableFile" | csvcut -c 1 | tail -n 1)
 FlywheelDynamicCoreHours=$(echo "scale = 2; $FlywheelTotalCoreHours - $FlywheelStaticCoreHours" | bc)
 
-FlywheelAllocationReportFile="${ReportDir}/${Year}-${Month}-FlywheelAllocationReport"
+FlywheelAllocationReportFile="${ReportDir}/${Year}-${Month}-FlywheelAllocationReport.csv"
 [ -n "$opt_a" ] && FlywheelAllocationReportFile="$opt_a"
 
 if [ -n "$opt_f" ] || [ ! -e "$FlywheelAllocationReportFile" ]
@@ -100,7 +100,7 @@ GCPChargesWithFlywheelAllocationFile="${ReportDir}/${Year}-${Month}-GCPChargesWi
 
 if [ -n "$opt_f" ] || [ ! -e "$GCPChargesWithFlywheelAllocationFile" ]
 then
-	createGCPChargesFWAllocation -d "$FlywheelDynamicCoreHours" -j "$FlywheelJobsFile" -f "$FlywheelAllocationReportFile" -m "$iLabServiceRequestMapFile" "$CostTableFile" > "$GCPChargesWithFlywheelAllocationFile"
+	createGCPChargesFWAllocation -d "$FlywheelDynamicCoreHours" -i "${Year}-${month}" -j "$FlywheelJobsFile" -f "$FlywheelAllocationReportFile" -m "$iLabServiceRequestMapFile" "$CostTableFile" > "$GCPChargesWithFlywheelAllocationFile"
 fi
 
 if [ -n "$opt_u" ]

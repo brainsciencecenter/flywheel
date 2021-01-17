@@ -19,15 +19,19 @@ CmdName = os.path.basename(sys.argv[0])
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('-j', '--flywheel-jobs-report', action='store', help='getJobs files in csv format')
-parser.add_argument('-f', '--flywheel-usage-report', action='store', help='Flywheel Usage Report in csv format')
-parser.add_argument('-m', '--ilabmap', action='store', help='iLab Service Request Map in yaml')
 parser.add_argument('-d', '--dynamic-gcp-hours', action='store', help='static VM gcp hours')
+parser.add_argument('-f', '--flywheel-usage-report', action='store', help='Flywheel Usage Report in csv format')
+parser.add_argument('-i', '--invoice-month', action='store', required=True, help='cost-table invoice month - YYYY-MM')
+parser.add_argument('-j', '--flywheel-jobs-report', action='store', help='getJobs files in csv format')
+parser.add_argument('-m', '--ilabmap', action='store', help='iLab Service Request Map in yaml')
 parser.add_argument('-v', '--verbose', action='store_true', help='verbose')
 parser.add_argument('gcp_cost_table', nargs=1, help='GCP Cost Table Report in csv format')
 args = parser.parse_args()
 
 fw = fwgearutils.getFW(args)
+
+InvoiceMonth=args.invoice_month
+print("InvoiceMonth = ", InvoiceMonth, file=sys.stderr)
 
 FlywheelUsageComputeHours = 0.0
 FlywheelUsageStorageBytes = 0.0
@@ -72,9 +76,11 @@ def initGCPEntry(
         JobCpus=None,
         GCPCpus=None,
         InitialAnalysis=None,
+        Labels=None,
         DynamicVMRatio=None,
         ComputePercent=None,
-        StoragePercent=None
+        StoragePercent=None,
+        InvoiceMonth=None
 ):
     Entry = OrderedDict([
         ('Billing account name', BillingAccountName),
@@ -100,9 +106,11 @@ def initGCPEntry(
         ( 'Job cpus', JobCpus),
         ( 'GCP cpus', GCPCpus),
         ( 'Initial analysis', InitialAnalysis),
+        ( 'Labels', Labels),
         ( 'Dynamic VM Ratio', DynamicVMRatio),
         ( 'Compute Percent', ComputePercent),
-        ( 'Storage Percent', StoragePercent)        
+        ( 'Storage Percent', StoragePercent),
+        ( 'Invoice Month', InvoiceMonth)
     ])
 
     return(Entry)
@@ -208,7 +216,7 @@ FlywheelJobEntries = []
 FlywheelGearGCPCpuHours = 0.0
 TotalFlywheelGearGCPCpuHours = 0.0
 
-# Stomp over the cpu percents from the usage report
+# Stomp over the cpu percents from the usage report because they're bogus
 for e in FlywheelProjectEntries.values():
     e['compute']['used'] = 0.0
 
@@ -309,6 +317,13 @@ TotalFlywheelCharges = 0.0
 CostTableEntries = []
 FlywheelCostTableEntries = []
 
+SummaryLines = 0
+PromotionLines = 0
+ChargeLines = 0
+
+FlywheelComputeEngineRows = 0
+
+
 with open(args.gcp_cost_table[0], newline='') as csvfile:
     reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
 
@@ -319,11 +334,14 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
         # ,,,,Rounding error,,,,,,
         # ,,,,Total,,,,,0.00,
         if (not row['Project ID']):
+            SummaryLines += 1
             continue
 
-#        if (re.search('PROMOTION',row['Credit type'])):
-#            continue
+        if (re.search('PROMOTION',row['Credit type'])):
+            PromotionLines += 1
+            continue
 
+        ChargeLines += 1
         if (isCpu(row)):
             # *** adjust for incorporating discounts
             if (   betterFloat(row['Cost ($)']) > 0.0
@@ -334,28 +352,28 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
             
         if (isFlywheel(row)):
             # *** adjust for incorporating discounts
-            if (  betterFloat(row['Cost ($)']) > 0.0
-                  or isDiscount(row) ):
-                TotalFlywheelCharges += betterFloat(row['Cost ($)'])
+#            if (  betterFloat(row['Cost ($)']) > 0.0
+#                  or isDiscount(row) ):
+            TotalFlywheelCharges += betterFloat(row['Cost ($)'])
 
+            if (isCompute(row)):
+               FlywheelComputeEngineRows += 1 
+               TotalGCPFlywheelComputeCost += betterFloat(row['Cost ($)'])
 
-                if (isCompute(row)):
-                    TotalGCPFlywheelComputeCost += betterFloat(row['Cost ($)'])
-            
-                if (isStorage(row)):
-                    TotalGCPFlywheelStorageGB += betterFloat(row['Usage amount'])
-                    TotalGCPFlywheelStorageCost += betterFloat(row['Cost ($)'])
-            
-                if (isStandardStorage(row)):
-                    TotalGCPFlywheelStandardStorageGB += betterFloat(row['Usage amount'])
-                    TotalGCPFlywheelStandardStorageCost += betterFloat(row['Cost ($)'])
-            
-                if (isCpu(row)):
-                    TotalFlywheelCoreHours += betterFloat(row['Usage amount'])
-                    TotalFlywheelCoreCost += betterFloat(row['Cost ($)'])
+            if (isStorage(row)):
+                TotalGCPFlywheelStorageGB += betterFloat(row['Usage amount'])
+                TotalGCPFlywheelStorageCost += betterFloat(row['Cost ($)'])
 
-                if (isVM(row)):
-                    TotalFlywheelVMCost += betterFloat(row['Cost ($)'])
+            if (isStandardStorage(row)):
+                TotalGCPFlywheelStandardStorageGB += betterFloat(row['Usage amount'])
+                TotalGCPFlywheelStandardStorageCost += betterFloat(row['Cost ($)'])
+
+            if (isCpu(row)):
+                TotalFlywheelCoreHours += betterFloat(row['Usage amount'])
+                TotalFlywheelCoreCost += betterFloat(row['Cost ($)'])
+
+            if (isVM(row)):
+                TotalFlywheelVMCost += betterFloat(row['Cost ($)'])
         else:
                 res = getProjectGroup(iLabMap,row['Project ID'])
 
@@ -381,7 +399,9 @@ with open(args.gcp_cost_table[0], newline='') as csvfile:
                 UsageEndDate=fixDate(row['Usage end date']),
                 UsageAmount=betterFloat(row['Usage amount']),
                 UsageUnit=row['Usage unit'],
-                Cost=betterFloat(row['Cost ($)'])
+                Cost=betterFloat(row['Cost ($)']),
+                Labels=row['Labels'],
+                InvoiceMonth=InvoiceMonth
             )
 
             if (isFlywheel(row)):
@@ -395,6 +415,13 @@ else:
     DynamicVMRatio = 1.0
 
 TotalFlywheelDynamicVMCost = TotalFlywheelVMCost * DynamicVMRatio
+
+print("CostTableSummaryLines = ",SummaryLines, file=sys.stderr)
+print("CostTablePromotionLines = ",PromotionLines, file=sys.stderr)
+print("CostTableChargeLines = ", ChargeLines, file=sys.stderr)
+print("CostTableLines = ", SummaryLines + PromotionLines + ChargeLines + 1, file=sys.stderr)
+
+print("FlywheelComputeEngineRows = ", FlywheelComputeEngineRows, file=sys.stderr)
 
 print("DynamicVMRatio = {}".format(DynamicVMRatio), file=sys.stderr)
 print("TotalFlywheelCharges = {}".format(TotalFlywheelCharges), file=sys.stderr)
@@ -460,75 +487,14 @@ for fe in FlywheelCostTableEntries:
             UsageAmount=usage,
             UsageUnit=fe['Usage unit'],
             Cost=cost,
-            DynamicVMRatio=DynamicVMRatio
+            DynamicVMRatio=DynamicVMRatio,
+            Labels=fe['Labels'],
+            InvoiceMonth=InvoiceMonth
         )
 
         CostTableEntries.append(Entry)
     
-TotalFlywheelGearCost = 0.0
-TotalJobCount = 0
-
-# rezero this 
-TotalInitialAnalysis = 0
-
-if (args.flywheel_jobs_report):
-    with open(args.flywheel_jobs_report, newline='') as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
-
-        for row in reader:
-            group = row['group']
-            project = row['project']
-
-            try:
-                ms=float(row['job_elapsed_time_ms'])
-            except (ValueError) as e:
-                ms = 0.0
-
-            try:
-                cpus = float(row['gcp_cpus'])
-            except (ValueError) as e:
-                cpus = 0.0
-
-            compute_ms = ms * cpus
-            FlywheelGearGCPCpuHours = ms2Hours(compute_ms)
-            FlywheelGearCost = TotalFlywheelDynamicVMCost * FlywheelGearGCPCpuHours/TotalFlywheelGearGCPCpuHours 
-
-            if (row['job_state'] == 'complete'):
-                TotalJobCount += 1
-
-            TotalFlywheelGearCost += FlywheelGearCost 
-            if (row['initial_analysis'] == "True"):
-                TotalInitialAnalysis += 1
-
-            FlywheelProjectKey = '{},{}'.format(group,project)
-
-            Entry = initGCPEntry(
-                Group=group,
-                ProjectName=project,
-                ProjectID='upenn-flywheel',
-                ServiceDescription='Flywheel Gear',
-                 SKUDescription=row['gear_name'],
-                UsageStartDate=fixDate(row['job_date']),
-                UsageEndDate=fixDate(row['job_date']),
-                UsageAmount=FlywheelGearGCPCpuHours,
-                UsageUnit='hours',
-                Cost=FlywheelGearCost,
-                GearVersion=row['gear_version'],
-                GearCategory=row['gear_category'],
-                JobOriginID=row['job_origin_id'],
-                JobOriginType=row['job_origin_type'],
-                JobState=row['job_state'],
-                JobCpus=row['job_cpus'],
-                GCPCpus=row['gcp_cpus'],
-                InitialAnalysis=row['initial_analysis']
-            )
-
-            CostTableEntries.append(Entry)
-
-print("TotalFlywheelGearCpuCost = ", TotalFlywheelGearCost, file=sys.stderr)
-print("TotalJobCount = ", TotalJobCount, file=sys.stderr)
-print("TotalInitialAnalysis = ", TotalInitialAnalysis, file=sys.stderr)
-writer = csv.DictWriter(sys.stdout, CostTableEntries[0].keys())
+writer = csv.DictWriter(sys.stdout, CostTableEntries[0].keys(), lineterminator='\n')
 writer.writeheader()
 for row in CostTableEntries:
     writer.writerow(row)
