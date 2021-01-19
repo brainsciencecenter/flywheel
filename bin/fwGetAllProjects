@@ -14,7 +14,6 @@ import csv
 import flywheel
 import fwgearutils
 import json
-import pyprog
 import re
 import sys
 
@@ -37,6 +36,6 @@ Projects = fw.get_all_projects()
 AllProjects = []
 
 for p in Projects:
-  AllProjects.append(p.label)
+  AllProjects.append({'group': p.group, 'project': p.label, 'project_uuid': p.id})
 
 print(json.dumps(AllProjects, indent=2))

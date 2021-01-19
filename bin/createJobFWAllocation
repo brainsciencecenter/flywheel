@@ -20,10 +20,13 @@ CmdName = os.path.basename(sys.argv[0])
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-d', '--dynamic-flywheel-cost', action='store', help='Cost of dynamic vms')
+parser.add_argument('-i', '--invoice-month', action='store', required=True, help='cost-table invoice month - YYYY-MM')
 parser.add_argument('-m', '--ilabmap', action='store', help='iLab Service Request Map in yaml')
 parser.add_argument('-v', '--verbose', action='store_true', help='verbose')
 parser.add_argument('jobreport', nargs=1, help='Job Report in csv format')
 args = parser.parse_args()
+
+InvoiceMonth=args.invoice_month
 
 fw = fwgearutils.getFW(args)
 
@@ -51,10 +54,12 @@ def initGCPEntry(
         JobState=None,
         JobCpus=None,
         GCPCpus=None,
-        InitialAnalysis=None,
+        InitialAnalysis=0,
+        Labels=None,
         DynamicVMRatio=None,
         ComputePercent=None,
-        StoragePercent=None
+        StoragePercent=None,
+        InvoiceMonth=None
 ):
     Entry = OrderedDict([
         ('Billing account name', BillingAccountName),
@@ -80,9 +85,11 @@ def initGCPEntry(
         ( 'Job cpus', JobCpus),
         ( 'GCP cpus', GCPCpus),
         ( 'Initial analysis', InitialAnalysis),
+        ( 'Labels', Labels),
         ( 'Dynamic VM Ratio', DynamicVMRatio),
         ( 'Compute Percent', ComputePercent),
-        ( 'Storage Percent', StoragePercent)        
+        ( 'Storage Percent', StoragePercent),
+        ( 'Invoice Month', InvoiceMonth)
     ])
 
     return(Entry)
@@ -220,7 +227,9 @@ with open(args.jobreport[0], newline='') as csvfile:
             JobState=row['job_state'],
             JobCpus=row['job_cpus'],
             GCPCpus=row['gcp_cpus'],
-            InitialAnalysis=row['initial_analysis']
+            InitialAnalysis=row['initial_analysis'],
+            Labels=None,
+            InvoiceMonth=InvoiceMonth
         )
 
         CostTableEntries.append(Entry)

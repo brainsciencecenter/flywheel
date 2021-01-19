@@ -77,6 +77,9 @@ FlywheelTotalGCPComputeCost=$(verify -F -f Compute -t c "$CostTableFile" | csvcu
 FlywheelTotalCoreHours=$(verify -F -f Core -t c "$CostTableFile" | csvcut -c 1 | tail -n 1)
 FlywheelStaticCoreHours=$(verify -F -f Static-Core -t c "$CostTableFile" | csvcut -c 1 | tail -n 1)
 FlywheelDynamicCoreHours=$(echo "scale = 2; $FlywheelTotalCoreHours - $FlywheelStaticCoreHours" | bc)
+FlywheelVMCost=$(verify -F -f VM -t c "$CostTableFile" | csvcut -c 2 | tail -n 1)
+FlywheelStaticVMCost=$(verify -F -f Static-VM -t c "$CostTableFile" | csvcut -c 2 | tail -n 1)
+FlywheelDynamicVMCost=$(echo "scale = 2; $FlywheelVMCost - $FlywheelStaticVMCost" | bc)
 
 FlywheelAllocationReportFile="${ReportDir}/${Year}-${Month}-FlywheelAllocationReport.csv"
 [ -n "$opt_a" ] && FlywheelAllocationReportFile="$opt_a"
@@ -86,13 +89,18 @@ then
 	flywheelGroupAllocationReport -m "$Month" -y "$Year" "$FlywheelAllocationReportFile"
 fi
 
-
 FlywheelJobsFile="${ReportDir}/${Year}-${Month}-Jobs.csv"
 [ -n "$opt_j" ] && FlywheelJobsFile="${opt_j}"
 
 if [ -n "$opt_f" ] || [ ! -e "$FlywheelJobsFile" ]
 then
 	getJobs -i -p -c "$FlywheelTotalGCPComputeCost" -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$FlywheelJobsFile"
+fi
+
+FlywheelJobCostAllocationFile="${ReportDir}/${Year}-${Month}-JobFWCostAllocation.csv"
+if [ -n "$opt_f" ] || [ ! -e "$FlywheelJobCostAllocationFile" ]
+then
+    createJobFWAllocation -d "$FlywheelDynamicVMCost" -i "${Year}-${Month}" -m "$iLabServiceRequestMapFile" "$FlywheelJobsFile" > "$FlywheelJobCostAllocationFile"
 fi
 
 GCPChargesWithFlywheelAllocationFile="${ReportDir}/${Year}-${Month}-GCPChargesWithFlywheelAllocation.csv"
@@ -103,8 +111,19 @@ then
 	createGCPChargesFWAllocation -d "$FlywheelDynamicCoreHours" -i "${Year}-${month}" -j "$FlywheelJobsFile" -f "$FlywheelAllocationReportFile" -m "$iLabServiceRequestMapFile" "$CostTableFile" > "$GCPChargesWithFlywheelAllocationFile"
 fi
 
+for i in Bucket Coldline Misc MiscStorage Compute Core Gcp Gear Ram Static, Static-Core Storage VM
+do
+    CostTableValue=$(verify -F -t c -f "$i" "$CostTableFile" | csvcut -c 2 | tail -n 1)
+    GCPChargesValue=$(verify -F -t g -f "$i" "$GCPChargesWithFlywheelAllocationFile" | csvcut -c 2 | tail -n 1)
+
+    Diff=$(echo "scale=2; ${CostTableValue} - ${GCPChargesValue}" | bc)
+
+    echo "$i: ${Diff}" 1>&2
+done
+
 if [ -n "$opt_u" ]
 then
+	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --autodetect --noreplace --source_format=CSV BillingAllocation.GCPChargesWithFlywheelAllocation "$FlywheelJobCostAllocationFile"
 	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --autodetect --noreplace --source_format=CSV BillingAllocation.GCPChargesWithFlywheelAllocation "$GCPChargesWithFlywheelAllocationFile"
 fi
 

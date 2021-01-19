@@ -302,6 +302,10 @@ function filter {
 		    allOrFlywheel | grep 'flywheel:infrastructure' | grep 'Core'
 		    ;;
 
+		Static-VM)
+		    allOrFlywheel | grep 'flywheel:infrastructure' | grep -P 'Instance Core|Small Instance|PD Capacity|Instance Ram'
+		    ;;
+
 		Storage)
 		    allOrFlywheel | grep 'Cloud Storage'
 		    ;;

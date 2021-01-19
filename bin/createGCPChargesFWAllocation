@@ -31,7 +31,6 @@ args = parser.parse_args()
 fw = fwgearutils.getFW(args)
 
 InvoiceMonth=args.invoice_month
-print("InvoiceMonth = ", InvoiceMonth, file=sys.stderr)
 
 FlywheelUsageComputeHours = 0.0
 FlywheelUsageStorageBytes = 0.0
@@ -75,7 +74,7 @@ def initGCPEntry(
         JobState=None,
         JobCpus=None,
         GCPCpus=None,
-        InitialAnalysis=None,
+        InitialAnalysis=0,
         Labels=None,
         DynamicVMRatio=None,
         ComputePercent=None,
