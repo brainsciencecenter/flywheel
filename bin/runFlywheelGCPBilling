@@ -108,7 +108,7 @@ GCPChargesWithFlywheelAllocationFile="${ReportDir}/${Year}-${Month}-GCPChargesWi
 
 if [ -n "$opt_f" ] || [ ! -e "$GCPChargesWithFlywheelAllocationFile" ]
 then
-	createGCPChargesFWAllocation -d "$FlywheelDynamicCoreHours" -i "${Year}-${month}" -j "$FlywheelJobsFile" -f "$FlywheelAllocationReportFile" -m "$iLabServiceRequestMapFile" "$CostTableFile" > "$GCPChargesWithFlywheelAllocationFile"
+	createGCPChargesFWAllocation -d "$FlywheelDynamicCoreHours" -i "${Year}-${Month}" -j "$FlywheelJobsFile" -f "$FlywheelAllocationReportFile" -m "$iLabServiceRequestMapFile" "$CostTableFile" > "$GCPChargesWithFlywheelAllocationFile"
 fi
 
 for i in Bucket Coldline Misc MiscStorage Compute Core Gcp Gear Ram Static, Static-Core Storage VM

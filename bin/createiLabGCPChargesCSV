@@ -29,6 +29,9 @@ ap.add_argument('gcpcharges', nargs='+', type=str, default=None, help='GCP Charg
 
 args = ap.parse_args()
 
+BscOverheadPercent = 0.37
+BscProjectCharge = 10
+
 def initTotalCosts():
     TotalCosts = {}
 
@@ -136,64 +139,66 @@ with open(args.ilabmapfile) as file:
 GcpCharges = {}
 MissingServiceRequestIds = {}
 
-with open(args.gcpcharges[0], newline='') as csvfile:
-    reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+for charges in args.gcpcharges:
+    with open(charges, newline='') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
 
-    for row in reader:
+        for row in reader:
 
-        Cost=float(row['Cost ($)'])
+            Cost=float(row['Cost ($)'])
 
-        if (   (Cost >= 0.0) 
-            or (re.search('^.*Spending based discounts.*$',row['SKU description']))
-            or (re.search('^.*Sustained use discounts.*$',row['SKU description']))):
-            True
-        else:
-            continue
+#
+#            if (   (Cost >= 0.0) 
+#                or (re.search('^.*Spending based discounts.*$',row['SKU description']))
+#                or (re.search('^.*Sustained use discounts.*$',row['SKU description']))):
+#                True
+#            else:
+#                continue
 
-        if (args.flywheel_only and not (isFlywheel(row))):
-            continue
-        
-        GcpChargeKey = makeGcpChargeKey(row)
+            if (args.flywheel_only and not (isFlywheel(row))):
+                continue
 
-        if (GcpChargeKey in GcpCharges):
-            GroupProjectCharges = GcpCharges[GcpChargeKey]
-        else:
-            ServiceRequestId = getServiceRequestId(iLabMap,GcpChargeKey)
-            print("Service Request for {} is '{}'".format(GcpChargeKey,ServiceRequestId), file=sys.stderr)
-            if (ServiceRequestId == None):
-                if (args.all_group_projects):
-                    ServiceRequestId = GcpChargeKey
-                else:
-                    if (GcpChargeKey in MissingServiceRequestIds.keys()):
-                        True
-                    else:
-                        MissingServiceRequestIds[GcpChargeKey] = 1
-                        print("{}: No Service Request Id for '{}'".format(CmdName, GcpChargeKey), file=sys.stderr)
-                    continue
-                
-            if (not re.search('^\d+$',str(ServiceRequestId))):
-                if (not args.all_group_projects):
-                    print("{}: Service Request Id '{}' for '{}' not numeric".format(CmdName, ServiceRequestId, GcpChargeKey), file=sys.stderr)
-                    continue
+            GcpChargeKey = makeGcpChargeKey(row)
 
-            GroupProjectCharges = initGroupProjectCharge(
-                ServiceRequestId=ServiceRequestId
-            )
-            GcpCharges[GcpChargeKey] = GroupProjectCharges
-
-
-        if (isVmCharge(row)):
-            GroupProjectCharges['Vm'] += float(Cost)
-            if (row['Dynamic VM Ratio']):
-                GroupProjectCharges['DynamicVmRatio'] = float(row['Dynamic VM Ratio'])
+            if (GcpChargeKey in GcpCharges):
+                GroupProjectCharges = GcpCharges[GcpChargeKey]
             else:
-                GroupProjectCharges['DynamicVmRatio'] = 1.0
-        else:
-            ChargeType = getChargeType(row)
-            GroupProjectCharges[ChargeType] += Cost
+                ServiceRequestId = getServiceRequestId(iLabMap,GcpChargeKey)
+                print("Service Request for {} is '{}'".format(GcpChargeKey,ServiceRequestId), file=sys.stderr)
+                if (ServiceRequestId == None):
+                    if (args.all_group_projects):
+                        ServiceRequestId = GcpChargeKey
+                    else:
+                        if (GcpChargeKey in MissingServiceRequestIds.keys()):
+                            True
+                        else:
+                            MissingServiceRequestIds[GcpChargeKey] = 1
+                            print("{}: No Service Request Id for '{}'".format(CmdName, GcpChargeKey), file=sys.stderr)
+                        continue
 
-        if(isInitialAnalysis(row)):
-            GroupProjectCharges['InitialAnalysisCount'] += 1
+                if (not re.search('^\d+$',str(ServiceRequestId))):
+                    if (not args.all_group_projects):
+                        print("{}: Service Request Id '{}' for '{}' not numeric".format(CmdName, ServiceRequestId, GcpChargeKey), file=sys.stderr)
+                        continue
+
+                GroupProjectCharges = initGroupProjectCharge(
+                    ServiceRequestId=ServiceRequestId
+                )
+                GcpCharges[GcpChargeKey] = GroupProjectCharges
+
+
+            if (isVmCharge(row)):
+                GroupProjectCharges['Vm'] += float(Cost)
+                if (row['Dynamic VM Ratio']):
+                    GroupProjectCharges['DynamicVmRatio'] = float(row['Dynamic VM Ratio'])
+                else:
+                    GroupProjectCharges['DynamicVmRatio'] = 1.0
+            else:
+                ChargeType = getChargeType(row)
+                GroupProjectCharges[ChargeType] += Cost
+
+            if(isInitialAnalysis(row)):
+                GroupProjectCharges['InitialAnalysisCount'] += 1
 
 if (len(GcpCharges) > 0):
     print("service_id,note,service_quantity,price,purchased_on,service_request_id,owner_email,pi_email_or_group_id,payment_number")
@@ -211,32 +216,35 @@ for GroupProjectKey in sorted(GcpCharges.keys()):
 
     if (args.bsc_overhead_percent):
         BscOverheadPercent = float(args.bsc_overhead_percent)
-    else:
-        BscOverheadPercent = 0.36
 
-    BscOverheadCharge = (StorageCharge * BscOverheadPercent) + (InitialAnalysisCount * 25.0)
+    BscOverheadCharge = (StorageCharge * BscOverheadPercent) + (InitialAnalysisCount * 25.0) 
 
-    # *** ';' work like ',' for iLab.  and you can't quote them
-    Note = "%s: Dynamic Vm: %.2f  Storage: %.2f  BSC Overhead: %.2f  Initial Analysis: %.2f" % (
+    # *** ';' works like ',' for iLab.  and you can't quote them
+    Note = "%s: Dynamic Vm: %.2f  Storage: %.2f  BSC Overhead: %.2f  BSC Project: %.2f Initial Analysis: %.2f" % (
         GroupProjectKey,
         DynamicVmCharge,
         StorageCharge,
         BscOverheadCharge,
+        BscProjectCharge,
         InitialAnalysisCount,
     )
 
-    Quantity = round(DynamicVmCharge + StorageCharge + BscOverheadCharge,2)
+    Quantity = 0.0
+    if ((DynamicVmCharge + StorageCharge) >= 0.01):
+        Quantity = round(DynamicVmCharge + StorageCharge + BscOverheadCharge + BscProjectCharge,  2)
     
-    Price = ""
-    if (args.zero):
-        Price = 0
+    Price = 0.0
 
+    if (not args.zero):
+        if (BscOverheadCharge >= 0.01):
+            Price = BscOverheadCharge + BscProjectCharge
+            
     if (args.all_group_projects or Quantity > 0.0):
         print("{},{},{},{},,{},,,".format(
             ServiceId,
             Note,
             "%.2f" % float(Quantity),
-            Price,
+            "%.2f" % float(Price),
             ServiceRequestId))
 
 

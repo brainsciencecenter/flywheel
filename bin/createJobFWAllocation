@@ -54,7 +54,7 @@ def initGCPEntry(
         JobState=None,
         JobCpus=None,
         GCPCpus=None,
-        InitialAnalysis=0,
+        InitialAnalysis=False,
         Labels=None,
         DynamicVMRatio=None,
         ComputePercent=None,

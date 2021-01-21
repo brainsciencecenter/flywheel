@@ -44,7 +44,10 @@ if (len(data) > 0):
     writer.writeheader()
 
     for row in data:
-            writer.writerow(row)
+        if ((row['session_count'] == 0) and (row['total_storage_byte_day'] == 0)):
+            continue
+
+        writer.writerow(row)
 
 else:
     print("No data for {}-{}".format(Year,Month), file=sys.stderr)
