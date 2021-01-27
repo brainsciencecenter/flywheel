@@ -1,0 +1,337 @@
+#!/usr/bin/python3
+#Reaped Sessions
+
+import argparse
+import csv
+import flywheel
+import fwgearutils
+import json
+import os
+import pyjq
+import re
+import sys
+import yaml
+from pprint import pprint
+
+from collections import OrderedDict
+
+CmdName = os.path.basename(sys.argv[0])
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('-f', '--flywheel-only', action='store_true', help='only process flywheel charges')
+parser.add_argument('-g', '--gears', action='store_true', help='print gear report')
+parser.add_argument('-i', '--invoice-month', action='store', help='invoice month of the report')
+parser.add_argument('-p', '--project', action='store_true', help='print project report')
+parser.add_argument('-t', '--total', action='store_true', help='print total charges')
+parser.add_argument('report', nargs="*", help='GCPChargesWithFlywheelAllocation and Job Report in csv format')
+args = parser.parse_args()
+
+
+'''
+Jobs info:
+Group
+Project
+Gear
+GearRunCount
+GearGCPCPUHours
+GearCharges
+InvoiceMonth
+'''
+
+def initCharge (
+        Quantity=0.0,
+        Unit=None,
+        Cost=0.0):
+        
+        Charge = {
+            'Count': 0,
+            'Quantity': Quantity,
+            'Unit': Unit,
+            'Cost': Cost,
+        }
+        return(Charge)
+        
+        
+def initGroupProject(
+        GroupName=None,
+        ProjectName=None,
+):
+    Project = {
+        'GroupName': GroupName,
+        'ProjectName': ProjectName,
+        'Charges': {}
+    }
+
+    return(Project)
+
+
+def fixDate(d):
+    if (re.search('^\d{4}-\d{2}-\d{2}$', d)):
+        return(re.sub('$', ' 00:00:00 UTC', d))
+    else:
+        return(re.sub('\+00:00',' UTC',d))
+
+def betterFloat(s):
+    if (s == ''):
+        return(0.0)
+
+    return(float(re.sub(',','', s)))
+
+def isVM(row):
+    return( re.search('Compute Engine', row['Service description'])
+        and (  re.search('Instance Core', row['SKU description'])
+            or re.search('Instance Ram', row['SKU description'])
+            or re.search('Small Instance', row['SKU description'])
+            or re.search('PD Capacity', row['SKU description'])
+            or re.search('PD Snapshot', row['SKU description'])
+        ))
+
+
+def isStatic(row):
+    return(re.search('infrastructure', row['Labels']))
+
+def isVMStatic(row):
+    return(isVM(row) and isStatic(row))
+
+def isVMDynamic(row):
+    return(isVM(row) and (not isStatic(row)) )
+
+def isCompute(row):
+    return( re.search('Compute Engine', row['Service description']))
+
+def isComputeCore(row):
+    return(isCompute(row) and re.search('Instance Core', row['SKU description']))
+
+def isComputeDisk(row):
+    return(isCompute(row) and re.search('Storage PD Capacity', row['SKU description']))
+
+def isComputeRam(row):
+    return(isCompute(row) and re.search('Instance Ram', row['SKU description']))
+
+def isComputeMisc(row):
+    return( isCompute(row) and
+            not (
+                    isFlywheelGear(row)
+                 or isVM(row)
+                )
+    )
+
+def isFlywheel(row):
+    return(re.search('upenn-flywheel', row['Project ID']))
+
+def isFlywheelGear(row):
+    return(re.search('Flywheel Gear', row['Service description']))
+
+def isInitialAnalysis(row):
+    return(re.search('True', row['Initial analysis']))
+
+def isKubernetes(row):
+    return(re.search('Kubernetes Engine', row['Service description']))
+
+def isMisc(row):
+    return((not isCompute(row)) and (not isStorage(row)))
+
+def isStorage(row):
+    return( re.search('Cloud Storage', row['Service description']))
+
+def isStorageColdline(row):
+    return(isStorage(row) and re.search('Coldline Storage', row['SKU description']))
+
+def isStorageStandard(row):
+    return(isStorage(row) and re.search('Standard Storage', row['SKU description']))
+
+def isStorageMisc(row):
+    return(isStorage(row) 
+           and (not isStorageColdline(row))
+           and (not isStorageStandard(row))
+    )
+
+           
+ChargeTypeChecks = {
+    'VM': isVM,
+    'VMDynamic': isVMDynamic,
+    'VMStatic': isVMStatic,
+    'Compute': isCompute,
+    'ComputeCore': isComputeCore,
+    'ComputeDisk': isComputeDisk,
+    'ComputeRam': isComputeRam,
+    'ComputeMisc': isComputeMisc,
+    'Storage': isStorage,
+    'StorageColdline': isStorageColdline,
+    'StorageStandard': isStorageStandard,
+    'StorageMisc': isStorageMisc,
+    'Misc': isMisc,
+    'InitialAnalysis': isInitialAnalysis
+}
+           
+def updateCharge(Project,ChargeTypeName,row):
+    if (not (ChargeTypeName in Project['Charges'].keys())):
+        Project['Charges'][ChargeTypeName] = initCharge()
+        
+    Charge = Project['Charges'][ChargeTypeName]
+
+    if (ChargeTypeName == "InitialAnalysis"):
+        Charge['Quantity'] += 1
+        Charge['Unit'] = 'InitialAnlysis'
+        Charge['Cost'] = 0   # Cost is calculated at the end on the number of Initial Analyses
+    else:
+        Charge['Quantity'] += betterFloat(row['Usage amount'])
+        Charge['Unit'] = row['Usage unit']
+        Charge['Cost'] += betterFloat(row['Cost ($)'])
+        Charge['Count'] += 1
+
+    return(Charge)
+        
+def tallyCharges(Projects,row):
+    GroupProject = getGroupProject(row)
+    if (not (GroupProject in Projects.keys())):
+        Projects[GroupProject] = initGroupProject(GroupName=row['Group'], ProjectName=row['Project name'])
+
+    Project = Projects[GroupProject]
+
+    for ChargeTypeName, ChargeTypeTest in ChargeTypeChecks.items():
+        if (ChargeTypeTest(row)):
+           updateCharge(Project, ChargeTypeName, row)
+           
+def getGroupProject(row):
+    return("{}/{}".format(row['Group'],row['Project name']))
+           
+def formatProject(Project):
+    BSCCharge = 0.0
+    StorageCharge = 0.0
+    ProjectCharge = 0.0
+
+    if ('Storage' in Project['Charges'].keys()):
+        StorageCharge = Project['Charges']['Storage']['Cost']
+
+    if (StorageCharge >= 0.01):
+        ProjectCharge = 10.0
+        BSCCharge += StorageCharge * 0.37
+        
+    if ('InitialAnalysis' in Project['Charges'].keys()):
+        Project['Charges']['InitialAnalysis']['Cost'] = 25 * Project['Charges']['InitialAnalysis']['Quantity']
+        BSCCharge = 25.0 * Project['Charges']['InitialAnalysis']['Quantity']
+
+    print(
+        "{},{},{},{},{}".format(
+            args.invoice_month,
+            Project['GroupName'],
+            Project['ProjectName'],
+            BSCCharge,
+            ProjectCharge,
+        ),
+        end='')
+    
+    for ChargeTypeName in sorted(ChargeTypeChecks.keys()):
+        if (ChargeTypeName in Project['Charges'].keys()):
+            Charge = Project['Charges'][ChargeTypeName]
+
+            print(",{},{},{},{}".format(Charge['Count'],Charge['Quantity'],Charge['Unit'],Charge['Cost']), end='')
+        else:
+            print(",{},{},{},{}".format(0,0,"",0), end='')
+
+    print()
+
+def initGearCharge(
+        Group=None,
+        Project=None,
+        GearName=None,
+        Count=0,
+        CpuHours=0.0,
+        Cost=0.0
+):
+    return({
+        'Group': Group,
+        'Project': Project,
+        'GearName': GearName,
+        'Count': Count,
+        'CpuHours': CpuHours,
+        'Cost': Cost,
+    })
+
+def getGroupProjectGear(Group,Project,GearName):
+    return("{}/{}/{}".format(Group,Project,GearName))
+
+def tallyGearCharge(Gears, row):
+    GroupProjectGear = getGroupProjectGear(row['Group'],row['Project name'],row['SKU description'])
+
+    if (not (GroupProjectGear in Gears.keys())):
+        Charge = initGearCharge(
+            Group=row['Group'],
+            Project=row['Project name'],
+            GearName=row['SKU description']
+        )
+        Gears[GroupProjectGear] = Charge
+
+    Charge = Gears[GroupProjectGear]
+
+    Charge['Count'] += 1
+    Charge['CpuHours'] += betterFloat(row['Usage amount'])
+    Charge['Cost'] += betterFloat(row['Cost ($)'])
+
+def formatGear(Gear):
+    print("{},{},{},{},{},{},{},{},{}".format(
+        args.invoice_month,
+        Gear['Group'],
+        Gear['Project'],
+        Gear['GearName'],
+        Gear['Count'],
+        Gear['CpuHours'],
+        Gear['Cost'],
+        Gear['CpuHours']/Gear['Count'],
+        Gear['Cost']/Gear['Count']
+    ))
+
+Projects = {}
+TotalCharges = initGroupProject()
+
+with open(args.report[0], newline='') as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+    for row in reader:
+        if (args.flywheel_only and (not isFlywheel(row))):
+            continue
+
+        tallyCharges(Projects, row)
+
+        for ChargeTypeName, ChargeTypeTest in ChargeTypeChecks.items():
+            if (ChargeTypeTest(row)):
+                updateCharge(TotalCharges, ChargeTypeName, row)
+           
+
+Gears = {}
+with open(args.report[1], newline='') as csvfile:
+    reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+
+    for row in reader:
+        if (isInitialAnalysis(row)):
+            tallyCharges(Projects, row)
+
+        tallyGearCharge(Gears, row)
+
+
+if (args.project):
+    print("InvoiceMonth,Group,Project,BSCCharge,ProjectCharge", end='')
+    for ChargeTypeName in sorted(ChargeTypeChecks.keys()):
+        for ChargeField in [ 'Count', 'Usage', 'Unit', 'Cost']:
+            print(",{}_{}".format(ChargeTypeName, ChargeField), end='')
+
+    print()
+
+    if (args.total):
+        formatProject(TotalCharges)
+
+    for GroupProjectName, Project in Projects.items():
+        formatProject(Project)
+
+if (args.gears):
+    print("Group,Project,Gear,Count,CpuHours,Cost,AvgRuntime,AvgGearCharge")
+    for GroupProjectGear, Gear in Gears.items():
+        formatGear(Gear)
+
+#for GroupProjectName, Project in Gears.items():
+#    formatProject(Project)
+
+
+
