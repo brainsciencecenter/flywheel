@@ -20,6 +20,7 @@ if __name__ == '__main__':
     ap.add_argument('-d', '--device-get', default=False,  action='store_true', help='get device info')
     ap.add_argument('-g', '--get-all-gears', default=False,  action='store_true', help='get list of gears')
     ap.add_argument('-j', '--get-job', default=False,  action='store_true', help='get job by id')
+    ap.add_argument('-r', '--get-role', default=False,  action='store_true', help='get role, or all roles if none specified')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-u', '--get-all-users', default=False,  action='store_true', help='all user info')
 
@@ -41,6 +42,11 @@ if __name__ == '__main__':
             Container = fw.get_job(args.id[0])
         elif (args.get_all_users):
             Container = fw.get_all_users()
+        elif (args.get_role):
+            if (len(args.id) > 0):
+                Container = fw.get_role(args.id[0])
+            else:
+                Container = fw.get_all_roles()
         else:
             Container = fw.get(args.id[0])
 
