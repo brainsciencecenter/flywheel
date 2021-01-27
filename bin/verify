@@ -184,8 +184,8 @@ function total {
 		then
 		    echo "$HeaderLine" | csvcut -c "$Fields" 
 		else
-		    echo "$HeaderLine" | csvcut -c "$Fields" 
-		    csvcut -c "$Fields" | awk -F , 'BEGIN {Usage = 0.0; Cost = 0.0;} { Usage = Usage + $1; Cost = Cost + $2; } END {printf("%.2f,%.2f\n",Usage,Cost) }'
+		    echo -n 'Count,' ; echo "$HeaderLine" | csvcut -c "$Fields" 
+		    csvcut -c "$Fields" | awk -F , 'BEGIN {Usage = 0.0; Cost = 0.0;} { Usage = Usage + $1; Cost = Cost + $2; } END {printf("%d,%.2f,%.2f\n",NR,Usage,Cost) }'
 		fi
 		;;
 		
@@ -195,8 +195,8 @@ function total {
 		then
 		    echo "$HeaderLine" | csvcut -c "$Fields" 
 		else
-		    echo "$HeaderLine" | csvcut -c "$Fields" 
-		    csvcut -c "$Fields" | awk -F , 'BEGIN {Quantity = 0.0; Cost = 0.0;} { Quantity = Quantity + $1; Cost = Cost + $2; } END {printf("%.2f,%.2f\n",Quantity,Cost) }'
+		    echo -n 'Count,' ; echo "$HeaderLine" | csvcut -c "$Fields"
+		    csvcut -c "$Fields" | awk -F , 'BEGIN {Quantity = 0.0; Cost = 0.0;} { Quantity = Quantity + $1; Cost = Cost + $2; } END {printf(%d,"%.2f,%.2f\n",NR,Quantity,Cost) }'
 		fi
 		;;
 		
@@ -311,7 +311,15 @@ function filter {
 		    ;;
 
 		VM)
-		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|Instance Ram'
+		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|PD Snapshot|Instance Ram'
+		    ;;
+
+		VM-Static)
+		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|PD Snapshot|Instance Ram' | grep 'flywheel:infrastructure'
+		    ;;
+
+		VM-Dynamic)
+		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|PD Snapshot|Instance Ram' | grep -v 'flywheel:infrastructure'
 		    ;;
 
 		*)
