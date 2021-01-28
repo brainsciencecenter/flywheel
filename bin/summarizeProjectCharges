@@ -27,18 +27,6 @@ parser.add_argument('-t', '--total', action='store_true', help='print total char
 parser.add_argument('report', nargs="*", help='GCPChargesWithFlywheelAllocation and Job Report in csv format')
 args = parser.parse_args()
 
-
-'''
-Jobs info:
-Group
-Project
-Gear
-GearRunCount
-GearGCPCPUHours
-GearCharges
-InvoiceMonth
-'''
-
 def initCharge (
         Quantity=0.0,
         Unit=None,
@@ -164,7 +152,7 @@ ChargeTypeChecks = {
     'Misc': isMisc,
     'InitialAnalysis': isInitialAnalysis
 }
-           
+
 def updateCharge(Project,ChargeTypeName,row):
     if (not (ChargeTypeName in Project['Charges'].keys())):
         Project['Charges'][ChargeTypeName] = initCharge()
@@ -204,11 +192,14 @@ def formatProject(Project):
 
     if ('Storage' in Project['Charges'].keys()):
         StorageCharge = Project['Charges']['Storage']['Cost']
+        if (StorageCharge > 0.01):
+                BSCCharge = StorageCharge * 0.25
+                if (isTbOrMore(Project['Charges']['Storage']['Quantity'])):
+                        Projectcharge = 20.66
+                else:
+                        Projectcharge = 8.33
 
-    if (StorageCharge >= 0.01):
-        ProjectCharge = 10.0
-        BSCCharge += StorageCharge * 0.37
-        
+
     if ('InitialAnalysis' in Project['Charges'].keys()):
         Project['Charges']['InitialAnalysis']['Cost'] = 25 * Project['Charges']['InitialAnalysis']['Quantity']
         BSCCharge = 25.0 * Project['Charges']['InitialAnalysis']['Quantity']

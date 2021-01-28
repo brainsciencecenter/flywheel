@@ -22,7 +22,7 @@ if __name__ == '__main__':
     ap.add_argument('-j', '--get-job', default=False,  action='store_true', help='get job by id')
     ap.add_argument('-r', '--get-role', default=False,  action='store_true', help='get role, or all roles if none specified')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
-    ap.add_argument('-u', '--get-all-users', default=False,  action='store_true', help='all user info')
+    ap.add_argument('-u', '--get-user', default=False,  action='store_true', help='all user info')
 
     ap.add_argument('id', nargs='*', type=str, default=None, help='group/project|ProjectID|uuid')
 
@@ -40,8 +40,11 @@ if __name__ == '__main__':
             Container = fw.get_all_gears()
         elif (args.get_job):
             Container = fw.get_job(args.id[0])
-        elif (args.get_all_users):
-            Container = fw.get_all_users()
+        elif (args.get_user):
+            if (len(args.id) > 0):
+                Container = fw.get_user(args.id[0])
+            else:
+                Container = fw.get_all_users()
         elif (args.get_role):
             if (len(args.id) > 0):
                 Container = fw.get_role(args.id[0])

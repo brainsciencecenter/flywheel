@@ -1,0 +1,22 @@
+#!/bin/bash
+
+#
+# *** want a way to filter out inactive projects
+#
+
+AdminRoleId=$(fwget -r | jq -r '.[][]|select(.label == "admin") | ._id')
+
+if [ -n "$*" ]
+then
+	ProjectUuids="$@"
+else
+	ProjectUuids=$(fwGetAllProjects | jq -r '.[].project_uuid')
+fi
+
+echo "projectUuid,group,project,businessAdministratorName,businessAdministratorEmail,fundingSourceName,accountNumber,projectAdmins"
+for uuid in $ProjectUuids
+do
+	fwget "$uuid" | jq -r '.[] | [._id, .group, .label, (.info.ProjectFunding | (.businessAdministrator.name, .businessAdministrator.email, .fundingSourceName, .accountNumber)),  ([(.permissions[]|select(.role_ids[] | contains("'$AdminRoleId'"))._id)]|sort|join(" "))]|@csv ' 
+#	fwget "$uuid" | jq -r '.[] | [._id, .group, .label, (.info.ProjectFunding | (.businessAdministrator.name, .businessAdministrator.email, .fundingSourceName, .accountNumber))  ]|@csv ' 
+done | sort -t , -k +2,3 
+
