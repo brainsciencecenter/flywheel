@@ -295,15 +295,15 @@ function filter {
 		    ;;
 
 		Static)
-		    allOrFlywheel | grep 'flywheel:infrastructure'
+		    allOrFlywheel | grep 'billing:flywheel-static'
 		    ;;
 
 		Static-Core)
-		    allOrFlywheel | grep 'flywheel:infrastructure' | grep 'Core'
+		    allOrFlywheel | grep 'billing:flywheel-static' | grep 'Core'
 		    ;;
 
 		Static-VM)
-		    allOrFlywheel | grep 'flywheel:infrastructure' | grep -P 'Instance Core|Small Instance|PD Capacity|Instance Ram'
+		    allOrFlywheel | grep 'billing:flywheel-static' | grep -P 'Instance Core|Small Instance|PD Capacity|Instance Ram'
 		    ;;
 
 		Storage)
@@ -315,11 +315,11 @@ function filter {
 		    ;;
 
 		VM-Static)
-		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|PD Snapshot|Instance Ram' | grep 'flywheel:infrastructure'
+		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|PD Snapshot|Instance Ram' | grep 'billing:flywheel-static'
 		    ;;
 
 		VM-Dynamic)
-		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|PD Snapshot|Instance Ram' | grep -v 'flywheel:infrastructure'
+		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|PD Snapshot|Instance Ram' | grep -v 'billing:flywheel-static'
 		    ;;
 
 		*)

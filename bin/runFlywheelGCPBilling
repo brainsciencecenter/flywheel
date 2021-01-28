@@ -29,7 +29,7 @@
 
 CmdName=$(basename "$0")
 
-FlywheelStaticLabel='flywheel:infrastructure'
+FlywheelStaticLabel='billing:flywheel-static'
 PromotionRegEx='PROMOTION'
 iLabServiceRequestMapFile=~/flywheel/bin/iLabServiceRequestIDMap
 
