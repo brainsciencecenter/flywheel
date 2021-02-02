@@ -111,15 +111,30 @@ then
 	createGCPChargesFWAllocation -d "$FlywheelDynamicCoreHours" -i "${Year}-${Month}" -j "$FlywheelJobsFile" -f "$FlywheelAllocationReportFile" -m "$iLabServiceRequestMapFile" "$CostTableFile" > "$GCPChargesWithFlywheelAllocationFile"
 fi
 
+GCPGroupProjectChargesFile="${ReportDir}/${Year}-${Month}-GCPGroupProjectCharges.csv"
+if [ -n "$opt_f" ] || [ ! -e "$GCPGroupProjectChargesFile" ]
+then
+    summarizeProjectCharges  -i "${Year}-${Month}" -f  -p "$GCPChargesWithFlywheelAllocationFile" "$FlywheelJobCostAllocationFile" > "$GCPGroupProjectChargesFile"
+fi
+
+FWGearChargeFile="${ReportDir}/${Year}-${Month}-FWGearCharge.csv"
+if [ -n "$opt_f" ] || [ ! -e "$FWGearChargeFile" ]
+then
+    summarizeProjectCharges  -i "${Year}-${Month}" -f  -g "$GCPChargesWithFlywheelAllocationFile" "$FlywheelJobCostAllocationFile" > "$FWGearChargeFile"
+fi
+     
+exit 0
+
 for i in Bucket Coldline Misc MiscStorage Compute Core Gcp Gear Ram Static, Static-Core Storage VM
 do
     CostTableValue=$(verify -F -t c -f "$i" "$CostTableFile" | csvcut -c 2 | tail -n 1)
-    GCPChargesValue=$(verify -F -t g -f "$i" "$GCPChargesWithFlywheelAllocationFile" | csvcut -c 2 | tail -n 1)
+    GCPChargesValue=$(verify -F -t g -f "$i" "$GCPChargesWithFlywheelAllocationFile" | csvcut -c 3 | tail -n 1)
 
     Diff=$(echo "scale=2; ${CostTableValue} - ${GCPChargesValue}" | bc)
 
     echo "$i: ${Diff}" 1>&2
 done
+
 
 if [ -n "$opt_u" ]
 then

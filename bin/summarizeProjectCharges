@@ -15,6 +15,8 @@ from pprint import pprint
 
 from collections import OrderedDict
 
+OneTeraByte = 1024 * 1 # 1 is in GigaBytes
+
 CmdName = os.path.basename(sys.argv[0])
 
 parser = argparse.ArgumentParser()
@@ -66,6 +68,9 @@ def betterFloat(s):
 
     return(float(re.sub(',','', s)))
 
+def isTbOrMore(num):
+        return(num > OneTeraByte)
+
 def isVM(row):
     return( re.search('Compute Engine', row['Service description'])
         and (  re.search('Instance Core', row['SKU description'])
@@ -112,7 +117,7 @@ def isFlywheelGear(row):
     return(re.search('Flywheel Gear', row['Service description']))
 
 def isInitialAnalysis(row):
-    return(re.search('True', row['Initial analysis']))
+        return(re.search('True', row['Initial analysis']))
 
 def isKubernetes(row):
     return(re.search('Kubernetes Engine', row['Service description']))
@@ -190,19 +195,24 @@ def formatProject(Project):
     StorageCharge = 0.0
     ProjectCharge = 0.0
 
-    if ('Storage' in Project['Charges'].keys()):
+    if (('Storage' in Project['Charges'].keys()) and ('StorageStandard' in Project['Charges'].keys())):
         StorageCharge = Project['Charges']['Storage']['Cost']
-        if (StorageCharge > 0.01):
-                BSCCharge = StorageCharge * 0.25
-                if (isTbOrMore(Project['Charges']['Storage']['Quantity'])):
-                        Projectcharge = 20.66
-                else:
-                        Projectcharge = 8.33
+        if (round(StorageCharge,2) >= 0.01):
+                BSCCharge += StorageCharge * 0.25
 
+                if (isTbOrMore(Project['Charges']['StorageStandard']['Quantity'])):
+                        ProjectCharge = 20.66
+                else:
+                        ProjectCharge = 8.33
+
+        if (re.search('oathes_lab',Project['GroupName'])):
+                print("{}/{}: {} {}".format(Project['GroupName'], Project['ProjectName'], StorageCharge, BSCCharge), file=sys.stderr)
 
     if ('InitialAnalysis' in Project['Charges'].keys()):
         Project['Charges']['InitialAnalysis']['Cost'] = 25 * Project['Charges']['InitialAnalysis']['Quantity']
-        BSCCharge = 25.0 * Project['Charges']['InitialAnalysis']['Quantity']
+        InitialAnalysisCharge = Project['Charges']['InitialAnalysis']['Cost']
+
+        BSCCharge += InitialAnalysisCharge
 
     print(
         "{},{},{},{},{}".format(
@@ -297,7 +307,8 @@ with open(args.report[1], newline='') as csvfile:
 
     for row in reader:
         if (isInitialAnalysis(row)):
-            tallyCharges(Projects, row)
+                print("{}/{} Initial analysis {}".format(row['Group'], row['Project name'], row['Initial analysis']), file=sys.stderr)
+                tallyCharges(Projects, row)
 
         tallyGearCharge(Gears, row)
 
@@ -317,7 +328,7 @@ if (args.project):
         formatProject(Project)
 
 if (args.gears):
-    print("Group,Project,Gear,Count,CpuHours,Cost,AvgRuntime,AvgGearCharge")
+    print("InvoiceMonth,Group,Project,Gear,Count,CpuHours,Cost,AvgRuntime,AvgGearCharge")
     for GroupProjectGear, Gear in Gears.items():
         formatGear(Gear)
 

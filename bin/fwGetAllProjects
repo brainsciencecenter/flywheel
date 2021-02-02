@@ -29,9 +29,9 @@ ap.add_argument('filter', nargs='?', type=str, default=None, help='arguments to 
 
 args = ap.parse_args()
 
-fw = fwgearutils.getFW(args, Root=True)
+fw = fwgearutils.getFW(args,Root=True)
 
-Projects = fw.get_all_projects()
+Projects = fw.get_all_projects(exhaustive=True,limit=100000)
 
 AllProjects = []
 

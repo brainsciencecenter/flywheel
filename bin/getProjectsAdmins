@@ -16,7 +16,24 @@ fi
 echo "projectUuid,group,project,businessAdministratorName,businessAdministratorEmail,fundingSourceName,accountNumber,projectAdmins"
 for uuid in $ProjectUuids
 do
-	fwget "$uuid" | jq -r '.[] | [._id, .group, .label, (.info.ProjectFunding | (.businessAdministrator.name, .businessAdministrator.email, .fundingSourceName, .accountNumber)),  ([(.permissions[]|select(.role_ids[] | contains("'$AdminRoleId'"))._id)]|sort|join(" "))]|@csv ' 
-#	fwget "$uuid" | jq -r '.[] | [._id, .group, .label, (.info.ProjectFunding | (.businessAdministrator.name, .businessAdministrator.email, .fundingSourceName, .accountNumber))  ]|@csv ' 
+    json=$(fwget "$uuid" 2> /dev/null)
+    if [ "$?" == 1 ]
+    then
+	json=$(fwlookup "$uuid" 2> /dev/null)
+    fi
+    
+    if [ -n "$json" ] && $(echo "$json" | jq -r '.[].group' | grep -q -v null)
+    then
+	if [ -z "$GetUsage" ]
+	then
+	    echo "$json" | jq -r '.[] | [._id, .group, .label, (.info.ProjectFunding | (.businessAdministrator.name, .businessAdministrator.email, .fundingSourceName, .accountNumber)),  ([(.permissions[]|select(.role_ids[] | contains("'$AdminRoleId'"))._id)]|sort|join(" "))]|@csv '
+	else
+	    CSV=$(echo "$json" | jq -r '.[] | [._id, .group, .label, (.info.ProjectFunding | (.businessAdministrator.name, .businessAdministrator.email, .fundingSourceName, .accountNumber)),  ([(.permissions[]|select(.role_ids[] | contains("'$AdminRoleId'"))._id)]|sort|join(" "))]|@csv ' )
+	    GroupProject=$(echo "$CSV" | csvcut -c 2,3)
+	    Usage
+    else
+	echo "$uuid not found" 1>&2
+    fi
+
 done | sort -t , -k +2,3 
 

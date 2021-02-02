@@ -33,30 +33,31 @@ if __name__ == '__main__':
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
-    try:
-        if (args.device_get):
-            Container = fw.get_device(args.id[0])
-        elif (args.get_all_gears):
-            Container = fw.get_all_gears()
-        elif (args.get_job):
-            Container = fw.get_job(args.id[0])
-        elif (args.get_user):
-            if (len(args.id) > 0):
-                Container = fw.get_user(args.id[0])
+    for id in args.id:
+        try:
+            if (args.device_get):
+                Container = fw.get_device(id)
+            elif (args.get_all_gears):
+                Container = fw.get_all_gears()
+            elif (args.get_job):
+                Container = fw.get_job(id)
+            elif (args.get_user):
+                if (len(args.id) > 0):
+                    Container = fw.get_user(id)
+                else:
+                    Container = fw.get_all_users()
+            elif (args.get_role):
+                if (len(args.id) > 0):
+                    Container = fw.get_role(id)
+                else:
+                    Container = fw.get_all_roles()
             else:
-                Container = fw.get_all_users()
-        elif (args.get_role):
-            if (len(args.id) > 0):
-                Container = fw.get_role(args.id[0])
-            else:
-                Container = fw.get_all_roles()
-        else:
-            Container = fw.get(args.id[0])
+                Container = fw.get(id)
 
-        Containers.append(Container)
+            Containers.append(Container)
 
-    except (OSError, Exception) as e:
-        print("e",e, file=sys.stderr)
-        sys.exit(1)
+        except (OSError, Exception) as e:
+            print("e",e, file=sys.stderr)
+            sys.exit(1)
 
     print(json.dumps(fwgearutils.sloppyCopy(Containers,UTC=(not args.localtime)), indent=2))

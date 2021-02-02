@@ -1,0 +1,28 @@
+#!/bin/bash
+
+Group=memories
+Project=MEMORIES-2
+
+function getFwProjectId {
+    local Group="$1"
+    local Project="$2"
+    
+    ProjectId=$(fw ls "$Group" --ids  2> /dev/null | grep -P "\s${Project}\s+$" | sed 's/>.*$//; s/^.*id://')
+    if [ -z "$ProjectId" ]
+    then	 
+	echo "'${Group}/${Project}' not found" 1>&2
+	exit 1
+    fi
+
+    echo "$ProjectId"
+}
+
+ProjectId=$(getFwProjectId "${Group}" "${Project}")
+
+ToOldDate="2019-05-01"
+uuids=$(fwfind -r -S group="$Group" project="$ProjectId" "created<${ToOldDate}" | jq -r '.[]._id')
+
+for i in $uuids
+do
+    echo $i
+done
