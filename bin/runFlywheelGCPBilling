@@ -123,6 +123,13 @@ then
     summarizeProjectCharges  -i "${Year}-${Month}" -f  -g "$GCPChargesWithFlywheelAllocationFile" "$FlywheelJobCostAllocationFile" > "$FWGearChargeFile"
 fi
      
+
+if [ -n "$opt_u" ]
+then
+	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --autodetect --source_format=CSV BillingAllocation.GCPChargesWithFlywheelAllocation "$FlywheelJobCostAllocationFile"
+	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --autodetect --source_format=CSV BillingAllocation.GCPChargesWithFlywheelAllocation "$GCPChargesWithFlywheelAllocationFile"
+fi
+
 exit 0
 
 for i in Bucket Coldline Misc MiscStorage Compute Core Gcp Gear Ram Static, Static-Core Storage VM
@@ -134,12 +141,5 @@ do
 
     echo "$i: ${Diff}" 1>&2
 done
-
-
-if [ -n "$opt_u" ]
-then
-	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --autodetect --noreplace --source_format=CSV BillingAllocation.GCPChargesWithFlywheelAllocation "$FlywheelJobCostAllocationFile"
-	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --autodetect --noreplace --source_format=CSV BillingAllocation.GCPChargesWithFlywheelAllocation "$GCPChargesWithFlywheelAllocationFile"
-fi
 
 # createiLabGCPChargesCSV -z -m iLabServiceRequestIDMap /tmp/2020-11-GCPChargesWithFlywheelAllocation.csv > /tmp/2020-11-iLabGCPChargesWithFlywheelAllocation.csv

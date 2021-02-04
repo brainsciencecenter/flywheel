@@ -85,12 +85,18 @@ else
     sys fw2json -R "$1" | jq -r '.[].subjects[].sessions[]._id' > ${WorkDir}/SessionUIDs
 fi
 
-if [ -n "$opt_p" ]
+if [ -s "${WorkDir}/SessionUIDs" ]
 then
-	(fw2json -p -ag $TimeZone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile" ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
-else
-	sys fw2json -ag $Timezone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile"
-fi
-sys genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
+	if [ -n "$opt_p" ]
+	then
+		(fw2json -p -ag $TimeZone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile" ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
+	else
+		sys fw2json -ag $Timezone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile"
+	fi
+	sys genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
 
-sys jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile"
+	sys jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile"
+else
+	echo No sessions found 1>&2
+	exit 1
+fi
