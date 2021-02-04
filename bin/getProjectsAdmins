@@ -31,6 +31,8 @@ do
 	    CSV=$(echo "$json" | jq -r '.[] | [._id, .group, .label, (.info.ProjectFunding | (.businessAdministrator.name, .businessAdministrator.email, .fundingSourceName, .accountNumber)),  ([(.permissions[]|select(.role_ids[] | contains("'$AdminRoleId'"))._id)]|sort|join(" "))]|@csv ' )
 	    GroupProject=$(echo "$CSV" | csvcut -c 2,3)
 	    Usage
+	fi
+	
     else
 	echo "$uuid not found" 1>&2
     fi
