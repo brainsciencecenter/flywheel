@@ -82,7 +82,7 @@ def isVM(row):
 
 
 def isStatic(row):
-    return(re.search('infrastructure', row['Labels']))
+    return(re.search('billing:flywheel-static', row['Labels']))
 
 def isVMStatic(row):
     return(isVM(row) and isStatic(row))
@@ -191,14 +191,14 @@ def getGroupProject(row):
     return("{}/{}".format(row['Group'],row['Project name']))
            
 def formatProject(Project):
-    BSCCharge = 0.0
+    BSCStorageCharge = 0.0
     StorageCharge = 0.0
     ProjectCharge = 0.0
 
     if (('Storage' in Project['Charges'].keys()) and ('StorageStandard' in Project['Charges'].keys())):
         StorageCharge = Project['Charges']['Storage']['Cost']
         if (round(StorageCharge,2) >= 0.01):
-                BSCCharge += StorageCharge * 0.25
+                BSCStorageCharge += StorageCharge * 0.25
 
                 if (isTbOrMore(Project['Charges']['StorageStandard']['Quantity'])):
                         ProjectCharge = 20.66
@@ -206,20 +206,20 @@ def formatProject(Project):
                         ProjectCharge = 8.33
 
         if (re.search('oathes_lab',Project['GroupName'])):
-                print("{}/{}: {} {}".format(Project['GroupName'], Project['ProjectName'], StorageCharge, BSCCharge), file=sys.stderr)
+                print("{}/{}: {} {}".format(Project['GroupName'], Project['ProjectName'], StorageCharge, BSCStorageCharge), file=sys.stderr)
 
     if ('InitialAnalysis' in Project['Charges'].keys()):
         Project['Charges']['InitialAnalysis']['Cost'] = 25 * Project['Charges']['InitialAnalysis']['Quantity']
-        InitialAnalysisCharge = Project['Charges']['InitialAnalysis']['Cost']
+#        InitialAnalysisCharge = Project['Charges']['InitialAnalysis']['Cost']
 
-        BSCCharge += InitialAnalysisCharge
+#        BSCCharge += InitialAnalysisCharge
 
     print(
         "{},{},{},{},{}".format(
             args.invoice_month,
             Project['GroupName'],
             Project['ProjectName'],
-            BSCCharge,
+            BSCStorageCharge,
             ProjectCharge,
         ),
         end='')
@@ -314,7 +314,7 @@ with open(args.report[1], newline='') as csvfile:
 
 
 if (args.project):
-    print("InvoiceMonth,Group,Project,BSCCharge,ProjectCharge", end='')
+    print("InvoiceMonth,Group,Project,BSCStorageCharge,ProjectCharge", end='')
     for ChargeTypeName in sorted(ChargeTypeChecks.keys()):
         for ChargeField in [ 'Count', 'Usage', 'Unit', 'Cost']:
             print(",{}_{}".format(ChargeTypeName, ChargeField), end='')

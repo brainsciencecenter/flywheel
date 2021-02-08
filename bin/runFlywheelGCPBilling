@@ -126,8 +126,8 @@ fi
 
 if [ -n "$opt_u" ]
 then
-	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --autodetect --source_format=CSV BillingAllocation.GCPChargesWithFlywheelAllocation "$FlywheelJobCostAllocationFile"
-	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --autodetect --source_format=CSV BillingAllocation.GCPChargesWithFlywheelAllocation "$GCPChargesWithFlywheelAllocationFile"
+	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --noreplace --source_format=CSV BillingAllocation.FWGearCharge "$FWGearChargeFile"
+	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --noreplace --source_format=CSV BillingAllocation.GCPGroupProjectCharges "$GCPGroupProjectChargesFile"
 fi
 
 exit 0
@@ -135,7 +135,7 @@ exit 0
 for i in Bucket Coldline Misc MiscStorage Compute Core Gcp Gear Ram Static, Static-Core Storage VM
 do
     CostTableValue=$(verify -F -t c -f "$i" "$CostTableFile" | csvcut -c 2 | tail -n 1)
-    GCPChargesValue=$(verify -F -t g -f "$i" "$GCPChargesWithFlywheelAllocationFile" | csvcut -c 3 | tail -n 1)
+    GCPChargesValue=$(verify -F -t g -f "$i" "$GCPGroupProjectChargesFile" | csvcut -c 3 | tail -n 1)
 
     Diff=$(echo "scale=2; ${CostTableValue} - ${GCPChargesValue}" | bc)
 
