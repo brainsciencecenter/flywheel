@@ -25,10 +25,11 @@ if __name__ == '__main__':
 
     ap.add_argument('-d', '--debug', action='store_true', dest='debug', help='print additional debugging info')
     ap.add_argument('-n', '--noop', action='store_true', help='do not actually do anything.')
-    ap.add_argument('-j', '--json-file', action='store', help='json file to update project info with')
+    ap.add_argument('-j', '--json', action='store', help='json or json file to update project info with')
     ap.add_argument('-p', '--path', default='.', action='store', help='Use "jq" path to filter project info')
+    ap.add_argument('-u', '--update', action='store_true', help='update project info metadata')
     ap.add_argument('-v', '--verbose', action='store_true', help='show what is being done')
-    ap.add_argument('project', nargs=1, help='group/project')
+    ap.add_argument('project', nargs="+", help='group/project or project uuid')
     args = ap.parse_args()
 
     JsonPath = args.path
@@ -39,35 +40,39 @@ if __name__ == '__main__':
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
-    if (args.project):
+    if (args.update and args.json):
+        if (os.path.isfile(args.json)):
+            with open(args.json) as f:
+                Json = json.load(f)
+        else:
+            Json = args.json
+
+    print("Json = '{}'".format(Json))
+
+    for pid in args.project:
         try:
-            container = fw.get(args.project[0])
-            if (type(container) == flywheel.models.container_project_output.ContainerProjectOutput):
-                project = container
-            elif ('gear_info' in container.keys()):
-                ProjectID = container.parents.project
-                project = fw.get(ProjectID)
-            else:
-                print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
-                sys.exit(e.status)
-
-
+            project = fw.get(pid)
         except flywheel.rest.ApiException as e:
             try:
-                project = fw.lookup(args.project[0])
-
+                project = fw.lookup(pid)
             except flywheel.rest.ApiException as e:
-                print("%s : Cannot find project by '%s' : %s" % (CmdName, args.project[0], e.reason), file=sys.stderr)
+                print("%s : Cannot find project by '%s' : %s" % (CmdName, project, e.reason), file=sys.stderr)
                 sys.exit(e.status)
 
-        if (args.json_file):
-            with open(args.json_file) as f:
-                Json = json.load(f)[0]
-                
-                print(json.dumps(Json, indent=2))
-            project.update_info(Json)
-            project = project.reload()
+        ProjectInfoDict = fwgearutils.decodeKeys(project.info)
 
-        ProjectInfoDict = pyjq.all(JsonPath,fwgearutils.decodeKeys(project.info))
+        if (args.update):
+            JqString = "{} |= {}".format(args.path,json.dumps(Json, indent=2))
+
+            # pyjq.all() returns a list, not the object??
+            UpdatedProjectInfoDict = pyjq.all(JqString, ProjectInfoDict)[0]
+
+            project.update_info(UpdatedProjectInfoDict)
+
+            project = project.reload()
+            ProjectInfoDict = fwgearutils.decodeKeys(project.info)
+
         print(json.dumps(ProjectInfoDict, indent=2))
+
+
 
