@@ -1,0 +1,22 @@
+#!/bin/bash
+
+fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f ProjectInfo2CSV.jq /tmp/json | sed 's/","/\//' > /tmp/projectinfo.csv
+getGroupProjectTotalBSCCharge > /tmp/bsccharges.csv
+
+InfoHeader=$(head -n 1 /tmp/projectinfo.csv)
+
+echo "${InfoHeader},\"TotalBSCCharges\""
+
+tail -n +2 /tmp/projectinfo.csv | while read line
+do
+	groupproject=$(echo "$line" | csvcut -c 1)
+	res=$(grep "^${groupproject}," /tmp/bsccharges.csv)
+	if [ -n "$res" ]
+	then
+		bsccharge=$(echo "$res" | csvcut -c 2)
+	else
+		bsccharge=""
+	fi
+
+	echo "${line},\"${bsccharge}\""
+done 
