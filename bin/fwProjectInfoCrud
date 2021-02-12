@@ -57,6 +57,7 @@ if __name__ == '__main__':
     else:
         Projects = list(map(lambda p: p.id, fw.get_all_projects(exhaustive=True)))
         
+    ProjectInfos = []
     for pid in Projects:
 
         try:
@@ -70,7 +71,7 @@ if __name__ == '__main__':
 
         ProjectInfoDict = fwgearutils.decodeKeys(project.info)
 
-        if (args.update and args.json):
+        if (args.update and args.json and False):
             JqString = "{} {}".format(args.update_path,json.dumps(Json, indent=2))
 
             # pyjq.all() returns a list, not the object??
@@ -87,7 +88,7 @@ if __name__ == '__main__':
 
         GroupId = fw.get(project.group).id
         JqStr = '{"' + GroupId + '/' + project.label + '": ' + args.path + '}'
-        print(json.dumps(pyjq.all(JqStr,ProjectInfoDict)[0], indent=2))
+        ProjectInfos.append(pyjq.all(JqStr,ProjectInfoDict)[0])
 
-
+    print(json.dumps(ProjectInfos, indent=2))
 

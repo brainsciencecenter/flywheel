@@ -1,6 +1,5 @@
-[ inputs | 
-(keys[0] as $Key | .[]
-| if . == null then
+[ inputs | .[] | keys[0] as $Key | .[]
+| (if . == null then
   {
     "Group": ($Key | split("/"))[0],
     "Project": ($Key | split("/"))[1],
@@ -16,11 +15,12 @@ else
   {
     "Group": ($Key | split("/"))[0],
     "Project": ($Key | split("/"))[1],
-    "businessAdministrator.name": .businessAdministrator.email,
-    "businessAdministrator.email": .accountNumber,
+    "businessAdministrator.name": .businessAdministrator.name,
+    "businessAdministrator.email": .businessAdministrator.email,
+    "accountNumber": .accountNumber,
     "fundingSourceName": .fundingSourceName,
     "iLabServiceRequestName": .iLabServiceRequestNumber,
     "PIs": ( if .PIs == null then "" else .PIs|join(", ") end )
   }
 end  
-) ] | (.[0] | to_entries | map(.key)), (.[] | [.[]]) | @csv
+)] | ( .[0] | to_entries | map(.key)), (.[] | [.[]]) | @csv
