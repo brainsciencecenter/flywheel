@@ -55,7 +55,7 @@ if __name__ == '__main__':
     if (len(args.project) > 0):
         Projects = args.project
     else:
-        Projects = list(map(lambda p: p.id, fw.get_all_projects()))
+        Projects = list(map(lambda p: p.id, fw.get_all_projects(exhaustive=True)))
         
     for pid in Projects:
 

@@ -1,0 +1,15 @@
+bq query --format=csv --nouse_legacy_sql 'SELECT 
+   	   format("%s/%s",
+		`Group`,
+		 if (Project is NULL, "Deleted", Project),
+	   ),
+	   format("%.2f",
+		sum(
+			  BSCStorageCharge
+			+ InitialAnalysis_Cost
+			+ ProjectCharge
+		)
+           ) 
+	   AS TotalBSCCharges
+      FROM `pennbrain-center.BillingAllocation.GCPGroupProjectCharges` 
+      where InvoiceMonth = "2021-01" group by `Group`,Project ; '

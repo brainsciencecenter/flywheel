@@ -275,7 +275,7 @@ def getJobCpus(job,detail):
 
 ap = argparse.ArgumentParser()
 
-ap.add_argument('-a', '--augment-cpu-count', action='store_true', help='do extra work to lookup cpu count')
+ap.add_argument('-a', '--argument-cpu-count', action='store_true', help='do extra work to lookup cpu count')
 ap.add_argument('-b', '--bar-length', action='store', default=40, type=int, help='bar length')
 ap.add_argument('-c', '--gcp-compute-cost', action='store', type=float, help='Total GCP Compute cost for Flywheel ')
 ap.add_argument('-d', '--debug', action='store_true', help='debug')
@@ -347,6 +347,8 @@ for job in jobs:
     detail = fw.get_job_detail(job.id)
     if (args.verbose):
         print("job", job, "detail", detail, file=sys.stderr)
+    if (not detail.parent_info.project):
+        print("detail = ", detail, file=sys.stderr)
 
     try:
         job_id = job.id
