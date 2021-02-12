@@ -1,4 +1,4 @@
-[ inputs | .[] | keys[0] as $Key | .[]
+[ .[] | keys[0] as $Key | .[]
 | (if . == null then
   {
     "Group": ($Key | split("/"))[0],
@@ -19,7 +19,7 @@ else
     "businessAdministrator.email": .businessAdministrator.email,
     "accountNumber": .accountNumber,
     "fundingSourceName": .fundingSourceName,
-    "iLabServiceRequestName": .iLabServiceRequestNumber,
+    "iLabServiceRequestNumber": .iLabServiceRequestNumber,
     "PIs": ( if .PIs == null then "" else .PIs|join(", ") end )
   }
 end  
