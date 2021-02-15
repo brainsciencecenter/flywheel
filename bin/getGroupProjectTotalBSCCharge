@@ -1,15 +1,24 @@
-bq query --format=csv --nouse_legacy_sql 'SELECT 
+bq query --format=csv --nouse_legacy_sql -n 100000 'SELECT 
+   	   InvoiceMonth,
    	   format("%s/%s",
 		`Group`,
-		 if (Project is NULL, "Deleted", Project),
-	   ),
+		 if (Project is NULL, "Deleted", Project)
+	   ) as Group_Project,
 	   format("%.2f",
-		sum(
-			  BSCStorageCharge
-			+ InitialAnalysis_Cost
-			+ ProjectCharge
-		)
+   		  BSCStorageCharge
+		+ InitialAnalysis_Cost
+		+ ProjectCharge
            ) 
-	   AS TotalBSCCharges
+	   AS TotalBSCCharges,
+
+	   InitialAnalysis_Usage,
+	   VM_Cost,
+	   Storage_Cost,
+	   StorageStandard_Usage
       FROM `pennbrain-center.BillingAllocation.GCPGroupProjectCharges` 
-      where InvoiceMonth = "2021-01" group by `Group`,Project ; '
+      WHERE InvoiceMonth = "2021-01" 
+      ORDER BY Group_Project ASC
+      ;'
+exit
+
+

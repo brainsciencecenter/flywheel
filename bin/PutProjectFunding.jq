@@ -7,7 +7,8 @@
 	},
 	"accountNumber": .accountNumber,
 	"fundingSourceName": .fundingSourceName,
-	"iLabServiceNumber": .iLabServiceNumber,
+	"fundingSourceExpirationDate": .fundingSourceExpirationDate,
+	"iLabServiceRequestNumber": .iLabServiceRequestNumber,
 	"PIs": (if .PIs == null then [] else (.PIs|split(", *";"g")) end )
 	}
 }

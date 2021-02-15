@@ -7,13 +7,13 @@ InfoHeader=$(head -n 1 /tmp/projectinfo.csv)
 
 echo "${InfoHeader},\"TotalBSCCharges\""
 
-tail -n +2 /tmp/projectinfo.csv | while read line
+tail -n +2 /tmp/projectinfo.csv | sort | while read line
 do
 	groupproject=$(echo "$line" | csvcut -c 1)
-	res=$(grep "^${groupproject}," /tmp/bsccharges.csv)
+	res=$(grep ",${groupproject}," /tmp/bsccharges.csv)
 	if [ -n "$res" ]
 	then
-		bsccharge=$(echo "$res" | csvcut -c 2)
+		bsccharge=$(echo "$res" | csvcut -c 3)
 	else
 		bsccharge=""
 	fi
