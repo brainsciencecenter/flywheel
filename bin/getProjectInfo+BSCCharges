@@ -1,11 +1,13 @@
 #!/bin/bash
 
-fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f ProjectInfo2CSV.jq | sed 's/","/\//' > /tmp/projectinfo.csv
+#fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f ProjectInfo2CSV.jq | sed 's/","/\//' > /tmp/projectinfo.csv
 getGroupProjectTotalBSCCharge > /tmp/bsccharges.csv
 
 InfoHeader=$(head -n 1 /tmp/projectinfo.csv)
 
-echo "${InfoHeader},\"TotalBSCCharges\""
+BscChargeColumns=3-
+
+echo "${InfoHeader},$(head -n 1 /tmp/bsccharges.csv | csvcut -c $BscChargeColumns)"
 
 tail -n +2 /tmp/projectinfo.csv | sort | while read line
 do
@@ -13,10 +15,10 @@ do
 	res=$(grep ",${groupproject}," /tmp/bsccharges.csv)
 	if [ -n "$res" ]
 	then
-		bsccharge=$(echo "$res" | csvcut -c 3)
+		bsccharges=$(echo "$res" | csvcut -c "$BscChargeColumns")
 	else
-		bsccharge=""
+		bsccharges=""
 	fi
 
-	echo "${line},\"${bsccharge}\""
+	echo "${line},${bsccharges}"
 done 

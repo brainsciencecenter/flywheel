@@ -11,10 +11,14 @@ bq query --format=csv --nouse_legacy_sql -n 100000 'SELECT
            ) 
 	   AS TotalBSCCharges,
 
+	   InitialAnalysis_Cost,
 	   InitialAnalysis_Usage,
 	   VM_Cost,
+	   VMDynamic_Cost,
 	   Storage_Cost,
-	   StorageStandard_Usage
+	   StorageStandard_Usage,
+	   BSCStorageCharge,
+	   ProjectCharge
       FROM `pennbrain-center.BillingAllocation.GCPGroupProjectCharges` 
       WHERE InvoiceMonth = "2021-01" 
       ORDER BY Group_Project ASC
