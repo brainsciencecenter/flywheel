@@ -54,8 +54,6 @@ if __name__ == '__main__':
 
     args = ap.parse_args()
 
-    print("anyone home ", file=sys.stderr)
-
     fw = fwgearutils.getFW(args, Root=True)
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
