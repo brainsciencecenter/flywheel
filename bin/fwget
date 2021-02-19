@@ -8,6 +8,32 @@ import os
 import re
 import sys
 
+def getContainer(args=None, id=None):
+    try:
+        if (args.device_get):
+            Container = fw.get_device(id)
+        elif (args.get_all_gears):
+            Container = fw.get_all_gears()
+        elif (args.get_job):
+            Container = fw.get_job(id)
+        elif (args.get_user):
+            if (len(args.id) > 0):
+                Container = fw.get_user(id)
+            else:
+                Container = fw.get_all_users()
+        elif (args.get_role):
+            if (len(args.id) > 0):
+                Container = fw.get_role(id)
+            else:
+                Container = fw.get_all_roles()
+        else:
+            Container = fw.get(id)
+
+    except (OSError, Exception) as e:
+        print("e",e, file=sys.stderr)
+        sys.exit(1)
+    
+    return(Container)
 
 if __name__ == '__main__':
 
@@ -28,36 +54,19 @@ if __name__ == '__main__':
 
     args = ap.parse_args()
 
+    print("anyone home ", file=sys.stderr)
+
     fw = fwgearutils.getFW(args, Root=True)
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
-    for id in args.id:
-        try:
-            if (args.device_get):
-                Container = fw.get_device(id)
-            elif (args.get_all_gears):
-                Container = fw.get_all_gears()
-            elif (args.get_job):
-                Container = fw.get_job(id)
-            elif (args.get_user):
-                if (len(args.id) > 0):
-                    Container = fw.get_user(id)
-                else:
-                    Container = fw.get_all_users()
-            elif (args.get_role):
-                if (len(args.id) > 0):
-                    Container = fw.get_role(id)
-                else:
-                    Container = fw.get_all_roles()
-            else:
-                Container = fw.get(id)
-
+    if (len(args.id) > 0):
+        for id in args.id:
+            Container = getContainer(args=args, id=id)
             Containers.append(Container)
-
-        except (OSError, Exception) as e:
-            print("e",e, file=sys.stderr)
-            sys.exit(1)
+    else:
+        Container = getContainer(args=args)
+        Containers.append(Container)
 
     print(json.dumps(fwgearutils.sloppyCopy(Containers,UTC=(not args.localtime)), indent=2))
