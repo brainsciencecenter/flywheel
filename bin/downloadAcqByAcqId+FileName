@@ -61,11 +61,14 @@ with open(args.scans[0], 'r') if len(args.scans) >= 1 else sys.stdin as f:
             if (not args.noop):
                 pathlib.Path(ScanFileDir).mkdir(parents=True, exist_ok=True)
 
-        if (args.noop or args.verbose):
-            print("download '{}' to '{}/{}'".format(ScanFileName, ScanFileDir, ScanFileName))
+        ScanFileFullPath='{}/{}'.format(ScanFileDir, ScanFileName)
 
-        if (not args.noop):
-            Acquisition.download_file(ScanFileName, "{}/{}".format(ScanFileDir, ScanFileName))
+        if (not os.path.isfile(ScanFileFullPath)):
+            if (args.noop or args.verbose):
+                print("download '{}' to '{}'".format(ScanFileName, ScanFileFullPath))
+
+            if (not args.noop):
+                Acquisition.download_file(ScanFileName, "{}".format(ScanFileFullPath))
 
 
     
