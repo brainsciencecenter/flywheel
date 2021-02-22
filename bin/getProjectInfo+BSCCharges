@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f ProjectInfo2CSV.jq | sed 's/","/\//' > /tmp/projectinfo.csv
+fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f ProjectInfo2CSV.jq | sed 's/","/\//' > /tmp/projectinfo.csv
 getGroupProjectTotalBSCCharge > /tmp/bsccharges.csv
 
 InfoHeader=$(head -n 1 /tmp/projectinfo.csv)

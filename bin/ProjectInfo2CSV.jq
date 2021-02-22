@@ -19,6 +19,7 @@ else
     "businessAdministrator.email": .businessAdministrator.email,
     "accountNumber": .accountNumber,
     "fundingSourceName": .fundingSourceName,
+    "fundingSourceExpirationDate": .fundingSourceExpirationDate,
     "iLabServiceRequestNumber": .iLabServiceRequestNumber,
     "PIs": ( if .PIs == null then "" else .PIs|join(", ") end )
   }
