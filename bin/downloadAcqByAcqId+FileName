@@ -58,7 +58,7 @@ for i in args.scans:
             pathlib.Path(ScanFileDir).mkdir(parents=True, exist_ok=True)
 
     if (args.noop or args.verbose):
-        print("download '{}' to '{}{}'".format(ScanFileName, ScanFileDir, ScanFileName))
+        print("download '{}' to '{}/{}'".format(ScanFileName, ScanFileDir, ScanFileName))
 
     if (not args.noop):
         Acquisition.download_file(ScanFileName, "{}{}".format(ScanFileDir, ScanFileName))
