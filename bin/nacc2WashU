@@ -8,6 +8,7 @@ if [ -n "$*" ]
 then
     if [ -e "$1" ]
     then
+	NaccAcquisitionsFile="$1"
 	InddIds=$(cut -f 3 -d / "$1")
     else
 	InddIds="$@"
