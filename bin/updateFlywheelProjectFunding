@@ -1,0 +1,36 @@
+#!/bin/bash
+
+while getopts j:n arg
+do
+    case "$arg" in
+	j|n)
+	    eval "opt_${arg}=${OPTARG:=1}"
+	    ;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+
+ProjectFundingFile="$1"
+
+TmpJsonFile=$(mktemp /tmp/updateFlywheelProjectFunding-XXXXXX.json)
+
+if echo "$0" | grep -q /
+then
+    BinDir=$(dirname "$0")
+else
+    CmdPath=$(which "$0")
+    BinDir=$(dirname "$CmdPath")
+fi
+
+csvcut -c Group/Project,businessAdministrator.name,businessAdministrator.email,accountNumber,fundingSourceName,fundingSourceExpirationDate,iLabServiceRequestNumber,PIs "$ProjectFundingFile"  | csvjson  | jq -r -f "$BinDir/"PutProjectFunding.jq > "$TmpJsonFile"
+
+
+if [ -n "$opt_n" ]
+then
+    ProjectInfoCrudArg=-n
+else
+    ProjectInfoCrudArg=
+fi
+
+fwProjectInfoCrud $ProjectInfoCrudArg -u -P '.ProjectFunding |= ' -j "$TmpJsonFile" -p .ProjectFunding

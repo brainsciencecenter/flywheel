@@ -236,18 +236,20 @@ class FW():
     def updateProjectUserRole(self, project, user, role):
         args = self.Config
 
-        permission = flywheel.Permission(user, role)
+        permission = flywheel.PermissionAccessPermission(user, role)
 
         if (not args.no_op):
             try:
                 project.add_permission(permission)
+                project = project.reload()
             except flywheel.ApiException as e:
-                if (e.status == 409):
+                if (e.status == 409 or e.status == 400):
                     existing_permission = list(filter(lambda x: x.id == user, project.permissions))[0]
                     if (existing_permission.access != permission.access and args.force):
                         project.delete_permission(user)
                         project.add_permission(permission)
                 else:
+                    print("error")
                     print('API Error3: %d -- %s' % (e.status, e.reason))
 
         if (args.verbose or args.no_op):
@@ -263,19 +265,21 @@ class FW():
         if (group_users):
             # Check if we're just updating the role.
             if (group_users[0].access != role and args.force):
-                permission = flywheel.Permission(user, role)
+                permission = flywheel.PermissionAccessPermission(user, role)
                 if (not args.no_op):
                     # why can't update_permissions use the id in the permissions?
                     group.update_permission(group_users[0].id, permission)
+                    group = group.reload()
                 if (args.verbose or args.no_op):
                     print("update %s to %s with %s" % (user,group.id,role))
             else:
                 raise Exception("User '%s already in group '%s' as '%s'" % (user,group.id,role))
 
         else:
-            permission = flywheel.Permission(user, role)
+            permission = flywheel.PermissionAccessPermission(user, role)
             if (not args.no_op): 
                 group.add_permission(permission) 
+                group = group.reload()
             if (args.verbose or args.no_op): 
                 print("add %s to %s with %s" % (user,group.id,role)) 
 
@@ -338,8 +342,9 @@ class FW():
                 for user in args.UserNames:
                     group_users = list(filter(lambda p: p.id == user, group.permissions))
                     if (not group_users):
-                        permission = flywheel.Permission(user, args.role)
+                        permission = flywheel.PermissionAccessPermission(user, args.role)
                         group.add_permission(permission)
+                        group = group.reload()
                         if (args.verbose):
                             print("add %s to %s with %s" % (user,groupid,args.role))
 
