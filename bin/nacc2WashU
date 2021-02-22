@@ -6,7 +6,12 @@ NaccAcquisitionsFile=/tmp/nacc-sc-acquisitions-2021-02-21
 
 if [ -n "$*" ]
 then
-    InddIds="$@"
+    if [ -e "$1" ]
+    then
+	InddIds=$(cut -f 3 -d / "$1")
+    else
+	InddIds="$@"
+    fi
 else
     InddIds=$(cut -f 3 -d / "$NaccAcquisitionsFile")
 fi
