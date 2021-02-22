@@ -1,0 +1,67 @@
+#!/usr/bin/python3
+
+import argparse
+import csv
+import flywheel
+import fwgearutils
+import json
+import math
+import os
+import pathlib
+import pyjq
+import re
+import sys
+
+from pprint import pprint
+
+CmdName = sys.argv[0]
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument('-d', '--download-dir', action='store', help='base directory to download scans do.  Current directory is default.')
+ap.add_argument('-n', '--noop', action='store_true', help='do not actually do anything.')
+ap.add_argument('-u', '--update', action='store', help='json file to update project info with')
+ap.add_argument('-j', '--json-file', action='store', help='json file to update project info with')
+ap.add_argument('-p', '--path', default='.', action='store', help='Use "jq" path to filter project info')
+ap.add_argument('-v', '--verbose', action='store_true', help='show what is being done')
+ap.add_argument('scans', nargs='*', help='list of acquisitionsid:scanid:filenames')
+args = ap.parse_args()
+
+fw = fwgearutils.getFW(args, Root=True)
+
+if (args.download_dir):
+    BaseDownloadDir = args.download_dir + '/'
+else:
+    BaseDownloadDir = ""
+
+for i in args.scans:
+    (AcquisitionId, ScanId, ScanFilePath) = i.split(':')
+    ScanFileName = os.path.basename(ScanFilePath)
+    ScanFileDir = BaseDownloadDir + os.path.dirname(ScanFilePath)
+
+    try:
+        Acquisition = fw.get(AcquisitionId)
+    except (flywheel.rest.ApiException) as e:
+        print("{} : acquisition '{}' not found. Skipping. '{}'".format(CmdName, AcquisitionId, str(e.detail)), file=sys.stderr)
+        continue
+
+    ScanFile = Acquisition.get_file(ScanFileName)
+    if (not ScanFile):
+        print("{} : file '{}' not found in acquisition '{}'. Skipping.  ".format(CmdName, ScanFileName, AcquisitionId), file=sys.stderr)
+        continue
+
+    if (not os.path.isdir(ScanFileDir)):
+        if (args.noop or args.verbose):
+            print("mkdir -p '{}'".format(ScanFileDir), file=sys.stderr)
+
+        if (not args.noop):
+            pathlib.Path(ScanFileDir).mkdir(parents=True, exist_ok=True)
+
+    if (args.noop or args.verbose):
+        print("download '{}' to '{}{}'".format(ScanFileName, ScanFileDir, ScanFileName))
+
+    if (not args.noop):
+        Acquisition.download_file(ScanFileName, "{}{}".format(ScanFileDir, ScanFileName))
+
+
+    
