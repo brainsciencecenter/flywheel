@@ -2,4 +2,4 @@
 
 Project="$1"
 
-fw2json -a "$Project" | jq -r '.[].subjects[] | .label as $Subject | .sessions[] | .label as $Session | .acquisitions[] | .label as $Acquisition | .files[] | "'${Project}'/\($Subject)/\($Session)/\($Acquisition)/files/\(.name)"' 
+fw2json -a "$Project" | jq -r '.[].subjects[] | .label as $Subject | .sessions[] | .label as $Session | .acquisitions[] | .label as $Acquisition | ._id as $AcquisitionId | .files[] | "\($AcquisitionId):\(._id):'${Project}'/\($Subject)/\($Session)/\($Acquisition)/files/\(.name)"'
