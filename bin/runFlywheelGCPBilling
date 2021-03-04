@@ -94,7 +94,7 @@ FlywheelJobsFile="${ReportDir}/${Year}-${Month}-Jobs.csv"
 
 if [ -n "$opt_f" ] || [ ! -e "$FlywheelJobsFile" ]
 then
-	getJobs -i -p -c "$FlywheelTotalGCPComputeCost" -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$FlywheelJobsFile"
+	getJobs -aei -p -c "$FlywheelTotalGCPComputeCost" -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$FlywheelJobsFile"
 fi
 
 FlywheelJobCostAllocationFile="${ReportDir}/${Year}-${Month}-JobFWCostAllocation.csv"
