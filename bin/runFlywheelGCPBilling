@@ -117,12 +117,17 @@ then
     summarizeProjectCharges  -i "${Year}-${Month}" -f  -p "$GCPChargesWithFlywheelAllocationFile" "$FlywheelJobCostAllocationFile" > "$GCPGroupProjectChargesFile"
 fi
 
-FWGearChargeFile="${ReportDir}/${Year}-${Month}-FWGearCharge.csv"
-if [ -n "$opt_f" ] || [ ! -e "$FWGearChargeFile" ]
+ProjectFundingFile="${ReportDir}/${Year}-${Month}-ProjectFunding.csv"
+if [ -n "$opt_f" ] || [ ! -e "$ProjectFundingFile" ]
 then
-    summarizeProjectCharges  -i "${Year}-${Month}" -f  -g "$GCPChargesWithFlywheelAllocationFile" "$FlywheelJobCostAllocationFile" > "$FWGearChargeFile"
+    getProjectInfo+BSCCharges -m "$Month" -y "$Year"  > "$ProjectFundingFile"
 fi
      
+iLabFlywheelBscChargesFile="${ReportDir}/${Year}-${Month}-iLabFlywheelBscCharges.csv"
+if [ -n "$opt_f" ] || [ ! -e "$iLabFlywheelBscChargesFile" ]
+then
+    createiLabGCPChargesCSV -i -s 472933 -b -p "$ProjectFundingFile" > "$iLabFlywheelBscChargesFile" 
+fi
 
 if [ -n "$opt_u" ]
 then
@@ -142,4 +147,3 @@ do
     echo "$i: ${Diff}" 1>&2
 done
 
-# createiLabGCPChargesCSV -z -m iLabServiceRequestIDMap /tmp/2020-11-GCPChargesWithFlywheelAllocation.csv > /tmp/2020-11-iLabGCPChargesWithFlywheelAllocation.csv

@@ -13,6 +13,8 @@ from openpyxl.utils.cell import get_column_letter, column_index_from_string
 
 from collections import OrderedDict
 
+# createiLabGCPChargesCSV -i -s 472933 -b -p 2021-01-ProjectFunding.csv  | tee 2021-01-iLabFlywheelBscCharges.csv
+
 GibiByte = 1024 * 1024 * 1024
 TerraByte = 1024 * 1024 * 1024 * 1042
 
@@ -89,6 +91,7 @@ with open(args.project_funding) as file:
 
             Price = 0.0
             if (args.bsc_charges):
+                print("'{}'Adding '{}' to Price ".format(row['Group/Project'], betterFloat(row['BSCStorageCharge']) + betterFloat(row['InitialAnalysis_Cost']) + betterFloat(row['ProjectCharge']) ), file=sys.stderr)
                 Price += betterFloat(row['BSCStorageCharge']) + betterFloat(row['InitialAnalysis_Cost']) + betterFloat(row['ProjectCharge'])
 
             if (args.gcp_charges):
@@ -102,6 +105,11 @@ with open(args.project_funding) as file:
                  + betterFloat(row['ProjectCharge'])
                 ))
 
+            if (round(Price,2) <= 0.0):
+                continue
+
+            print("'{}' charge = '{}'".format(row['Group/Project'], Price), file=sys.stderr)
+
             iLabCharge = formatIlabRow(
                 service_id=args.service_id,
                 note="{}: Analysis Gears {} Storage Charge {} Storage Usage(Gb) {} BSC Storage {} BSC Inital Analysis {} BSC Project {}".format(
@@ -113,13 +121,15 @@ with open(args.project_funding) as file:
                     round(betterFloat(row['InitialAnalysis_Cost']),2),
                     round(betterFloat(row['ProjectCharge']),2)
                 ),
-                service_quantity=ServiceQuantity,
-                price=round(Price,2),
+                service_quantity=round(Price,2),
+                price=1.0,
                 service_request_id=row['iLabServiceRequestNumber']
             )
 
             iLabCharges.append(iLabCharge)
             
+print("Len of iLabCharges = ",len(iLabCharges), file=sys.stderr)
+
 writer = csv.DictWriter(sys.stdout, iLabColumnNames, quoting=csv.QUOTE_NONNUMERIC)
 writer.writeheader()
 

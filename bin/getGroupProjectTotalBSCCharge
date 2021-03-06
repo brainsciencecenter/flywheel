@@ -1,3 +1,25 @@
+#!/bin/bash
+
+while getopts m:y: arg
+do
+	case "$arg" in
+	     m|y)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+nowmonth=$(date +%Y-%m-15)
+Year=$(date --date="$nowmonth -1 month" +'%Y')
+[ -n "$opt_y" ] && Year="$opt_y"
+
+Month=$(date --date="$nowmonth -1 month" +'%m')
+[ -n "$opt_m" ] && Month="$opt_m"
+
+NextYearMonth=$(date --date="${Year}-${Month}-15 next month" +%Y-%m)
+
 bq query --format=csv --nouse_legacy_sql -n 100000 'SELECT 
    	   InvoiceMonth,
    	   format("%s/%s",
@@ -20,7 +42,7 @@ bq query --format=csv --nouse_legacy_sql -n 100000 'SELECT
 	   BSCStorageCharge,
 	   ProjectCharge
       FROM `pennbrain-center.BillingAllocation.GCPGroupProjectCharges` 
-      WHERE InvoiceMonth = "2021-01" 
+      WHERE InvoiceMonth = "'"${Year}-${Month}"'" 
       ORDER BY Group_Project ASC
       ;'
 exit

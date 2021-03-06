@@ -1,7 +1,35 @@
 #!/bin/bash
 
-fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f ProjectInfo2CSV.jq | sed 's/","/\//' > /tmp/projectinfo.csv
-getGroupProjectTotalBSCCharge > /tmp/bsccharges.csv
+while getopts m:y: arg
+do
+	case "$arg" in
+	     m|y)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+nowmonth=$(date +%Y-%m-15)
+Year=$(date --date="$nowmonth -1 month" +'%Y')
+[ -n "$opt_y" ] && Year="$opt_y"
+
+Month=$(date --date="$nowmonth -1 month" +'%m')
+[ -n "$opt_m" ] && Month="$opt_m"
+
+if [ -z "$FlywheelUtilsDir" ]
+then
+	if echo "$0" | grep -q /
+	then
+		FlywheelUtilsDir=$(dirname $(dirname $(realpath "$0")))
+	else
+		FlywheelUtilsDir=$(dirname $(dirname $(which "$0")))
+	fi
+fi
+
+fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f "${FlywheelUtilsDir}/bin/ProjectInfo2CSV.jq" | sed 's/","/\//' > /tmp/projectinfo.csv
+getGroupProjectTotalBSCCharge -m "$Month" -y "$Year"  > /tmp/bsccharges.csv
 
 InfoHeader=$(head -n 1 /tmp/projectinfo.csv)
 
