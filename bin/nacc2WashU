@@ -2,20 +2,26 @@
  
 # 
 
-NaccAcquisitionsFile=/tmp/nacc-sc-acquisitions-2021-02-21
+while getopts a: arg
+do
+    case "$arg" in
+	a)
+	    eval "opt_${arg}=${OPTARG:=1}"
+	    ;;
+    esac
+done
 
-if [ -n "$*" ]
+shift $((OPTIND - 1))
+
+if [ -n "$opt_a" ]
 then
-    if [ -e "$1" ]
-    then
-	NaccAcquisitionsFile="$1"
-	InddIds=$(cut -f 3 -d / "$1")
-    else
-	InddIds="$@"
-    fi
+	NaccAcquisitionsFile="$opt_a"
 else
-    InddIds=$(cut -f 3 -d / "$NaccAcquisitionsFile")
+	echo "$CmdName : Missing {-a acquisitionfile} {InddId [[InddId]...]}" 1>&2
+	exit 1      
 fi
+
+InddIds="$@"
 
 for InddId in $(echo "$InddIds"  | sed 's/\./x/g' | sort -u)
 do
