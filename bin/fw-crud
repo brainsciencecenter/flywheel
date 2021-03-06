@@ -30,7 +30,7 @@ Delete
 #
 # Syntax
 #   fw-usercrud [-n][-r][-v] {create|get|update|delete}
-#      create [-c][-G group1[[,group2]...]][-f FirstName][-l LastName][-r admin|ro|rw][-s] [UserName]
+#      create [-c][-G group1[[,group2]...]][-f FirstName][-l LastName][-r admin|read-only|read-write][-s] [UserName]
 #   -c Create any missing groups
 #   -r role admin, readonly, read/write defaults to readwrite
 #   -s site admin
@@ -58,6 +58,7 @@ args = False
 class FW():
 
     def __init__(self):
+        self.CmdName = os.path.basename(sys.argv[0])
         self.UserJsonFile = expanduser("~") + "/.config/flywheel/user.json"
         self.ApiKeyFile = expanduser("~") + "/.config/flywheel/api.key"
         self.Domain = 'upenn.edu'
@@ -141,7 +142,7 @@ class FW():
         update_parser.add_argument('-g', '--groupid', required=True, nargs=1, action='store', help='GroupID to motify.')
         update_parser.add_argument('-l', '--label', action='store', help='Update groufp label')
         update_parser.add_argument('-p', '--project', action='store', help='Project in group to change user permissions. Use project "all" to add user permissions to all projects in the group.  Default is only modify the group permissions') 
-        update_parser.add_argument('-r', '--role', choices=['admin', 'ro', 'rw'], default=['rw'], nargs=1, action='store', help='Set member role.  Defaults to rw')
+        update_parser.add_argument('-r', '--role', choices=['admin', 'read-only', 'read-write'], default=['read-write'], nargs=1, action='store', help='Set member role.  Defaults to rw')
         update_parser.add_argument('-s', '--set', action='store_true', help='Set members of group.')
         update_parser.add_argument('UserNames', nargs='+', action='store', help='UserNames')
         update_parser.set_defaults(func=self.groupUpdate)
@@ -214,7 +215,7 @@ class FW():
                 print("  Members:")
                 for member in sorted(group.permissions, key=lambda k: k['_id']):
                     if (args.ids):
-                        print("\t%s:%s" % (member.access, member.id), end='')
+                        print("\t%s:%s" % (member.role_ids, member.id), end='')
                     if (args.fullnames):
                         user = self.getUser(member.id)
                         if (user):
@@ -236,21 +237,30 @@ class FW():
     def updateProjectUserRole(self, project, user, role):
         args = self.Config
 
-        permission = flywheel.PermissionAccessPermission(user, role)
+        permission = self.mkPermission(user, role)
 
         if (not args.no_op):
+            existing_permission = None
             try:
-                project.add_permission(permission)
-                project = project.reload()
-            except flywheel.ApiException as e:
-                if (e.status == 409 or e.status == 400):
-                    existing_permission = list(filter(lambda x: x.id == user, project.permissions))[0]
-                    if (existing_permission.access != permission.access and args.force):
-                        project.delete_permission(user)
-                        project.add_permission(permission)
+                existing_permission = project.get_permission(user)
+            except (Exception) as e:
+                if (e.status == 404):
+                    existing_permission = None
+                
+            if (existing_permission):
+                if (existing_permission.role_ids == permission['role_ids'] or not (args.force)):
+                    RoleName = list(map(lambda r: r.label, filter(lambda r: r.id == existing_permission.role_ids[0], self.fw.get_all_roles())))[0]
+                    if (args.verbose):
+                        print("{} : user '{}' already has permission '{}' in project '{}'".format(self.CmdName, user, RoleName, project.label), file=sys.stderr)
                 else:
-                    print("error")
-                    print('API Error3: %d -- %s' % (e.status, e.reason))
+                    if (args.verbose):
+                        print("{} : resetting user '{}' permission in project '{}' to '{}'".format(self.CmdName, user, project.label, role), file=sys.stderr)
+                    project.delete_permission(user)
+                    project.add_permission(permission)
+            else:
+                project.add_permission(permission)
+
+            project = project.reload()
 
         if (args.verbose or args.no_op):
             print("add %s to %s/%s with %s" % (user, project.group, project.label, role))
@@ -261,14 +271,23 @@ class FW():
     def appendUser2Group(self,group, user, role):
         args = self.Config
 
-        group_users = list(filter(lambda p: p.id == user, group.permissions))
+        Role2AccessPermissionMap = {
+            'ro': 'ro',
+            'rw': 'rw',
+            'read-only': 'ro',
+            'read-write': 'rw',
+            'admin': 'admin',
+        }
+
+        group_users = list(filter(lambda p: p['_id'] == user, self.accessPerms2RolePerms(group.permissions)))
         if (group_users):
             # Check if we're just updating the role.
-            if (group_users[0].access != role and args.force):
-                permission = flywheel.PermissionAccessPermission(user, role)
+            if (group_users[0]['role_ids'] != role and args.force):
+                
+                permission = flywheel.PermissionAccessPermission(user, Role2AccessPermissionMap[role])
                 if (not args.no_op):
                     # why can't update_permissions use the id in the permissions?
-                    group.update_permission(group_users[0].id, permission)
+                    group.update_permission(permission.id, permission)
                     group = group.reload()
                 if (args.verbose or args.no_op):
                     print("update %s to %s with %s" % (user,group.id,role))
@@ -276,7 +295,7 @@ class FW():
                 raise Exception("User '%s already in group '%s' as '%s'" % (user,group.id,role))
 
         else:
-            permission = flywheel.PermissionAccessPermission(user, role)
+            permission = flywheel.PermissionAccessPermission(user, Role2AccessPermissionMap[role])
             if (not args.no_op): 
                 group.add_permission(permission) 
                 group = group.reload()
@@ -287,7 +306,6 @@ class FW():
             
     def groupUpdate(self,args):
         #
-        # *** Does not handle project level group permissions
         # *** what happens when setting group and user has different permissions ? Overwrite, notify user?
         # *** How to set group labels, tags
         # *** should allow either pennkeyname or pennkeyname@upenn.edu -- expects pennkeyname@upenn.edu
@@ -297,7 +315,11 @@ class FW():
         groups = args.groupid[0]
         for groupid in re.split(',',groups):
 
-            group = self.fw.get_group(groupid)
+            try:
+                group = self.fw.get_group(groupid)
+            except (Exception) as e:
+                print("{}: Group '{}' not found".format(self.CmdName, groupid), file=sys.stderr)
+                continue
 
             if (args.append and not (args.delete or args.set)):
                 if (args.file):
@@ -315,16 +337,30 @@ class FW():
                             self.appendUser2Group(group,user,l['role'])
 
                 else:
-                    for UserName in args.UserNames:
+                    if (args.UserNames[0] == 'all'):
+                        Users = self.fw.get_all_users()
+                        UserNames = list(map(lambda u: u.id, filter(lambda u: u.disabled != True, Users)))
+                    else:
+                        UserNames = args.UserNames
+                        
+                    for UserName in UserNames:
                         user = self.enforceDomain(UserName)
                         try:
                             self.appendUser2Group(group,user,args.role[0])
                         except (Exception) as e:
                             logging.warning(e)
 
+                        ProjectList = []
                         if (args.project):
-                            for p in group.projects():
-                                if (args.project == 'all' or p.label in args.project):
+                            if (args.project == 'all'):
+                                ProjectList = self.fw.projects.find("group={}".format(group.id), exhaustive=True, limit=100000)
+                            else:
+                                for p in re.split(',', args.project):
+                                    Project = self.fw.lookup("{}/{}".format(group.id,p))
+                                    ProjectList.append(Project)
+
+                            for p in ProjectList:
+                                if (args.project == 'all' or p.label == args.project):
                                     self.updateProjectUserRole(p, user, args.role[0])
 
             elif (args.delete):
@@ -342,7 +378,7 @@ class FW():
                 for user in args.UserNames:
                     group_users = list(filter(lambda p: p.id == user, group.permissions))
                     if (not group_users):
-                        permission = flywheel.PermissionAccessPermission(user, args.role)
+                        permission = self.mkPermission(user, args.role)
                         group.add_permission(permission)
                         group = group.reload()
                         if (args.verbose):
@@ -457,6 +493,21 @@ class FW():
             if (user):
                 if (args.verbose):
                     print("delete user '%s'" % (username))
+
+    def mkPermission(self, user, role):
+
+        roles = self.fw.get_all_roles()
+        RoleId = list(filter(lambda r: r.label == role or r.default_flywheel_role == role, roles))[0].id
+        permission = { '_id': user, 'role_ids': [ RoleId ] }
+
+        return(permission)
+
+    def accessPerms2RolePerms(self, accessPerms):
+        RolePerms = []
+        for ap in accessPerms:
+            RolePerms.append(self.mkPermission(ap.id, ap.access))
+
+        return(RolePerms)
 
     def enforceDomain(self,user):
         if (re.search('@',user)):
