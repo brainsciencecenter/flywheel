@@ -1,0 +1,15 @@
+import "id2ProjectLabels" as $ProjectId2Labels;
+import "id2SubjectLabels" as $SubjectId2Labels;
+
+.[] 
+	| .timestamp as $TimeStamp 
+	| .parents.group as $GroupLabel 
+	| $ProjectId2Labels[][ .parents.project] as $ProjectLabel 
+	| $SubjectId2Labels[][.parents.subject] as $SubjectLabel 
+	| .label as $SessionLabel 
+	| .acquisitions[] 
+		| .label as $AcquisitionLabel 
+		| .files[] 
+			| (if .classification.Measurement then .classification.Measurement | join(":") else empty end) as $Measurement 
+			| "\($TimeStamp),\($GroupLabel)/\($ProjectLabel)/\($SubjectLabel)/\($SessionLabel)/\($AcquisitionLabel)/\(.name),\(._id),\($Measurement)"
+
