@@ -73,6 +73,7 @@ if __name__ == '__main__':
     ap.add_argument('-p', '--progress-bar', default=False,  action='store_true', help='generate progress info on stderr')
     ap.add_argument('-R', '--no-recurse', default=False,  action='store_true', help='no recurse mode')
     ap.add_argument('-r', '--root', default=True,  action='store_true', help='enable manager mode')
+    ap.add_argument('-s', '--stream', default=True,  action='store_true', help='streaming mode')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
     ap.add_argument('path', nargs='+', type=str, default=None, help='group/project')
@@ -92,9 +93,15 @@ if __name__ == '__main__':
         try:
             Container = fw.get(path)
             if (args.no_recurse):
-                Output.append(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)))
+                if (args.stream):
+                    print(json.dumps(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)), indent=2))
+                else:
+                    Output.append(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)))
             else:
-                Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
+                if (args.stream):
+                    print(json.dumps(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info), indent=2))
+                else:
+                    Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
 
                
         except (flywheel.rest.ApiException) as e:
@@ -108,11 +115,18 @@ if __name__ == '__main__':
                     print("%s : No such flywheel path '%s'" % (CmdName, ContainerPath), file=sys.stderr)
 
                 if (args.no_recurse):
-                    Output.append(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)))
+                    if (args.stream):
+                        print(json.dumps(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)), indent=2))
+                    else:
+                        Output.append(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)))
                 else:
-                    Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
+                    if (args.stream):
+                        print(json.dumps(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info),indent=2))
+                    else:
+                        Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
 
         if (args.progress_bar):
             print("%s" % CleanPath, file=sys.stderr, flush=True)
 
-    print(json.dumps(Output,indent=2))
+    if (not args.stream):
+        print(json.dumps(Output,indent=2))

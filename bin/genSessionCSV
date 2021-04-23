@@ -89,9 +89,9 @@ if [ -s "${WorkDir}/SessionUIDs" ]
 then
 	if [ -n "$opt_p" ]
 	then
-		(fw2json -p -ag $TimeZone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile" ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
+		(fw2json -s -p -ag $TimeZone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile" ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
 	else
-		sys fw2json -ag $Timezone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile"
+		sys fw2json -s -ag $Timezone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile"
 	fi
 	sys genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
 

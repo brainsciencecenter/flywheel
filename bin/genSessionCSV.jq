@@ -21,8 +21,7 @@ import "SubjectMap" as $Subjects;
 	"MagneticFieldStrength"				# 18
 
 ],
-(.[]
-   | .label as $SessionLabel
+(    .label as $SessionLabel
    | ._id as $SessionID
    | .parents.subject as $SubjectID
    | .subject.code as $Code
