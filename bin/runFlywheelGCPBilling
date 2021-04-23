@@ -33,10 +33,14 @@ FlywheelStaticLabel='billing:flywheel-static'
 PromotionRegEx='PROMOTION'
 iLabServiceRequestMapFile=~/flywheel/bin/iLabServiceRequestIDMap
 
-while getopts a:c:d:fg:i:j:m:uy: arg
+BscGCPServiceId=472933
+FlywheelMriStorageServiceRequestId=3050653
+
+
+while getopts a:Cc:d:fg:i:j:m:uy: arg
 do
 	case "$arg" in
-	     a|c|d|f|g|i|j|m|u|y)
+	     a|Cc|d|f|g|i|j|m|u|y)
 		eval "opt_${arg}=${OPTARG:=1}"
 		;;
 	esac
@@ -117,6 +121,22 @@ then
     summarizeProjectCharges  -i "${Year}-${Month}" -f  -p "$GCPChargesWithFlywheelAllocationFile" "$FlywheelJobCostAllocationFile" > "$GCPGroupProjectChargesFile"
 fi
 
+FWGearChargeFile="${ReportDir}/${Year}-${Month}-FWGearCharge.csv"
+if [ -n "$opt_f" ] || [ ! -e "$FWGearChargeFile" ]
+then
+    summarizeProjectCharges  -i "${Year}-${Month}" -f  -g "$GCPChargesWithFlywheelAllocationFile" "$FlywheelJobCostAllocationFile" > "$FWGearChargeFile"
+fi
+
+if [ -n "$opt_u" ]
+then
+    # remove old entries for this invoiceMonth
+    bq query --use_legacy_sql=false 'delete from `BillingAllocation.GCPGroupProjectCharges` where InvoiceMonth = "'"${Year}-${Month}"'"';
+    bq query --use_legacy_sql=false 'delete from `BillingAllocation.FWGearCharge` where InvoiceMonth = "'"${Year}-${Month}"'"';
+    
+    bq load --project_id pennbrain-center --skip_leading_rows 1 --noreplace --source_format=CSV BillingAllocation.FWGearCharge "$FWGearChargeFile"
+    bq load --project_id pennbrain-center --skip_leading_rows 1 --noreplace --source_format=CSV BillingAllocation.GCPGroupProjectCharges "$GCPGroupProjectChargesFile"
+fi
+
 ProjectFundingFile="${ReportDir}/${Year}-${Month}-ProjectFunding.csv"
 if [ -n "$opt_f" ] || [ ! -e "$ProjectFundingFile" ]
 then
@@ -129,11 +149,18 @@ then
     createiLabGCPChargesCSV -i -s 472933 -b -p "$ProjectFundingFile" > "$iLabFlywheelBscChargesFile" 
 fi
 
-if [ -n "$opt_u" ]
+SessionsCsvFile="${ReportDir}/${Year}-${Month}-SessionsCSV.csv"
+if [ -n "$opt_f" ] || [ ! -e "$SessionsCsvFile" ]
 then
-	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --noreplace --source_format=CSV BillingAllocation.FWGearCharge "$FWGearChargeFile"
-	echo bq load --project_id pennbrain-center  --skip_leading_rows 1 --noreplace --source_format=CSV BillingAllocation.GCPGroupProjectCharges "$GCPGroupProjectChargesFile"
+    genSessionCSV -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$SessionsCsvFile"
 fi
+
+iLabFlywheelMriChargesFile="${ReportDir}/${Year}-${Month}-iLabFlywheelMriCharges.csv"
+if [ -n "$opt_f" ] || [ ! -e "$iLabFlywheelMriChargesFile" ]
+then
+    createiLabMRIChargesCSV -s "${FlywheelMriStorageServiceRequestId}" "$SessionsCsvFile"  > "$iLabFlywheelMriChargesFile" 
+fi
+
 
 exit 0
 

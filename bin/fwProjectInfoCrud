@@ -13,11 +13,18 @@ import sys
 from os.path import expanduser
 
 '''
+csvjson /tmp/upload.csv > /tmp/json; 
 fwProjectInfoCrud  -u -p .ProjectFunding.businessAdministrator.name -j 'foe' holder/Test1
 fwProjectInfoCrud -p ProjectFunding -g | jq 'del(.[]|nulls)|select(. != {})' 		# returns all projectfunding group/projects with info
 fwProjectInfoCrud -p ProjectFunding -g | jq 'select(.[] == null) | keys | .[]' 		# returns all projectfunding group/projects without project funding 
 
 pull json from gropu/project info
+
+Push updated csv file back to flywheel:
+
+(head -n 1 /tmp/2021-03-28-1247-ProjectFunding\ \(1\)\ mgr.csv; grep -i '^"x"' /tmp/2021-03-11-ProjectFunding-mgr.csv ) > /tmp/upload.csv
+updateFlywheelProjectFunding   /tmp/upload.csv 
+
 '''
 
 if __name__ == '__main__':
@@ -58,8 +65,8 @@ if __name__ == '__main__':
         Projects = args.project
     else:
         if (args.json):
-            Projects = pyjq.all('.[] | keys[0]', Json)
-        if (len(Projects) == 0 or not (re.search("/", Projects[0]))):
+            Projects = pyjq.all('.[]|keys[0]', Json)
+        if (len(Projects) == 0 or (not re.search("/", Projects[0]))):
             Projects = list(map(lambda p: p.id, fw.get_all_projects(exhaustive=True)))
         
     ProjectInfos = []
@@ -76,6 +83,8 @@ if __name__ == '__main__':
                 sys.exit(e.status)
 
         ProjectInfoDict = fwgearutils.decodeKeys(project.info)
+#        print("ProjectInfoDict: ", json.dumps(ProjectInfoDict, indent=2), file=sys.stderr)
+#        print("args.path: ", json.dumps(pyjq.all(args.path, ProjectInfoDict)[0], indent=2), file=sys.stderr)
 
         if (args.update and args.json):
             if (len(args.project) > 0):
@@ -84,9 +93,11 @@ if __name__ == '__main__':
                 JqString = "{} {}".format(args.update_path + '(',json.dumps(Json[i], indent=2) + ')[]')
                 i += 1
 
+#            print("JqString = '{}'".format(JqString), file=sys.stderr)
             # pyjq.all() returns a list, not the object??
 
             UpdatedProjectInfoDict = pyjq.all(JqString, ProjectInfoDict)[0]
+#            print("args.updatepath: ", json.dumps(pyjq.all(args.path, UpdatedProjectInfoDict)[0], indent=2), file=sys.stderr)
 
             if (args.noop or args.verbose):
                 Diff = list(dictdiffer.diff(pyjq.all(args.path,ProjectInfoDict)[0],pyjq.all(args.path,UpdatedProjectInfoDict)[0]))

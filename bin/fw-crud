@@ -103,6 +103,8 @@ class FW():
                 print(e)
                 sys.exit(1)
 
+        self.Roles = self.fw.get_all_roles()
+
         try:
             retval = self.Config.func(self.Config)
         except Exception as e:
@@ -239,7 +241,9 @@ class FW():
 
         permission = self.mkPermission(user, role)
 
-        if (not args.no_op):
+        if (args.no_op):
+            print("add %s to %s/%s with %s" % (user, project.group, project.label, role))
+        else:
             existing_permission = None
             try:
                 existing_permission = project.get_permission(user)
@@ -258,12 +262,11 @@ class FW():
                     project.delete_permission(user)
                     project.add_permission(permission)
             else:
+                if (args.verbose):
+                    print("add %s to %s/%s with %s" % (user, project.group, project.label, role))
                 project.add_permission(permission)
 
             project = project.reload()
-
-        if (args.verbose or args.no_op):
-            print("add %s to %s/%s with %s" % (user, project.group, project.label, role))
         
     #
     # user must be in pennkeyname@upenn.edu format
@@ -292,7 +295,8 @@ class FW():
                 if (args.verbose or args.no_op):
                     print("update %s to %s with %s" % (user,group.id,role))
             else:
-                raise Exception("User '%s already in group '%s' as '%s'" % (user,group.id,role))
+                if (args.verbose):
+                    raise Exception("User '%s already in group '%s' as '%s'" % (user,group.id,role))
 
         else:
             permission = flywheel.PermissionAccessPermission(user, Role2AccessPermissionMap[role])
@@ -496,8 +500,7 @@ class FW():
 
     def mkPermission(self, user, role):
 
-        roles = self.fw.get_all_roles()
-        RoleId = list(filter(lambda r: r.label == role or r.default_flywheel_role == role, roles))[0].id
+        RoleId = list(filter(lambda r: r.label == role or r.default_flywheel_role == role, self.Roles))[0].id
         permission = { '_id': user, 'role_ids': [ RoleId ] }
 
         return(permission)

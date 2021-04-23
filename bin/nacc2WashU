@@ -1,11 +1,17 @@
 #!/bin/bash
  
-# 
+# You need an acquisitions file to run this
+# getAcquisitionPaths dwolklab/NACC-SC
 
-while getopts a: arg
+ModalityRegEx='T1|T2|FLAIR'
+Modalities=$(echo "$ModalityRegEx" | sed 's/|/ /g')
+
+FileType=.nii.gz
+
+while getopts a:p arg
 do
     case "$arg" in
-	a)
+	a|p)
 	    eval "opt_${arg}=${OPTARG:=1}"
 	    ;;
     esac
@@ -21,14 +27,22 @@ else
 	exit 1      
 fi
 
+if [ -n "$opt_p" ]
+then
+    ModalityRegEx='\[BR_NAC\]|\[BR_CTAC\]|\[BR-DY_NAC\]|\[BR-DY_CTAC\]'
+    Modalities=PET
+fi
+
 InddIds="$@"
 
 for InddId in $(echo "$InddIds"  | sed 's/\./x/g' | sort -u)
 do
-	PossibleAcquisitions="$(grep /${InddId}/ ${NaccAcquisitionsFile} | grep -v '_7T/' | grep -v '_7T_' | grep -v 'I AM CONFUSED BY THIS' | grep -v -i duplicate | grep nii.gz | grep -P 'T1|T2|FLAIR')"
+	PossibleAcquisitions="$(grep -F /${InddId}/ ${NaccAcquisitionsFile} | grep -v '_7T/' | grep -v '_7T_' | grep -v 'I AM CONFUSED BY THIS' | grep -v -i duplicate | grep "$FileType" | grep -P -i ""${ModalityRegEx}"")"
 
 	FilteredAcquisitions=""
-	for modality in FLAIR T1 T2 
+
+
+	for modality in $Modalities
 	do
 		NDAcquisitions=$(echo "$PossibleAcquisitions" | grep $modality | grep '_ND/')
 		if [ -n "$NDAcquisitions" ]
