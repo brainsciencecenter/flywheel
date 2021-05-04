@@ -27,8 +27,8 @@
 
 CmdName=$(basename "$0")
 
-ModalityRegEx='/.*T1|T2|FLAIR.*/'
-Modalities=$(echo "$ModalityRegEx" | sed 's/|/ /g')
+ModalityRegEx='/[^/]*(T1|T2|FLAIR)[^/]*/'
+Modalities="T1 T2 FLAIR"
 
 FileType=.nii.gz
 
@@ -83,7 +83,7 @@ then
 		then
 			FilteredAcquisitions+=$(echo ""; echo "$NDAcquisitions")
 		else
-			FilteredAcquisitions+=$(echo ""; echo "$PossibleAcquisitions" | grep "$modality")
+			FilteredAcquisitions+=$(echo ""; echo "$PossibleAcquisitions" | grep "/[^/]*$modality[^/]*/")
 		fi
 	done
 
