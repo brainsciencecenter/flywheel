@@ -73,7 +73,7 @@ if __name__ == '__main__':
     ap.add_argument('-p', '--progress-bar', default=False,  action='store_true', help='generate progress info on stderr')
     ap.add_argument('-R', '--no-recurse', default=False,  action='store_true', help='no recurse mode')
     ap.add_argument('-r', '--root', default=True,  action='store_true', help='enable manager mode')
-    ap.add_argument('-s', '--stream', default=True,  action='store_true', help='streaming mode')
+    ap.add_argument('-s', '--stream', default=False,  action='store_true', help='streaming mode')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
     ap.add_argument('path', nargs='+', type=str, default=None, help='group/project')

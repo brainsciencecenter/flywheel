@@ -36,38 +36,38 @@ with open(args.scans[0], 'r') if len(args.scans) >= 1 else sys.stdin as f:
     for line in f:
         i = line.rstrip()
         try:
-            (AcquisitionId, ScanId, ScanFilePath) = i.split(':')
+            (AcquisitionTimeStamp, SessionUid, AcquisitionUid, AcquisitionLabel, FilePath, FileUid, ClassificationMeasurement) = i.split(',')
         except (ValueError) as e:
             print("{} : bad line format '{}'".format(CmdName, i), file=sys.stderr)
-        ScanFileName = os.path.basename(ScanFilePath)
-        ScanFileDir = BaseDownloadDir + os.path.dirname(ScanFilePath)
+        FileName = os.path.basename(FilePath)
+        FileDir = BaseDownloadDir + os.path.dirname(FilePath)
 
         try:
-            Acquisition = fw.get(AcquisitionId)
+            Acquisition = fw.get(AcquisitionUid)
         except (flywheel.rest.ApiException) as e:
-            print("{} : acquisition '{}' not found. Skipping. '{}'".format(CmdName, AcquisitionId, str(e.detail)), file=sys.stderr)
+            print("{} : acquisition '{}' not found. Skipping. '{}'".format(CmdName, AcquisitionUid, str(e.detail)), file=sys.stderr)
             continue
 
-        ScanFile = Acquisition.get_file(ScanFileName)
+        ScanFile = Acquisition.get_file(FileName)
         if (not ScanFile):
-            print("{} : file '{}' not found in acquisition '{}'. Skipping.  ".format(CmdName, ScanFileName, AcquisitionId), file=sys.stderr)
+            print("{} : file '{}({})' not found in acquisition '{}'. Skipping.  ".format(CmdName, FileName, FileUid, AcquisitionUid), file=sys.stderr)
             continue
 
-        if (not os.path.isdir(ScanFileDir)):
+        if (not os.path.isdir(FileDir)):
             if (args.noop or args.verbose):
-                print("mkdir -p '{}'".format(ScanFileDir), file=sys.stderr)
+                print("mkdir -p '{}'".format(FileDir), file=sys.stderr)
 
             if (not args.noop):
-                pathlib.Path(ScanFileDir).mkdir(parents=True, exist_ok=True)
+                pathlib.Path(FileDir).mkdir(parents=True, exist_ok=True)
 
-        ScanFileFullPath='{}/{}'.format(ScanFileDir, ScanFileName)
+        FileFullPath='{}/{}'.format(FileDir, FileName)
 
-        if ((not os.path.isfile(ScanFileFullPath)) or args.force):
+        if ((not os.path.isfile(FileFullPath)) or args.force):
             if (args.noop or args.verbose):
-                print("download '{}' to '{}'".format(ScanFileName, ScanFileFullPath))
+                print("download '{}' to '{}'".format(FileName, FileFullPath))
 
             if (args.force or (not args.noop)):
-                Acquisition.download_file(ScanFileName, "{}".format(ScanFileFullPath))
+                Acquisition.download_file(FileName, "{}".format(FileFullPath))
 
 
     

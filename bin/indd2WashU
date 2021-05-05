@@ -78,12 +78,12 @@ then
 
 	for modality in $Modalities
 	do
-		NDAcquisitions=$(echo "$PossibleAcquisitions" | grep $modality | grep '_ND/')
+		NDAcquisitions=$(echo "$PossibleAcquisitions" | grep -P -i "/[^/]*$modality[^/]*/" | grep '_ND/')
 		if [ -n "$NDAcquisitions" ]
 		then
 			FilteredAcquisitions+=$(echo ""; echo "$NDAcquisitions")
 		else
-			FilteredAcquisitions+=$(echo ""; echo "$PossibleAcquisitions" | grep "/[^/]*$modality[^/]*/")
+			FilteredAcquisitions+=$(echo ""; echo "$PossibleAcquisitions" | grep -P -i "/[^/]*$modality[^/]*/")
 		fi
 	done
 
