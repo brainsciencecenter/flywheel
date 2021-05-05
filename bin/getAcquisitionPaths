@@ -1,5 +1,22 @@
 #!/bin/bash
 
-Project="$1"
+# getAcquisitionPaths dwolklab/NACC-SC
+#
+GroupProject="$1"
+Group=$(echo "$GroupProject" | cut -f 1 -d /)
+Project=$(echo "$GroupProject" | cut -f 2 -d /)
 
-fw2json -a "$Project" | jq -r '.[].subjects[] | .label as $Subject | .sessions[] | .label as $Session | .acquisitions[] | .label as $Acquisition | ._id as $AcquisitionId | .files[] | "\($AcquisitionId):\(._id):'${Project}'/\($Subject)/\($Session)/\($Acquisition)/files/\(.name)"'
+#fwfind -p group="$Group" | jq '[.[]| {(._id): .label}] | add ' > id2ProjectLabels.json
+#fwfind -s group="$Group" | jq '[.[]| {(._id): .label}] | add ' > id2SubjectLabels.json
+
+ProjectUid=$(jq -r 'to_entries[] | select(.value == "'"${Project}"'") | .key' id2ProjectLabels.json)
+
+fwfind -s group="$Group" parents.project="${ProjectUid}" | jq '[.[]| {(._id): .label}] | add ' > id2SessionLabels.json
+SessionUids="$(jq -r 'to_entries[] | .key' id2SessionLabels.json)"
+NumberOfSessionUids=$(echo "$SessionUids" | wc -l)
+
+opt_f=1
+if [ -n "$opt_f" -o ! -e Acquisitions.json ]
+then
+    (fw2json -s -p -agl $SessionUids > Sessions.json) 2>&1 | pv -l -s "$NumberOfSessionUids" > /dev/null
+fi

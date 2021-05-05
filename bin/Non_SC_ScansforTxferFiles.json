@@ -1,15 +1,32 @@
 import "id2ProjectLabels" as $ProjectId2Labels;
 import "id2SubjectLabels" as $SubjectId2Labels;
+(["AcquisitionTimestamp",
+  "SessionUid",
+  "AcquisitionUid",
+  "AcquisitionLabel",
+  "FilePath",
+  "FileUid",
+  "ClassificationMeasurement" 
+] | @csv),
 
-.[] 
-	| .timestamp as $TimeStamp 
-	| .parents.group as $GroupLabel 
-	| $ProjectId2Labels[][ .parents.project] as $ProjectLabel 
-	| $SubjectId2Labels[][.parents.subject] as $SubjectLabel 
+	  ._id as $SessionUid
 	| .label as $SessionLabel 
+        | .parents.group as $GroupLabel 
+	| $ProjectId2Labels[][.parents.project] as $ProjectLabel 
+	| $SubjectId2Labels[][.parents.subject] as $SubjectLabel 
 	| .acquisitions[] 
+		| ._id as $AcquisitionUid
 		| .label as $AcquisitionLabel 
+                | .timestamp as $TimeStamp
 		| .files[] 
-			| (if .classification.Measurement then .classification.Measurement | join(":") else empty end) as $Measurement 
-			| "\($TimeStamp),\($GroupLabel)/\($ProjectLabel)/\($SubjectLabel)/\($SessionLabel)/\($AcquisitionLabel)/\(.name),\(._id),\($Measurement)"
+			| (if .classification.Measurement then .classification.Measurement | join(":") else "" end) as $Measurement 
+                        | [ $TimeStamp,
+			    $SessionUid,
+			    $AcquisitionUid,
+			    $AcquisitionLabel,
+			    "\($GroupLabel)/\($ProjectLabel)/\($SubjectLabel)/\($SessionLabel)/\($AcquisitionLabel)/files/\(.name)",
+			    ._id, $Measurement
+			  ] | @csv
+
+
 
