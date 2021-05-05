@@ -196,7 +196,7 @@ function total {
 		    echo "$HeaderLine" | csvcut -c "$Fields" 
 		else
 		    echo -n 'Count,' ; echo "$HeaderLine" | csvcut -c "$Fields"
-		    csvcut -c "$Fields" | awk -F , 'BEGIN {Quantity = 0.0; Cost = 0.0;} { Quantity = Quantity + $1; Cost = Cost + $2; } END {printf(%d,"%.2f,%.2f\n",NR,Quantity,Cost) }'
+		    csvcut -c "$Fields" | awk -F , 'BEGIN {Quantity = 0.0; Cost = 0.0;} { Quantity = Quantity + $1; Cost = Cost + $2; } END {printf("%d,%.2f,%.2f\n",NR,Quantity,Cost) }'
 		fi
 		;;
 		
