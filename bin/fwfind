@@ -4,6 +4,8 @@
 # Flywheel says subject.label doesn't really exist -- only put out in the output for consistency.  Use subjects.find('code="12345"')
 # Numeric strings must be _Double_Quoted_ to be correctly interpeted as strings -- otherwise comparing strings vs numbers.
 # 
+# fwfind -j 'gear_info.name=dcm2niix,state=failed,created>2021-04-24,created<2021-04-30' for all failed jobs
+#
 
 import argparse
 import fwgearutils
@@ -70,7 +72,7 @@ if __name__ == '__main__':
 #        res = fw.analyses.find(*args.findargs)
     if (args.jobs):
         # Need -gr to do job detail and profile
-        res = fw.jobs.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+        res = fw.jobs.iter_find(*args.findargs,limit=args.limit)
     if (args.projects):
         res = fw.projects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
     if (args.subjects):
