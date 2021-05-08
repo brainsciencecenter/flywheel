@@ -27,7 +27,7 @@
 
 CmdName=$(basename "$0")
 
-ModalityRegEx='/[^/]*(T1|T2|FLAIR)[^/]*/'
+ModalityRegEx='/([^/]*(T1|T2|FLAIR)[^/]*/)|("T1")'
 Modalities="T1 T2 FLAIR"
 
 FileType=.nii.gz
@@ -67,7 +67,7 @@ then
 	
 	Date=$(date -d "$InputDate" +%Y-%m-%d)
 	
-	PossibleAcquisitions="$(grep ^${Date}T ${InddAcquisitionsFile} | grep /${InddId}/ | grep -v '[x_]7T[/_]' | grep -v 'I AM CONFUSED BY THIS' | grep -v -i duplicate | grep "$FileType" | grep -P -i ""${ModalityRegEx}"")"
+	PossibleAcquisitions="$(grep -P '^"?'${Date}T ${InddAcquisitionsFile} | grep /${InddId}/ | grep -v '[x_]7T[/_]' | grep -v 'I AM CONFUSED BY THIS' | grep -v -i duplicate | grep "$FileType" | grep -P -i ""${ModalityRegEx}"")"
 	if [ -z "$PossibleAcquisitions" ]
 	then
 	    echo "${CmdName}: No Acquisition for ${InddId} on ${Date} in ${InddAcquisitionsFile}" 1>&2
@@ -83,7 +83,7 @@ then
 		then
 			FilteredAcquisitions+=$(echo ""; echo "$NDAcquisitions")
 		else
-			FilteredAcquisitions+=$(echo ""; echo "$PossibleAcquisitions" | grep -P -i "/[^/]*$modality[^/]*/")
+			FilteredAcquisitions+=$(echo ""; echo "$PossibleAcquisitions" | grep -P -i '(/[^/]*'"$modality"'[^/]*/)|("T1")' )
 		fi
 	done
 

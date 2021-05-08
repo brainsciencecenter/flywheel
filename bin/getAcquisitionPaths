@@ -2,6 +2,10 @@
 
 # getAcquisitionPaths dwolklab/NACC-SC
 #
+
+CmdName=$(basename "$0")
+
+
 GroupProject="$1"
 Group=$(echo "$GroupProject" | cut -f 1 -d /)
 Project=$(echo "$GroupProject" | cut -f 2 -d /)
@@ -16,7 +20,9 @@ SessionUids="$(jq -r 'to_entries[] | .key' id2SessionLabels.json)"
 NumberOfSessionUids=$(echo "$SessionUids" | wc -l)
 
 opt_f=1
-if [ -n "$opt_f" -o ! -e Acquisitions.json ]
+if [ -n "$opt_f" -o ! -e Sessions.json ]
 then
     (fw2json -s -p -agl $SessionUids > Sessions.json) 2>&1 | pv -l -s "$NumberOfSessionUids" > /dev/null
 fi
+
+jq -r -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.json Sessions.json > Sessions.csv
