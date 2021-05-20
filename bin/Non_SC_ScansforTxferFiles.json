@@ -11,13 +11,16 @@ import "id2SubjectLabels" as $SubjectId2Labels;
 		| .label as $AcquisitionLabel 
                 | .timestamp as $TimeStamp
 		| .files[] 
+			| (if .info.ImageType then .info.ImageType | join(":") else "" end) as $ImageType 
 			| (if .classification.Measurement then .classification.Measurement | join(":") else "" end) as $Measurement 
                         | ([ $TimeStamp,
 			    $SessionUid,
 			    $AcquisitionUid,
 			    $AcquisitionLabel,
 			    "\($GroupLabel)/\($ProjectLabel)/\($SubjectLabel)/\($SessionLabel)/\($AcquisitionLabel)/files/\(.name)",
-			    ._id, $Measurement
+			     $ImageType,
+			    ._id, 
+			    $Measurement
 			   ]) | @csv
 
 

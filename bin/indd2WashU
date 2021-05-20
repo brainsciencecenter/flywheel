@@ -63,30 +63,52 @@ then
     do
 	InddId="$(echo $Line | csvcut -c 1)"
 	InputDate="$(echo $Line | csvcut -c 2)"
-	FilePathOrJunk="$(echo $Line | csvcut -c 3)"
+#	FilePathOrJunk="$(echo $Line | csvcut -c 3)"
 	
 	Date=$(date -d "$InputDate" +%Y-%m-%d)
 	
-	PossibleAcquisitions="$(grep -P '^"?'${Date}T ${InddAcquisitionsFile} | grep /${InddId}/ | grep -v '[x_]7T[/_]' | grep -v 'I AM CONFUSED BY THIS' | grep -v -i duplicate | grep "$FileType" | grep -P -i ""${ModalityRegEx}"")"
-	if [ -z "$PossibleAcquisitions" ]
-	then
-	    echo "${CmdName}: No Acquisition for ${InddId} on ${Date} in ${InddAcquisitionsFile}" 1>&2
-	fi
-
+	PossibleAcquisitions="$(grep -P '^"?'${Date}T ${InddAcquisitionsFile} | grep /${InddId}/ | grep ORIGINAL:PRIMARY | grep nii.gz | grep -vi 'T2\*' | grep -v '[x_]7T[/_]' | grep -v 'I AM CONFUSED BY THIS' | grep -v -i duplicate | grep "$FileType" | grep -P -i ""${ModalityRegEx}"")"
 	FilteredAcquisitions=""
 
+	declare -A ImageTypeCount=([T1]=0 [T2]=0 [FLAIR]=0)
 
-	for modality in $Modalities
+	for Modality in $Modalities
 	do
-		NDAcquisitions=$(echo "$PossibleAcquisitions" | grep -P -i "/[^/]*$modality[^/]*/" | grep '_ND/')
+		ModalityCount=0
+
+		NDAcquisitions=$(echo "$PossibleAcquisitions" | grep -P -i "/[^/]*$Modality[^/]*/" | grep '_ND/')
 		if [ -n "$NDAcquisitions" ]
 		then
-			FilteredAcquisitions+=$(echo ""; echo "$NDAcquisitions")
+			ModalityAcquisitions=$(echo "$NDAcquisitions")
 		else
-			FilteredAcquisitions+=$(echo ""; echo "$PossibleAcquisitions" | grep -P -i '(/[^/]*'"$modality"'[^/]*/)|("T1")' )
+		    if [ "$Modality" == "T1" ]
+		    then
+			ModalityAcquisitions=$(echo "$PossibleAcquisitions" | grep -P -i '(/[^/]*'"$Modality"'[^/]*/)|("T1")' )
+		    else
+			ModalityAcquisitions=$(echo "$PossibleAcquisitions" | grep -P -i '/[^/]*'"$Modality"'[^/]*/' )
+		    fi
+		    
 		fi
+
+		if [ "$Modality" == "T2" ]
+		then
+		    ModalityCount=$(echo "$ModalityAcquisitions" | grep -v "FLAIR" | grep . | wc -l)
+		else
+		    ModalityCount=$(echo "$ModalityAcquisitions" | grep . | wc -l)
+		fi
+		
+		ImageTypeCount[$Modality]=$((${ImageTypeCount[$Modality]} + $ModalityCount))
+
+		FilteredAcquisitions+=$(echo ""; echo "$ModalityAcquisitions")
 	done
 
-	echo "$FilteredAcquisitions" | grep '.'
+	echo "${InddId},${InputDate},${ImageTypeCount[T1]},${ImageTypeCount[T2]},${ImageTypeCount[FLAIR]},,,,,,,,"
+	if [ -z "$PossibleAcquisitions" ]
+	then
+	    echo ",,No Acquisition for ${InddId} on ${Date} in ${InddAcquisitionsFile}" 
+	fi
+
+	echo "$FilteredAcquisitions" | grep '.' | sed 's/^/,,,,,/' | sort -k +9 -t , | uniq
+	echo ""
     done
 fi
