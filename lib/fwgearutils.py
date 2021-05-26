@@ -176,9 +176,15 @@ def sloppyCopy(d, recurse=True, UTC=True):
                     json.dumps(d[k])
                     nd[k] = d[k]
                 except (TypeError, OverflowError) as e2:
-                   #print("Object '%s' key '%s' not json serialable" % (type(d[k]),k), file=sys.stderr)
-                   if (recurse): 
-                      nd[k] = sloppyCopy(d[k], UTC=UTC)
+                   if (type(d[k]) is datetime.datetime):
+                      #d.datetime.datetime is supposed to be in UTC 
+                      if (UTC):
+                         nd[k] = d[k].strftime("%Y-%m-%dT%H:%M:%S%z")
+                      else:
+                         nd[k] = d[k].astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z")
+                   else:
+                      if (recurse): 
+                         nd[k] = sloppyCopy(d[k], UTC=UTC)
 
             # print("sloppyCopy: d is sorta dict", nd.copy(), file=sys.stderr)
             return(nd)

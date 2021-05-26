@@ -40,15 +40,22 @@ if __name__ == '__main__':
     import argparse
 
     CmdName = os.path.basename(sys.argv[0])
-    Containers = []
+    Outputs = []
 
     ap = argparse.ArgumentParser()
+    ap.add_argument('-1', '--one-at-a-time', default=False,  action='store_true', help='Print info one at a time')
+    ap.add_argument('-a', '--acquisitions', default=False,  action='store_true', help='include acquisitions')
+    ap.add_argument('-D', '--debug', default=False,  action='store_true', help='debug')
     ap.add_argument('-d', '--device-get', default=False,  action='store_true', help='get device info')
     ap.add_argument('-g', '--get-all-gears', default=False,  action='store_true', help='get list of gears')
+    ap.add_argument('-G', '--get', default=False,  action='store_true', help='get')
     ap.add_argument('-j', '--get-job', default=False,  action='store_true', help='get job by id')
     ap.add_argument('-r', '--get-role', default=False,  action='store_true', help='get role, or all roles if none specified')
+    ap.add_argument('-R', '--recurse', default=False,  action='store_true', help='recurse')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-u', '--get-user', default=False,  action='store_true', help='all user info')
+    ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
+    ap.add_argument('-z', '--zip-info', default=False,  action='store_true', help='zip-info')
 
     ap.add_argument('id', nargs='*', type=str, default=None, help='group/project|ProjectID|uuid')
 
@@ -61,10 +68,25 @@ if __name__ == '__main__':
 
     if (len(args.id) > 0):
         for id in args.id:
-            Container = getContainer(args=args, id=id)
-            Containers.append(Container)
+            Container = getContainer(args=args,id=id)
+
+            if (args.recurse):
+                Output = fwgearutils.recurse(fw,Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
+            else:
+                Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
+
+            if (args.one_at_a_time):
+                print(json.dumps(Output, indent=2))
+            else:
+                Outputs.append(Output)
+
     else:
         Container = getContainer(args=args)
-        Containers.append(Container)
 
-    print(json.dumps(fwgearutils.sloppyCopy(Containers,UTC=(not args.localtime)), indent=2))
+        if (args.recurse):
+            Outputs.append( fwgearutils.recurse(fw,Outputs, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info) )
+        else:
+            Outputs.append( fwgearutils.sloppyCopy(s, UTC=(not args.localtime)))
+
+    if (not (args.one_at_a_time)):
+        print(json.dumps(Outputs, indent=2))

@@ -110,8 +110,10 @@ if __name__ == '__main__':
         if (args.recurse):
             Output = fwgearutils.recurse(fw, r, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
         else:
-            Output = fwgearutils.sloppyCopy(r, recurse=False, UTC=(not args.localtime))
+            if (args.get):
+                r = fw.get(r.id)
 
+            Output = fwgearutils.sloppyCopy(r, recurse=False, UTC=(not args.localtime))
         if (args.one_by_one):
             print(json.dumps(Output, indent=2))
         else:
