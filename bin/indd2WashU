@@ -1,7 +1,14 @@
 #!/bin/bash
  
 # You need an acquisitions file to run this
-# getAcquisitionPaths dwolklab/NACC-SC > Nacc-scAquisitionPaths.csv
+#   getAcquisitionPaths dwolklab/NACC-SC > Nacc-scAquisitionPaths.csv
+#
+# or
+#   fwfind -p group=dwolklab  | jq '[.[]| {(._id): .label}] | add ' > id2ProjectLabels.json
+#   fwfind -s group=dwolklab parents.project=5da887636cbeb0005b73e579  | jq '[.[]| {(._id): .label}] | add ' > id2SubjectLabels.json
+#   fwfind -S group=dwolklab parents.project=5da887636cbeb0005b73e579  | jq '[.[]| {(._id): .label}] | add ' > is2SessionLabels.json
+#   jq -r -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.json AcquisitionsFull.json  > AnteMortemMriAcquisitions.csv
+
 #AcquisitionTimestamp,SessionUid,AcquisitionUid,AcquisitionLabel,FilePath,FileUid,ClassifictionMeasurement
 # 2019-03-13T12:59:05-0400,5c8937a8df93e3002c0067ef,5c8937a8df93e3002c0067f0,Localizer,dwolklab/NACC-SC/119482/119482x20190313x3T/Localizer/files/1.3.12.2.1107.5.2.43.66044.2019031312585920988796658.0.0.0.dicom.zip,ad85d41a-9d72-4ec2-bd00-4fb9886bc247,T2
 #2019-03-13T12:59:05-0400,5c8937a8df93e3002c0067ef,5c8937a8df93e3002c0067f0,Localizer,dwolklab/NACC-SC/119482/119482x20190313x3T/Localizer/files/1.3.12.2.1107.5.2.43.66044.2019031312585920988796658.0.0.0_i00003.nii.gz,79492eea-df68-45d0-8eb1-e9c255129c53,T2

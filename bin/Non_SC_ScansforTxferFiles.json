@@ -1,16 +1,18 @@
 import "id2ProjectLabels" as $ProjectId2Labels;
 import "id2SubjectLabels" as $SubjectId2Labels;
+import "id2SessionLabels" as $SessionId2Labels;
 
-      ._id as $SessionUid
-    | .label as $SessionLabel 
-    | .parents.group as $GroupLabel 
+#([ "DateTime", "SessionUid", "AcquisitionUid", "AcquisitionLable", "FilePath", "ImageType", "FileUid", "ClassificationMeasurement" ] | @csv)
+
+      .parents.group as $GroupLabel 
+    | .parents.session as $SessionUid
     | $ProjectId2Labels::ProjectId2Labels[][.parents.project] as $ProjectLabel 
     | $SubjectId2Labels::SubjectId2Labels[][.parents.subject] as $SubjectLabel 
-    | .acquisitions[] 
-		| ._id as $AcquisitionUid
-		| .label as $AcquisitionLabel 
-                | .timestamp as $TimeStamp
-		| .files[] 
+    | $SessionId2Labels::SessionId2Labels[][.parents.session] as $SessionLabel 
+	| ._id as $AcquisitionUid
+	| .label as $AcquisitionLabel 
+        | .timestamp as $TimeStamp
+        | .files[] 
 			| (if .info.ImageType then .info.ImageType | join(":") else "" end) as $ImageType 
 			| (if .classification.Measurement then .classification.Measurement | join(":") else "" end) as $Measurement 
                         | ([ $TimeStamp,
@@ -22,6 +24,7 @@ import "id2SubjectLabels" as $SubjectId2Labels;
 			    ._id, 
 			    $Measurement
 			   ]) | @csv
+
 
 
 
