@@ -34,10 +34,47 @@
 
 CmdName=$(basename "$0")
 
-ModalityRegEx='/([^/]*(T1|T2|FLAIR)[^/]*/)|("T1")'
 Modalities="T1 T2 FLAIR"
-
 FileType=.nii.gz
+
+function filterT1s {
+    local PossibleAcquisitions=$(cat)
+    local Scans
+    local FilteredT1s=""
+
+    for  ScanType in "ORIGINAL:PRIMARY" "DERIVED:PRIMARY"
+    do
+	Scans=$(echo "$PossibleAcquisitions" | grep "$ScanType")
+
+	# are there any of this type of scan
+	if [ -z "$Scans" ]
+	then
+	    continue
+	fi
+	
+	# Are there scans with T1|MPRAGE in the name or with T1 in the classification/Measurement
+	local T1Scans=$(echo "$Scans" | grep -Pi '(/[^/]*(T1|MPRAGE)[^/]*/)|("T1")' )
+	if [ -n "$T1Scans" ]
+	then
+	    # Prefer ND over non-ND scans
+	    local NdT1Scans=$(echo "$T1Scans" | grep '_ND')
+
+	    if [ -n "$NdT1Scans" ]
+	    then
+		FilteredT1s="$NdT1Scans"
+	    else
+		FilteredT1s="$T1Scans"
+	    fi
+	    
+	    break
+	fi
+
+	FilteredT1s=$(echo "$T1Scans" | grep -Pi '/[^/]*(SAG|COR) 3D[^/]*/')
+    done
+
+    echo "$FilteredT1s"
+}
+
 
 while getopts ei:P:p arg
 do
@@ -74,7 +111,7 @@ then
 	
 	Date=$(date -d "$InputDate" +%Y-%m-%d)
 	
-	PossibleAcquisitions="$(grep -P '^"?'${Date}T ${InddAcquisitionsFile} | grep /${InddId}/ | grep ORIGINAL:PRIMARY | grep nii.gz | grep -vi 'T2\*' | grep -v '[x_]7T[/_]' | grep -v 'I AM CONFUSED BY THIS' | grep -v -i duplicate | grep "$FileType" | grep -P -i ""${ModalityRegEx}"")"
+	PossibleAcquisitions=$(grep -P '^"?'"${Date}T" ${InddAcquisitionsFile} | grep "/${InddId}/" | grep "$FileType" | grep -vPi '(T2\*)|([x_]7T[/_])|(I AM CONFUSED BY THIS)|(duplicate)')
 	FilteredAcquisitions=""
 
 	declare -A ImageTypeCount=([T1]=0 [T2]=0 [FLAIR]=0)
@@ -83,39 +120,43 @@ then
 	do
 		ModalityCount=0
 
-		NDAcquisitions=$(echo "$PossibleAcquisitions" | grep -P -i "/[^/]*$Modality[^/]*/" | grep '_ND/')
-		if [ -n "$NDAcquisitions" ]
-		then
-			ModalityAcquisitions=$(echo "$NDAcquisitions")
-		else
-		    if [ "$Modality" == "T1" ]
-		    then
-			ModalityAcquisitions=$(echo "$PossibleAcquisitions" | grep -P -i '(/[^/]*'"$Modality"'[^/]*/)|("T1")' )
-		    else
-			ModalityAcquisitions=$(echo "$PossibleAcquisitions" | grep -P -i '/[^/]*'"$Modality"'[^/]*/' )
-		    fi
-		    
-		fi
+		case "$Modality" in 
+		     T1)
+			ModalityAcquisitions=$(echo "$PossibleAcquisitions" | filterT1s)
+			ModalityCount=$(echo "$ModalityAcquisitions" | grep '.' | wc -l)
+			;;
 
-		if [ "$Modality" == "T2" ]
-		then
-		    ModalityCount=$(echo "$ModalityAcquisitions" | grep -v "FLAIR" | grep . | wc -l)
-		else
-		    ModalityCount=$(echo "$ModalityAcquisitions" | grep . | wc -l)
-		fi
-		
+		     T2)
+			ModalityAcquisitions=$(echo "$PossibleAcquisitions" | grep -Pi "/[^/]*${Modality}[^/]*/")
+			ModalityCount=$(echo "$ModalityAcquisitions" | grep -v "FLAIR" | grep . | wc -l)
+			;;
+
+		     FLAIR)
+			ModalityAcquisitions=$(echo "$PossibleAcquisitions" | grep -Pi "/[^/]*${Modality}[^/]*/")
+			ModalityCount=$(echo "$ModalityAcquisitions" | grep . | wc -l)
+			;;
+		esac
+
 		ImageTypeCount[$Modality]=$((${ImageTypeCount[$Modality]} + $ModalityCount))
 
-		FilteredAcquisitions+=$(echo ""; echo "$ModalityAcquisitions")
+		FilteredAcquisitions+=$(echo ""; echo ""; echo "$ModalityAcquisitions")
 	done
 
 	echo "${InddId},${InputDate},${ImageTypeCount[T1]},${ImageTypeCount[T2]},${ImageTypeCount[FLAIR]},,,,,,,,"
-	if [ -z "$PossibleAcquisitions" ]
+	if [ -z "$FilteredAcquisitions" ]
 	then
-	    echo ",,No Acquisition for ${InddId} on ${Date} in ${InddAcquisitionsFile}" 
+	    echo ",,No Acquisition for ${InddId} on ${Date} in ${InddAcquisitionsFile}"
+	else
+	    echo "$FilteredAcquisitions" | grep '.' | sed 's/^/,,,,,/' | sort -k +9 -t , | csvcut -c 1-6,9-11,13 | sed 's^,cfn/PMC[^,]*/^,^' | uniq
+	    
+	    if [ "${ImageTypeCount[T1]}" == 0 ]
+	    then
+		echo "$PossibleAcquisitions" | sed 's/^/>,,,,,/' | sort -k +9 -t , | csvcut -c 1-6,9-11,13 | sed 's^,cfn/PMC[^,]*/^,^' | uniq
+	    fi
 	fi
 
-	echo "$FilteredAcquisitions" | grep '.' | sed 's/^/,,,,,/' | sort -k +9 -t , | uniq
 	echo ""
+
     done
+
 fi
