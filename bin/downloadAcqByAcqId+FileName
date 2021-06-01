@@ -38,6 +38,9 @@ with (open(args.scans[0], 'r') if len(args.scans) >= 1 else sys.stdin) as f:
     for row in reader:
         (AcquisitionId, FilePath, FileId)  = (row['AcquisitionId'], row['FilePath'], row['FileId'])
 
+        if (not AcquisitionId):
+            continue
+
         FileName = os.path.basename(FilePath)
         FileDir = BaseDownloadDir + os.path.dirname(FilePath)
 
