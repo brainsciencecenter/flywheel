@@ -33,29 +33,26 @@ else:
     BaseDownloadDir = ""
 
 with (open(args.scans[0], 'r') if len(args.scans) >= 1 else sys.stdin) as f:
-    reader = csv.reader(f)
+    reader = csv.DictReader(f)
 
     for row in reader:
-        print(row)
-        continue
+        (AcquisitionId, FilePath, FileId)  = (row['AcquisitionId'], row['FilePath'], row['FileId'])
 
-        try:
-            (AcquisitionTimeStamp, SessionUid, AcquisitionUid, AcquisitionLabel, FilePath, FileUid, ClassificationMeasurement) = i.split(',')
-        except (ValueError) as e:
-            print("{} : bad line format '{}'".format(CmdName, i), file=sys.stderr)
         FileName = os.path.basename(FilePath)
         FileDir = BaseDownloadDir + os.path.dirname(FilePath)
 
         try:
-            Acquisition = fw.get(AcquisitionUid)
+            Acquisition = fw.get(AcquisitionId)
         except (flywheel.rest.ApiException) as e:
-            print("{} : acquisition '{}' not found. Skipping. '{}'".format(CmdName, AcquisitionUid, str(e.detail)), file=sys.stderr)
+            print("{} : acquisition '{}' not found. Skipping. '{}'".format(CmdName, AcquisitionId, str(e.detail)), file=sys.stderr)
             continue
 
-        ScanFile = Acquisition.get_file(FileName)
-        if (not ScanFile):
-            print("{} : file '{}({})' not found in acquisition '{}'. Skipping.  ".format(CmdName, FileName, FileUid, AcquisitionUid), file=sys.stderr)
+        ScanFiles = list(filter(lambda f: f.id == FileId, Acquisition.get_files()))
+        if (len(ScanFiles) != 1):
+            print("{} : Acquisition '{}' has {} file(s) with id '{}'".format(CmdName, AcquisitionId, len(ScanFiles), FileId), file=sys.stderr)
             continue
+            
+        ScanFile = ScanFiles[0]
 
         if (not os.path.isdir(FileDir)):
             if (args.noop or args.verbose):
