@@ -3,6 +3,9 @@
 # Need:
 #  CostTable - YYYY-MM-CostTable.csv
 #
+# Run and upload the last months data,  so in June this will run May's billing
+#    ./runnFlywheelGCPBilling  -
+u
 # Will collect if not specified:
 #  JobsReport - YYYY-MM-Jobs.csv
 #  FlywheelAllocationReport.csv -- YYYY-MM-FlywheelAllocationReport.csv
@@ -20,11 +23,6 @@
 # -g GCP Charges with Flywheel Allocation File Path
 # -u update the Big Query database
 #
-# Generate the data
-#    ./runnFlywheelGCPBilling 
-# Verify it
-# Rerun and upload
-#    ./runnFlywheelGCPBilling  -u
 
 
 CmdName=$(basename "$0")
@@ -146,7 +144,7 @@ fi
 iLabFlywheelBscChargesFile="${ReportDir}/${Year}-${Month}-iLabFlywheelBscCharges.csv"
 if [ -n "$opt_f" ] || [ ! -e "$iLabFlywheelBscChargesFile" ]
 then
-    createiLabGCPChargesCSV -i -s 472933 -b -p "$ProjectFundingFile" > "$iLabFlywheelBscChargesFile" 
+    createiLabGCPChargesCSV -i -s "$BscGCPServiceId" -b -p "$ProjectFundingFile" > "$iLabFlywheelBscChargesFile" 
 fi
 
 SessionsCsvFile="${ReportDir}/${Year}-${Month}-SessionsCSV.csv"
