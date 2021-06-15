@@ -1,0 +1,142 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-l][-m][-n][-t TempDir][-v] [Group/Project [other fw.find option]...]"
+
+#
+# -a comma or space separated list of acquisition ids to retrieve from flywheel
+# -c cached acquisition json file with details of the acquisitions
+# -l retreive json timestamps with local timezone
+# -n Print the list of AcquisitionIds to be retrieved but don't actually retrieve any 
+# -m messy - do not remove the temporary directory
+# -t specify the temporary diretory to use.  Creates one with mktemp by default.  Implies -m
+#   if -c is supplied, will only retrieve acquisitions not in the cached acquisisition json file
+# Group/Project The group/project path to retrieve acquisitions from -- ignored if -a is specified
+# fw.find options arguments to fw.find for refining search -- ignored if -a is specified
+#
+# Intened use is to run
+#   syncAcquisitionJsonFile -c Nacc-ScAcquisitions.json dwolklab/NACC-SC
+# to generate a complete list of all acquisition ids in dwolklab/NACC-SC, then compare the acquisition id list
+# to the one in the cached AcquisitionJsonFile and retrieve any missing acquisitions
+# 
+# This can be sped up by specifying additional restrictions on the acquisition search
+#   syncAcquisitionJsonFile -c Nacc-ScAcquisitions.json dwolklab/NACC-SC 'created>2021-05-01' 'created<2021-06-01'
+# to constrain the list of new acquisitions to May, 2021
+#
+# If you know which acquisitions you want to retrieve:
+#   syncAcquisitionJsonFile -a 1,2,3,4
+# or
+#   syncAcquisitionJsonFile -a "1 2 3 4"
+# to retrieve acquistion with ids of 1, 2, 3, and 4
+#
+# The fw.find options can be used to constrain the search to specific projects, subjects, or sessions
+#
+
+while getopts a:c:lmnt:v arg
+do
+	case "$arg" in
+	     a|c|l|m|n|t|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -z "$1" ]
+then
+    if [ -z "$opt_a" ]
+    then
+	echo "${CmdName} : Missing Group/Project or AcquisitionIds list" 1>&2
+	echo "${syntax}" 1>&2
+	exit 1
+    fi
+else
+    GroupProject="$1"
+    Group=$(echo "$GroupProject" | cut -f 1 -d /)
+    Project=$(echo "$GroupProject" | cut -f 2 -d /)
+
+    ProjectId=$(fwfind -1 -p group="$Group" | jq -r 'select(.label=="'"$Project"'")|._id' )
+    if [ -z "$ProjectId" ]
+    then
+	echo "${CmdName} : Group/Project '$Group/$Project' not found" 1>&2
+	exit 1
+    fi
+    
+    shift
+
+    FindArgs="$@"
+fi
+
+if [ -n "$opt_l" ]
+then
+    TimeZone=-l
+fi
+
+if [ -n "$opt_t" ]
+then
+	TmpDir="$opt_t"
+	opt_m=1
+else
+	TmpDir=$(mktemp -d "${TMPDIR:=/tmp}/${CmdName}-XXXXXX")
+fi
+
+if [ -n "$opt_m" ]
+then
+    DeleteTmpDir=True
+fi
+
+if [ -n "$opt_c" ]
+then
+    CachedAcquisitionJsonFile="$opt_c"
+else
+    CachedAcquisitionJsonFile=""
+fi
+
+if [ -n "$CachedAcquisitionJsonFile" ]
+then
+    CachedAcquisitionIds=$(jq -r '._id' "$CachedAcquisitionJsonFile" | sort -u)
+fi
+
+if [ -n "$opt_a" ]
+then
+    AcquisitionIdsToGet=$(echo "$opt_a" | sed 's/,/ /g')
+else
+    [ -n "$opt_v" ] && echo "${CmdName} : getting ActiveAcquisitionIds" 1>&2
+    ActiveAcquisitionIds=$(fwfind -a -1 -L 1000 group="$Group" parents.project="$ProjectId" "$@" | jq -r '._id' | sort -u)
+
+    if [ -n "$CachedAcquisitionIds" ]
+    then
+	if [ -n "$ActiveAcquisitionIds" ]
+	then
+	    AcquisitionIdsToGet=$(diff <(echo "$ActiveAcquisitionIds") <(echo "$CachedAcquisitionIds") | grep '< ' | sed 's/< //')
+	else
+	    AcquisitionIdsToGet=""
+	fi
+    else
+	AcquisitionIdsToGet="$ActiveAcquisitionIds"
+    fi
+fi
+
+if [ -n "$opt_n" ]
+then
+    [ -n "$AcquisitionIdsToGet" ] && echo "$AcquisitionIdsToGet"
+    exit 0
+fi
+
+FwGetAcquisitionsJson="${TmpDir}/FwGetAcquisitions.json"
+if [ -n "$AcquisitionIdsToGet" ]
+then
+    if [ -n "$opt_v" ]
+    then
+	echo "${CmdName} : fwget -1 $AcquisitionIdsToGet" 1>2
+    fi
+    
+    fwget -1 $TimeZone $(echo "$AcquisitionIdsToGet")
+fi
+	
+if [ "$DeleteTmpDir" == True ]
+then
+	rm -rf "$TmpDir"
+fi
