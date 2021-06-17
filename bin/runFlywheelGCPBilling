@@ -4,8 +4,8 @@
 #  CostTable - YYYY-MM-CostTable.csv
 #
 # Run and upload the last months data,  so in June this will run May's billing
-#    ./runnFlywheelGCPBilling  -
-u
+#    ./runnFlywheelGCPBilling  -u -d .
+
 # Will collect if not specified:
 #  JobsReport - YYYY-MM-Jobs.csv
 #  FlywheelAllocationReport.csv -- YYYY-MM-FlywheelAllocationReport.csv
