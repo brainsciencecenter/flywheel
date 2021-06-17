@@ -160,7 +160,7 @@ if [ -n "$AcquisitionIdsToGet" ]
 then
     if [ -n "$opt_v" ]
     then
-	echo "${CmdName} : fwget -1 $AcquisitionIdsToGet" 1>&2
+	echo "${CmdName} : fwget -1" $AcquisitionIdsToGet 1>&2
 
     fi
 
