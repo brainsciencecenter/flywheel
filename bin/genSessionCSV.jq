@@ -1,54 +1,60 @@
 import "ScannerMap" as $Scanners;
-import "SubjectMap" as $Subjects;
-[
-	"Scanner",					# 1
-	"Date",						# 2
-	"Path",						# 3
-	"Code",						# 4 - Subject
-        "SessionID",					# 5
-        "DeidentificationMethod",			# 6
-	"ImageComments",				# 7
-	"InstitutionName",				# 8
-	"ManufacturerModelName",			# 9
-	"PerformedProcedureStepDescription",		# 10
-	"ProcedureStepDescription",			# 11
-	"PerformingPhysicianName",			# 12
-	"ReferringPhysicianName",			# 13
-	"RequestingPhysician",				# 14
-	"StudyComments",				# 15
-	"StudyDescription",				# 16
-	"Manufacturer",					# 17
-	"MagneticFieldStrength"				# 18
+import "Id2ProjectLabels" as $Id2ProjectLabels;
+import "Id2SubjectLabels" as $Id2SubjectLabels;
+import "Id2SessionLabels" as $Id2SessionLabels;
+import "Id2SessionTimeStamps" as $Id2SessionTimeStamps;
 
-],
-(    .label as $SessionLabel
-   | ._id as $SessionID
-   | .parents.subject as $SubjectID
-   | .subject.code as $Code
-   | .subject.label as $Label
-   | .timestamp as $TimeStamp
-   | if (((.acquisitions | length) > 0) and ((.acquisitions[0].files | length) > 0)) then
-     .acquisitions[0].files[0]
-        | .origin.id as $ScannerID
+# [
+# 	"Scanner",					# 1
+# 	"Date",						# 2
+# 	"Path",						# 3
+# 	"Code",						# 4 - Subject
+#         "SessionID",					# 5
+#         "DeidentificationMethod",			# 6
+# 	"ImageComments",				# 7
+# 	"InstitutionName",				# 8
+# 	"ManufacturerModelName",			# 9
+# 	"PerformedProcedureStepDescription",		# 10
+# 	"ProcedureStepDescription",			# 11
+# 	"PerformingPhysicianName",			# 12
+# 	"ReferringPhysicianName",			# 13
+# 	"RequestingPhysician",				# 14
+# 	"StudyComments",				# 15
+# 	"StudyDescription",				# 16
+# 	"Manufacturer",					# 17
+# 	"MagneticFieldStrength"				# 18
+# 
+# ],
+(    
+      .parents.group as $GroupLabel 
+    | .parents.session as $SessionId
+    | .parents.subject as $SubjectId
+    | $Id2ProjectLabels::Id2ProjectLabels[][.parents.project] as $ProjectLabel 
+    | $Id2SubjectLabels::Id2SubjectLabels[][.parents.subject] as $SubjectLabel 
+    | $Id2SessionLabels::Id2SessionLabels[][.parents.session] as $SessionLabel 
+    | $Id2SessionTimeStamps::Id2SessionTimeStamps[][.parents.session] as $SessionTimeStamp
+    | .files[0]
+
+        | .origin.id as $ScannerId
         | .info
           | [									
 
-             if ($ScannerID | in($Scanners::Scanners[])) then			# 1
-               $Scanners::Scanners[][$ScannerID]
+             if ($ScannerId | in($Scanners::Scanners[])) then			# 1
+               $Scanners::Scanners[][$ScannerId]
              else
-               $ScannerID
+               $ScannerId
              end,
 
-             $TimeStamp,							# 2
+             $SessionTimeStamp,							# 2
 
-             if ($SubjectID | in($Subjects::Subjects[])) then			# 3
-               $Subjects::Subjects[][$SubjectID] + "/" + $SessionLabel 
+             if ($SubjectId | in($Id2SubjectLabels::Id2SubjectLabels[])) then			# 3
+               $Id2SubjectLabels::Id2SubjectLabels[][$SubjectId] + "/" + $SessionLabel 
              else
-               $SubjectID + "/" + $SessionLabel
+               $SubjectId + "/" + $SessionLabel
              end,
 
-             $Code,								# 4 - Subject
-             $SessionID,							# 5
+             $SubjectLabel,								# 4 - Subject
+             $SessionId,							# 5
 
              if ((.DeidentificationMethod | type) == "array") then		# 6
                .DeidentificationMethod[0]
@@ -70,9 +76,5 @@ import "SubjectMap" as $Subjects;
 	     .MagneticFieldStrength						# 18
 
              ] 
-   else
-     #"no acqusitions for \($SessionLabel) \($SessionID)"
-     empty
-   end
    ) | @csv
 
