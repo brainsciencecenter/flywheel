@@ -6,7 +6,7 @@ import "Id2ProjectLabels" as $ProjectId2Labels;
 import "Id2SubjectLabels" as $SubjectId2Labels;
 import "Id2SessionLabels" as $SessionId2Labels;
 
-if (($ARGS.named | has("header")) and ($ARGS.named["header"] == "print")) then
+if (inputs == "null") then
 
 ([ "DateTime", "SessionId", "AcquisitionId", "AcquisitionLabel", "FilePath", "ImageType", "FileId", "ClassificationMeasurement" ]|@csv)
 
