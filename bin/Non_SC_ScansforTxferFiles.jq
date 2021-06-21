@@ -1,12 +1,12 @@
 
-# echo '1' | jq -r --arg header print -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.json 
+# jq -n -r --arg header print -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.json 
 # jq -r -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.json FwGetAcquisitions.json
 
 import "Id2ProjectLabels" as $ProjectId2Labels;
 import "Id2SubjectLabels" as $SubjectId2Labels;
 import "Id2SessionLabels" as $SessionId2Labels;
 
-if ($ARGS.named | has("header")) then
+if (($ARGS.named | has("header")) and ($ARGS.named["header"] == "print")) then
 
 ([ "DateTime", "SessionId", "AcquisitionId", "AcquisitionLabel", "FilePath", "ImageType", "FileId", "ClassificationMeasurement" ]|@csv)
 
