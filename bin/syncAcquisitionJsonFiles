@@ -166,6 +166,8 @@ then
 
     # the extra jq at the end formats numbers ala jq so 1.0 => 1 and then there is no differences between
     # files before and after deleting acquisitions
+
+    # *** should fix fwget to take uids from stdin so we don't have to worry about exceeding the arglist size
     fwget -1 $TimeZone $(echo "$AcquisitionIdsToGet") | jq . >> "$UpdatedAcquisitionsJsonFile"
 fi
 
