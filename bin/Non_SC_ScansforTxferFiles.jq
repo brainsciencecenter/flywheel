@@ -5,10 +5,11 @@
 import "Id2ProjectLabels" as $ProjectId2Labels;
 import "Id2SubjectLabels" as $SubjectId2Labels;
 import "Id2SessionLabels" as $SessionId2Labels;
+import "Id2SessionTimeStamps" as $SessionId2TimeStamps;
 
 if (inputs == "null") then
 
-([ "DateTime", "SessionId", "AcquisitionId", "AcquisitionLabel", "FilePath", "ImageType", "FileId", "ClassificationMeasurement" ]|@csv)
+([ "DateTime", "SessionId", "AcquisitionId", "AcquisitionLabel", "FilePath", "Modality", "ImageType", "FileId", "ClassificationMeasurement" ]|@csv)
 
 else
 (      .parents.group as $GroupLabel 
@@ -16,6 +17,7 @@ else
     | $ProjectId2Labels::ProjectId2Labels[][.parents.project] as $ProjectLabel 
     | $SubjectId2Labels::SubjectId2Labels[][.parents.subject] as $SubjectLabel 
     | $SessionId2Labels::SessionId2Labels[][.parents.session] as $SessionLabel 
+    | $SessionId2TimeStamps::SessionId2TimeStamps[][.parents.session] as $SessionTimeStamp
 	| ._id as $AcquisitionId
 	| .label as $AcquisitionLabel 
         | .timestamp as $TimeStamp
@@ -23,8 +25,7 @@ else
              .files[] 
 			| (if .info.ImageType then .info.ImageType | join(":") else "" end) as $ImageType 
 			| (if .classification.Measurement then .classification.Measurement | join(":") else "" end) as $Measurement 
-                        | (if ( .info.Modality == "MR") then
-                            ([ $TimeStamp,
+                        |   ([ $TimeStamp,
                                $SessionId,
 			       $AcquisitionId,
 			       $AcquisitionLabel,
@@ -33,11 +34,8 @@ else
 			      ._id, 
 			       $Measurement
 			     ]) | @csv
-                         else
-			     ",,,,,,,"
-                         end)
           else
-	      ([ $TimeStamp, $SessionId, $AcquisitionId, $AcquisitionLabel, "\($GroupLabel)/\($ProjectLabel)/\($SubjectLabel)/\($SessionLabel)/\($AcquisitionLabel)", "", "", "" ]) | @csv
+	      ([ $TimeStamp, $SessionId, $AcquisitionId, $AcquisitionLabel, "\($GroupLabel)/\($ProjectLabel)/\($SubjectLabel)/\($SessionLabel)/\($AcquisitionLabel)", "", "", "", "" ]) | @csv
           end
 	 )
 	   
