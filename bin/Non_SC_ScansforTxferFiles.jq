@@ -1,5 +1,5 @@
 
-#  echo '"null"' | jq -n  -r  -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.jq ; jq -r  -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.jq CachedFwGetAcquisitions.json )  > NACC-SC-Acquisitions.csv 
+#  jq -n  -r  -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.jq /dev/null; jq -r  -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.jq CachedFwGetAcquisitions.json )  > NACC-SC-Acquisitions.csv 
 
 import "Id2ProjectLabels" as $ProjectId2Labels;
 import "Id2SubjectLabels" as $SubjectId2Labels;
