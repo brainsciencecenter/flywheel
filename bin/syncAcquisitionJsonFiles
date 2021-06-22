@@ -35,10 +35,10 @@ syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-i][-l][-m][
 # The fw.find options can be used to constrain the search to specific projects, subjects, or sessions
 #
 
-while getopts a:c:d:ilmnpv arg
+while getopts a:c:d:filmnpv arg
 do
 	case "$arg" in
-	     a|c|d|i|l|m|n|p|v)
+	     a|c|d|f|i|l|m|n|p|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
