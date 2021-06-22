@@ -87,10 +87,10 @@ then
     Modalities=PET
 fi
 
-for InddAcquisitionsFile in "$@"
+while read Line
 do
-    while read Line
-    do
+    InddAcquisitionsFiles=("$@")
+
 	InddId="$(echo $Line | csvcut -c 1)"
 	InputDate="$(echo $Line | csvcut -c 2)"
 
@@ -103,7 +103,7 @@ do
 	
 	Date=$(date -d "$InputDate" +%Y-%m-%d)
 	
-	PossibleAcquisitions=$(grep -P '^"?'"${Date}T" ${InddAcquisitionsFile} | grep "/${InddId}/" | grep "$FileType" | grep -vPi '(T2\*)|([x_]7T[/_])|(I AM CONFUSED BY THIS)|(duplicate)')
+	PossibleAcquisitions=$(grep -hP '^"?'"${Date}T" "${InddAcquisitionsFiles[@]}" | grep "/${InddId}/" | grep "$FileType" | grep -vPi '(T2\*)|([x_]7T[/_])|(I AM CONFUSED BY THIS)|(duplicate)')
 	FilteredAcquisitions=""
 
 	declare -A ImageTypeCount=([T1]=0 [T2]=0 [FLAIR]=0)
@@ -137,7 +137,7 @@ do
 	echo "${InddId},${InputDate},${ImageTypeCount[T1]},${ImageTypeCount[T2]},${ImageTypeCount[FLAIR]},,,,,,,,"
 	if [ -z "$FilteredAcquisitions" ]
 	then
-	    echo ",,No Acquisition for ${InddId} on ${Date} in ${InddAcquisitionsFile}"
+	    echo ",,No Acquisition for ${InddId} on ${Date} in ${InddAcquisitionsFiles[*]}"
 	else
 	    echo "$FilteredAcquisitions" | grep '.' | sed 's/^/,,,,,/' | sort -k +9 -t , | csvcut -c 1-6,9-11,13 | sed 's^,cfn/PMC[^,]*/^,^' | uniq
 	    
@@ -149,5 +149,4 @@ do
 
 	echo ""
 
-    done
 done
