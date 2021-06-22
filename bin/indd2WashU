@@ -1,22 +1,16 @@
 #!/bin/bash
  
 # You need an acquisitions file to run this
-#   getAcquisitionPaths dwolklab/NACC-SC > Nacc-scAquisitionPaths.csv
+#   (jq -n  -r  -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.jq /dev/null ; jq -r  -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.jq "${i}/CachedFwGetAcquisitions.json" )  > "${i}/${i}-Acquisitions.csv"
 #
-# or
-#   fwfind -p group=dwolklab  | jq '[.[]| {(._id): .label}] | add ' > id2ProjectLabels.json
-#   fwfind -s group=dwolklab parents.project=5da887636cbeb0005b73e579  | jq '[.[]| {(._id): .label}] | add ' > id2SubjectLabels.json
-#   fwfind -S group=dwolklab parents.project=5da887636cbeb0005b73e579  | jq '[.[]| {(._id): .label}] | add ' > is2SessionLabels.json
-#   jq -r -L . -f ~/flywheel/bin/Non_SC_ScansforTxferFiles.json AcquisitionsFull.json  > AnteMortemMriAcquisitions.csv
+# ~/fw-indd/syncAcqData2Indd -d . pennftdcenter/ANTEMORTEMMRI_new
+# to populate the Id2{Project,Subject,Session,Timestamp} files
+#
 
-#AcquisitionTimestamp,SessionUid,AcquisitionUid,AcquisitionLabel,FilePath,FileUid,ClassifictionMeasurement
-# 2019-03-13T12:59:05-0400,5c8937a8df93e3002c0067ef,5c8937a8df93e3002c0067f0,Localizer,dwolklab/NACC-SC/119482/119482x20190313x3T/Localizer/files/1.3.12.2.1107.5.2.43.66044.2019031312585920988796658.0.0.0.dicom.zip,ad85d41a-9d72-4ec2-bd00-4fb9886bc247,T2
-#2019-03-13T12:59:05-0400,5c8937a8df93e3002c0067ef,5c8937a8df93e3002c0067f0,Localizer,dwolklab/NACC-SC/119482/119482x20190313x3T/Localizer/files/1.3.12.2.1107.5.2.43.66044.2019031312585920988796658.0.0.0_i00003.nii.gz,79492eea-df68-45d0-8eb1-e9c255129c53,T2
-#2019-03-13T12:59:05-0400,5c8937a8df93e3002c0067ef,5c8937a8df93e3002c0067f0,Localizer,dwolklab/NACC-SC/119482/119482x20190313x3T/Localizer/files/1.3.12.2.1107.5.2.43.66044.2019031312585920988796658.0.0.0_i00002.nii.gz,9cc9b6d0-976d-441a-a730-3fccf2557e3e,T2
-# 2019-03-13T12:59:05-0400,5c8937a8df93e3002c0067ef,5c8937a8df93e3002c0067f0,Localizer,dwolklab/NACC-SC/119482/119482x20190313x3T/Localizer/files/1.3.12.2.1107.5.2.43.66044.2019031312585920988796658.0.0.0_i00001.nii.gz,c72455ee-ce85-47fe-847f-b264f8c19aed,T2
-#
-#
-# The input file needs to list the INDD subject, and date, and optional session url (https://upenn.flywheel.io/#/projects/5d07b942a550c600296fadda/sessions/5d08f879a550c6004870cf87?tab=data) and file name
+
+# "DateTime","AcquisitionId","AcquisitionLabel","SessionId","SessionDateTime","FilePath","Modality","ImageType","FileId","ClassificationMeasurement"
+
+# The input file needs to list the INDD subject, and date, and optional session url (https://upenn.flywheel.io/#/projects/5d07b942a550c600296fadda/sessions/5d08f879a550c6004870cf87?tab=data) and FileId
 #
 # INDDID,FlywheelSessionTimestampUTC,FlywheelSessionURL,FlywheelAcquisitionLabel,DicomSliceThickness,DicomPixelSpacingX,DicomPixelSpacingY
 # 111011,06/06/2006,https://upenn.flywheel.io/#/projects/5d07b942a550c600296fadda/sessions/5d08f879a550c6004870cf87?tab=data,COR 3D,1.5,0.9374864697,0.9375
@@ -25,11 +19,11 @@
 #
 # or
 #
-# INDDID,MRIDate,MRIProtocol,Scanner
-# 123200,11/27/2018,NACC-SC,SC (3T)
-# 126022,01/12/2021,NACC-SC,SC (3T)
-# 120937,07/11/2016,NACC-SC,SC (3T)
-# 123213,07/10/2018,NACC-SC,SC (3T)
+# INDDID,MRIDate
+# 123200,11/27/2018
+# 126022,01/12/2021
+# 120937,07/11/2016
+# 123213,07/10/2018
 
 
 CmdName=$(basename "$0")
@@ -76,10 +70,10 @@ function filterT1s {
 }
 
 
-while getopts ei:P:p arg
+while getopts eP:p arg
 do
     case "$arg" in
-	e|i|P|p)
+	e|P|p)
 	    eval "opt_${arg}=${OPTARG:=1}"
 	    ;;
     esac
@@ -87,27 +81,25 @@ done
 
 shift $((OPTIND - 1))
 
-if [ -n "$opt_i" ]
-then
-	InddAcquisitionsFile="$opt_i"
-else
-	echo "$CmdName : Missing {-i InddAcquisitionFile} [InddId,Date[[,FilePath]] [[InddId,Date,FilePath]...]]" 1>&2
-	exit 1
-fi
-
 if [ -n "$opt_p" ]
 then
     ModalityRegEx='\[BR_NAC\]|\[BR_CTAC\]|\[BR-DY_NAC\]|\[BR-DY_CTAC\]'
     Modalities=PET
 fi
 
-if [ -z "$*" ]
-then
+for InddAcquisitionsFile in "$@"
+do
     while read Line
     do
 	InddId="$(echo $Line | csvcut -c 1)"
 	InputDate="$(echo $Line | csvcut -c 2)"
-#	FilePathOrJunk="$(echo $Line | csvcut -c 3)"
+
+	# Skip input headers if any
+	if echo "$InputDate" | grep -q -i date
+	then
+	    echo skipping "$Line" 1>&2
+	    continue
+	fi
 	
 	Date=$(date -d "$InputDate" +%Y-%m-%d)
 	
@@ -158,5 +150,4 @@ then
 	echo ""
 
     done
-
-fi
+done
