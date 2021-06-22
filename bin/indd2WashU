@@ -70,10 +70,10 @@ function filterT1s {
 }
 
 
-while getopts eP:p arg
+while getopts pr: arg
 do
     case "$arg" in
-	e|P|p)
+	p|r)
 	    eval "opt_${arg}=${OPTARG:=1}"
 	    ;;
     esac
@@ -91,53 +91,60 @@ while read Line
 do
     InddAcquisitionsFiles=("$@")
 
-	InddId="$(echo $Line | csvcut -c 1)"
-	InputDate="$(echo $Line | csvcut -c 2)"
+    InddId="$(echo $Line | csvcut -c 1)"
+    InputDate="$(echo $Line | csvcut -c 2)"
 
-	# Skip input headers if any
-	if echo "$InputDate" | grep -q -i date
-	then
-	    echo skipping "$Line" 1>&2
-	    continue
-	fi
+    # Skip input headers if any
+    if echo "$InputDate" | grep -q -i date
+    then
+	echo skipping "$Line" 1>&2
+	continue
+    fi
 	
-	Date=$(date -d "$InputDate" +%Y-%m-%d)
+    Date=$(date -d "$InputDate" +%Y-%m-%d)
+    Dates=($Date)
+#    Dates=($Date $(date -d "${Date} +1 day" +%Y-%m-%d) )
 	
-	PossibleAcquisitions=$(grep -hP '^"?'"${Date}T" "${InddAcquisitionsFiles[@]}" | grep "/${InddId}/" | grep "$FileType" | grep -vPi '(T2\*)|([x_]7T[/_])|(I AM CONFUSED BY THIS)|(duplicate)')
-	FilteredAcquisitions=""
+    AcquisitionsPerSubject=$(grep -h "/${InddId}/" "${InddAcquisitionsFiles[@]}" | grep "$FileType" | grep -vPi '(T2\*)|([x_]7T[/_])|(I AM CONFUSED BY THIS)|(duplicate)')
+    FilteredAcquisitions=""
 
-	declare -A ImageTypeCount=([T1]=0 [T2]=0 [FLAIR]=0)
+    declare -A ImageTypeCount=([T1]=0 [T2]=0 [FLAIR]=0)
 
-	for Modality in $Modalities
+    for Modality in $Modalities
+    do
+	ModalityCount=0
+
+	for d in "${Dates[@]}"
 	do
-		ModalityCount=0
+	    PossibleAcquisitions=$(echo "$AcquisitionsPerSubject" | grep -P '^"?'"${d}T")
 
-		case "$Modality" in 
-		     T1)
-			ModalityAcquisitions=$(echo "$PossibleAcquisitions" | filterT1s)
-			ModalityCount=$(echo "$ModalityAcquisitions" | grep '.' | wc -l)
-			;;
+	    case "$Modality" in 
+		 T1)
+		    ModalityAcquisitions=$(echo "$PossibleAcquisitions" | filterT1s)
+		    ModalityCount=$(echo "$ModalityAcquisitions" | grep '.' | wc -l)
+		    ;;
 
-		     T2)
-			ModalityAcquisitions=$(echo "$PossibleAcquisitions" | grep -Pi "/[^/]*${Modality}[^/]*/")
-			ModalityCount=$(echo "$ModalityAcquisitions" | grep -v "FLAIR" | grep . | wc -l)
-			;;
+		 T2)
+		    ModalityAcquisitions=$(echo "$PossibleAcquisitions" | grep -Pi "/[^/]*${Modality}[^/]*/")
+		    ModalityCount=$(echo "$ModalityAcquisitions" | grep -v "FLAIR" | grep . | wc -l)
+		    ;;
 
-		     FLAIR)
-			ModalityAcquisitions=$(echo "$PossibleAcquisitions" | grep -Pi "/[^/]*${Modality}[^/]*/")
-			ModalityCount=$(echo "$ModalityAcquisitions" | grep . | wc -l)
-			;;
-		esac
+		 FLAIR)
+		    ModalityAcquisitions=$(echo "$PossibleAcquisitions" | grep -Pi "/[^/]*${Modality}[^/]*/")
+		    ModalityCount=$(echo "$ModalityAcquisitions" | grep . | wc -l)
+		    ;;
+	    esac
 
-		ImageTypeCount[$Modality]=$((${ImageTypeCount[$Modality]} + $ModalityCount))
+	    ImageTypeCount[$Modality]=$((${ImageTypeCount[$Modality]} + $ModalityCount))
 
-		FilteredAcquisitions+=$(echo ""; echo ""; echo "$ModalityAcquisitions")
-	done
+	    FilteredAcquisitions+=$(echo ""; echo ""; echo "$ModalityAcquisitions")
+		
+        done
 
 	echo "${InddId},${InputDate},${ImageTypeCount[T1]},${ImageTypeCount[T2]},${ImageTypeCount[FLAIR]},,,,,,,,"
 	if [ -z "$FilteredAcquisitions" ]
 	then
-	    echo ",,No Acquisition for ${InddId} on ${Date} in ${InddAcquisitionsFiles[*]}"
+	    echo ",,No Acquisition for ${InddId} on ${Dates[@]} in ${InddAcquisitionsFiles[*]}"
 	else
 	    echo "$FilteredAcquisitions" | grep '.' | sed 's/^/,,,,,/' | sort -k +9 -t , | csvcut -c 1-6,9-11,13 | sed 's^,cfn/PMC[^,]*/^,^' | uniq
 	    
@@ -148,5 +155,5 @@ do
 	fi
 
 	echo ""
-
+    done
 done
