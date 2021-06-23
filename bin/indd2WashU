@@ -87,6 +87,9 @@ then
     Modalities=PET
 fi
 
+AcquisitionCSVFields="SessionDateTime","FilePath","AcquisitionLabel","Modality","ImageType","ClassificationMeasurement","DateTime","AcquisitionId","FileId"
+Header=$(head -n 1 "$1")
+
 while read Line
 do
     InddAcquisitionsFiles=("$@")
@@ -103,6 +106,7 @@ do
 	
     Date=$(date -d "$InputDate" +%Y-%m-%d)
     Dates=($Date)
+# *** add date ranges here
 #    Dates=($Date $(date -d "${Date} +1 day" +%Y-%m-%d) )
 	
     AcquisitionsPerSubject=$(grep -h "/${InddId}/" "${InddAcquisitionsFiles[@]}" | grep "$FileType" | grep -vPi '(T2\*)|([x_]7T[/_])|(I AM CONFUSED BY THIS)|(duplicate)')
@@ -110,13 +114,13 @@ do
 
     declare -A ImageTypeCount=([T1]=0 [T2]=0 [FLAIR]=0)
 
-    for Modality in $Modalities
+    for d in "${Dates[@]}"
     do
-	ModalityCount=0
+	PossibleAcquisitions=$(echo "$AcquisitionsPerSubject" | grep -P '^"?'"${d}T")
 
-	for d in "${Dates[@]}"
+	for Modality in $Modalities
 	do
-	    PossibleAcquisitions=$(echo "$AcquisitionsPerSubject" | grep -P '^"?'"${d}T")
+	    ModalityCount=0
 
 	    case "$Modality" in 
 		 T1)
@@ -138,22 +142,21 @@ do
 	    ImageTypeCount[$Modality]=$((${ImageTypeCount[$Modality]} + $ModalityCount))
 
 	    FilteredAcquisitions+=$(echo ""; echo ""; echo "$ModalityAcquisitions")
-		
         done
-
-	echo "${InddId},${InputDate},${ImageTypeCount[T1]},${ImageTypeCount[T2]},${ImageTypeCount[FLAIR]},,,,,,,,"
-	if [ -z "$FilteredAcquisitions" ]
-	then
-	    echo ",,No Acquisition for ${InddId} on ${Dates[@]} in ${InddAcquisitionsFiles[*]}"
-	else
-	    echo "$FilteredAcquisitions" | grep '.' | sed 's/^/,,,,,/' | sort -k +9 -t , | csvcut -c 1-6,9-11,13 | sed 's^,cfn/PMC[^,]*/^,^' | uniq
-	    
-	    if [ "${ImageTypeCount[T1]}" == 0 ]
-	    then
-		echo "$PossibleAcquisitions" | sed 's/^/>,,,,,/' | sort -k +9 -t , | csvcut -c 1-6,9-11,13 | sed 's^,cfn/PMC[^,]*/^,^' | uniq
-	    fi
-	fi
-
-	echo ""
     done
+		
+    echo "${InddId},${InputDate},${ImageTypeCount[T1]},${ImageTypeCount[T2]},${ImageTypeCount[FLAIR]},,,,,,,,"
+    if [ -z "$FilteredAcquisitions" ]
+    then
+	echo ",,No Acquisition for ${InddId} on ${Dates[@]} in ${InddAcquisitionsFiles[*]}"
+    else
+	(echo "$Header"; echo "$FilteredAcquisitions") | grep '.' | csvcut -c "$AcquisitionCSVFields" | tail -n +2 | sort -k +2 -t , | sed 's/^/,,,,,/' | uniq
+	    
+	if [ "${ImageTypeCount[T1]}" == 0 ]
+	then
+	    (echo $Header; echo "$PossibleAcquisitions") | grep '.' | csvcut -c "$AcquisitionCSVFields" | tail -n +2 | sort -k +2 -t , | sed 's/^/,,,,,/' | uniq
+	fi
+    fi
+
+    echo ""
 done
