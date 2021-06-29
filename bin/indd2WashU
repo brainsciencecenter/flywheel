@@ -141,21 +141,22 @@ do
 
 	    ImageTypeCount[$Modality]=$((${ImageTypeCount[$Modality]} + $ModalityCount))
 
-	    FilteredAcquisitions+=$(echo ""; echo ""; echo "$ModalityAcquisitions")
+	    FilteredAcquisitions+=$(echo ""; echo ""; echo "$ModalityAcquisitions" | grep '.')
         done
     done
 		
-    echo "${InddId},${InputDate},${ImageTypeCount[T1]},${ImageTypeCount[T2]},${ImageTypeCount[FLAIR]},,,,,,,,"
+    echo "${InddId},${InputDate},${ImageTypeCount[T1]},${ImageTypeCount[T2]},${ImageTypeCount[FLAIR]},,,,,,,,,,"
     if [ -z "$FilteredAcquisitions" ]
     then
 	echo ",,No Acquisition for ${InddId} on ${Dates[@]} in ${InddAcquisitionsFiles[*]}"
     else
 	(echo "$Header"; echo "$FilteredAcquisitions") | grep '.' | csvcut -c "$AcquisitionCSVFields" | tail -n +2 | sort -k +2 -t , | sed 's/^/,,,,,/' | uniq
 	    
-	if [ "${ImageTypeCount[T1]}" == 0 ]
-	then
-	    (echo $Header; echo "$PossibleAcquisitions") | grep '.' | csvcut -c "$AcquisitionCSVFields" | tail -n +2 | sort -k +2 -t , | sed 's/^/,,,,,/' | uniq
-	fi
+	# *** Why?
+	# if [ "${ImageTypeCount[T1]}" == 0 ]
+	#then
+	#    (echo $Header; echo "$PossibleAcquisitions") | grep '.' | csvcut -c "$AcquisitionCSVFields" | tail -n +2 | sort -k +2 -t , | sed 's/^/,,,,,/' | uniq
+	#fi
     fi
 
     echo ""

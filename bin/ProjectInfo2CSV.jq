@@ -8,6 +8,7 @@
 
     "accountNumber": null,
     "fundingSourceName": null,
+    "fundingSourceExpirationDate": null,
     "iLabServiceNumber": null,
     "PIs": null
   }
@@ -17,6 +18,7 @@ else
     "Project": ($Key | split("/"))[1],
     "businessAdministrator.name": .businessAdministrator.name,
     "businessAdministrator.email": .businessAdministrator.email,
+
     "accountNumber": .accountNumber,
     "fundingSourceName": .fundingSourceName,
     "fundingSourceExpirationDate": .fundingSourceExpirationDate,
