@@ -27,20 +27,24 @@ then
 		FlywheelUtilsDir=$(dirname $(dirname $(which "$0")))
 	fi
 fi
+ProjectInfoFile=$(mktemp /tmp/projectinfo-XXXXXX.csv)
+BscChargesFile=$(mktemp /tmp/bscccharges-XXXXXX.csv)
 
-fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f "${FlywheelUtilsDir}/bin/ProjectInfo2CSV.jq" | sed 's/","/\//' > /tmp/projectinfo.csv
-getGroupProjectTotalBSCCharge -m "$Month" -y "$Year"  > /tmp/bsccharges.csv
+fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f "${FlywheelUtilsDir}/bin/ProjectInfo2CSV.jq" | sed 's/","/\//' > "$ProjectInfoFile"
+getGroupProjectTotalBSCCharge -m "$Month" -y "$Year"  > "$BscChargesFile"
 
-InfoHeader=$(head -n 1 /tmp/projectinfo.csv)
+InfoHeader=$(head -n 1 "$ProjectInfoFile")
 
 BscChargeColumns=3-
 
-echo "${InfoHeader},$(head -n 1 /tmp/bsccharges.csv | csvcut -c $BscChargeColumns)"
+echo "${InfoHeader},$(head -n 1 "$BscChargesFile" | csvcut -c $BscChargeColumns)"
 
-tail -n +2 /tmp/projectinfo.csv | sort | while read line
+# This only shows active projects in flywheel -- deleted projects won't be in
+# the ProjectInfo file and hence won't be searched for in bsccharges
+tail -n +2 "$ProjectInfoFile" | sort | while read line
 do
 	groupproject=$(echo "$line" | csvcut -c 1)
-	res=$(grep ",${groupproject}," /tmp/bsccharges.csv)
+	res=$(grep ",${groupproject}," "$BscChargesFile")
 	if [ -n "$res" ]
 	then
 		bsccharges=$(echo "$res" | csvcut -c "$BscChargeColumns")
@@ -50,3 +54,5 @@ do
 
 	echo "${line},${bsccharges}"
 done 
+
+rm -f "$BscChargesFile" "$ProjectInfoFile"

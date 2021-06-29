@@ -217,7 +217,7 @@ class FW():
                 print("  Members:")
                 for member in sorted(group.permissions, key=lambda k: k['_id']):
                     if (args.ids):
-                        print("\t%s:%s" % (member.role_ids, member.id), end='')
+                        print("\t%s:%s" % (member.access, member.id), end='')
                     if (args.fullnames):
                         user = self.getUser(member.id)
                         if (user):
@@ -355,6 +355,7 @@ class FW():
                             logging.warning(e)
 
                         ProjectList = []
+                        print("Adding {}  to project {}".format(user,args.project))
                         if (args.project):
                             if (args.project == 'all'):
                                 ProjectList = self.fw.projects.find("group={}".format(group.id), exhaustive=True, limit=100000)
