@@ -18,12 +18,15 @@ fwProjectInfoCrud  -u -p .ProjectFunding.businessAdministrator.name -j 'foe' hol
 fwProjectInfoCrud -p ProjectFunding -g | jq 'del(.[]|nulls)|select(. != {})' 		# returns all projectfunding group/projects with info
 fwProjectInfoCrud -p ProjectFunding -g | jq 'select(.[] == null) | keys | .[]' 		# returns all projectfunding group/projects without project funding 
 
-pull json from gropu/project info
+pull json from group/project info
 
 Push updated csv file back to flywheel:
 
 (head -n 1 /tmp/2021-03-28-1247-ProjectFunding\ \(1\)\ mgr.csv; grep -i '^"x"' /tmp/2021-03-11-ProjectFunding-mgr.csv ) > /tmp/upload.csv
 updateFlywheelProjectFunding   /tmp/upload.csv 
+
+Update the PIs for fw-support/TestProject
+  fwProjectInfoCrud -v -p '.ProjectFunding.PIs' -u -P '.ProjectFunding.PIs |= ' -j '["support@flywheel.io"]' fw-support/TestProject
 
 '''
 
