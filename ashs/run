@@ -2,8 +2,10 @@
 
 # updated 16:04
 
-export FLYWHEEL=${FLYWHEEL:=/flywheel/v0}
-export PATH=${FLYWHEEL}:$PATH
+export FLYWHEEL=${FLYWHEEL:=/usr/local/flywheel}
+export FLYWHEELPATH=/usr/local/flywheel
+export PATH=${FLYWHEELPATH}/bin:$PATH
+export PYTHONPATH=${FLYWHEELPATH}/lib:$PYTONPATH
 
 export FLYWHEEL_INPUTDIR="${FLYWHEEL}/input"
 export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
@@ -12,6 +14,10 @@ CONFIG_FILE=${FLYWHEEL}/config.json
 GearName=ashs
 
 echo 35.184.111.29 dss.itksnap.org >> /etc/hosts
+
+echo $PATH
+echo $PYTHONPATH
+ls /usr/local/flywheel
 
 echo "/flywheel/v0"
 ls -lR /flywheel/v0
@@ -35,7 +41,7 @@ T2Path=$(getGearParam "${CONFIG_FILE}:.inputs.T2w.location.path")
 #itksnap-wt -dss-tickets-list
 
 
-run_pipeline.sh -s "$DSSService" -d "$FLYWHEEL_OUTPUTDIR" -T "$T1Path" -t "$T2Path"
+./run_pipeline.sh -s "$DSSService" -d "$FLYWHEEL_OUTPUTDIR" -T "$T1Path" -t "$T2Path"
 
 
 echo "/flywheel/v0"

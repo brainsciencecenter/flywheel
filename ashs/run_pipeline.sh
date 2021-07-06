@@ -139,7 +139,7 @@ ITKSnapCmd=( itksnap-wt -layers-add-anat "$T1NiftiFile" -tags-add "$T1Tag" -laye
 if [ -n "$opt_t" -a "$opt_t" != 1 ]
 then
     T2NiftiFile=$(niftiIfNeeded "$opt_t")
-    ITKSnapCmd+=(-layers-add-anat "$T2NiftiFile" -tags-add "T2-MRI")
+    ITKSnapCmd=( itksnap-wt -layers-add-anat "$T1NiftiFile" -tags-add "$T1Tag" -layers-add-anat "$T2NiftiFile" -tags-add "T2-MRI" -layers-list -o "$WorkspaceFile" )
 fi
 
 "${ITKSnapCmd[@]}"

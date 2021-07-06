@@ -1,12 +1,9 @@
 {
-    "description": "See https://dss.itksnap.org/services for details on the different services",
 	"name": "ashs",
-    	"label": "PICSL Medial temporal lobe subregion parcellation (ASHS)",
-	"version": "0.0.14",
+	"label": "PICSL Medial temporal lobe subregion parcellation (ASHS)",
+	"description": "See https://dss.itksnap.org/services for details on the different services",
+	"version": "0.0.17",
 	"inputs": {
-		"api-key": {
-			"base": "api-key"
-		},
 		"T1w": {
 			"base": "file",
 			"description": "T1 weighted MRI dicom or nifti file.",
@@ -26,6 +23,9 @@
 					"dicom"
 				]
 			}
+		},
+		"api-key": {
+			"base": "api-key"
 		}
 	},
 	"config": {
@@ -54,7 +54,8 @@
 		"FLYWHEEL_OUTPUT": "/flywheel/v0/output",
 		"GPG_KEY": "C01E1CAD5EA2C4F0B8E3571504C367C218ADD4FF",
 		"LANG": "C.UTF-8",
-		"PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PATH": "/usr/local/flywheel/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PYTHONATH": "/usr/local/flywheel/lib",
 		"PYTHONIOENCODING": "UTF-8",
 		"PYTHON_PIP_VERSION": "19.0.2",
 		"PYTHON_VERSION": "2.7.15",
@@ -73,8 +74,8 @@
 		},
 		"gear-builder": {
 			"category": "analysis",
-		        "container": "2bb386f568b69021005c13b623f530a48e1bf0c82af4633fd17387eea7433614",
-			"image": "ashs/itksnap:latest"
+			"container": "051c243f9244458ae6bbb0c97e609f9b10ce4b05b97303395fb614a6cb14fd43",
+			"image": "gear-builder-qwrahrnxhy-20210702203650"
 		}
 	}
 }
