@@ -44,7 +44,8 @@ else
 fi
 
 INDDToc=$(mktemp /tmp/${cmd}Toc-XXXXX)
-ssh -x cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c dir 2> /dev/null" | awk '{print $1}' | grep -P '^\d{6}([\._]\d{2})?_\d{8}.pdf$' | sort  | grep -v "$opt_f" > "$INDDToc"
+#ssh -x cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c dir 2> /dev/null" | awk '{print $1}' | grep -P '^\d{6}([\._]\d{2})?_\d{8}.pdf$' | sort  | grep -v "$opt_f" > "$INDDToc"
+ssh -x cx2go "smbclient //cndr-indd.uphs.pennhealth.prv/mrireport -m SMB2 -A ~/AshsHarpIcv_pipeline/auth.txt  -c dir 2> /dev/null" | awk '{print $1}' | grep -P '^\d{6}([\._x]\d{2})?[_x]\d{8}([_x]3T)?.pdf$' | sort  | grep -v "$opt_f" > "$INDDToc"
 
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of INDD reports" 1>&2
 
