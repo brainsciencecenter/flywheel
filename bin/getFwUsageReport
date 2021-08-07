@@ -6,6 +6,7 @@ import argparse
 import csv
 import flywheel
 import fwgearutils
+import json
 import sys
 
 parser = argparse.ArgumentParser()
@@ -21,10 +22,34 @@ fp = args.out
 
 fw = fwgearutils.getFW(args)
 
+InvoiceMonth="{}{}".format(Year,Month)
 
-data=fw.get_usage_report(year=Year,month=Month,csv='FALSE')
+data = []
 
-if (len(data) > 0):
+UsageReport=fw.get_usage_report(year=Year,month=Month,csv='FALSE')
+
+if (len(UsageReport) > 0):
+    for row in UsageReport:
+
+        data.append(dict(row))
+        
+    for row in data:
+        IsDeleted = None
+
+        ProjectUid = row['project']
+        if (ProjectUid):
+
+            try:
+                fw.get(ProjectUid)
+                IsDeleted = False
+
+            except flywheel.rest.ApiException as e:
+                IsDeleted = True
+
+        row['deleted'] = IsDeleted
+        row['invoice_month'] = InvoiceMonth
+
+
     writer = csv.DictWriter(fp, 
                [ 'center_compute_ms',
                  'center_job_count',
@@ -38,7 +63,10 @@ if (len(data) > 0):
                  'session_count',
                  'total_compute_ms',
                  'total_job_count',
-                 'total_storage_byte_day',])
+                 'total_storage_byte_day',
+                 'deleted',
+                 'invoice_month',
+               ])
 
     writer.writeheader()
 
