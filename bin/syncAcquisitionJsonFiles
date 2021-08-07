@@ -18,16 +18,16 @@ syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-i][-l][-m][
 # fw.find options arguments to fw.find for refining search -- ignored if -a is specified
 #
 # Intened use is to run
-#   syncAcquisitionJsonFile -c Nacc-ScAcquisitions.json dwolklab/NACC-SC
+#   syncAcquisitionJsonFiles -c Nacc-ScAcquisitions.json dwolklab/NACC-SC
 # to generate a complete list of all acquisition ids in dwolklab/NACC-SC, then compare the acquisition id list
 # to the one in the cached AcquisitionJsonFile and retrieve any missing acquisitions
 # 
 # This can be sped up by specifying additional restrictions on the acquisition search
-#   syncAcquisitionJsonFile -c Nacc-ScAcquisitions.json dwolklab/NACC-SC 'created>2021-05-01' 'created<2021-06-01'
+#   syncAcquisitionJsonFiles -c Nacc-ScAcquisitions.json dwolklab/NACC-SC 'created>2021-05-01' 'created<2021-06-01'
 # to constrain the list of new acquisitions to May, 2021
 #
 # If you know which acquisitions you want to retrieve:
-#   syncAcquisitionJsonFile -a 1,2,3,4
+#   syncAcquisitionJsonFiles -a 1,2,3,4
 # or
 #   syncAcquisitionJsonFile -a "1 2 3 4"
 # to retrieve acquistion with ids of 1, 2, 3, and 4

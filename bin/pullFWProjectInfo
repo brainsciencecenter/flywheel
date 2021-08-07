@@ -12,6 +12,8 @@ import pyjq
 from os.path import expanduser
 
 '''
+# *** Need to deal with multiple scans which have the same paths
+
 pull json from gropu/project info
 '''
 

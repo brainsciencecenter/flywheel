@@ -2,7 +2,7 @@
 	"name": "ashs",
 	"label": "PICSL Medial temporal lobe subregion parcellation (ASHS)",
 	"description": "See https://dss.itksnap.org/services for details on the different services",
-	"version": "0.0.17",
+	"version": "0.0.18",
 	"inputs": {
 		"T1w": {
 			"base": "file",
@@ -74,8 +74,8 @@
 		},
 		"gear-builder": {
 			"category": "analysis",
-			"container": "051c243f9244458ae6bbb0c97e609f9b10ce4b05b97303395fb614a6cb14fd43",
-			"image": "gear-builder-qwrahrnxhy-20210702203650"
+			"container": "d28ef2beed698477beece971cf027df251cfe76b13a5994cd47403b3f70b620b",
+			"image": "gear-builder-xjvvudhqnj-20210706212309"
 		}
 	}
 }

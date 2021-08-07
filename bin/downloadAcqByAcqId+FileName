@@ -32,46 +32,68 @@ if (args.download_dir):
 else:
     BaseDownloadDir = ""
 
+CsvData = None
+
 with (open(args.scans[0], 'r') if len(args.scans) >= 1 else sys.stdin) as f:
-    reader = csv.DictReader(f)
+    CsvData = list(csv.DictReader(f))
 
-    for row in reader:
-        (AcquisitionId, FilePath, FileId)  = (row['AcquisitionId'], row['FilePath'], row['FileId'])
+    FilePathList = pyjq.all('.[]|select(.AcquisitionId|test("...."))|{"AcquisitionId": .AcquisitionId, "FilePath": .FilePath, "FileId": .FileId}',CsvData)
 
-        if (not AcquisitionId):
-            continue
+AcquisitionIds = {}
+for row in FilePathList:
 
-        FileName = os.path.basename(FilePath)
-        FileDir = BaseDownloadDir + os.path.dirname(FilePath)
+    if (not row['FilePath'] in AcquisitionIds.keys()):
+        AcquisitionIds[row['FilePath']] = {'AcquisitionId':  []}
 
-        try:
-            Acquisition = fw.get(AcquisitionId)
-        except (flywheel.rest.ApiException) as e:
-            print("{} : acquisition '{}' not found. Skipping. '{}'".format(CmdName, AcquisitionId, str(e.detail)), file=sys.stderr)
-            continue
+    Acq = AcquisitionIds[row['FilePath']] 
+    Acq['AcquisitionId'].append(row['AcquisitionId'])
 
-        ScanFiles = list(filter(lambda f: f.id == FileId, Acquisition.get_files()))
-        if (len(ScanFiles) != 1):
-            print("{} : Acquisition '{}' has {} file(s) with id '{}'".format(CmdName, AcquisitionId, len(ScanFiles), FileId), file=sys.stderr)
-            continue
-            
-        ScanFile = ScanFiles[0]
 
-        if (not os.path.isdir(FileDir)):
-            if (args.noop or args.verbose):
-                print("mkdir -p '{}'".format(FileDir), file=sys.stderr)
+Dups = pyjq.all('[.FilePath as $FilePath| to_entries | .[] | select((.value.AcquisitionId | length) > 1)] | from_entries', AcquisitionIds)[0]
+print(json.dumps(Dups, indent=2))
 
-            if (not args.noop):
-                pathlib.Path(FileDir).mkdir(parents=True, exist_ok=True)
+for row in CsvData:
+    (AcquisitionId, FilePath, FileId)  = (row['AcquisitionId'], row['FilePath'], row['FileId'])
 
-        FileFullPath='{}/{}'.format(FileDir, FileName)
+    if (not AcquisitionId):
+        continue
 
-        if ((not os.path.isfile(FileFullPath)) or args.force):
-            if (args.noop or args.verbose):
-                print("download '{}' to '{}'".format(FileName, FileFullPath))
+    AcquisitionFileName = os.path.basename(FilePath)
+    if (FilePath in Dups.keys()):
+        BaseFileName=re.sub('(?P<extension>(.nii.gz|.dicom.zip))$', '_{}\g<extension>)'.format(AcquisitionId), AcquisitionFileName)
+    else:
+        BaseFileName = AcquisitionFileName
 
-            if (args.force or (not args.noop)):
-                Acquisition.download_file(FileName, "{}".format(FileFullPath))
-        # *** Should put a message out if there isnt' a file with this name in the acquisition
+    FileDir = BaseDownloadDir + os.path.dirname(FilePath)
 
-    
+    try:
+        Acquisition = fw.get(AcquisitionId)
+    except (flywheel.rest.ApiException) as e:
+        print("{} : acquisition '{}' not found. Skipping. '{}'".format(CmdName, AcquisitionId, str(e.detail)), file=sys.stderr)
+        continue
+
+    # *** Should put a message out if there isnt' a file with this name in the acquisition
+    ScanFiles = list(filter(lambda f: f.id == FileId, Acquisition.get_files()))
+    if (len(ScanFiles) != 1):
+        print("{} : Acquisition '{}' has {} file(s) with id '{}'".format(CmdName, AcquisitionId, len(ScanFiles), FileId), file=sys.stderr)
+        continue
+
+    ScanFile = ScanFiles[0]
+
+    if (not os.path.isdir(FileDir)):
+        if (args.noop or args.verbose):
+            print("mkdir -p '{}'".format(FileDir), file=sys.stderr)
+
+        if (not args.noop):
+            pathlib.Path(FileDir).mkdir(parents=True, exist_ok=True)
+
+    FileFullPath='{}/{}'.format(FileDir, BaseFileName)
+
+    if ((not os.path.isfile(FileFullPath)) or args.force):
+        if (args.noop or args.verbose):
+            print("download '{}' to '{}'".format(BaseFileName, FileFullPath))
+
+        if (args.force or (not args.noop)):
+            Acquisition.download_file(AcquisitionFileName, "{}".format(FileFullPath))
+
+
