@@ -203,6 +203,7 @@ def initRow(
 	acquisition_name=None,
 	acquisition_id=None,
         gcp_compute_cost=None,
+        invoice_month=None,
     ):
 
     row = OrderedDict([
@@ -229,6 +230,7 @@ def initRow(
 	( 'acquisition_name', acquisition_name ),
 	( 'acquisition_id', acquisition_id ),
         ( 'gcp_compute_cost', gcp_compute_cost),
+        ( 'invoice_month', invoice_month),
     ])
     return(row)
 
@@ -297,6 +299,17 @@ UIDs2Labels = {}
 
 fw = fwgearutils.getFW(args, Root=True)
 
+InvoiceMonth = None
+
+filter=','.join(args.filter)
+#print("filter = filter={}".format(filter), file=sys.stderr)
+
+s = re.search('^.*>(?P<year>\d{4})-(?P<month>\d{2}).*$',filter)
+if (s):
+    InvoiceMonth = "{}{}".format(s.group('year'),s.group('month'))
+    
+#print("InvoiceMonth =", InvoiceMonth)
+
 reapers = fw.get_all_devices()
 for r in reapers:
     UIDs2Labels[r.id] = r.name
@@ -315,8 +328,6 @@ subjects = fw.get_all_subjects(exhaustive=args.exhaustive, limit=args.limit)
 for s in subjects:
     UIDs2Labels[s.id] = s.label
 
-filter=','.join(args.filter)
-#print("filter = filter={}".format(filter), file=sys.stderr)
 jobs = []
 if (len(args.filter)):
 #  jobs = fw.get_all_jobs(limit=args.limit, filter=filter)
@@ -421,7 +432,8 @@ for job in jobs:
                 subject=detail.parent_info.subject.label,
                 session=session_label,
                 session_id=detail.parent_info.session.id,
-                acquisition_id=acquisition_id
+                acquisition_id=acquisition_id,
+                invoice_month=InvoiceMonth
             )
         except (TypeError) as e:
             print("detail.parent_info.session.label = '{}'".format(detail.parent_info.session.label), file=sys.stderr)

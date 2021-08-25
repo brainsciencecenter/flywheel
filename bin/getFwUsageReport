@@ -66,8 +66,8 @@ if (len(UsageReport) > 0):
                  'total_storage_byte_day',
                  'deleted',
                  'invoice_month',
-               ]
-            lineterminator='\n')
+               ],
+               lineterminator='\n')
 
     writer.writeheader()
 

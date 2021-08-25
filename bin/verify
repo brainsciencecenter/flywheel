@@ -35,7 +35,7 @@ syntax="${CmdName} {-t c|g|i|j|u} [-D YYYY-MM-DD] [-d YYYY-MM-DD] [-F] [-f {Comp
 FlywheelDir=/home/holder/flywheel
 CondorYamlFile="$FlywheelDir/etc/condor.yml"
 
-CondorJson=$(yq -jP eval < "$CondorYamlFile" | jq .)
+CondorJson=$(yq -P -t=json eval < "$CondorYamlFile" | jq .)
 
 function getHeaderIndicies() {
 
@@ -311,7 +311,7 @@ function filter {
 		    ;;
 
 		VM)
-		    allOrFlywheel | grep -P 'Instance Core|Small Instance|PD Capacity|PD Snapshot|Instance Ram'
+		    allOrFlywheel | grep -P '(Instance Core)|(Small Instance)|(PD Capacity)|(PD Snapshot)|(Instance Ram)'
 		    ;;
 
 		VM-Static)

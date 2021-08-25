@@ -1,0 +1,27 @@
+
+Google billing Service Descriptions are currently:
+
+BigQuery
+Cloud Key Management Service (KMS)
+Cloud Storage
+Compute Engine
+Google Click to Deploy Deep Learning VM
+Kubernetes Engine
+Security Command Center
+Source Repository
+Stackdriver Logging
+Stackdriver Monitoring
+
+We probably only care about
+
+Cloud Storage
+Compute Engine
+Kubernetes (maybe under compute?)
+Misc (everything else)
+
+Re for each:
+Cloud Storage = 'Cloud Storage'
+Kubernetes&Compute = '(Compute Engine)|Kubernetes'
+Misc = -v '(Cloud Storage)|(Compute Engine)|Kubernetes'
+
+Main issue with gcp allocation is mapping google projects to billing codes
