@@ -123,7 +123,11 @@ def isKubernetes(row):
     return(re.search('Kubernetes Engine', row['Service description']))
 
 def isMisc(row):
-    return((not isCompute(row)) and (not isStorage(row)))
+    return((not isCompute(row)) and (not isStorage(row))
+#
+# InitialAnalysis Gear costs will get added as Misc overstating the misc charges
+#           and (not isFlywheelGear(row))
+    )
 
 def isStorage(row):
     return( re.search('Cloud Storage', row['Service description']))
@@ -206,8 +210,8 @@ def formatProject(Project):
                 else:
                         ProjectCharge = 8.33
 
-        if (re.search('oathes_lab',Project['GroupName'])):
-                print("{}/{}: {} {}".format(Project['GroupName'], Project['ProjectName'], StorageCharge, BSCStorageCharge), file=sys.stderr)
+#        if (re.search('oathes_lab',Project['GroupName'])):
+#                print("{}/{}: {} {}".format(Project['GroupName'], Project['ProjectName'], StorageCharge, BSCStorageCharge), file=sys.stderr)
 
     if ('InitialAnalysis' in Project['Charges'].keys()):
             Project['Charges']['InitialAnalysis']['Cost'] = 25 * Project['Charges']['InitialAnalysis']['Quantity']
@@ -308,7 +312,9 @@ with open(args.report[1], newline='') as csvfile:
 
     for row in reader:
         if (isInitialAnalysis(row)):
-                print("{}/{} Initial analysis {}".format(row['Group'], row['Project name'], row['Initial analysis']), file=sys.stderr)
+                print("{}/{} Initial analysis {}, {}".format(row['Group'], row['Project name'], row['Initial analysis'], row['Cost ($)']), file=sys.stderr)
+
+#                print(row, file=sys.stderr)
                 tallyCharges(Projects, row)
 
         tallyGearCharge(Gears, row)

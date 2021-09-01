@@ -35,7 +35,7 @@ syntax="${CmdName} {-t c|g|i|j|u} [-D YYYY-MM-DD] [-d YYYY-MM-DD] [-F] [-f {Comp
 FlywheelDir=/home/holder/flywheel
 CondorYamlFile="$FlywheelDir/etc/condor.yml"
 
-CondorJson=$(yq -P -t=json eval < "$CondorYamlFile" | jq .)
+CondorJson=$(yq -P -o json eval < "$CondorYamlFile" | jq .)
 
 function getHeaderIndicies() {
 
@@ -263,7 +263,8 @@ function filter {
 		    ;;
 
 		Misc)
-		    allOrFlywheel | grep -v -P '(Kubernetes)|(Cloud Storage)|(Flywheel Gear)|(Instance Core)|(Small Instance)|(PD Capacity)|(Instance Ram)|(GPU running)|(Storage Image)|(Storage Machine Image)|(Storage PD)'
+#		    allOrFlywheel | grep -v -P '(Kubernetes)|(Cloud Storage)|(Flywheel Gear)|(Instance Core)|(Small Instance)|(PD Capacity)|(Instance Ram)|(GPU running)|(Storage Image)|(Storage Machine Image)|(Storage PD)'
+		    allOrFlywheel | grep -v -P '(Compute Engine)|(Cloud Storage)'
 		    ;;
 
 		MiscStorage)
