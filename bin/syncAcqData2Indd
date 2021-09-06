@@ -145,6 +145,11 @@ else
     FindArgs="$@"
 fi
 
+#
+# The final conversion of the cached json file to csv requires
+# Id2Project, Id2Subject and Id2Session labeles. So we need to make sure we
+# know they are in the right path
+# 
 Id2ProjectLabelsJson="${TmpDir}/Id2ProjectLabels.json"
 if [ -n "$opt_f" -o ! -e "$Id2ProjectLabelsJson" ]
 then
@@ -178,13 +183,13 @@ fi
 CmdArgs=()
 if [ -n "$opt_c" ]
 then
-	CmdArgs+=( -c "$CachedAcquisitionJsonFile" )
+	CmdArgs+=( -c "$opt_c" )
 fi
 syncAcquisitionJsonFiles "${CmdArgs[@]}" -d "$TmpDir" -pi "${Group}/${Project}" "$@"
 
-echo jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$CachedAcquisitionJsonFile" 1>&2
+echo jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$opt_c" 1>&2
 
-jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$CachedAcquisitionJsonFile" | tee >((echo "$FieldsAll" ; grep ',"MR",')  | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv")  > /dev/null
+jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$opt_c" | tee >((echo "$FieldsAll" ; grep ',"MR",')  | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv")  > /dev/null
 
 
 if [ "$DeleteTmpDir" == True ]
