@@ -2,12 +2,13 @@
 
 CmdName=$(basename "$0")
 
-syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-i][-l][-m][-n][-p][-d WorkingDir][-v] [Group/Project [other fw.find option]...]"
+syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-f][-i][-l][-m][-n][-p][-d WorkingDir][-v] [Group/Project [other fw.find option]...]"
 
 #
 # -a comma or space separated list of acquisition ids to retrieve from flywheel
 # -c cached acquisition json file with details of the acquisitions
 # -d specify the temporary diretory to use.  Creates one with mktemp by default.  Implies -m
+# -f overwrite the existing active acquisition id file
 # -i inplace update -- Overwrite the CachedAcquisitionJsonFile with the updated acquisitions, moving the old one out of the way
 # -l retreive json timestamps with local timezone
 # -n Print the list of AcquisitionIds to be retrieved but don't actually retrieve any 
