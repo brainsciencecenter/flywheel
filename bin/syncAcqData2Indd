@@ -1,0 +1,193 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+syntax="${CmdName} [-a AcquisitionIds][-c CachedAcquisitionJsonFile][-f][-m][-n][-d TmpDir][-v] [Group/Project [other fw.find option]...]"
+
+FwAcqData2InddJqFile=~/fw-indd/Fw2InddScanInfo.jq
+
+FieldsCommon=(
+        'INDDID'
+        'FlywheelSubjectID'
+        'FlywheelSessionTimestampUTC'
+        'FlywheelSessionURL'
+        'FlywheelSessionInternalID'
+        'FlywheelProjectInternalID'
+        'FlywheelAcquisitionLabel'
+        'FlywheelAcquisitionIntent'
+        'FlywheelAcquisitionMeasurement'
+        'FlywheelAcquisitionFeatures'
+        'FlywheelAcquisitionInternalID'
+        'AcquisitionTimestampUTC'
+        'DicomModality'
+        'DicomInstitutionName'
+        'DicomStationName'
+        'DicomBodyPartExamined'
+        'DicomStudyInstanceUID'
+        'DicomSeriesInstanceUID'
+        'DicomSliceThickness'
+        'DicomPixelSpacingX'
+        'DicomPixelSpacingY'
+
+)
+
+    # Add:
+    #   number of TRs
+    #   duration of scan (how?) 
+    #   make sure time is in correct time zone
+    #   Echo Number
+    #   Phase Encode Direction
+
+FieldsMriUnique=(
+        'DicomMagneticFieldStrength'
+        'DicomSequenceName'
+        'DicomRepetitionTime'
+        'DicomEchoTime'
+        'DicomEchoNumbers'
+        'DicomFlipAngle'
+        'DicomNumberOfAverages'
+        'DicomAcquisitionNumber'
+        'DicomSpacingBetweenSlices'
+)
+
+    # Tracer used
+    # ReconstructionMethod
+    # ScatterCorrectionMethod
+    # Attenuation Correction Method
+    # Isotope?
+FieldsPetUnique=(
+        'DicomReconstructionMethod'
+        'DicomScatterCorrectionMethod'
+        'DicomAttenuationCorrectionMethod'
+        'DicomRadiopharmaceutical'
+        'DicomRadionuclide'
+)
+
+FieldsAll=$( echo "${FieldsCommon[@]}" "${FieldsMriUnique[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
+FieldsMri=$( echo "${FieldsCommon[@]}" "${FieldsMriUnique[@]}" | sed 's/ /,/g' )
+FieldsPet=$( echo "${FieldsCommon[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
+
+#
+# -a comma or space separated list of acquisition ids to retrieve from flywheel
+# -c cached acquisition json file with details of the acquisitions
+# -f Overwrite all temp files
+# -m messy -- don't remove the temporary directory
+# -n Print the list of AcquisitionIds to be retrieved but don't actually retrieve any 
+# -d specify the temporary diretory to use.  Creates one with mktemp by default.  Implies -m
+#   if -c is supplied, will only retrieve acquisitions not in the cached acquisisition json file
+# Group/Project The group/project path to retrieve acquisitions from -- ignored if -a is specified
+# fw.find options arguments to fw.find for refining search -- ignored if -a is specified
+#
+# Intened use is to run
+#   syncAcqData2Indd -c Nacc-ScAcquisitions.json dwolklab/NACC-SC
+# to generate a complete list of all acquisition ids in dwolklab/NACC-SC, then compare the acquisition id list
+# to the one in the cached AcquisitionJsonFile and retrieve any missing acquisitions
+# g
+# This can be sped up by specifying additional restrictions on the acquisition search
+#   syncAcqData2Indd -c Nacc-ScAcquisitions.json dwolklab/NACC-SC 'created>2021-05-01' 'created<2021-06-01'
+# to constrain the list of new acquisitions to May, 2021
+#
+# If you know which acquisitions you want to retrieve:
+#   syncAcqData2Indd -a 1,2,3,4
+# or
+#   syncAcqData2Indd -a "1 2 3 4"
+# to retrieve acquistion with ids of 1, 2, 3, and 4
+#
+# The fw.find options can be used to constrain the search to specific projects, subjects, or sessions
+
+#
+# Want to pass in fw.find args to limit date
+# Want to be able to passin explicit list of acquisition args to get
+# 
+
+while getopts a:c:d:fmnv arg
+do
+	case "$arg" in
+	     a|c|d|f|m|n|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -n "$opt_d" ]
+then
+	TmpDir="$opt_d"
+	opt_m=1
+else
+	TmpDir=$(mktemp -d "${TMPDIR:=/tmp}/${CmdName}-XXXXXX")
+fi
+
+if [ -n "$opt_m" ]
+then
+    DeleteTmpDir=False
+else
+    DeleteTmpDir=True
+fi
+
+
+if [ -z "$1" ]
+then
+    if [ -z "$opt_a" ]
+    then
+	echo "${CmdName} : Missing Group/Project or AcquisitionIds list" 1>&2
+	echo "${syntax}" 1>&2
+	exit 1
+    fi
+else
+    GroupProject="$1"
+    Group=$(echo "$GroupProject" | cut -f 1 -d /)
+    Project=$(echo "$GroupProject" | cut -f 2 -d /)
+
+    shift
+
+    FindArgs="$@"
+fi
+
+Id2ProjectLabelsJson="${TmpDir}/Id2ProjectLabels.json"
+if [ -n "$opt_f" -o ! -e "$Id2ProjectLabelsJson" ]
+then
+	fwfind -p group="$Group" | jq '[.[]| {(._id): .label}] | add ' > "$Id2ProjectLabelsJson"
+fi
+
+ProjectId=$(jq -r 'to_entries[] | select(.value == "'"$Project"'") | .key' "$Id2ProjectLabelsJson")
+
+Id2SubjectLabelsJson="${TmpDir}/Id2SubjectLabels.json"
+if [ -n "$opt_f" -o ! -e "$Id2SubjectLabelsJson" ]
+then
+	fwfind -s group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SubjectLabelsJson"
+fi
+
+Id2SessionLabelsJson="${TmpDir}/Id2SessionLabels.json"
+if [ -n "$opt_f" -o ! -e "$Id2SessionLabelsJson" ]
+then
+	fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SessionLabelsJson"
+fi
+
+Id2SessionTimeStampsJson="${TmpDir}/Id2SessionTimeStamps.json"
+if [ -n "$opt_f" -o ! -e "$Id2SessionTimeStampsJson" ]
+then
+	fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .timestamp}] | add ' > "$Id2SessionTimeStampsJson"
+fi
+
+# *** update the json file
+# Do we have a cached json file?
+# update in place 
+#  syncAcquisitionJsonFiles -d "$TmpDir" -c "$CachedAcquisitionJsonFile" -pi "${Group}/${Project}" "$@"
+CmdArgs=()
+if [ -n "$opt_c" ]
+then
+	CmdArgs+=( -c "$CachedAcquisitionJsonFile" )
+fi
+syncAcquisitionJsonFiles "${CmdArgs[@]}" -d "$TmpDir" -pi "${Group}/${Project}" "$@"
+
+#jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "${TmpDir}/CachedFwGetAcquisitions.json" | tee >((echo "$FieldsAll" ; grep ',"MR",') | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv")  > /dev/null
+
+jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "${TmpDir}/CachedFwGetAcquisitions.json" | tee >((echo "$FieldsAll" ; grep ',"MR",')  | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv")  > /dev/null
+
+
+if [ "$DeleteTmpDir" == True ]
+then
+	rm -rf "$TmpDir"
+fi

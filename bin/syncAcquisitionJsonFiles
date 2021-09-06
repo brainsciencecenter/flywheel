@@ -18,7 +18,7 @@ syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-i][-l][-m][
 # fw.find options arguments to fw.find for refining search -- ignored if -a is specified
 #
 # Intened use is to run
-#   syncAcquisitionJsonFiles -c Nacc-ScAcquisitions.json dwolklab/NACC-SC
+#   syncAcquisitionJsonFiles -pi -c Nacc-ScAcquisitions.json dwolklab/NACC-SC
 # to generate a complete list of all acquisition ids in dwolklab/NACC-SC, then compare the acquisition id list
 # to the one in the cached AcquisitionJsonFile and retrieve any missing acquisitions
 # 
