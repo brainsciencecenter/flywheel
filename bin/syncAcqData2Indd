@@ -182,6 +182,8 @@ then
 fi
 syncAcquisitionJsonFiles "${CmdArgs[@]}" -d "$TmpDir" -pi "${Group}/${Project}" "$@"
 
+echo jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$CachedAcquisitionJsonFile" 1>&2
+
 jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$CachedAcquisitionJsonFile" | tee >((echo "$FieldsAll" ; grep ',"MR",')  | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv")  > /dev/null
 
 
