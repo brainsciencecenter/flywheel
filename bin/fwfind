@@ -34,7 +34,7 @@ if __name__ == '__main__':
     ap.add_argument('-1', '--one-by-one',  action='store_true', help='print each output one at a time instead of batching everything')
     ap.add_argument('-d', '--debug',  action='store_true', help='print debug info')
     ap.add_argument('-D', '--devices',  action='store_true', help='find device info')
-    ap.add_argument('-L', '--limit',  action='store', default=100000, help='Maximum number of results to return.  Defaults to 100000')
+    ap.add_argument('-L', '--limit',  action='store', default=250, help='Maximum number of results to return at a time.  Defaults to 250')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-G', '--do-get',  action='store_true', help='do fw.get instead of iter_find')
