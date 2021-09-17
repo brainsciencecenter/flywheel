@@ -112,7 +112,7 @@ else
     ActiveAcquisitionIdsFile="${TmpDir}/ActiveAcquisitionIds"
     if [ -n "$opt_f" ] || [ ! -e "$ActiveAcquisitionIdsFile" ]
     then
-	fwfind -a -1 -L 1000 group="$Group" parents.project="$ProjectId" "$@" | jq -r '._id' | sort -u > "$ActiveAcquisitionIdsFile"
+	fwfind -a -1 group="$Group" parents.project="$ProjectId" "$@" | jq -r '._id' | sort -u > "$ActiveAcquisitionIdsFile"
     fi
 
     ActiveAcquisitionIdsCount=$(wc -l "$ActiveAcquisitionIdsFile" | awk '{print $1}')
