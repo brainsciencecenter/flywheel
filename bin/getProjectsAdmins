@@ -4,7 +4,7 @@
 # *** want a way to filter out inactive projects
 #
 
-AdminRoleId=$(fwget -r | jq -r '.[][]|select(.label == "admin") | ._id')
+AdminRoleId=$(fwget -R | jq -r '.[][]|select(.label == "admin") | ._id')
 
 if [ -n "$*" ]
 then
