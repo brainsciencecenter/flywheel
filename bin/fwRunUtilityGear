@@ -1,0 +1,72 @@
+#!/usr/bin/python3
+
+import argparse
+import fwgearutils
+import flywheel
+import json
+import logging
+import os
+import pyjq
+import re
+import sys
+
+def runGear(gear, inputs, dest):
+   """Submits a job with specified gear and inputs.
+    
+   Args:
+        gear (flywheel.Gear): A Flywheel Gear.
+        inputs (dict): Input dictionary for the gear.
+        dest (flywheel.container): A Flywheel Container where the output will be stored.
+        
+   Returns:
+        str: The id of the submitted job.
+        
+   """
+   try:
+        # Run the gear on the inputs provided, stored output in dest constainer and returns job ID
+        gear_job_id = gear.run(inputs=inputs, destination=dest)
+        logging.debug('Submitted job %s', gear_job_id)
+        return gear_job_id
+   except flywheel.rest.ApiException:
+        logging.exception('An exception was raised when attempting to submit a job for %s', file_obj.name)
+
+
+if __name__ == '__main__':
+
+    logging.basicConfig(format='%(message)s')
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-g', '--gear-name', required=True, action='store', help='gear name')
+    ap.add_argument('-t', '--tag', required=True,  action='store', help='gear input key')
+    ap.add_argument('-v', '--version', action='store', help='gear version to run')
+
+    ap.add_argument(metavar='AcqFile', nargs='+',  dest='acqfiles',  type=str, default=None, help='AcquisitionFileName pairs')
+
+    args = ap.parse_args()
+
+    InputKey = args.tag
+    Version = args.version
+
+    fw = fwgearutils.getFW(args)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    gear = fw.lookup('gears/{}'.format(args.gear_name))
+
+    for AcqFile in args.acqfiles:
+       print("'{}'".format(AcqFile))
+       (AcqId,FileName) = AcqFile.split(',',1)
+
+       try:
+          Acq = fw.get(AcqId)
+       except (flywheel.rest.ApiException) as e:
+          print("No such acquisition '{}'".format(AcqId), file=sys.stderr)
+          continue
+
+       AcqFiles = Acq.files
+
+       for f in list(filter(lambda f: f.name == FileName, AcqFiles)):
+#          print("AcqId '{}', FileName = '{}'".format(Acq.id, f.name), file=sys.stderr)
+          print(runGear(gear,{InputKey: f},Acq))
+
