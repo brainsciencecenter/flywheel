@@ -34,6 +34,7 @@ if __name__ == '__main__':
     ap.add_argument('-1', '--one-by-one',  action='store_true', help='print each output one at a time instead of batching everything')
     ap.add_argument('-d', '--debug',  action='store_true', help='print debug info')
     ap.add_argument('-D', '--devices',  action='store_true', help='find device info')
+    ap.add_argument('-e', '--exhaustive',  action='store_true', help='set exhaustive flag')
     ap.add_argument('-L', '--limit',  action='store', default=250, help='Maximum number of results to return at a time.  Defaults to 250')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
@@ -63,7 +64,12 @@ if __name__ == '__main__':
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
-    ExhaustiveFlag = fw.get_current_user().root
+    ExhaustiveFlag = False
+    if (args.exhaustive):
+        ExhaustiveFlag = True
+        
+#    ExhaustiveFlag = fw.get_current_user().root
+
 
     res = None
 
@@ -87,8 +93,9 @@ if __name__ == '__main__':
         if (args.verbose):
             print("%s : fw.sessions.find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         try:
-            res = fw.sessions.find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+            res = fw.sessions.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
         except (flywheel.rest.ApiException) as e:
+            print("fw.sessions.find failed",file=sys.stderr)
             res = [ fw.lookup(*args.findargs) ]
 
     if (args.devices):
