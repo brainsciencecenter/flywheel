@@ -1,5 +1,15 @@
 #!/bin/bash
 
+#
+# Run in the chead:/usr/local/Flywheel/Fw2InddCache
+# ex:
+#   Download metadata for all group/projects transferring metadat to INDD
+#     getAcquisitionMetadata4Indd
+#
+#   Only for dwolklab/NACC-SC
+#     getAcquisitionMetadata4Indd dwolklab/NACC-SC
+#
+
 CmdName=$(basename "$0")
 
 syntax="${CmdName} [[group/project] [findargs]"
