@@ -1,0 +1,29 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+syntax="${CmdName} [[group/project] [findargs]"
+GroupProjects=()
+
+if [ -n "$1" ]
+then
+    GroupProjects+=( "$1" )
+    shift
+else
+    while read line
+    do
+    	GroupProjects+=( $line )
+    done < <( fwfind -p 'info.labels.ExportToINDD=true' | jq -r '.[]|"\(.group)/\(.label)"' )
+fi
+
+for gp in "${GroupProjects[@]}"
+do
+	echo "'$gp'"
+
+	[ -d "$gp" ] || mkdir -p "$gp"
+
+
+	CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
+
+	time syncAcqData2Indd -d "$gp"  -c "$CachedAcquisitionsFile" "$gp"
+done
