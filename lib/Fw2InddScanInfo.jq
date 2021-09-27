@@ -14,7 +14,7 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
     | $ProjectId2Labels::ProjectId2Labels[][.parents.project] as $ProjectLabel 
     | $SubjectId2Labels::SubjectId2Labels[][.parents.subject] as $SubjectLabel 
     | $SessionId2Labels::SessionId2Labels[][.parents.session] as $SessionLabel 
-    | $SessionId2Timestamps::SessionId2Timestamps[][.parents.session] as $SessionTimestamp
+    | $SessionId2Timestamps::SessionId2Timestamps[][.parents.session] as $SessionTimeStamp
 
     | ._id as $AcquisitionId
     | .label as $AcquisitionLabel 
@@ -31,7 +31,7 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 	| [ 
 	    $SubjectLabel,
 	    $SubjectLabel,
-	    (if $SessionTimestamp then $SessionTimeStamp else "1900-01-01T00:00:00+0000" end),
+	    (if $SessionTimeStamp then $SessionTimeStamp else "1900-01-01T00:00:00+0000" end),
 	    "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data",
 	    $SessionId,
 	    $ProjectId,
@@ -40,7 +40,7 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 	    $Measurement,
 	    $Features,
 	    $AcquisitionId,
-	    ( if $TimeStamp then $Timestamp else "1900-01-01T00:00:00+0000" end),
+	    ( if $TimeStamp then $TimeStamp else "1900-01-01T00:00:00+0000" end),
 	    .Modality,
 	    .InstitutionName,
 	    .StationName,
