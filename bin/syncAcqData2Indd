@@ -5,7 +5,7 @@ CmdName=$(basename "$0")
 syntax="${CmdName} [-a AcquisitionIds][-c CachedAcquisitionJsonFile][-f][-m][-n][-d TmpDir][-v] [Group/Project [other fw.find option]...]"
 
 CmdPath=""
-if [ echo "$0" | grep -q / ]
+if echo "$0" | grep -q /
 then
     CmdPath=$(realPath "$0")
 else
