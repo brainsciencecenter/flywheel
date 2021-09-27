@@ -7,7 +7,7 @@ syntax="${CmdName} [-a AcquisitionIds][-c CachedAcquisitionJsonFile][-f][-m][-n]
 CmdPath=""
 if echo "$0" | grep -q /
 then
-    CmdPath=$(realPath "$0")
+    CmdPath=$(realpath "$0")
 else
     CmdPath=$(which "$0")
 fi
