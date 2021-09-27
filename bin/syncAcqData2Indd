@@ -4,7 +4,17 @@ CmdName=$(basename "$0")
 
 syntax="${CmdName} [-a AcquisitionIds][-c CachedAcquisitionJsonFile][-f][-m][-n][-d TmpDir][-v] [Group/Project [other fw.find option]...]"
 
-FwAcqData2InddJqFile=~/fw-indd/Fw2InddScanInfo.jq
+CmdPath=""
+if [ echo "$0" | grep -q / ]
+then
+    CmdPath=$(realPath "$0")
+else
+    CmdPath=$(which "$0")
+fi
+
+FwDir=$(dirname $(dirname "$CmdPath"))
+
+FwAcqData2InddJqFile="$FwDir/lib/Fw2InddScanInfo.jq"
 
 FieldsCommon=(
         'INDDID'
