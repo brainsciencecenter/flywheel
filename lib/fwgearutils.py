@@ -178,6 +178,7 @@ def sloppyCopy(d, recurse=True, UTC=True):
                 except (TypeError, OverflowError) as e2:
                    if (type(d[k]) is datetime.datetime):
                       #d.datetime.datetime is supposed to be in UTC 
+                      #sess.timestamp.replace(tzinfo=datetime.timezone.utc).isoformat()
                       if (UTC):
                          nd[k] = d[k].strftime("%Y-%m-%dT%H:%M:%S%z")
                       else:
