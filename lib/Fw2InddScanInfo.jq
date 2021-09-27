@@ -31,7 +31,7 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 	| [ 
 	    $SubjectLabel,
 	    $SubjectLabel,
-	    (if $SessionTimestamp then $SessionTimeStamp else "1900-01-01T00:00:00+0000"),
+	    (if $SessionTimestamp then $SessionTimeStamp else "1900-01-01T00:00:00+0000" end),
 	    "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data",
 	    $SessionId,
 	    $ProjectId,
