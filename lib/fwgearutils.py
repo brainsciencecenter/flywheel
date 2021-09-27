@@ -180,9 +180,9 @@ def sloppyCopy(d, recurse=True, UTC=True):
                       #d.datetime.datetime is supposed to be in UTC 
                       #sess.timestamp.replace(tzinfo=datetime.timezone.utc).isoformat()
                       if (UTC):
-                         nd[k] = d[k].strftime("%Y-%m-%dT%H:%M:%S%z")
+                         nd[k] = d[k].re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S%z"))
                       else:
-                         nd[k] = d[k].astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z")
+                         nd[k] = d[k].re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d.astimezone(get_localtime).strftime("%Y-%m-%dT%H:%M:%S%z"))
                    else:
                       if (recurse): 
                          nd[k] = sloppyCopy(d[k], UTC=UTC)
