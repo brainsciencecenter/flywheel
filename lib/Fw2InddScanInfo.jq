@@ -19,8 +19,12 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
     | ._id as $AcquisitionId
     | .label as $AcquisitionLabel 
     | (if (.timestamp) then .timestamp else .created end) as $TimeStamp
-    | .files[]
-      | select((.type) and (.type | match("dicom")) and (.name | match(".zip$")))
+
+    # Only select the first .dicom.zip
+    | .files
+    | map(select((.type) and (.type | match("dicom")) and (.name | match(".zip$"))))
+    | first
+
       | (if .classification.Intent then .classification.Intent|join(";") else "None" end) as $Intent
       | (if .classification.Measurement then .classification.Measurement|join(";") else "None" end) as $Measurement
       | (if .classification.Features then .classification.Features|join(";") else "" end) as $Features
