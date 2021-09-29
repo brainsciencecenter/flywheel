@@ -2,7 +2,7 @@
 
 CmdName=$(basename "$0")
 
-syntax="${CmdName} [-a AcquisitionIds][-c CachedAcquisitionJsonFile][-f][-m][-n][-d TmpDir][-v] [Group/Project [other fw.find option]...]"
+syntax="${CmdName} [-a AcquisitionIds][-c CachedAcquisitionJsonFile][-d TmpDir][-f][-m][-n][-Q][-v] [Group/Project [other fw.find option]...]"
 
 CmdPath=""
 if echo "$0" | grep -q /
@@ -85,6 +85,7 @@ FieldsPet=$( echo "${FieldsCommon[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
 # -n Print the list of AcquisitionIds to be retrieved but don't actually retrieve any 
 # -d specify the temporary diretory to use.  Creates one with mktemp by default.  Implies -m
 #   if -c is supplied, will only retrieve acquisitions not in the cached acquisisition json file
+# -Q quick, don't bother syncing the json file
 # Group/Project The group/project path to retrieve acquisitions from -- ignored if -a is specified
 # fw.find options arguments to fw.find for refining search -- ignored if -a is specified
 #
@@ -110,10 +111,10 @@ FieldsPet=$( echo "${FieldsCommon[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
 # Want to be able to passin explicit list of acquisition args to get
 # 
 
-while getopts a:c:d:fmnv arg
+while getopts a:c:d:fmnQv arg
 do
 	case "$arg" in
-	     a|c|d|f|m|n|v)
+	     a|c|d|f|m|n|Q|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -195,7 +196,11 @@ if [ -n "$opt_c" ]
 then
 	CmdArgs+=( -c "$opt_c" )
 fi
-syncAcquisitionJsonFiles -f "${CmdArgs[@]}" -d "$TmpDir" -pi "${Group}/${Project}" "$@"
+
+if [ -n "$opt_f" -o -z "$opt_Q" ]
+then
+    syncAcquisitionJsonFiles -f "${CmdArgs[@]}" -d "$TmpDir" -pi "${Group}/${Project}" "$@"
+fi
 
 jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$opt_c" | tee >((echo "$FieldsAll" ; grep ',"MR",')  | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv")  > /dev/null
 

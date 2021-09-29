@@ -15,6 +15,22 @@ CmdName=$(basename "$0")
 syntax="${CmdName} [[group/project] [findargs]"
 GroupProjects=()
 
+while getopts Q arg
+do
+    case "$arg" in
+	Q)
+	    eval "opt_${arg}=${OPTARG:=1}"
+	    ;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ "$opt_Q" ]
+then
+    opt_Q=-Q
+fi
+
 if [ -n "$1" ]
 then
     GroupProjects+=( "$1" )
@@ -35,5 +51,5 @@ do
 
 	CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
 
-	time syncAcqData2Indd -d "$gp"  -c "$CachedAcquisitionsFile" "$gp"
+	time syncAcqData2Indd $opt_Q -d "$gp"  -c "$CachedAcquisitionsFile" "$gp"
 done
