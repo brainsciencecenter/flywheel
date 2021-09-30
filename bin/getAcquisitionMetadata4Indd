@@ -12,13 +12,13 @@
 
 CmdName=$(basename "$0")
 
-syntax="${CmdName} [[group/project] [findargs]"
+syntax="${CmdName} [-a][-Q] [[group/project] [findargs]"
 GroupProjects=()
 
-while getopts Q arg
+while getopts aQ arg
 do
     case "$arg" in
-	Q)
+	a|Q)
 	    eval "opt_${arg}=${OPTARG:=1}"
 	    ;;
     esac
@@ -53,3 +53,9 @@ do
 
 	time syncAcqData2Indd $opt_Q -d "$gp"  -c "$CachedAcquisitionsFile" "$gp"
 done
+
+if [ -n "$opt_a" ]
+then
+    (head -n 1 indd_mri.csv ;tail -q -n +2 */*/*MRI.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fm_mri.csv
+    (head -n 1 indd_pet.csv ;tail -q -n +2 */*/*PET.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fm_pet.csv
+fi
