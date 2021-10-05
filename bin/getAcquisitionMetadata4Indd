@@ -9,6 +9,8 @@
 #   Only for dwolklab/NACC-SC
 #     getAcquisitionMetadata4Indd dwolklab/NACC-SC
 #
+#   Aggregate all mri and pet info
+#     getAcquisitionMetadata4Indd -a 
 
 CmdName=$(basename "$0")
 
