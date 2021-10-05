@@ -91,7 +91,7 @@ with open(args.project_funding) as file:
 
             Price = 0.0
             if (args.bsc_charges):
-                print("'{}'Adding '{}' to Price ".format(row['Group/Project'], betterFloat(row['BSCStorageCharge']) + betterFloat(row['InitialAnalysis_Cost']) + betterFloat(row['ProjectCharge']) ), file=sys.stderr)
+                #print("'{}'Adding '{}' to Price ".format(row['Group/Project'], betterFloat(row['BSCStorageCharge']) + betterFloat(row['InitialAnalysis_Cost']) + betterFloat(row['ProjectCharge']) ), file=sys.stderr)
                 Price += betterFloat(row['BSCStorageCharge']) + betterFloat(row['InitialAnalysis_Cost']) + betterFloat(row['ProjectCharge'])
 
             if (args.gcp_charges):

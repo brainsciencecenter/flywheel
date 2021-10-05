@@ -182,7 +182,7 @@ def sloppyCopy(d, recurse=True, UTC=True):
                       if (UTC):
                          nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S%z"))
                       else:
-                         nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(get_localtime()).strftime("%Y-%m-%dT%H:%M:%S%z"))
+                         nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
                    else:
                       if (recurse): 
                          nd[k] = sloppyCopy(d[k], UTC=UTC)

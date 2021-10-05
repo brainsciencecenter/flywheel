@@ -55,4 +55,4 @@ do
 	echo "${line},${bsccharges}"
 done 
 
-rm -f "$BscChargesFile" "$ProjectInfoFile"
+#rm -f "$BscChargesFile" "$ProjectInfoFile"

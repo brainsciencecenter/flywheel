@@ -126,7 +126,7 @@ def isMisc(row):
     return((not isCompute(row)) and (not isStorage(row))
 #
 # InitialAnalysis Gear costs will get added as Misc overstating the misc charges
-#           and (not isFlywheelGear(row))
+           and (not isFlywheelGear(row))
     )
 
 def isStorage(row):
