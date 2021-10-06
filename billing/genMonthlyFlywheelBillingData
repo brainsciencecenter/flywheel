@@ -1,0 +1,95 @@
+#!/bin/bash
+
+
+#
+# BiqQuery Tables
+#   projectid.dataset.table
+# eg
+#   pennbrain-center.BillingAllocation.FlywheelCosts
+# project: pennbrain-center
+# dataset: BillingAllocation
+# table:   FlywheelCosts
+#
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "${opt_n}" ] || "$@"
+}
+
+#
+# Should dig these out of a configuration file
+#
+
+GcpCostTable='unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F'
+
+CmdName=$(basename "$0")
+syntax="${CmdName} [-d Dataset][-f][-j JobReport][-m MM][-n][-p Project][-t Table][-u UsageReport][-v][-y YYYY]"
+
+while getopts d:fj:m:np:t:u:vy: arg
+do
+	case $arg in
+	     d|f|j|m|n|p|t|u|v|y)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+	esac
+done
+
+shift $((OPTIND - 1))
+
+nowmonth=$(date +%Y-%m-15)
+Year=$(date --date="$nowmonth -1 month" +'%Y')
+[ -n "$opt_y" ] && Year="$opt_y"
+
+Month=$(date --date="$nowmonth -1 month" +'%m')
+[ -n "$opt_m" ] && Month="$opt_m"
+
+
+Dataset=BillingAllocation
+[ -n "$opt_d" ] && Dataset="$opt_d"
+
+Project=pennbrain-center
+[ -n "$opt_p" ] && Project="$opt_p"
+
+#
+# Make sure the Dataset exists
+#
+
+if ! (bq show "${Project}:${Dataset}" > /dev/null )
+then
+	if [ -n "$opt_f" ]
+	then
+		sys bq mk "${Project}:${Dataset}"
+	else
+		echo "${CmdName} : '${Project}:${Dataset}' does not exist.  Use -f to create" 1>&2
+		exit 1
+	fi
+fi
+
+Args=()
+Args+=( -p "${Project}" )
+Args+=( -d "${Dataset}" )
+Args+=( -m "${Month}" )
+Args+=( -y "${Year}" )
+
+sys createFlywheelCostsTable "${Args[@]}"
+
+if [ -n "$opt_j" ]
+then
+    sys uploadJobsReport "${Args[@]}" "$opt_j"
+else
+    sys uploadJobsReport "${Args[@]}"
+fi
+
+if [ -n "$opt_u" ]
+then
+    sys uploadUsageReport "${Args[@]}" "$opt_u"
+else
+    sys uploadUsageReport "${Args[@]}"
+fi
+sys calculateMonthlyFlywheelTotals "${Args[@]}" 
+
+sys allocateProjectCosts "${Args[@]}" 
+sys allocateProjectGearCosts "${Args[@]}" 
+
+
+  

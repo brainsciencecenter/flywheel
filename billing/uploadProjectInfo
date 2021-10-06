@@ -1,0 +1,101 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+syntax="${CmdName} {-m Month} {-y Year}"
+
+while getopts fm:t:y: arg
+do
+	case "$arg" in
+		f|m|t|y)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -z "$opt_y" ] || [ -z "$opt_m" ]
+then
+	echo "$syntax" 1>&2
+	exit 1
+fi
+
+TableName='BillingAllocation.TempProjectInfo'
+[ -n "$opt_t" ] && TableName="$opt_t"
+
+if [ -n "$1" ] 
+then
+	ProjectInfoFile=$1
+else
+	ProjectInfoFile=$(mktemp /tmp/ProjectInfo-XXXXX.csv)
+fi
+	
+if [ -e "$ProjectInfoFile" ] && [ -z "$opt_f" ]
+then
+	echo "${CmdName} : '$ProjectInfoFile' exists.  " 1>&2
+	exit 1
+fi
+	
+fwProjectInfoCrud -p '.ProjectFunding' | jq  -r -f "/home/holder/flywheel/bin/ProjectInfo2CSV.jq"  > "$ProjectInfoFile"
+
+Headers=$(head -n 1 "$ProjectInfoFile" | sed 's/businessAdministrator\./businessAdministrator_/g; s/"//g; s/,/:string,/g; s/$/:string/')
+
+bq load --project_id pennbrain-center  --replace --source_format=CSV "${TableName}" "$ProjectInfoFile" "$Headers"
+
+bq query --quiet --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" --parameter="ServiceId:STRING:472933" '
+
+    SELECT 
+        @ServiceId AS service_id,
+        note,
+        format("%8.2f",round(TotalProjectCharges,2)) AS service_quantity,
+        "" AS price,
+        "" AS purchased_on,
+        iLabServiceRequestNumber as service_request_id,
+        "" AS owner_email,
+        "" AS pi_email_or_group_id,
+        "" AS payment_number
+    FROM (
+        SELECT * from `pennbrain-center.BillingAllocation.TempProjectInfo` ProjectInfo
+    
+        INNER JOIN (
+    
+            SELECT 
+                InvoiceMonth,
+                `Group` AS `Group`,
+                project AS project,
+                format("%s/%s: Analysis Gears %.2f Storage Charge %.2f Storage Usage(Gb) %.2f Gcp Total %.2f Bsc Storage %.2f Bsc Initial Analysis %.2f Bsc Project %.2f Bsc Total %.2f",
+                        `Group`,
+                        if (project is NULL, "Deleted", project),
+                        ProjectVMDynamicCosts,
+                        ProjectStorageCosts,
+                        ProjectGcpStorageStandardUsage,
+                        ProjectGcpCosts,
+                        BscProjectStorageCharge,
+                        BscInitialAnalysisCharge,
+                        BscProjectCharge,
+                        ProjectBscCharges
+                    ) AS `note`,
+    
+                InitialAnalysisCount,
+                ProjectVMCosts,
+                ProjectVMDynamicCosts,
+                ProjectStorageCosts,
+                ProjectGcpStorageStandardUsage,
+                BscProjectStorageCharge,
+                BscProjectCharge,
+                (ProjectBscCharges+ProjectGcpCosts) AS TotalProjectCharges
+                FROM `pennbrain-center.BillingAllocation.FwProjectUsage` 
+                WHERE InvoiceMonth = "202108" 
+        ) ProjectCosts
+        ON 
+                ProjectInfo.`Group` = ProjectCosts.`Group`
+            AND
+                ProjectInfo.project = ProjectCosts.project 
+        WHERE 
+            REGEXP_CONTAINS(iLabServiceRequestNumber,"^([0-9]+)$")
+         AND round(TotalProjectCharges,2) >= 0.01
+   )
+    ORDER BY service_quantity desc
+    
+'

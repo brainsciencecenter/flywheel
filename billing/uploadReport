@@ -1,0 +1,81 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+syntax="${CmdName} [-d Dataset][-m Month][-p Project][-y Year] [ReportFile]"
+
+while getopts d:m:p:y: arg
+do
+	case "$arg" in 
+		d|m|p|y)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+Dataset=BillingAllocation
+[ -n "$opt_d" ] && Dataset="$opt_d"
+
+Project=pennbrain-center
+[ -n "$opt_p" ] && Project="$opt_p"
+
+nowmonth=$(date +%Y-%m-15)
+Year=$(date --date="$nowmonth -1 month" +'%Y')
+[ -n "$opt_y" ] && Year="$opt_y"
+
+Month=$(date --date="$nowmonth -1 month" +'%m')
+[ -n "$opt_m" ] && Month="$opt_m"
+
+NextYearMonth=$(date --date="${Year}-${Month}-15 next month" +%Y-%m)
+
+
+case "$CmdName" in
+	uploadJobsReport)
+		DB="${Dataset}.FwJobsReport"
+		;;
+
+	uploadUsageReport)
+		DB="${Dataset}.FwUsageReport"
+		;;
+
+	*)
+		echo "Unknown command name" 1>&2
+		exit 1
+		;;
+esac
+
+if [ -n "$1" ]
+then
+    ReportFile="$1"
+else
+    ReportFile=$(mktemp /tmp/uploadReport-XXXXX)
+    Cleanup=1
+
+    if [ "$CmdName" == "uploadJobsReport" ]
+    then
+	getJobs -aei -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$ReportFile"
+    fi
+
+    if [ "$CmdName" == "uploadUsageReport" ]
+    then
+	getFwUsageReport -m "$Month" -y "$Year" "$ReportFile"
+    fi
+fi
+
+
+if isTable -q -d "$Dataset" -p "$Project" -t $(echo "$DB" | cut -d . -f 2)
+then
+    bq query -q --use_legacy_sql=false 'DELETE FROM `'"${DB}"'` WHERE CAST(invoice_month AS STRING) = "'"${Year}${Month}"'"'
+
+    bq load --project_id="${Project}" --skip_leading_rows 1 --noreplace --source_format=CSV "$DB" "$ReportFile"
+else
+    bq load --project_id="${Project}" --autodetect --source_format=CSV "$DB" "$ReportFile"
+fi
+
+if [ -n "$Cleanup" ]
+then
+	rm -f "$ReportFile"
+fi
+

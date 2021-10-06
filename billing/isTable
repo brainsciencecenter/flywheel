@@ -1,0 +1,41 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+syntax="${CmdName} [-d Dataset][-q][-p Project][-t Table]"
+
+while getopts d:qp:t: arg
+do
+	case "$arg" in 
+		d|q|p|t)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+Dataset=BillingAllocation
+[ -n "$opt_d" ] && Dataset="$opt_d"
+
+Project=pennbrain-center
+[ -n "$opt_p" ] && Project="$opt_p"
+
+Results=$(bq query --format=csv --use_legacy_sql=false 'select table_name from `'"${Project}.${Dataset}"'.INFORMATION_SCHEMA.TABLES`' 2> /dev/null)
+
+if [ -z "$opt_t" ]
+then
+	if [ -z "$opt_q" ]
+	then
+		echo "$Results" 
+	else
+		echo "$Results" | tail -n +2
+	fi
+else
+	if [ -z "$opt_q" ]
+	then
+		echo "$Results" | grep "$opt_t"
+	else
+		echo "$Results" | grep -q "$opt_t"
+	fi
+fi

@@ -1,0 +1,273 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+syntax="${CmdName} [-d Dataset][-p Project] {-m Month} {-y Year}"
+
+while getopts d:m:p:y: arg
+do
+	case "$arg" in
+		d|m|p|y)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -z "$opt_y" ] || [ -z "$opt_m" ]
+then
+	echo "$syntax" 1>&2
+	exit 1
+fi
+
+Dataset=BillingAllocation
+[ -n "$opt_d" ] && Dataset="$opt_d"
+
+Project=pennbrain-center
+[ -n "$opt_p" ] && Project="$opt_p"
+
+
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+#
+# *** Need to add PricingUnits, CoreHours, GibiBytes, Mixed etc
+#
+CREATE OR REPLACE TABLE `'"${Project}.${Dataset}.TempFwTotalCosts"'` AS
+        SELECT
+                "Compute" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` = "Compute Engine"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+    UNION ALL 
+        SELECT
+                "ComputeCore" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` = "Compute Engine"
+                    AND
+                        SkuDescription LIKE "%Instance Core%"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+ 
+    UNION ALL 
+        SELECT
+                "ComputeDisk" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` = "Compute Engine"
+                    AND
+                        SkuDescription LIKE "%PD Capacity%"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+ 
+    UNION ALL 
+        SELECT
+                "ComputeMisc" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` = "Compute Engine"
+                    AND SkuDescription NOT LIKE "%Instance Core%"
+                    AND SkuDescription NOT LIKE "%Small Instance%"
+                    AND SkuDescription NOT LIKE "%PD Capacity%"
+                    AND SkuDescription NOT LIKE "%Instance Ram%" 
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+ 
+    UNION ALL 
+        SELECT
+                "ComputeRam" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` = "Compute Engine"
+                    AND
+                        SkuDescription LIKE "%Instance Ram%"
+ 
+    UNION ALL 
+        SELECT
+                "Misc" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` != "Compute Engine"
+                    AND `ServiceDescription` != "Cloud Storage"
+
+# ***                    AND `ServiceDescription` != "Kubernetes"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+
+    UNION ALL 
+        SELECT
+                "Kubernetes" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                    `ServiceDescription` = "Kubernetes Engine"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+
+    UNION ALL 
+        SELECT
+                "Storage" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` = "Cloud Storage"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+ 
+    UNION ALL 
+        SELECT
+                "StorageColdline" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` = "Cloud Storage"
+                    AND
+                        `SkuDescription` LIKE "%Coldline Storage%"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+ 
+    UNION ALL 
+        SELECT
+                "StorageMisc" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` = "Cloud Storage"
+                    AND SkuDescription not LIKE "%Coldline Storage%"
+                    AND SkuDescription not LIKE "%Standard Storage%"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+
+    UNION ALL 
+        SELECT
+                "StorageStandard" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` = "Cloud Storage"
+                    AND
+                        SkuDescription LIKE "%Standard Storage%"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+
+    UNION ALL 
+        SELECT
+                "VM" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        `ServiceDescription` = "Compute Engine"
+		    AND (
+        	    	     SkuDescription LIKE "%Instance Core%"
+                          OR SkuDescription LIKE "%Small Instance%"
+                          OR SkuDescription LIKE "%PD Capacity%"
+                          OR SkuDescription LIKE "%PD Snapshot%"
+                          OR SkuDescription LIKE "%Instance Ram%"
+			)
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+
+    UNION ALL 
+        SELECT
+                "VMCore" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        ServiceDescription = "Compute Engine"
+		    AND SkuDescription LIKE "%Instance Core%"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+
+
+    UNION ALL 
+        SELECT
+                "VMStatic" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                        ServiceDescription = "Compute Engine"
+		    AND (
+        	    	     SkuDescription LIKE "%Instance Core%"
+                          OR SkuDescription LIKE "%Small Instance%"
+                          OR SkuDescription LIKE "%PD Capacity%"
+                          OR SkuDescription LIKE "%PD Snapshot%"
+                          OR SkuDescription LIKE "%Instance Ram%"
+			)
+		    AND FlywheelGroupName = "flywheel-static"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+    UNION ALL 
+        SELECT
+                "VMStaticCore" AS ChargeType,
+                sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
+                sum(Costs + Discounts) AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FlywheelCosts"'` 
+                WHERE 
+                         ServiceDescription = "Compute Engine"
+		    AND  SkuDescription LIKE "%Instance Core%"
+		    AND  FlywheelGroupName = "flywheel-static"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
+
+
+    UNION ALL 
+        SELECT
+                "VMDynamicCore" AS ChargeType,
+                sum(gcp_cpus * job_elapsed_time_ms) / 1000.0 / 3600.0 AS UsageAmountInPricingUnits,
+		0.0 AS DiscountedCosts
+            FROM `'"${Project}.${Dataset}.FwJobsReport"'` 
+	    WHERE
+		        CAST(invoice_month AS STRING) = @InvoiceMonth
+
+	    ;
+
+INSERT
+       `'"${Project}.${Dataset}.TempFwTotalCosts"'`(ChargeType, UsageAmountInPricingUnits, DiscountedCosts)
+VALUES(
+	"VMDynamic",
+	((  SELECT UsageAmountInPricingUnits FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VM")
+	 - (SELECT UsageAmountInPricingUnits FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMStatic")),
+	((  SELECT DiscountedCosts FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VM")
+	 - (SELECT DiscountedCosts FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMStatic"))
+    )
+    ;
+
+ 
+' > /dev/null

@@ -1,0 +1,110 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+syntax="${CmdName} [-d Dataset][-p Project] {-m Month} {-y Year}"
+
+while getopts d:m:p:y: arg
+do
+	case "$arg" in 
+		d|m|p|y)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -z "$opt_y" ] || [ -z "$opt_m" ]
+then
+	echo "$syntax" 1>&2
+	exit 1
+fi
+
+nowmonth=$(date +%Y-%m-15)
+Year=$(date --date="$nowmonth -1 month" +'%Y')
+[ -n "$opt_y" ] && Year="$opt_y"
+
+Month=$(date --date="$nowmonth -1 month" +'%m')
+[ -n "$opt_m" ] && Month="$opt_m"
+
+Dataset=BillingAllocation
+[ -n "$opt_d" ] && Dataset="$opt_d"
+
+Project=pennbrain-center
+[ -n "$opt_p" ] && Project="$opt_p"
+
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+DECLARE TotalGearCost FLOAT64;
+DECLARE TotalGearCpuHours FLOAT64;
+
+SET TotalGearCost = (
+    SELECT DiscountedCosts FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMDynamic"
+);
+
+SET TotalGearCpuHours = (
+    SELECT UsageAmountInPricingUnits FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMDynamicCore"
+);
+
+
+CREATE TABLE IF NOT EXISTS
+       `'"${Project}.${Dataset}.FwProjectGearCosts"'`
+   (
+      `group`			STRING,
+      project			STRING,
+      gear_name			STRING,
+      GearCpuHours		FLOAT64,
+      GearRuns			INTEGER,
+      GearCpuHoursAvg		FLOAT64,
+      ProjectGearCost		FLOAT64,
+      ProjectAvgGearCost	FLOAT64,
+      InvoiceMonth		STRING,
+    );
+
+DELETE FROM
+       `'"${Project}.${Dataset}.FwProjectGearCosts"'`
+    WHERE
+      InvoiceMonth = @InvoiceMonth
+  ;
+
+INSERT 
+       `'"${Project}.${Dataset}.FwProjectGearCosts"'`
+
+    SELECT 
+        `group`,
+	project,
+	gear_name,
+	GearCpuHours,
+	GearRuns,
+        GearCpuHours/GearRuns AS GearCpuHoursAvg,
+        TotalGearCost * (GearCpuHours/TotalGearCpuHours) AS ProjectGearCost,
+        TotalGearCost * (GearCpuHours/TotalGearCpuHours)/GearRuns AS ProjectAvgGearCost,
+        InvoiceMonth,
+    
+    FROM (
+        SELECT
+            `group`,
+            project,
+            gear_name,
+            (SUM(gcp_cpus * job_elapsed_time_ms) / 1000.0 / 3600.0) AS GearCpuHours,
+            COUNT(gear_name) AS GearRuns,
+            CAST(invoice_month AS STRING) AS InvoiceMonth,
+        FROM `'"${Project}.${Dataset}.FwJobsReport"'`
+        WHERE
+            project IS NOT NULL
+	    AND CAST(invoice_month AS STRING) = @InvoiceMonth
+        GROUP BY 
+            invoice_month,
+            `group`,
+            project,
+            gear_name
+    
+        ORDER BY 
+            invoice_month,
+            `group`,
+            project
+    );
+    
+' > /dev/null
