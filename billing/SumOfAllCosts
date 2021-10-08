@@ -21,10 +21,24 @@ Month=$(date --date="$nowmonth -1 month" +'%m')
 [ -n "$opt_m" ] && Month="$opt_m"
 
 
+#
+# Standard storage Usage, Cost
+# Storage Cost
+# Cold Storage Usage/Cost
+# Compute CPU Usage (hour)
+# Compute Costs
+# VMCompute Costs
+# Static VM Compute Costs
+# Misc Costs
+# Initial Analysis Count
+# Total Costs
+
+
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter=InvoiceMonth:STRING:"${opt_y}${opt_m}" --parameter=FlywheelProject:STRING:upenn-flywheel  '
   SELECT
     invoice.month as InvoiceMonth,
-#    service.description as ServiceDescription,
+    project, 
+    service.description as ServiceDescription,
     sum(usage.amount_in_pricing_units) as UsageAmountInPricingUnits,
     SUM(cost) AS Costs,
     SUM(IFNULL((
@@ -55,6 +69,6 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
         project.name = @FlywheelProject
     GROUP BY
         InvoiceMonth
- #       ServiceDescription
+#       ServiceDescription
 
 '
