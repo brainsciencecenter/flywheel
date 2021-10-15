@@ -161,9 +161,9 @@ set TotalKubernetesCosts = (
 CREATE OR REPLACE TABLE 
        `'"${Project}.${Dataset}.TempJobsReport"'`
 AS
-    SELECT
-	*,
-    FROM (
+#    SELECT
+#	*,
+#    FROM (
        SELECT
     	InvoiceMonth,
     	`group`,
@@ -200,7 +200,7 @@ AS
             `group`,
             project
       )
-    )
+#    )
 ;
 
 CREATE OR REPLACE TABLE
