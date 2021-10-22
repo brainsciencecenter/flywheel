@@ -60,32 +60,33 @@ echo "$ReportsToDownload"
 
 exit
 
-if [ -n "$ReportsToDownload" ]
-then
-	[ -n "${opt_n}${opt_v}" ] && echo "$cmd : ReportsToDownload = " $ReportsToDownload 1>&2
-
-	tmpdir=$(mktemp -d /tmp/${cmd}Dir-XXXXXX)
-	cd "$tmpdir"
-
-	AidFids=()
-	for i in $ReportsToDownload
-	do
-		AidFid=$(echo "$FWFullReportInfo" | grep "$i$" | cut -f 1 -d ' ' | head -n 1)
-		AidFids+=("$AidFid")
-	done
-	
-	DownloadedFiles=$(sys getFWProjectAnalyses -D -d "$tmpdir" "${AidFids[@]}" | awk '{print $2}')
-
-	for i in $DownloadedFiles
-	do
-		InddName=$(echo "$i" | ashsharp2INDDReportName)
-		cat "$i" | smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c "put - $InddName"
-		[ -n "${opt_n}${opt_v}" ] && echo "$cmd : copy Flywheel/$GroupProject '$i' to INDD:'//cndr-indd.uphs.pennhealth.prv/mrireport/$InddName'" 1>&2
-	done
-
-	# rm -rf "$tmpdir"
-else
-	[ -n "${opt_n}${opt_v}" ] && echo "$cmd : No Flywheel reports to sync to INDD" 1>&2
-fi
-
-# rm "$INDDToc"
+#if [ -n "$ReportsToDownload" ]
+#then
+#	[ -n "${opt_n}${opt_v}" ] && echo "$cmd : ReportsToDownload = " $ReportsToDownload 1>&2
+#
+#	tmpdir=$(mktemp -d /tmp/${cmd}Dir-XXXXXX)
+#	cd "$tmpdir"
+#
+#	AidFids=()
+#	for i in $ReportsToDownload
+#	do
+#		AidFid=$(echo "$FWFullReportInfo" | grep "$i$" | cut -f 1 -d ' ' | head -n 1)
+#		AidFids+=("$AidFid")
+#	done
+#	
+#	DownloadedFiles=$(sys getFWProjectAnalyses -D -d "$tmpdir" "${AidFids[@]}" | awk '{print $2}')
+#
+#	for i in $DownloadedFiles
+#	do
+#		InddName=$(echo "$i" | ashsharp2INDDReportName)
+#		cat "$i" | smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c "put - $InddName"
+#		[ -n "${opt_n}${opt_v}" ] && echo "$cmd : copy Flywheel/$GroupProject '$i' to INDD:'//cndr-indd.uphs.pennhealth.prv/mrireport/$InddName'" 1>&2
+#	done
+#
+#	# rm -rf "$tmpdir"
+#else
+#	[ -n "${opt_n}${opt_v}" ] && echo "$cmd : No Flywheel reports to sync to INDD" 1>&2
+#fi
+#
+## rm "$INDDToc"
+#
