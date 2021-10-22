@@ -37,8 +37,9 @@ Month=$(date --date="$nowmonth -1 month" +'%m')
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter=InvoiceMonth:STRING:"${opt_y}${opt_m}" --parameter=FlywheelProject:STRING:upenn-flywheel  '
   SELECT
     invoice.month as InvoiceMonth,
-    project, 
+    labels.value,
     service.description as ServiceDescription,
+    sku.description as SkuDescription,
     sum(usage.amount_in_pricing_units) as UsageAmountInPricingUnits,
     SUM(cost) AS Costs,
     SUM(IFNULL((
@@ -68,7 +69,14 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
     AND 
         project.name = @FlywheelProject
     GROUP BY
-        InvoiceMonth
-#       ServiceDescription
-
+        InvoiceMonth,
+	labels.value,
+        ServiceDescription,
+	SkuDescription
+    ORDER BY
+        InvoiceMonth,
+	labels.value,
+        ServiceDescription,
+	SkuDescription
+        
 '
