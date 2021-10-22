@@ -46,6 +46,7 @@ fi
 INDDToc=$(mktemp /tmp/${cmd}Toc-XXXXX)
 
 smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c dir 2> /dev/null | awk '{print $1}' | grep -P '^\d{6}([\._x]\d{2})?[_x]\d{8}([_x]3T)?.pdf$' | sort  | grep -v "$opt_f" > "$INDDToc"
+smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c dir 2> /dev/null | awk '{print $1}' | grep -P '.pdf$' | sort -u > "$INDDToc"
 
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of INDD reports" 1>&2
 
