@@ -54,7 +54,7 @@ FWReportPdfs=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | grep '.pdf$' | 
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of Flywheel reports from $GroupProject" 1>&2
 
 # Sometimes there can be multiple analyses run on the same session so we want the sort -u to prevent unneeded downloads
-ReportsToDownload=$(diff <(echo "$FwReportPdfs) "$INDDToc" | grep '<' | cut -f 2 -d ' ')
+ReportsToDownload=$(diff <(echo "$FwReportPdfs") "$INDDToc" | grep '<' | cut -f 2 -d ' ')
 
 echo "$ReportsToDownload"
 
