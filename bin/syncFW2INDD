@@ -49,16 +49,16 @@ smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c dir 2> /dev/null |
 
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of INDD reports" 1>&2
 
-FWReports=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | grep '.pdf$')
+FWReportPdfs=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | grep '.pdf$' | awk '{print $2' | sort -u)
 
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of Flywheel reports from $GroupProject" 1>&2
 
-FWINDDColumn=$(echo "$FWReports" | cut -f 2 -d ' ' | ashsharp2INDDReportName)
-
-FWFullReportInfo=$(paste <(echo "$FWReports") <(echo "$FWINDDColumn") | sort -k +3)
-
 # Sometimes there can be multiple analyses run on the same session so we want the sort -u to prevent unneeded downloads
-ReportsToDownload=$(diff <(echo "$FWFullReportInfo" | awk '{print $3}' | sort -u) "$INDDToc" | grep '<' | cut -f 2 -d ' ')
+ReportsToDownload=$(diff <(echo "$FwReportPdfs) "$INDDToc" | grep '<' | cut -f 2 -d ' ')
+
+echo "$ReportsToDownload"
+
+exit
 
 if [ -n "$ReportsToDownload" ]
 then
