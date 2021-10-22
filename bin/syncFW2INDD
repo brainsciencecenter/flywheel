@@ -49,7 +49,7 @@ smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c dir 2> /dev/null |
 
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of INDD reports" 1>&2
 
-FWReportPdfs=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | grep '.pdf$' | awk '{print $2' | sort -u)
+FWReportPdfs=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | grep '.pdf$' | awk '{print $2}' | sort -u)
 
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of Flywheel reports from $GroupProject" 1>&2
 
