@@ -1,5 +1,6 @@
-# INDDID,FlywheelSubjectID,FlywheelSessionTimestampUTC,FlywheelSessionURL,FlywheelSessionInternalID,FlywheelProjectInternalID,FlywheelAcquisitionLabel,FlywheelAcquisitionIntent,FlywheelAcquisitionMeasurement,FlywheelAcquisitionFeatures,FlywheelAcquisitionInternalID,AcquisitionTimestampUTC,DicomModality,DicomInstitutionName,DicomStationName,DicomBodyPartExamined,DicomStudyInstanceUID,DicomSeriesInstanceUID,DicomSliceThickness,DicomPixelSpacingX,DicomPixelSpacingY,DicomMagneticFieldStrength,DicomSequenceName,DicomRepetitionTime,DicomEchoTime,DicomEchoNumbers,DicomFlipAngle,DicomNumberOfAverages,DicomAcquisitionNumber,DicomSpacingBetweenSlices,DicomReconstructionMethod,DicomScatterCorrectionMethod,DicomAttenuationCorrectionMethod,DicomRadiopharmaceutical,DicomRadionuclide
+# INDDID,FlywheelSubjectID,FlywheelSessionTimestampUTC,FlywheelSessionURL,FlywheelSessionInternalID,FlywheelProjectInternalID,FlywheelAcquisitionLabel,FlywheelAcquisitionIntent,FlywheelAcquisitionMeasurement,FlywheelAcquisitionFeatures,FlywheelAcquisitionInternalID,AcquisitionTimestampUTC,DicomModality,DicomInstitutionName,DicomStationName,DicomBodyPartExamined,DicomStudyInstanceUID,DicomSeriesInstanceUID,DicomSliceThickness,DicomPixelSpacingX,DicomPixelSpacingY,BidsNoBids,BidsAcq,BidsCe,BidsDir,BidsTrc,BidsEcho,BidsFilename,BidsFolder,BidsIntendedFor,BidsMod,BidsModality,BidsPath,BidsRec,BidsRun,BidsTask,BidsError_message,BidsIgnore,BidsTemplate,BidsValid,DicomMagneticFieldStrength,DicomSequenceName,DicomRepetitionTime,DicomEchoTime,DicomEchoNumbers,DicomFlipAngle,DicomNumberOfAverages,DicomAcquisitionNumber,DicomSpacingBetweenSlices,DicomReconstructionMethod,DicomScatterCorrectionMethod,DicomAttenuationCorrectionMethod,DicomRadiopharmaceutical,DicomRadionuclide
 
+# 18: BidsNoBids,BidsAcq,BidsCe,BidsDir,BidsTrc,BidsEcho,BidsFilename,BidsFolder,BidsIntendedFor,BidsMod,BidsModality,BidsPath,BidsRec,BidsRun,BidsTask,BidsError_message,BidsIgnore,BidsTemplate,BidsValid,
 
 import "Id2ProjectLabels" as $ProjectId2Labels;
 import "Id2SubjectLabels" as $SubjectId2Labels;
@@ -21,10 +22,10 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
     | (if (.timestamp) then .timestamp else .created end) as $TimeStamp
 
     # Only select the first .dicom.zip
-    | .files
-    | map(select((.type) and (.type | match("dicom")) and (.name | match(".zip$"))))
-    | first
+    | .files[]
+    | select(.name | match("(.dicom.zip)|(.nii.gz)$"))
 
+      | .name as $AcquisitionFileName
       | (if .classification.Intent then .classification.Intent|join(";") else "None" end) as $Intent
       | (if .classification.Measurement then .classification.Measurement|join(";") else "None" end) as $Measurement
       | (if .classification.Features then .classification.Features|join(";") else "" end) as $Features
@@ -44,6 +45,7 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 	    $Measurement,
 	    $Features,
 	    $AcquisitionId,
+	    $AcquisitionFileName,
 	    ( if $TimeStamp then $TimeStamp else "1900-01-01T00:00:00+0000" end),
 	    .Modality,
 	    .InstitutionName,
@@ -55,6 +57,52 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 	    .PixelSpacing[0],
 	    .PixelSpacing[1],
 
+	    # BIDS
+	    (
+	      if ( .BIDS ) then 
+	        "Bids",
+		.BIDS.Acq,
+		.BIDS.Ce,
+		.BIDS.Dir,
+		.BIDS.Trc,
+		.BIDS.Echo,
+		.BIDS.Filename,
+		.BIDS.Folder,
+		.BIDS.IntendedFor,
+		.BIDS.Mod,
+		.BIDS.Modality,
+		.BIDS.Path,
+		.BIDS.Rec,
+		.BIDS.Run,
+		.BIDS.Task,
+		.BIDS.error_message,
+		.BIDS.Ignore,
+		.BIDS.template,
+		.BIDS.valid
+	      else
+	        "NoBid",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+              end
+            ),
+
+	    # MRI
 	    .MagneticFieldStrength,
 	    .SequenceName,
 	    .RepetitionTime,
@@ -65,6 +113,7 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 	    .AcquisitionNumber,
 	    .SpacingBetweenSlices,
 
+	    # PET
 	    .ReconstructionMethod,
 	    .ScatterCorrectionMethod,
 	    .AttenuationCorrectionMethod,
