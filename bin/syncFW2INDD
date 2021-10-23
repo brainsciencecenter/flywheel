@@ -97,9 +97,14 @@ if [ -z "$opt_D" ]
 then
     InddPdfs=$(smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c dir 2> /dev/null | awk '{print $1}' | grep -P '.pdf$' | sort -u)
     PdfsToCopyToIndd=$(diff <(echo "$CachedPdfs") <(echo "$InddPdfs") | grep '^< ' | cut -f 2 -d ' ')
+    [ -n "${opt_n}${opt_v}" ] && echo "$cmd : PdfsToCopyToIndd = '$PdfsToCopyToIndd'" 1>&2
+
+    exit 
+
     for i in $PdfsToCopyToIndd
     do
 	InddName=$(echo "$i" | ashsharp2INDDReportName)
+
 	cat "$i" | smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c "put - $InddName"
 	[ -n "${opt_n}${opt_v}" ] && echo "$cmd : copy Flywheel/$GroupProject '$i' to INDD:'//cndr-indd.uphs.pennhealth.prv/mrireport/$InddName'" 1>&2
     done
