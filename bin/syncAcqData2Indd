@@ -2,6 +2,10 @@
 
 CmdName=$(basename "$0")
 
+#
+# syncAcqData2Indd -d . -c corelab/Unsorted-CachedFwAcquisitions.json corelab/Unsorted
+# syncAcqData2Indd -Q -d . -c corelab/Unsorted-CachedFwAcquisitions.json corelab/Unsorted
+
 syntax="${CmdName} [-a AcquisitionIds][-c CachedAcquisitionJsonFile][-d TmpDir][-f][-m][-n][-Q][-v] [Group/Project [other fw.find option]...]"
 
 CmdPath=""
@@ -28,6 +32,7 @@ FieldsCommon=(
         'FlywheelAcquisitionMeasurement'
         'FlywheelAcquisitionFeatures'
         'FlywheelAcquisitionInternalID'
+	'AcquisitionFileName'
         'AcquisitionTimestampUTC'
         'DicomModality'
         'DicomInstitutionName'
@@ -38,7 +43,28 @@ FieldsCommon=(
         'DicomSliceThickness'
         'DicomPixelSpacingX'
         'DicomPixelSpacingY'
+)
 
+FieldsBidsUnique=(
+	'BidsNoBids'
+	'BidsAcq'
+	'BidsCe'
+	'BidsDir'
+	'BidsTrc'
+	'BidsEcho'
+	'BidsFilename'
+	'BidsFolder'
+	'BidsIntendedFor'
+	'BidsMod'
+	'BidsModality'
+	'BidsPath'
+	'BidsRec'
+	'BidsRun'
+	'BidsTask'
+	'BidsError_message'
+	'BidsIgnore'
+	'BidsTemplate'
+	'BidsValid'
 )
 
     # Add:
@@ -73,9 +99,10 @@ FieldsPetUnique=(
         'DicomRadionuclide'
 )
 
-FieldsAll=$( echo "${FieldsCommon[@]}" "${FieldsMriUnique[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
+FieldsAll=$( echo "${FieldsCommon[@]}" "${FieldsBidsUnique[@]}" "${FieldsMriUnique[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
 FieldsMri=$( echo "${FieldsCommon[@]}" "${FieldsMriUnique[@]}" | sed 's/ /,/g' )
 FieldsPet=$( echo "${FieldsCommon[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
+FieldsBids=$( echo "FlywheelAcquisitionInternalID ${FieldsBidsUnique[@]}" | sed 's/ /,/g' )
 
 #
 # -a comma or space separated list of acquisition ids to retrieve from flywheel
@@ -202,7 +229,7 @@ then
     syncAcquisitionJsonFiles -f "${CmdArgs[@]}" -d "$TmpDir" -pi "${Group}/${Project}" "$@"
 fi
 
-jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$opt_c" | tee >((echo "$FieldsAll" ; grep ',"MR",')  | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv")  > /dev/null
+jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$opt_c" | tee >((echo "$FieldsAll" ; grep ',"NoBid",' | grep ".dicom.zip" | grep ',"MR",')  | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"NoBid",' | grep ".dicom.zip" | grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv") >((echo "$FieldsAll" ; grep ',"Bids",' | grep ".nii.gz" | sort -u ) | csvcut -c "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv")  > /dev/null
 
 
 if [ "$DeleteTmpDir" == True ]
