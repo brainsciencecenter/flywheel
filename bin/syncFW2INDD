@@ -58,7 +58,7 @@ fi
 
 cd "$CacheDir"
 
-CachedPdfs=$(ls "$CacheDir" | grep '.pdf$' | sort -u)
+CachedPdfs=$(ls | grep '.pdf$' | sort -u)
 
 if [ -n "$opt_p" ]
 then
