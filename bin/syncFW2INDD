@@ -56,6 +56,7 @@ then
     exit 1
 fi
 
+cd "$CacheDir"
 
 CachedPdfs=$(ls "$CacheDir" | grep '.pdf$' | sort -u)
 
@@ -74,7 +75,6 @@ PdfsToDownload=$(diff <(echo "$FwProjectAnalysesGearPdfs") <(echo "$CachedPdfs")
 
 if [ -n "$PdfsToDownload" ]
 then
-	cd "$CacheDir"
 
 	#
 	# you can't get download an analysis file without the analysis id.
