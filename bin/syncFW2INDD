@@ -9,7 +9,7 @@
 
 cmd=$(basename "$0")
 
-syntax="$cmd [-f inddreporttofilter][-g gear][-n][-v] Group/Project"
+syntax="$cmd [-D][-d dir][-f inddreporttofilter][-g gear][-n][-p ProjectAnalysesFile][-v] Group/Project"
 
 function sys {
 	  [ -n "${opt_n}${opt_v}" ] && echo "$cmd : $@" 1>&2
@@ -18,10 +18,10 @@ function sys {
 
 opt_f='xxxxx'
 
-while getopts f:g:nv arg
+while getopts Dd:f:g:np:v arg
 do
 	case "$arg" in
-	     f|g|n|v)
+	     D|d|f|g|n|p|v)
 		eval "opt_${arg}=${OPTARG:=1}"
 		;;
 	esac
@@ -43,47 +43,66 @@ else
 	GroupProject="dwolklab/NACC-SC"
 fi
 
-INDDToc=$(mktemp /tmp/${cmd}Toc-XXXXX)
-
-smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c dir 2> /dev/null | awk '{print $1}' | grep -P '^\d{6}([\._x]\d{2})?[_x]\d{8}([_x]3T)?.pdf$' | sort  | grep -v "$opt_f" > "$INDDToc"
-smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c dir 2> /dev/null | awk '{print $1}' | grep -P '.pdf$' | sort -u > "$INDDToc"
-
-[ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of INDD reports" 1>&2
-
-FWReportPdfs=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | grep '.pdf$' | awk '{print $2}' | sort -u)
-
-[ -n "${opt_n}${opt_v}" ] && echo "$cmd : Got list of Flywheel reports from $GroupProject" 1>&2
-
-# Sometimes there can be multiple analyses run on the same session so we want the sort -u to prevent unneeded downloads
-ReportsToDownload=$(diff <(echo "$FwReportPdfs") "$INDDToc" | grep '<' | cut -f 2 -d ' ')
-
-if [ -n "$ReportsToDownload" ]
+if [ -n "$opt_d" ]
 then
-	[ -n "${opt_n}${opt_v}" ] && echo "$cmd : ReportsToDownload = " $ReportsToDownload 1>&2
-
-	tmpdir=$(mktemp -d /tmp/${cmd}Dir-XXXXXX)
-	cd "$tmpdir"
-
-	AidFids=()
-	for i in $ReportsToDownload
-	do
-		AidFid=$(echo "$FWFullReportInfo" | grep "$i$" | cut -f 1 -d ' ' | head -n 1)
-		AidFids+=("$AidFid")
-	done
-	
-	DownloadedFiles=$(sys getFWProjectAnalyses -D -d "$tmpdir" "${AidFids[@]}" | awk '{print $2}')
-
-	for i in $DownloadedFiles
-	do
-		InddName=$(echo "$i" | ashsharp2INDDReportName)
-		cat "$i" | smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c "put - $InddName"
-		[ -n "${opt_n}${opt_v}" ] && echo "$cmd : copy Flywheel/$GroupProject '$i' to INDD:'//cndr-indd.uphs.pennhealth.prv/mrireport/$InddName'" 1>&2
-	done
-
-	# rm -rf "$tmpdir"
+    CacheDir="$opt_d"
 else
-	[ -n "${opt_n}${opt_v}" ] && echo "$cmd : No Flywheel reports to sync to INDD" 1>&2
+    CacheDir="${GroupProject}/${Gear}"
 fi
 
-# rm "$INDDToc"
+if [ ! -d "$CacheDir" ]
+then
+    echo "$cmd : CacheDir '${CacheDir}' not found " 1>&2
+    exit 1
+fi
+
+
+CachedPdfs=$(ls "$CacheDir" | grep '.pdf$' | sort -u)
+
+if [ -n "$opt_p" ]
+then
+    FwProjectAnalyses=$(sed 's, ,/,' "$opt_p")
+else
+    FwProjectAnalyses=$(getFWProjectAnalyses -g "$Gear" "$GroupProject" | sed 's, ,/,')
+fi
+
+FwProjectAnalysesGearPdfs=$(echo "$FwProjectAnalyses" | cut -f 3 -d / | grep '.pdf$' | sort -u)
+
+PdfsToDownload=$(diff <(echo "$FwProjectAnalysesGearPdfs") <(echo "$CachedPdfs") | grep '^< ' | cut -f 2 -d ' ')
+
+[ -n "${opt_n}${opt_v}" ] && echo "$cmd : PdfsToDownload = '$PdfsToDownload'" 1>&2
+
+if [ -n "$PdfsToDownload" ]
+then
+	cd "$CacheDir"
+
+	#
+	# you can't get download an analysis file without the analysis id.
+	# download all the analysis ids with their associated file names
+	# There may be multiple analysis with the same file name hummmm
+	#
+	AidFids=()
+	for i in $PdfsToDownload
+	do
+	    # Get rid of mulitple analysis with the same file name
+	    AidFid=$(echo "$FwProjectAnalyses" | grep "${i}$" | cut -f 1,2 -d / | head -n 1)
+	    AidFids+=("$AidFid")
+	done
+	
+	DownloadedFiles=$(sys getFWProjectAnalyses -D "${AidFids[@]}" | awk '{print $2}')
+
+fi
+
+if [ -z "$opt_D" ]
+then
+    InddPdfs=$(smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c dir 2> /dev/null | awk '{print $1}' | grep -P '.pdf$' | sort -u)
+    PdfsToCopyToIndd=$(diff <(echo "$CachedPdfs") <(echo "$InddPdfs") | grep '^< ' | cut -f 2 -d ' ')
+    for i in $PdfsToCopyToIndd
+    do
+	InddName=$(echo "$i" | ashsharp2INDDReportName)
+	cat "$i" | smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c "put - $InddName"
+	[ -n "${opt_n}${opt_v}" ] && echo "$cmd : copy Flywheel/$GroupProject '$i' to INDD:'//cndr-indd.uphs.pennhealth.prv/mrireport/$InddName'" 1>&2
+    done
+fi
+
 
