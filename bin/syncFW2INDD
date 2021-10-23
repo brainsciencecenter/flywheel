@@ -93,14 +93,11 @@ then
 
 fi
 
-if [ -z "$opt_D" ]
+if [ -z "$opt_D" -a -n "$CachedPdfs" ]
 then
     InddPdfs=$(smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c dir 2> /dev/null | awk '{print $1}' | grep -P '.pdf$' | sort -u)
-    PdfsToCopyToIndd=$(echo "$CachedPdfs" | ashsharp2INDDReportName | sort -u)
 
-    [ -n "${opt_n}${opt_v}" ] && echo "$cmd : PdfsToCopyToIndd = '$PdfsToCopyToIndd'" 1>&2
-
-    for i in $PdfsToCopyToIndd
+    for i in $CachedPdfs
     do
 	InddName=$(echo "$i" | ashsharp2INDDReportName)
 
