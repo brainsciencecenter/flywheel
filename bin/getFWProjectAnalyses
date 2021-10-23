@@ -82,6 +82,8 @@ if __name__ == '__main__':
 
 
     for id in args.ids:
+        Analyses = None
+
         try:
             container = fw.get(id)
 
