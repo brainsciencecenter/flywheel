@@ -101,7 +101,7 @@ then
     do
 	InddName=$(echo "$i" | ashsharp2INDDReportName)
 
-	if grep -q "$InddName" <(echo "$InddPdfs")
+	if ! grep -q "$InddName" <(echo "$InddPdfs")
 	then
 	    cat "$i" | smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c "put - $InddName"
 	    [ -n "${opt_n}${opt_v}" ] && echo "$cmd : copy Flywheel/$GroupProject '$i' to INDD:'//cndr-indd.uphs.pennhealth.prv/mrireport/$InddName'" 1>&2
