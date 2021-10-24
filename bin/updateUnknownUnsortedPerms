@@ -2,9 +2,9 @@
 
 while getopts v args
 do
-    case "$args" in
+    case "$arg" in
 	v)
-	    eval "opt_${v}=${OPTARG:=1}"
+	    eval "opt_${arg}=${OPTARG:=1}"
 	    ;;
     esac
 done
