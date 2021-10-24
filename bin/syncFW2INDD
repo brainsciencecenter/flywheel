@@ -103,8 +103,8 @@ then
 
 	if ! grep -q "$InddName" <(echo "$InddPdfs")
 	then
-	    smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c "put ${i} ${InddName}" > /dev/null
-	    [ -n "${opt_n}${opt_v}" ] && echo "$cmd : copy Flywheel/$GroupProject '$i' to INDD:'//cndr-indd.uphs.pennhealth.prv/mrireport/$InddName'" 1>&2
+	    smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c "put ${i} ${InddName}" 2> /dev/null
+	    [ -n "${opt_n}${opt_v}" ] && echo "$cmd : smbClientWrapper  //cndr-indd.uphs.pennhealth.prv/mrireport put '$i' ${InddName}'" 1>&2
 	fi
     done
 fi
