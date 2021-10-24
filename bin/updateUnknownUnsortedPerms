@@ -1,5 +1,16 @@
 #!/bin/bash
 
+while getopts v args
+do
+    case "$args" in
+	v)
+	    eval "opt_${v}=${OPTARG:=1}"
+	    ;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+
 AllUsers=$(fwget -u | jq -r '.[][] | select(.disabled != true) | ._id' | grep -P '@(pennbrain.)?upenn.edu' | sort -u)
 UnknownUsers=$(fw-groupcrud get -mi unknown | tail -n +3 | cut -f 2 -d : | grep -P '@(pennbrain.)?upenn.edu' | sort -u)
 UsersToAdd=$(diff <(echo "$AllUsers") <(echo "$UnknownUsers") | grep '<' | sed 's/< //')
@@ -8,6 +19,6 @@ if [ -n "$UsersToAdd" ]
 then
     fw-groupcrud -v update -g unknown -F -p Unsorted -r read-only $UsersToAdd
 else
-    echo "No users to add to unknown/Unsorted"
+    [ -n "$opt_v" ] && echo "No users to add to unknown/Unsorted" 1>&2
 fi
 
