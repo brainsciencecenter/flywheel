@@ -1,6 +1,6 @@
 #!/bin/bash
 
-while getopts v args
+while getopts v arg
 do
     case "$arg" in
 	v)
