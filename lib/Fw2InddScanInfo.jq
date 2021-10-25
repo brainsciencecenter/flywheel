@@ -59,7 +59,7 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 
 	    # BIDS
 	    (
-	      if ( .BIDS ) then 
+	      if ( .BIDS and ((.BIDS|type) == "object") ) then 
 	        "Bids",
 		.BIDS.Acq,
 		.BIDS.Ce,
@@ -68,7 +68,11 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 		.BIDS.Echo,
 		.BIDS.Filename,
 		.BIDS.Folder,
-		.BIDS.IntendedFor,
+		if ((.BIDS.IntendedFor|type) == "array" ) then
+		   [(.BIDS.IntendedFor[][]|values)]|join(":")
+		else
+		  .BIDS.IntendedFor
+		end,
 		.BIDS.Mod,
 		.BIDS.Modality,
 		.BIDS.Path,
