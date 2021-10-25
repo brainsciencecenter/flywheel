@@ -45,8 +45,11 @@ FieldsCommon=(
         'DicomPixelSpacingY'
 )
 
-FieldsBidsUnique=(
+FieldsMisc=(
 	'BidsNoBids'
+)
+
+FieldsBidsUnique=(
 	'BidsAcq'
 	'BidsCe'
 	'BidsDir'
@@ -99,7 +102,7 @@ FieldsPetUnique=(
         'DicomRadionuclide'
 )
 
-FieldsAll=$( echo "${FieldsCommon[@]}" "${FieldsBidsUnique[@]}" "${FieldsMriUnique[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
+FieldsAll=$( echo "${FieldsCommon[@]}" "${FieldsMisc[@]}" "${FieldsBidsUnique[@]}" "${FieldsMriUnique[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
 FieldsMri=$( echo "${FieldsCommon[@]}" "${FieldsMriUnique[@]}" | sed 's/ /,/g' )
 FieldsPet=$( echo "${FieldsCommon[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
 FieldsBids=$( echo "FlywheelAcquisitionInternalID ${FieldsBidsUnique[@]}" | sed 's/ /,/g' )
