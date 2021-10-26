@@ -32,7 +32,6 @@ FieldsCommon=(
         'FlywheelAcquisitionMeasurement'
         'FlywheelAcquisitionFeatures'
         'FlywheelAcquisitionInternalID'
-	'AcquisitionFileName'
         'AcquisitionTimestampUTC'
         'DicomModality'
         'DicomInstitutionName'
@@ -46,6 +45,7 @@ FieldsCommon=(
 )
 
 FieldsMisc=(
+	'AcquisitionFileName'
 	'BidsNoBids'
 )
 

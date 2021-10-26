@@ -45,7 +45,6 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 	    $Measurement,
 	    $Features,
 	    $AcquisitionId,
-	    $AcquisitionFileName,
 	    ( if $TimeStamp then $TimeStamp else "1900-01-01T00:00:00+0000" end),
 	    .Modality,
 	    .InstitutionName,
@@ -56,6 +55,8 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 	    .SliceThickness,
 	    .PixelSpacing[0],
 	    .PixelSpacing[1],
+
+	    $AcquisitionFileName,
 
 	    # BIDS
 	    (
