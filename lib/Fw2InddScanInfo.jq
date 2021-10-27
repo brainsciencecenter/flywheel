@@ -1,6 +1,5 @@
-# INDDID,FlywheelSubjectID,FlywheelSessionTimestampUTC,FlywheelSessionURL,FlywheelSessionInternalID,FlywheelProjectInternalID,FlywheelAcquisitionLabel,FlywheelAcquisitionIntent,FlywheelAcquisitionMeasurement,FlywheelAcquisitionFeatures,FlywheelAcquisitionInternalID,AcquisitionTimestampUTC,DicomModality,DicomInstitutionName,DicomStationName,DicomBodyPartExamined,DicomStudyInstanceUID,DicomSeriesInstanceUID,DicomSliceThickness,DicomPixelSpacingX,DicomPixelSpacingY,BidsNoBids,BidsAcq,BidsCe,BidsDir,BidsTrc,BidsEcho,BidsFilename,BidsFolder,BidsIntendedFor,BidsMod,BidsModality,BidsPath,BidsRec,BidsRun,BidsTask,BidsError_message,BidsIgnore,BidsTemplate,BidsValid,DicomMagneticFieldStrength,DicomSequenceName,DicomRepetitionTime,DicomEchoTime,DicomEchoNumbers,DicomFlipAngle,DicomNumberOfAverages,DicomAcquisitionNumber,DicomSpacingBetweenSlices,DicomReconstructionMethod,DicomScatterCorrectionMethod,DicomAttenuationCorrectionMethod,DicomRadiopharmaceutical,DicomRadionuclide
+# 
 
-# 18: BidsNoBids,BidsAcq,BidsCe,BidsDir,BidsTrc,BidsEcho,BidsFilename,BidsFolder,BidsIntendedFor,BidsMod,BidsModality,BidsPath,BidsRec,BidsRun,BidsTask,BidsError_message,BidsIgnore,BidsTemplate,BidsValid,
 
 import "Id2ProjectLabels" as $ProjectId2Labels;
 import "Id2SubjectLabels" as $SubjectId2Labels;
@@ -22,8 +21,12 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
     | (if (.timestamp) then .timestamp else .created end) as $TimeStamp
 
     # Only select the first .dicom.zip
-    | .files[]
+    | .files
+    | [([.[] | select(.name|match(".dicom.zip$"))]|first) , ([.[] | select(.name|match(".nii.gz$"))]|first)]|map(select(.))
+    | .[]
     | select(.name | match("(.dicom.zip)|(.nii.gz)$"))
+
+
 
       | .name as $AcquisitionFileName
       | (if .classification.Intent then .classification.Intent|join(";") else "None" end) as $Intent
