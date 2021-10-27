@@ -2,7 +2,7 @@
 
 DateTime=$(date -Iseconds | sed -r 's/:/-/g; s/(-[0-9][0-9])-([0-9][0-9])$/\1\2/')
 
-for i in fw_{bids,mri,pet}
+for i in {bids,mri,pet}
 do
     smbclient //cndr-indd.uphs.pennhealth.prv/Sync -m SMB2 -A ~/auth.txt  -c "put fw_${i}.csv indd_${i}_${DateTime}.csv"
 done
