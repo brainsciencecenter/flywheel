@@ -87,50 +87,45 @@ CREATE TEMP FUNCTION calculateBscProjectCharge(StorageUsage FLOAT64, StorageChar
 	)
 );
 
-set TotalComputeDiscountedCosts = (
-    select DiscountedCosts AS TotalComputeDiscountedCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-    where 
-        ChargeType = "Compute"
-);
 
-set TotalVMDynamicCoreHours = (
+EXECUTE IMMEDIATE """
+    # TotalComputeDiscountedCosts,
+    SELECT DiscountedCosts AS TotalComputeDiscountedCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
+      WHERE 
+        ChargeType = "Compute",
+
+    # TotalVMDynamicCoreHours,
     SELECT
 	UsageAmountInPricingUnits AS TotalDynamicCoreHours FROM  `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-	WHERE ChargeType = "VMDynamicCore"
-);
+	WHERE ChargeType = "VMDynamicCore",
 
-set TotalVMCosts = (
-    select DiscountedCosts AS TotalVMCost from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-    where 
+    # TotalVMCosts,
+    SELECT DiscountedCosts AS TotalVMCost from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
+      WHERE 
         ChargeType = "VM"
-);
 
-set TotalVMStaticCosts = (
-    select DiscountedCosts AS TotalVMStaticCost from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-    where 
+    # TotalVMStaticCosts,
+    SELECT DiscountedCosts AS TotalVMStaticCost from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
+      WHERE 
         ChargeType = "VMStatic"
-);
 
-set TotalVMDynamicCosts = (
-    select TotalVMCosts - TotalVMStaticCosts AS TotalVMDDynamicCosts
-);
+    # TotalVMDynamicCosts,
+    SELECT TotalVMCosts - TotalVMStaticCosts AS TotalVMDDynamicCosts,
 
-set TotalStorageCosts = (
-    select DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-    where 
+    # TotalStorageCosts,
+    SELECT DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
+      WHERE 
         ChargeType = "Storage"
-);
 
-set TotalGcpStorageStandardUsage = (
+    # TotalGcpStorageStandardUsage,
     SELECT
 	UsageAmountInPricingUnits AS TotalStorageStandardUsage 
-    FROM
+      FROM
 	`'"${Project}.${Dataset}.TempFwTotalCosts"'`
-    WHERE
+      WHERE
 	ChargeType = "StorageStandard"
-);
 
-set TotalFwStorageStandardUsage = (
+    # TotalFwStorageStandardUsage,
     SELECT
 	sum(total_storage_byte_day / days)/1024.0/1024.0/1024.0 AS TotalProjectStorageStandardUsage
     FROM
@@ -138,26 +133,39 @@ set TotalFwStorageStandardUsage = (
     WHERE
 	CAST(invoice_month AS STRING) = @InvoiceMonth
 	AND project IS NOT NULL
-);
-	
-set TotalMiscCosts = (
+
+    # TotalMiscCosts,
     select DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
     where 
         ChargeType = "Misc"
-);
 
-set TotalComputeCosts = (
-    select DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
+    # TotalComputeCosts,
+    select DiscountedCosts AS TotalComputeCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
     where 
         ChargeType = "Compute"
-);
 
-set TotalKubernetesCosts = (
-    select DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
+    # TotalKubernetesCosts
+    select DiscountedCosts AS TotalKubernetesCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
     where 
         ChargeType = "Kubernetes"
-);
 
+
+"""
+INTO
+    TotalComputeDiscountedCosts,
+    TotalVMDynamicCoreHours,
+    TotalVMCosts,
+    TotalVMStaticCosts,
+    TotalVMDynamicCosts,
+    TotalStorageCosts,
+    TotalGcpStorageStandardUsage,
+    TotalFwStorageStandardUsage,
+    TotalMiscCosts,
+    TotalComputeCosts,
+    TotalKubernetesCosts
+;
+
+	
 CREATE OR REPLACE TABLE 
        `'"${Project}.${Dataset}.TempJobsReport"'`
 AS
