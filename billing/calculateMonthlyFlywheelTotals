@@ -269,5 +269,16 @@ VALUES(
     )
     ;
 
+INSERT
+       `'"${Project}.${Dataset}.TempFwTotalCosts"'`(ChargeType, UsageAmountInPricingUnits, DiscountedCosts)
+VALUES(
+	"GCPDiscountedCosts",
+	0,
+	((  SELECT DiscountedCosts FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "Compute")
+	 + (SELECT DiscountedCosts FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "Storage")
+	 + (SELECT DiscountedCosts FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "Misc"))
+    )
+    ;
+
  
-' > /dev/null
+'
