@@ -107,7 +107,7 @@ FieldsPetUnique=(
 FieldsAll=$( echo "${FieldsCommon[@]}" "${FieldsMisc[@]}" "${FieldsBidsUnique[@]}" "${FieldsMriUnique[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
 FieldsMri=$( echo "${FieldsCommon[@]}" "${FieldsMriUnique[@]}" | sed 's/ /,/g' )
 FieldsPet=$( echo "${FieldsCommon[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
-FieldsBids=$( echo "FlywheelAcquisitionInternalID ${FieldsBidsUnique[@]}" | sed 's/ /,/g' )
+FieldsBids=$( echo "FlywheelProjectLabel FlywheelSessionLabel FlywheelAcquisitionInternalID ${FieldsBidsUnique[@]}" | sed 's/ /,/g' )
 
 #
 # -a comma or space separated list of acquisition ids to retrieve from flywheel
