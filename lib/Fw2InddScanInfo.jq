@@ -37,8 +37,8 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 	# Need to check file names for ^IND{1,2}_.*$, ^\d{6}$, ^\d{6}[._\-x]\d{2}$
 
 	| [ 
-	    $ProjectLabel,
 	    $SubjectLabel,
+	    $ProjectLabel,
 	    $SubjectLabel,
 	    (if $SessionTimeStamp then $SessionTimeStamp else "1900-01-01T00:00:00+00:00" end),
 	    "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data",
