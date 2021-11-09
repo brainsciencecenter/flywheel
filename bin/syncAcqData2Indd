@@ -22,10 +22,12 @@ FwAcqData2InddJqFile="$FwDir/lib/Fw2InddScanInfo.jq"
 
 FieldsCommon=(
         'INDDID'
+	'FlywheelProjectLabel'
         'FlywheelSubjectID'
         'FlywheelSessionTimestampUTC'
         'FlywheelSessionURL'
         'FlywheelSessionInternalID'
+	'FlywheelSessionLabel'
         'FlywheelProjectInternalID'
         'FlywheelAcquisitionLabel'
         'FlywheelAcquisitionIntent'
