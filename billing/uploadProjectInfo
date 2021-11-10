@@ -86,7 +86,7 @@ bq query --quiet --use_legacy_sql=false --format=csv --allow_large_results --max
                 BscProjectCharge,
                 (ProjectBscCharges+ProjectGcpCosts) AS TotalProjectCharges
                 FROM `pennbrain-center.BillingAllocation.FwProjectUsage` 
-                WHERE InvoiceMonth = "202108" 
+                WHERE InvoiceMonth = @InvoiceMonth 
         ) ProjectCosts
         ON 
                 ProjectInfo.`Group` = ProjectCosts.`Group`
