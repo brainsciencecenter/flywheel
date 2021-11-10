@@ -71,7 +71,7 @@ FROM (
             BscProjectCharge,
             (ProjectBscCharges+ProjectGcpCosts) AS TotalProjectCharges
           FROM `pennbrain-center.BillingAllocation.FwProjectUsage` 
-          WHERE InvoiceMonth = "202108" 
+          WHERE InvoiceMonth = "'"${Year}${Month}"'" 
     ) ProjectCosts
     ON 
             ProjectInfo.`Group` = ProjectCosts.`Group`

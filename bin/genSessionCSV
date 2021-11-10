@@ -95,7 +95,7 @@ then
 	fi
 	sys genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
 
-	sys jq -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile"
+	sys jq -s -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile"
 else
 	echo No sessions found 1>&2
 	exit 1
