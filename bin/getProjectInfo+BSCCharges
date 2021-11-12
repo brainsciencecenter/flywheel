@@ -30,7 +30,7 @@ fi
 ProjectInfoFile=$(mktemp /tmp/projectinfo-XXXXXX.csv)
 BscChargesFile=$(mktemp /tmp/bscccharges-XXXXXX.csv)
 
-fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f "${FlywheelUtilsDir}/bin/ProjectInfo2CSV.jq" | sed 's/","/\//' > "$ProjectInfoFile"
+fwProjectInfoCrud  -p '.ProjectFunding' | jq -r -f "${FlywheelUtilsDir}/lib/ProjectInfo2CSV.jq" | sed 's/","/\//' > "$ProjectInfoFile"
 getGroupProjectTotalBSCCharge -m "$Month" -y "$Year"  > "$BscChargesFile"
 
 InfoHeader=$(head -n 1 "$ProjectInfoFile")
