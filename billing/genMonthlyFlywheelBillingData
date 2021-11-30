@@ -20,6 +20,8 @@ function sys {
 # Should dig these out of a configuration file
 #
 
+unipen-015ee8-997645-50785f:billing_export.gcp_billing_export_v1_015EE8_997645_50785F
+
 GcpCostTable='unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F'
 
 CmdName=$(basename "$0")
@@ -42,7 +44,6 @@ Year=$(date --date="$nowmonth -1 month" +'%Y')
 
 Month=$(date --date="$nowmonth -1 month" +'%m')
 [ -n "$opt_m" ] && Month="$opt_m"
-
 
 Dataset=BillingAllocation
 [ -n "$opt_d" ] && Dataset="$opt_d"
@@ -71,6 +72,8 @@ Args+=( -d "${Dataset}" )
 Args+=( -m "${Month}" )
 Args+=( -y "${Year}" )
 
+# ./createCostsTable -o GcpNonFlywheelCosts -w 'project.name != "upenn-flywheel"' -m 10 -y 2021
+# ./createCostsTable -o FlywheelCosts -w 'project.name = "upenn-flywheel"' -m 10 -y 2021 
 sys createFlywheelCostsTable "${Args[@]}"
 
 if [ -n "$opt_j" ]
