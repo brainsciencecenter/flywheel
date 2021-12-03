@@ -1,0 +1,112 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+syntax="${CmdName} [-d Dataset][-o outputTable][-p Project][-m Month][-v][-w WhereClause][-y Year]"
+
+WhereClause='project.name = `upenn-flywheel`'
+
+function OutputControl {
+    if [ -n "$opt_v" ]
+    then
+	cat
+    else
+	cat > /dev/null
+    fi
+}
+
+while getopts d:m:o:p:w:vy: arg
+do
+	case "$arg" in
+	    w)
+		WhereClause="$OPTARG"
+		;;
+
+	    d|m|o|p|v|y)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+nowmonth=$(date +%Y-%m-15)
+Year=$(date --date="$nowmonth -1 month" +'%Y')
+[ -n "$opt_y" ] && Year="$opt_y"
+
+Month=$(date --date="$nowmonth -1 month" +'%m')
+[ -n "$opt_m" ] && Month="$opt_m"
+
+Dataset=BillingAllocation
+[ -n "$opt_d" ] && Dataset="$opt_d"
+
+OutputTable=FlywheelCosts
+[ -n "$opt_o" ] && OutputTable="$opt_o"
+
+Project=pennbrain-center
+[ -n "$opt_p" ] && Project="$opt_p"
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter=InvoiceMonth:STRING:"${opt_y}${opt_m}" --parameter=FlywheelProject::upenn-flywheel '
+
+  CREATE TABLE IF NOT EXISTS `'"${Project}.${Dataset}.${OutputTable}"'` (
+  	 InvoiceMonth 	     		STRING,
+	 FlywheelGroupName		STRING,
+	 GcpProjectName			STRING,
+	 ServiceDescription		STRING,
+	 SkuDescription			STRING,
+	 UsageAmountInPricingUnits	FLOAT64,
+	 UsagePricingUnit		STRING,
+	 Costs				FLOAT64,
+	 Discounts			FLOAT64,
+	 Promotions			FLOAT64,
+  );
+
+  DELETE FROM `'"${Project}.${Dataset}.${OutputTable}"'`
+    WHERE
+      InvoiceMonth = @InvoiceMonth
+  ;
+      
+  INSERT `'"${Project}.${Dataset}.${OutputTable}"'`
+  SELECT
+    invoice.month as InvoiceMonth,
+    labels.value as FlywheelGroup,
+    project.name as GcpProjectName,
+    service.description as ServiceDescription,
+    sku.description as SkuDescription,
+    sum(usage.amount_in_pricing_units) as UsageAmountInPricingUnits,
+    usage.pricing_unit as UsagePricingUnit,
+    SUM(cost) AS Costs,
+    SUM(IFNULL((
+        SELECT
+          SUM(c.amount)
+        FROM
+          UNNEST(credits) c
+        WHERE
+          c.type != "PROMOTION" ),
+        0)) AS Discounts,
+    SUM(IFNULL((
+        SELECT
+          SUM(c.amount)
+        FROM
+          UNNEST(credits) c
+        WHERE
+          c.type = "PROMOTION" ),
+        0)) AS Promotions
+  FROM
+    `unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F`
+  LEFT JOIN
+    UNNEST(labels) AS labels
+  ON
+    labels.key = "billing"
+  WHERE
+	invoice.month = @InvoiceMonth
+    AND 
+        '"$WhereClause"'
+    GROUP BY
+        InvoiceMonth,
+        FlywheelGroup,
+        GcpProjectName,
+        ServiceDescription,
+        SkuDescription,
+        UsagePricingUnit
+' | OutputControl
