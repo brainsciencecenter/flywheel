@@ -72,8 +72,8 @@ Args+=( -d "${Dataset}" )
 Args+=( -m "${Month}" )
 Args+=( -y "${Year}" )
 
-./createCostsTable -o GcpNonFlywheelCosts -w 'project.name != "upenn-flywheel"' -m "${Month}" -y "${Year}"
-./createCostsTable -o FlywheelCosts -w 'project.name = "upenn-flywheel"' -m "${Month}" -y "${Year}"
+createCostsTable -o GcpNonFlywheelCosts -w 'project.name != "upenn-flywheel"' -m "${Month}" -y "${Year}"
+createCostsTable -o FlywheelCosts -w 'project.name = "upenn-flywheel"' -m "${Month}" -y "${Year}"
 #sys createFlywheelCostsTable "${Args[@]}"
 
 if [ -n "$opt_j" ]
