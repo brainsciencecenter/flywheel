@@ -2,7 +2,7 @@
 
 CmdName=$(basename "$0")
 
-syntax="${CmdName} [-d Dataset][-o outputTable][-p Project][-m Month][-v][-w WhereClause][-y Year]"
+syntax="${CmdName} [-c][-d Dataset][-i InputTable][-m Month][-o OutputTable][-p Project][-v][-w WhereClause][-y Year]"
 
 WhereClause='project.name = `upenn-flywheel`'
 
@@ -15,14 +15,14 @@ function OutputControl {
     fi
 }
 
-while getopts d:m:o:p:w:vy: arg
+while getopts cd:i:m:o:p:w:vy: arg
 do
 	case "$arg" in
 	    w)
 		WhereClause="$OPTARG"
 		;;
 
-	    d|m|o|p|v|y)
+	    c|d|i|m|o|p|v|y)
 		eval "opt_${arg}=${OPTARG:=1}"
 		;;
 	esac
@@ -39,6 +39,9 @@ Month=$(date --date="$nowmonth -1 month" +'%m')
 
 Dataset=BillingAllocation
 [ -n "$opt_d" ] && Dataset="$opt_d"
+
+InputTable='unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F'
+[ -n "$opt_i" ] && InputTable="$opt_i"
 
 OutputTable=FlywheelCosts
 [ -n "$opt_o" ] && OutputTable="$opt_o"
@@ -93,7 +96,7 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
           c.type = "PROMOTION" ),
         0)) AS Promotions
   FROM
-    `unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F`
+    `'"${InputTable}"'`
   LEFT JOIN
     UNNEST(labels) AS labels
   ON
@@ -110,3 +113,15 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
         SkuDescription,
         UsagePricingUnit
 ' | OutputControl
+
+if [ -n "$opt_c" ]
+then
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter=InvoiceMonth:STRING:"${opt_y}${opt_m}" --parameter=FlywheelProject::upenn-flywheel '
+      SELECT * 
+        FROM 
+          `'"${Project}.${Dataset}.${OutputTable}"'`
+        WHERE
+          InvoiceMonth = @InvoiceMonth
+        ;
+    ' 
+fi
