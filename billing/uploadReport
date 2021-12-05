@@ -2,12 +2,12 @@
 
 CmdName=$(basename "$0")
 
-syntax="${CmdName} [-d Dataset][-m Month][-p Project][-y Year] [ReportFile]"
+syntax="${CmdName} [-d Dataset][-m Month][-k][-p Project][-y Year] [ReportFile]"
 
-while getopts d:m:p:y: arg
+while getopts d:km:p:y: arg
 do
 	case "$arg" in 
-		d|m|p|y)
+		d|k|m|p|y)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -46,13 +46,16 @@ case "$CmdName" in
 		;;
 esac
 
-if [ -n "$1" ]
+if [ -n "$1" ] || [ -n "$opt_k" ]
 then
     ReportFile="$1"
 else
     ReportFile=$(mktemp /tmp/uploadReport-XXXXX)
     Cleanup=1
+fi
 
+if [ -n "$opt_k" ]
+then
     if [ "$CmdName" == "uploadJobsReport" ]
     then
 	getJobs -aei -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$ReportFile"
