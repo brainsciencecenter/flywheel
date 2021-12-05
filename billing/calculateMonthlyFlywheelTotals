@@ -99,6 +99,8 @@ CREATE OR REPLACE TABLE `'"${Project}.${Dataset}.TempFwTotalCosts"'` AS
                         `ServiceDescription` = "Compute Engine"
                     AND
                         SkuDescription LIKE "%Instance Ram%"
+		    AND
+		        cast(InvoiceMonth AS STRING) = @InvoiceMonth
  
     UNION ALL 
         SELECT
