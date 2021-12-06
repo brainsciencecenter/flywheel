@@ -247,27 +247,28 @@ AS
 CREATE TABLE IF NOT EXISTS
        `'"${Project}.${Dataset}.FwProjectUsage"'`
   (
-	InvoiceMonth	STRING,
-	`group`	STRING,	
-	project	STRING,	
-	IsTbOrMore	BOOLEAN,	
-	ProjectStorageUsage	FLOAT64,	
-	ProjectStorageCosts	FLOAT64,	
+	InvoiceMonth			STRING,
+	`group`				STRING,	
+	project				STRING,	
+	IsTbOrMore			BOOLEAN,	
+	ProjectStorageUsage		FLOAT64,	
+	ProjectStorageCosts		FLOAT64,	
 	ProjectGcpStorageStandardUsage	FLOAT64,	
-	BscProjectStorageCharge	FLOAT64,	
-	BscProjectCharge	FLOAT64,	
-	ProjectVMCosts	FLOAT64,	
-	ProjectVMDynamicCosts	FLOAT64,	
-	ProjectVMStaticCosts	FLOAT64,	
-	ProjectComputeCosts	FLOAT64,	
-	ProjectKubernetesCosts	FLOAT64,	
-	ProjectMiscCosts	FLOAT64,	
-	InitialAnalysisCount	FLOAT64,	
+	BscProjectStorageCharge		FLOAT64,	
+	BscProjectCharge		FLOAT64,	
+	ProjectVMCosts			FLOAT64,	
+	ProjectVMDynamicCosts		FLOAT64,	
+	ProjectVMStaticCosts		FLOAT64,	
+	ProjectComputeCosts		FLOAT64,	
+	ProjectKubernetesCosts		FLOAT64,	
+	ProjectMiscCosts		FLOAT64,	
+	InitialAnalysisCount		FLOAT64,	
 	BscInitialAnalysisCharge	FLOAT64,	
 	ProjectVMDynamicCoreHours	FLOAT64,	
-	ProjectBscCharges	FLOAT64,	
-	ProjectBscGcpCosts	FLOAT64,	
-	ProjectGcpCosts	FLOAT64,	
+	ProjectBscCharges		FLOAT64,	
+	ProjectBscGcpCosts		FLOAT64,	
+	ProjectGcpCosts			FLOAT64,
+	TotalVMDynamicCoreHours		FLOAT64,	
   );
 
 DELETE FROM 
@@ -288,6 +289,7 @@ INSERT
     	ProjectComputeCosts + ProjectStorageCosts + 
     	   # *** Leaving out to match Julys billing ProjectKubernetesCosts + 
     	   ProjectMiscCosts AS ProjectGcpCosts,
+	TotalVMDynamicCoreHours,
     
     FROM (
        SELECT
