@@ -40,6 +40,10 @@ case "$CmdName" in
 		DB="${Dataset}.FwUsageReport"
 		;;
 
+	uploadSessionReport)
+	    DB="${Dataset}.FwSessionReport"
+	    ;;
+
 	*)
 		echo "Unknown command name" 1>&2
 		exit 1
@@ -64,6 +68,11 @@ then
     if [ "$CmdName" == "uploadUsageReport" ]
     then
 	getFwUsageReport -m "$Month" -y "$Year" "$ReportFile"
+    fi
+
+    if [ "$CmdName" == "uploadSessionReport" ]
+    then
+	genSessionCSV -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$ReportFile"
     fi
 fi
 
