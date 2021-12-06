@@ -298,7 +298,7 @@ INSERT
     
     	mapNullToZero(TempUsageReport.ProjectStorageUsage) AS ProjectStorageUsage,
     	mapNullToZero(TempUsageReport.ProjectStorageCosts) AS ProjectStorageCosts,
-	    	mapNullToZero(TempUsageReport.ProjectGcpStorageStandardUsage) AS ProjectGcpStorageStandardUsage,
+	mapNullToZero(TempUsageReport.ProjectGcpStorageStandardUsage) AS ProjectGcpStorageStandardUsage,
     	mapNullToZero(TempUsageReport.BscProjectStorageCharge) AS BscProjectStorageCharge,
     	mapNullToZero(TempUsageReport.BscProjectCharge) AS BscProjectCharge,
     
