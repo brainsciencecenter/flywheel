@@ -78,14 +78,28 @@ createCostsTable -o FlywheelCosts -w 'project.name = "upenn-flywheel"' -m "${Mon
 
 if [ -n "$opt_j" ]
 then
-    sys uploadJobsReport "${Args[@]}" "$opt_j"
+    if [ -e "$opt_j" ]
+    then
+	KeepFile=
+    else
+	KeepFile=-k
+    fi
+    
+    sys uploadJobsReport $KeepFile "${Args[@]}" "$opt_j"
 else
     sys uploadJobsReport "${Args[@]}"
 fi
 
 if [ -n "$opt_u" ]
 then
-    sys uploadUsageReport "${Args[@]}" "$opt_u"
+    if [ -e "$opt_j" ]
+    then
+	KeepFile=
+    else
+	KeepFile=-k
+    fi
+    
+    sys uploadUsageReport $KeepFile "${Args[@]}" "$opt_u"
 else
     sys uploadUsageReport "${Args[@]}"
 fi
