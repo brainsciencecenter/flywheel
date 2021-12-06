@@ -279,7 +279,7 @@ ap = argparse.ArgumentParser()
 
 ap.add_argument('-a', '--augment-cpu-count', action='store_true', help='do extra work to lookup cpu count')
 ap.add_argument('-b', '--bar-length', action='store', default=40, type=int, help='bar length')
-ap.add_argument('-c', '--gcp-compute-cost', action='store', type=float, help='Total GCP Compute cost for Flywheel ')
+ap.add_argument('-c', '--gcp-compute-cost', action='store', default=0.0, type=float, help='Total GCP Compute cost for Flywheel ')
 ap.add_argument('-d', '--debug', action='store_true', help='debug')
 
 ap.add_argument('-e', '--exhaustive', action='store_false', default=True, help='exhaustive session flag')
