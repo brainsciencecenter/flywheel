@@ -1,7 +1,10 @@
 #!/bin/bash
 
-Group=memories
-Project=MEMORIES-2
+Group=unknown
+Project=Unsorted
+
+CmdName=$(basename "$0")
+syntax="$CmdName [-d YYYY-MM-DD][-g Group][-j JsonFile][-m MinAge][-s SubjectJsonFile][-p Project]"
 
 function getFwProjectId {
     local Group="$1"
@@ -17,12 +20,62 @@ function getFwProjectId {
     echo "$ProjectId"
 }
 
+
+function json2Csv () {
+    echo "CreatedDate,SessionId,Group,ParentsGroup,Subject,Session"
+    jq -r -L /tmp/ '
+        import "unknown-Unsorted-Id2SubjectLabels" as $Id2SubjectLabels;
+
+	[ 
+	      .created,
+	      ._id,
+      	      .group,
+	      .parents.group,
+      	      $Id2SubjectLabels::Id2SubjectLabels[][.parents.subject],
+      	      .label
+	] | @csv
+    ' | sort
+}
+
+while getopts d:g:j:m:p:s: arg
+do
+	case "$arg" in
+	     d|g|j|m|p|s)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+MinAge="3 months"
+if [ -n "$opt_m" ]
+then
+    MinAge="$opt_m"
+fi
+
+ToOldDate=$(date --date="now - $MinAge" +'%Y-%m-%d')
+if [ -n "$opt_d" ]
+then
+    ToOldDate="$opt_d"
+fi
+
+echo "ToOldDate = $ToOldDate"
+
 ProjectId=$(getFwProjectId "${Group}" "${Project}")
 
-ToOldDate="2019-05-01"
-uuids=$(fwfind -r -S group="$Group" project="$ProjectId" "created<${ToOldDate}" | jq -r '.[]._id')
+Id2SubjectLabelJsonFile=$(mktemp /tmp/Id2SubjectLabels-XXXXX.json)
+if [ -n "$opt_s" ]
+then
+    Id2SubjectLabelJsonFile="$opt_s"
+fi
 
-for i in $uuids
-do
-    echo $i
-done
+# should select on group=$Group 
+if [ -n "$opt_j" ]
+then
+    cat "$opt_j" | json2Csv
+else
+    fwfind -1 -r -S group="$Group" project="$ProjectId" "created<${ToOldDate}" | json2Csv
+fi
+			  
+

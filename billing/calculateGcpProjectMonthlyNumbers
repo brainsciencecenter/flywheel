@@ -37,7 +37,8 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
 #
 # *** Need to add PricingUnits, CoreHours, GibiBytes, Mixed etc
 #
-CREATE OR REPLACE TABLE `'"${Project}.${Dataset}.TempFwTotalCosts"'` AS
+CREATE OR REPLACE TABLE `'"${Project}.${Dataset}.TempGcpFwProjectCosts"'` AS
+       
         SELECT
                 "Compute" AS ChargeType,
                 sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
@@ -76,7 +77,7 @@ CREATE OR REPLACE TABLE `'"${Project}.${Dataset}.TempFwTotalCosts"'` AS
 
  
     UNION ALL 
-        SELECT	
+        SELECT
                 "ComputeMisc" AS ChargeType,
                 sum(UsageAmountInPricingUnits) AS UsageAmountInPricingUnits,
                 sum(Costs + Discounts) AS DiscountedCosts
@@ -288,6 +289,3 @@ VALUES(
 	 + (SELECT DiscountedCosts FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "Misc"))
     )
     ;
-
- 
-'

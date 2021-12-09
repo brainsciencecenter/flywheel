@@ -266,7 +266,7 @@ CREATE TABLE IF NOT EXISTS
 	BscInitialAnalysisCharge	FLOAT64,	
 	ProjectVMDynamicCoreHours	FLOAT64,	
 	ProjectBscCharges		FLOAT64,	
-	ProjectBscGcpCosts		FLOAT64,	
+		ProjectBscGcpCosts		FLOAT64,	
 	ProjectGcpCosts			FLOAT64,
 	TotalVMDynamicCoreHours		FLOAT64,	
   );
