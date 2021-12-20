@@ -34,7 +34,323 @@ Project=pennbrain-center
 
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
 
+DECLARE GcpFwTotalStorageStandardGB FLOAT64;
+DECLARE GcpFwTotalStorageDiscountedCosts FLOAT64;
+
+DECLARE FwTotalStorageGB FLOAT64;
+DECLARE FWTotalCpuHours FLOAT64;
+
+DECLARE GcpTotalStorageStandardGB FLOAT64;
+DECLARE GcpTotalStorageDiscountedCosts FLOAT64;
+
+
+# *** should be in price table
+CREATE TEMP FUNCTION BscInitialAnalysisCharge() AS (25.0);
+CREATE TEMP FUNCTION BscStorageChargeOverheadRate() AS (0.25);
+CREATE TEMP FUNCTION BscSmallAnnualProjectCharge() AS (100.0);
+CREATE TEMP FUNCTION BscBigAnnualProjectCharge() AS (250.0);
+
+CREATE TEMP FUNCTION OneTeraByte() RETURNS FLOAT64 AS (1024.0); # in Gibibytes
+CREATE TEMP FUNCTION OneCent() RETURNS FLOAT64 AS (0.01);
+
+CREATE TEMP FUNCTION mapNullToZero(v FLOAT64) RETURNS FLOAT64 AS (IF (v IS NULL, 0.0, v));
+
+CREATE TEMP FUNCTION isOneTbOrMore(StorageUsageGB FLOAT64) RETURNS BOOL AS (
+       IF ((StorageUsageGB > OneTeraByte()),
+       	  TRUE,
+	  FALSE)
+);
+
+CREATE TEMP FUNCTION calculateBscMonthlyProjectCharge(StorageUsage FLOAT64, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+        IF (ROUND(StorageCharge,2) >= OneCent(),
+                IF (isOneTbOrMore(StorageUsage),
+		   BscBigAnnualProjectCharge(),
+		   BscSmallAnnualProjectCharge()
+		) / 12.0,
+		0.0
+	)
+);
+
+CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOAT64) RETURNS FLOAT64 AS (
+       InitialAnalysisCount * BscInitialAnalysisCharge()
+);
+
+
+CREATE TEMP FUNCTION calculateBscStorageCharge(StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+       StorageCharge * BscStorageChargeOverheadRate()
+);
+
+CREATE TEMP FUNCTION allocateGcpFwGroupNumByRatio(Num FLOAT64, Ratio FLOAT64) RETURNS FLOAT64 AS (
+       IF (Ratio IS NULL, Num, Num * Ratio)
+);
+
+
 # 1
+# *** Should be FlwyheelCostTableEntries
+CREATE OR REPLACE TABLE
+  `'"${Project}.${Dataset}.TempGcpFlywheelCosts"'`
+AS
+SELECT
+  InvoiceMonth,
+  FlywheelGroupName AS `Group`,
+  ServiceDescription,
+  SkuDescription,
+    Costs + Discounts AS DiscountedCosts,
+
+  UsageAmountInPricingUnits AS UsageAmount
+FROM
+  `'"${Project}.${Dataset}.FlywheelCosts"'`
+WHERE
+  InvoiceMonth = @InvoiceMonth
+;
+
+# 2
+CREATE OR REPLACE TABLE
+  `'"${Project}.${Dataset}.TempGcpFwTotals"'`
+AS
+  SELECT
+    InvoiceMonth,
+    `Group`,
+
+    SUM(DiscountedCosts) AS GcpFwDiscountedCosts,
+
+    # Compute
+    SUM(IF (ServiceDescription = "Compute Engine",
+        DiscountedCosts,
+        0.0)) AS GcpFwComputeDiscountedCosts,  
+    SUM(IF (    ServiceDescription = "Compute Engine"
+	    AND (
+       	    	      SkuDescription NOT LIKE "%Instance Core%"
+                  AND SkuDescription NOT LIKE "%Small Instance%"
+                  AND SkuDescription NOT LIKE "%PD Capacity%"
+                  AND SkuDescription NOT LIKE "%PD Snapshot%"
+                  AND SkuDescription NOT LIKE "%Instance Ram%"
+	    ),
+            DiscountedCosts,
+            0.0)) AS GcpFwComputeMiscDiscountedCosts,
+    SUM(IF (    ServiceDescription = "Compute Engine"
+		    AND (
+        	    	     SkuDescription LIKE "%Instance Core%"
+                          OR SkuDescription LIKE "%Small Instance%"
+                          OR SkuDescription LIKE "%PD Capacity%"
+                          OR SkuDescription LIKE "%PD Snapshot%"
+                          OR SkuDescription LIKE "%Instance Ram%"
+	    ),
+            DiscountedCosts,
+            0.0)) AS GcpFwComputeVmDiscountedCosts,
+
+    SUM(IF (ServiceDescription = "Compute Engine" AND SkuDescription LIKE "%Instance Core%",
+        DiscountedCosts,
+        0.0)) AS GcpFwComputeCoreDiscountedCosts,
+    SUM(IF (ServiceDescription = "Compute Engine" AND SkuDescription LIKE "%Instance Core%",
+        UsageAmount,
+        0.0)) AS GcpFwComputeCoreCpuHours,
+
+#    SUM(IF (ServiceDescription = "Compute Engine" AND SkuDescription LIKE "%PD Capacity%",
+#        DiscountedCosts,
+#        0.0)) AS GcpFwComputeDiskDiscountedCosts,
+#    SUM(IF (        ServiceDescription = "Compute Engine"                   
+#                AND SkuDescription NOT LIKE "%Instance Core%"
+#                AND SkuDescription NOT LIKE "%Small Instance%"
+#                AND SkuDescription NOT LIKE "%PD Capacity%"
+#                AND SkuDescription NOT LIKE "%Instance Ram%" ,
+#        DiscountedCosts,
+#        0.0)) AS GcpFwComputeMiscDiscountedCosts,
+#    SUM(IF (ServiceDescription = "Compute Engine" AND SkuDescription LIKE "%Instance Ram%",
+#        DiscountedCosts,
+#        0.0)) AS GcpFwComputeRamDiscountedCosts,
+
+    # Kubernete and Misc
+    SUM(IF (ServiceDescription != "Compute Engine" AND ServiceDescription != "Cloud Storage",
+        DiscountedCosts,
+        0.0)) AS GcpFwMiscDiscountedCosts,
+    SUM(IF (ServiceDescription = "Kubernetes",
+        DiscountedCosts,
+        0.0)) AS GcpFwKubernetesDiscountedCosts,
+
+    # Storage
+    SUM(IF (ServiceDescription = "Cloud Storage",
+        DiscountedCosts,
+        0.0)) AS GcpFwStorageDiscountedCosts,
+    SUM(IF (ServiceDescription = "Cloud Storage",
+        UsageAmount,
+        0.0)) AS GcpFwStorageGB,
+
+    # Storage Standard
+    SUM(IF (ServiceDescription = "Cloud Storage" AND SkuDescription LIKE "%Standard Storage%",
+        DiscountedCosts,
+        0.0)) AS GcpFwStorageStandardDiscountedCosts,
+    SUM(IF (ServiceDescription = "Cloud Storage" AND SkuDescription LIKE "%Standard Storage%",
+        UsageAmount,
+        0.0)) AS GcpFwStorageStandardGB,
+
+
+    # Storage Misc
+    SUM(IF (    ServiceDescription = "Cloud Storage" 
+            AND SkuDescription NOT LIKE "%Coldline Storage%"
+            AND SkuDescription NOT LIKE "%Standard Storage%",
+        DiscountedCosts,
+        0.0)) AS GcpFwStorageMiscDiscountedCosts,
+
+    # Storage Coldline
+    SUM(IF (    ServiceDescription = "Cloud Storage" 
+    	    AND SkuDescription LIKE "%Coldline Storage%",
+        DiscountedCosts,
+        0.0)) AS GcpFwStorageColdlineDiscountedCosts,
+    SUM(IF (ServiceDescription = "Cloud Storage" AND SkuDescription LIKE "%Coldline Storage%",
+        UsageAmount,
+        0.0)) AS GcpFwStorageColdlineGB,
+
+
+    # Labeled
+    SUM(IF (    `Group` IS NULL,
+            DiscountedCosts,
+            0.0)) AS GcpFwUnLblDiscountedCosts,
+
+    SUM(IF (    `Group` IS NOT NULL,
+            DiscountedCosts,
+            0.0)) AS GcpFwLblDiscountedCosts,
+
+    SUM(IF (    `Group` IS NOT NULL
+    	    AND ServiceDescription = "Compute Engine",
+            DiscountedCosts,
+            0.0)) AS GcpFwLblComputeDiscountedCosts,
+
+    SUM(IF (    `Group` IS NOT NULL
+    	    AND ServiceDescription = "Cloud Storage",
+            DiscountedCosts,
+            0.0)) AS GcpFwLblStorageDiscountedCosts,
+
+    SUM(IF (    `Group` IS NOT NULL
+            AND ServiceDescription != "Compute Engine"
+    	    AND ServiceDescription != "Cloud Storage",
+            DiscountedCosts,
+            0.0)) AS GcpFwLblMiscDiscountedCosts,
+
+    SUM(IF (    `Group` IS NOT NULL
+            AND ServiceDescription = "Compute Engine"
+	    AND (
+       	    	      SkuDescription NOT LIKE "%Instance Core%"
+                  AND SkuDescription NOT LIKE "%Small Instance%"
+                  AND SkuDescription NOT LIKE "%PD Capacity%"
+                  AND SkuDescription NOT LIKE "%PD Snapshot%"
+                  AND SkuDescription NOT LIKE "%Instance Ram%"
+	    ),
+            DiscountedCosts,
+            0.0)) AS GcpFwLblComputeMiscDiscountedCosts,
+
+    SUM(IF (    `Group` IS NOT NULL
+            AND ServiceDescription = "Compute Engine"
+	    AND (
+        	    	     SkuDescription LIKE "%Instance Core%"
+                          OR SkuDescription LIKE "%Small Instance%"
+                          OR SkuDescription LIKE "%PD Capacity%"
+                          OR SkuDescription LIKE "%PD Snapshot%"
+                          OR SkuDescription LIKE "%Instance Ram%"
+	    ),
+            DiscountedCosts,
+            0.0)) AS GcpFwLblComputeVmDiscountedCosts,
+    SUM(IF (    ServiceDescription = "Compute Engine"
+            AND `Group` IS NOT NULL
+	    AND SkuDescription LIKE "%Instance Core%",
+            DiscountedCosts,
+            0.0)) AS GcpFwLblComputeCoreDiscountedCosts,
+    SUM(IF (    ServiceDescription = "Compute Engine"
+            AND `Group` IS NOT NULL
+	    AND SkuDescription LIKE "%Instance Core%",
+            UsageAmount,
+            0.0)) AS GcpFwLblComputeCoreCpuHours,
+
+
+    # As of 12/2021, Flywheel lumps all labeled storage into flywheel-static
+    # only compute costs seem to be labeled with non-flywheel static labels
+
+    # 
+    # LblStatic
+    SUM(IF (    ServiceDescription = "Compute Engine"
+            AND `Group` = "flywheel-static"
+		    AND (
+        	    	     SkuDescription LIKE "%Instance Core%"
+                          OR SkuDescription LIKE "%Small Instance%"
+                          OR SkuDescription LIKE "%PD Capacity%"
+                          OR SkuDescription LIKE "%PD Snapshot%"
+                          OR SkuDescription LIKE "%Instance Ram%"
+			    ),
+            DiscountedCosts,
+            0.0)) AS GcpFwLblStaticComputeVmDiscountedCosts,
+
+    SUM(IF (     ServiceDescription = "Compute Engine"
+            AND `Group` IS NOT NULL AND `Group` = "flywheel-static"
+	    AND (
+        	    	      SkuDescription NOT LIKE "%Instance Core%"
+                          AND SkuDescription NOT LIKE "%Small Instance%"
+                          AND SkuDescription NOT LIKE "%PD Capacity%"
+                          AND SkuDescription NOT LIKE "%PD Snapshot%"
+                          AND SkuDescription NOT LIKE "%Instance Ram%"
+			    ),
+            DiscountedCosts,
+            0.0)) AS GcpFwLblStaticComputeMiscDiscountedCosts,
+
+    SUM(IF (    ServiceDescription = "Compute Engine"
+            AND `Group` = "flywheel-static"
+	    AND SkuDescription LIKE "%Instance Core%",
+            DiscountedCosts,
+            0.0)) AS GcpFwLblStaticComputeCoreDiscountedCosts,
+
+    SUM(IF (    ServiceDescription = "Compute Engine"
+            AND `Group` = "flywheel-static"
+	    AND SkuDescription LIKE "%Instance Core%",
+            UsageAmount,
+            0.0)) AS GcpFwLblStaticComputeCoreCpuHours,
+
+    # LblDynamic
+    SUM(IF (     ServiceDescription = "Compute Engine"
+            AND `Group` IS NOT NULL AND `Group` != "flywheel-static"
+	    AND (
+        	    	     SkuDescription LIKE "%Instance Core%"
+                          OR SkuDescription LIKE "%Small Instance%"
+                          OR SkuDescription LIKE "%PD Capacity%"
+                          OR SkuDescription LIKE "%PD Snapshot%"
+                          OR SkuDescription LIKE "%Instance Ram%"
+			    ),
+            DiscountedCosts,
+            0.0)) AS GcpFwLblDynamicComputeVmDiscountedCosts,
+
+    SUM(IF (     ServiceDescription = "Compute Engine"
+            AND `Group` IS NOT NULL AND `Group` != "flywheel-static"
+	    AND (
+        	    	      SkuDescription NOT LIKE "%Instance Core%"
+                          AND SkuDescription NOT LIKE "%Small Instance%"
+                          AND SkuDescription NOT LIKE "%PD Capacity%"
+                          AND SkuDescription NOT LIKE "%PD Snapshot%"
+                          AND SkuDescription NOT LIKE "%Instance Ram%"
+			    ),
+            DiscountedCosts,
+            0.0)) AS GcpFwLblDynamicComputeMiscDiscountedCosts,
+
+    SUM(IF (    ServiceDescription = "Compute Engine"
+            AND `Group` IS NOT NULL AND `Group` != "flywheel-static"
+	    AND SkuDescription LIKE "%Instance Core%",
+            DiscountedCosts,
+            0.0)) AS GcpFwLblDynamicComputeCoreDiscountedCosts,
+    SUM(IF (    ServiceDescription = "Compute Engine"
+            AND `Group` IS NOT NULL AND `Group` != "flywheel-static"
+	    AND SkuDescription LIKE "%Instance Core%",
+            UsageAmount,
+            0.0)) AS GcpFwLblDynamicComputeCpuHours,
+   
+FROM
+  `'"${Project}.${Dataset}.TempGcpFlywheelCosts"'`
+GROUP BY
+     InvoiceMonth,
+     `Group`
+ORDER BY
+     InvoiceMonth,
+     `Group`
+
+;
+
+# 3
 CREATE OR REPLACE TABLE 
        `'"${Project}.${Dataset}.TempFwProjectJobReport"'`
 AS 
@@ -42,7 +358,8 @@ AS
       invoice_month AS InvoiceMonth,
       `group` AS `Group`,
       project AS Project,
-    gear_name AS GearName,
+      gear_name AS GearName,
+      SUM( IF(initial_analysis, 1, 0)) AS InitialAnalysis,
       SUM((job_elapsed_time_ms * gcp_cpus) / 1000.0/3600.0) AS FwProjectGearCpuHours
     FROM
       `'"${Project}.${Dataset}.FwJobsReport"'`
@@ -60,214 +377,436 @@ AS
       GearName
 ;
 
-# 2
+# 4
+# *** Invoice, Group, Projects may have duplicates when a project gets deleted (true) and re
+#     created with the same name.
+#     For now, Summing the amount for both and saying project has not been deleted
+# *** Deleted missing
 CREATE OR REPLACE TABLE 
 `'"${Project}.${Dataset}.TempFwProjectUsageReport"'`
 AS
     SELECT
-      invoice_month AS InvoiceMonth,
-      `group` AS `Group`,
-      project_label AS Project,
-      deleted as Deleted,
-      SUM((total_storage_byte_day / days) / 1024.0 / 1024.0 / 1024.0) AS FwProjectStorageGB,
-    FROM
-      `'"${Project}.${Dataset}.FwUsageReport"'`
-    WHERE
-      invoice_month = @InvoiceMonth
-      AND project_label IS NOT NULL
-    GROUP BY
-      InvoiceMonth,
-      `Group`,
-      Project,
-      deleted
-    ORDER BY
-      InvoiceMonth,
-      `Group`,
-      Project
-;
-
-# 3
-CREATE OR REPLACE TABLE 
-`'"${Project}.${Dataset}.TempFwProjectJobsAndUsageReport"'`
-AS
-SELECT
-    *,
-    FwProjectCpuHours / FwTotalCpuHours AS FwProjectCpuRatio,
-    FwProjectStorageGB / FwTotalStorageGB AS FwProjectStorageRatio,
-FROM (
-SELECT
-    *,
-    (
-    SELECT
-      SUM(FwProjectGearCpuHours)
-    FROM
-      `pennbrain-center.BillingAllocation.TempFwProjectJobReport` ) AS FwTotalCpuHours,
-    (
-    SELECT
-      SUM(FwProjectStorageGB),
-    FROM
-      `pennbrain-center.BillingAllocation.TempFwProjectUsageReport` ) AS FwTotalStorageGB,
-FROM (
-    SELECT
-        *
-      
+        InvoiceMonth,
+        `Group`,
+        Project,
+	SUM(FwProjectStorageGB) AS FwProjectStorageGB,
+	SUM(FwProjectDeletedStorageGB) AS FwProjectDeletedStorageGB,
+	SUM(FwProjectActiveStorageGB) AS FwProjectActiveStorageGB,
     FROM (
-      SELECT
-      IF
-        (FwProjectJobReport.InvoiceMonth IS NOT NULL,
-          FwProjectJobReport.InvoiceMonth,
-          FwProjectUsageReport.InvoiceMonth) AS InvoiceMonth,
-      IF
-        (FwProjectJobReport.Group IS NOT NULL,
-          FwProjectJobReport.Group,
-          FwProjectUsageReport.Group) AS `Group`,
-      IF
-        (FwProjectJobReport.Project IS NOT NULL,
-          FwProjectJobReport.Project,
-          FwProjectUsageReport.Project) AS Project,
-      IF
-        (FwProjectUsageReport.deleted IS NOT NULL,
-          FwProjectUsageReport.deleted,
-          FALSE) AS Deleted,
-      IF
-        (FwProjectJobReport.FwProjectCpuHours IS NOT NULL,
-          FwProjectJobReport.FwProjectCpuHours,
-          0.0) AS FwProjectCpuHours,
-      IF
-        (FwProjectUsageReport.FwProjectStorageGB IS NOT NULL,
-          FwProjectUsageReport.FwProjectStorageGB,
-          0.0) AS FwProjectStorageGB,
-      FROM 
-          `'"${Project}.${Dataset}.TempFwProjectUsageReport"'` FwProjectUsageReport
-      FULL OUTER JOIN (
-        SELECT 
+        SELECT
+          invoice_month AS InvoiceMonth,
+          `group` AS `Group`,
+          project_label AS Project,
+          SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0) AS FwProjectStorageGB,
+          IF (t.deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectDeletedStorageGB,
+          IF (NOT t.deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectActiveStorageGB
+        FROM
+          `'"${Project}.${Dataset}.FwUsageReport"'` t
+        WHERE
+          invoice_month = @InvoiceMonth
+          AND project_label IS NOT NULL
+        GROUP BY
             InvoiceMonth,
             `Group`,
             Project,
-            SUM(FwProjectGearCpuHours) AS FwProjectCpuHours
-    
-        FROM
-            `'"${Project}.${Dataset}.TempFwProjectJobReport"'`
-            GROUP BY 
-                    InvoiceMonth,
+	    deleted
+        ORDER BY
+            InvoiceMonth,
             `Group`,
             Project
-            
-        ) FwProjectJobReport
-      ON
-        FwProjectJobReport.InvoiceMonth = FwProjectUsageReport.InvoiceMonth
-        AND FwProjectJobReport.Group = FwProjectUsageReport.Group
-        AND FwProjectJobReport.Project = FwProjectUsageReport.Project )
+    )
+    GROUP BY
+            InvoiceMonth,
+            `Group`,
+            Project
     ORDER BY
-      InvoiceMonth,
-      `Group`,
-      Project
-)
+            InvoiceMonth,
+            `Group`,
+            Project
+
+;
+
+SET FwTotalCpuHours = (
+    SELECT 
+        SUM(FwProjectGearCpuHours) 
+    FROM
+        `'"${Project}.${Dataset}.TempFwProjectJobReport"'`
+
 )
 ;
 
-# 4
-CREATE OR REPLACE TABLE
-  `'"${Project}.${Dataset}.TempGcpGroupFlywheelCosts"'`
-AS
-SELECT
-  InvoiceMonth,
-  FlywheelGroupName AS `Group`,
-  ServiceDescription,
-  SkuDescription,
-    Costs + Discounts AS DiscountedCosts,
-
-  UsageAmountInPricingUnits AS UsageAmounts
-FROM
-  `'"${Project}.${Dataset}.FlywheelCosts"'`
-WHERE
-  InvoiceMonth = @InvoiceMonth
-;
+SET FwTotalStorageGB = (
+    SELECT 
+        SUM(FwProjectStorageGB) 
+    FROM
+        `'"${Project}.${Dataset}.TempFwProjectUsageReport"'`
+);
 
 
 # 5
-CREATE OR REPLACE TABLE
-  `'"${Project}.${Dataset}.TempGcpGroupNumbers"'`
+CREATE OR REPLACE TABLE 
+    `'"${Project}.${Dataset}.TempFwProjectJobAndUsageReport"'`
 AS
-SELECT
-    InvoiceMonth,
-    `Group`,
-    SUM(IF (ServiceDescription = "Compute Engine",
-        DiscountedCosts,
-        0.0)) AS GcpFwComputeDiscountedCosts,  
-    SUM(IF (ServiceDescription = "Compute Engine" AND SkuDescription LIKE "%Instance Core%",
-        DiscountedCosts,
-        0.0)) AS GcpFwComputeCoreDiscountedCosts,
-    SUM(IF (ServiceDescription = "Compute Engine" AND SkuDescription LIKE "%PD Capacity%",
-        DiscountedCosts,
-        0.0)) AS GcpFwComputeDiskDiscountedCosts,
-    SUM(IF (        ServiceDescription = "Compute Engine"                   
-                AND SkuDescription NOT LIKE "%Instance Core%"
-                AND SkuDescription NOT LIKE "%Small Instance%"
-                AND SkuDescription NOT LIKE "%PD Capacity%"
-                AND SkuDescription NOT LIKE "%Instance Ram%" ,
-        DiscountedCosts,
-        0.0)) AS GcpFwComputeMiscDiscountedCosts,
-    SUM(IF (ServiceDescription = "Compute Engine" AND SkuDescription LIKE "%Instance Ram%",
-        DiscountedCosts,
-        0.0)) AS GcpFwComputeRamDiscountedCosts,
-    SUM(IF (ServiceDescription != "Compute Engine" AND ServiceDescription != "Cloud Storage",
-        DiscountedCosts,
-        0.0)) AS GcpFwMiscDiscountedCosts,
-    SUM(IF (ServiceDescription = "Kubernetes",
-        DiscountedCosts,
-        0.0)) AS GcpFwKubernetesDiscountedCosts,
-    SUM(IF (ServiceDescription = "Cloud Storage",
-        DiscountedCosts,
-        0.0)) AS GcpFwStorageCosts,
-    SUM(IF (ServiceDescription = "Cloud Storage" AND SkuDescription LIKE "%Coldline Storage%",
-        DiscountedCosts,
-        0.0)) AS GcpFwStorageColdlineDiscountedCosts,
-    SUM(IF (ServiceDescription = "Cloud Storage" AND SkuDescription LIKE "%Standard Storage%",
-        DiscountedCosts,
-        0.0)) AS GcpFwStorageStandardDiscountedCosts,
-    SUM(IF (    ServiceDescription = "Cloud Storage" 
-            AND ServiceDescription NOT LIKE "%Coldline Storage%"
-            AND ServiceDescription NOT LIKE "%Standard Storage%",
-        DiscountedCosts,
-        0.0)) AS GcpFwStorageMiscDiscountedCosts,
-    SUM(IF (    ServiceDescription = "Compute Engine"
-		    AND (
-        	    	     SkuDescription LIKE "%Instance Core%"
-                          OR SkuDescription LIKE "%Small Instance%"
-                          OR SkuDescription LIKE "%PD Capacity%"
-                          OR SkuDescription LIKE "%PD Snapshot%"
-                          OR SkuDescription LIKE "%Instance Ram%"
-			    ),
-            DiscountedCosts,
-            0.0)) AS GcpFwVmDiscountedCosts,
-    SUM(IF (    ServiceDescription = "Compute Engine"
-            AND `Group` = "flywheel-static"
-		    AND (
-        	    	     SkuDescription LIKE "%Instance Core%"
-                          OR SkuDescription LIKE "%Small Instance%"
-                          OR SkuDescription LIKE "%PD Capacity%"
-                          OR SkuDescription LIKE "%PD Snapshot%"
-                          OR SkuDescription LIKE "%Instance Ram%"
-			    ),
-            DiscountedCosts,
-            0.0)) AS GcpFwVmStaticDiscountedCosts,
-    SUM(IF (    ServiceDescription = "Compute Engine"
-            AND `Group` = "flywheel-static"
-		    AND SkuDescription LIKE "%Instance Core%",
-            DiscountedCosts,
-            0.0)) AS GcpFwVmStaticCoreDiscountedCosts,
-    SUM(IF (    ServiceDescription = "Compute Engine"
-		    AND SkuDescription LIKE "%Instance Core%",
-            DiscountedCosts,
-            0.0)) AS GcpFwVmCoreDiscountedCosts,
-FROM
-  `'"${Project}.${Dataset}.TempGcpGroupFlywheelCosts"'`
-GROUP BY
-      InvoiceMonth,
-    `Group`
-    ;
+    SELECT 
+        IF (FwGroupProjectCpuHours.InvoiceMonth IS NOT NULL, FwGroupProjectCpuHours.InvoiceMonth, FwGroupProjectStorageGB.InvoiceMonth) AS InvoiceMonth ,
+        IF (FwGroupProjectCpuHours.Group IS NOT NULL, FwGroupProjectCpuHours.Group, FwGroupProjectStorageGB.Group) AS `Group`,
+        IF (FwGroupProjectCpuHours.Project IS NOT NULL, FwGroupProjectCpuHours.Project, FwGroupProjectStorageGB.Project) AS Project,
+        
+        IF (FwGroupProjectCpuHours.FwProjectInitialAnalysis IS NOT NULL,FwGroupProjectCpuHours.FwProjectInitialAnalysis, 0.0) AS FwProjectInitialAnalysis,
+
+        IF (FwGroupProjectCpuHours.FwProjectCpuHours IS NOT NULL, FwGroupProjectCpuHours.FwProjectCpuHours, 0.0) AS FwProjectCpuHours,
+
+        IF (FwProjectStorageGB IS NOT NULL, FwProjectStorageGB, 0.0) AS FwProjectStorageGB,
+        IF (FwProjectDeletedStorageGB IS NOT NULL, FwProjectDeletedStorageGB, 0.0) AS FwProjectDeletedStorageGB,
+        IF (FwProjectActiveStorageGB IS NOT NULL, FwProjectActiveStorageGB, 0.0) AS FwProjectActiveStorageGB,
+
+        IF (FwGroupProjectCpuHours.FwProjectToGroupCpuHoursRatio IS NOT NULL, FwGroupProjectCpuHours.FwProjectToGroupCpuHoursRatio, 0.0) AS FwProjectToGroupCpuHoursRatio,
+
+	IF ( FwGroupProjectCpuHours.FwProjectCpuHours IS NOT NULL, 
+	     FwGroupProjectCpuHours.FwProjectCpuHours / FwTotalCpuHours,
+	     0.0) AS FwProjectToTotalCpuHoursRatio,
+	IF ( FwGroupProjectStorageGB.FwProjectStorageGB IS NOT NULL,
+	     FwGroupProjectStorageGB.FwProjectStorageGB / FwTotalStorageGB,
+	     0.0) AS FwProjectToTotalStorageGBRatio,
+
+    FROM (
+        # Do FwGroupProject with cpu hours and ratios
+        SELECT
+          t1.InvoiceMonth,
+          t1.Group,
+          t1.Project,
+          t1.FwProjectInitialAnalysis,
+          t1.FwProjectCpuHours as FwProjectCpuHours,
+          t2.FwGroupCpuHours as FwGroupCpuHours,
+
+          IF (      t2.FwGroupCpuHours IS NOT NULL
+	       AND  t2.FwGroupCpuHours != 0.0
+	       AND  t1.FwProjectCpuHours IS NOT NULL,
+	       t1.FwProjectCpuHours / t2.FwGroupCpuHours, 0.0) AS FwProjectToGroupCpuHoursRatio
+    
+        FROM (
+            SELECT
+                InvoiceMonth,
+                `Group`,
+                Project,
+    	        SUM(InitialAnalysis) AS FwProjectInitialAnalysis,
+                SUM(FwProjectGearCpuHours) AS FwProjectCpuHours,
+            FROM 
+#		 `pennbrain-center.BillingAllocation.TempFwProjectJobReport`
+                    `'"${Project}.${Dataset}.TempFwProjectJobReport"'` t1
+            GROUP BY 
+                    InvoiceMonth,
+                    `Group`,
+                    Project
+            ORDER BY 
+                    InvoiceMonth,
+                    `Group`,
+                    Project
+            ) t1
+        LEFT JOIN (
+        	 SELECT
+       	             InvoiceMonth,
+    	             `Group`,
+    	             SUM(FwProjectGearCpuHours) AS FwGroupCpuHours
+    	         FROM
+#		 `pennbrain-center.BillingAllocation.TempFwProjectJobReport`
+                 `'"${Project}.${Dataset}.TempFwProjectJobReport"'`
+    
+    	         GROUP BY
+    	             InvoiceMonth,
+     	            `Group`
+             ) t2
+        ON
+    	        t1.InvoiceMonth = t2.InvoiceMonth
+    	    AND t1.Group = t2.Group
+    
+    ) FwGroupProjectCpuHours
+
+    FULL OUTER JOIN (
+        SELECT
+          InvoiceMonth AS InvoiceMonth,
+          `Group` AS `Group`,
+          Project AS Project,
+          FwProjectStorageGB AS FwProjectStorageGB,
+	  FwProjectDeletedStorageGB AS FwProjectDeletedStorageGB,
+	  FwProjectActiveStorageGB AS FwProjectActiveStorageGB,
+    
+        FROM 
+#		 `pennbrain-center.BillingAllocation.TempFwProjectJobReport`
+                 `'"${Project}.${Dataset}.TempFwProjectUsageReport"'` t3
+    
+    ) FwGroupProjectStorageGB
+    ON 
+            FwGroupProjectCpuHours.InvoiceMonth = FwGroupProjectStorageGB.InvoiceMonth
+        AND FwGroupProjectCpuHours.Group = FwGroupProjectStorageGB.Group
+    	AND FwGroupProjectCpuHours.Project = FwGroupProjectStorageGB.Project
+    ORDER BY
+        InvoiceMonth,
+        `Group`,
+        Project
+;
+
+# 6
+CREATE OR REPLACE TABLE
+  `'"${Project}.${Dataset}.TempGcpFwJobUsageTotals"'`
+AS
+    SELECT
+        t1.InvoiceMonth,
+        t1.`Group`,
+        t1.Project,
+
+	FwProjectToTotalCpuHoursRatio,
+        FwProjectToTotalStorageGBRatio,
+	FwProjectCpuHours,
+	FwProjectStorageGB,
+	FwProjectDeletedStorageGB,
+	FwProjectActiveStorageGB,
+
+        GcpFwDiscountedCosts,
+
+        GcpFwTotalComputeDiscountedCosts,
+        GcpFwTotalComputeMiscDiscountedCosts,
+        GcpFwTotalComputeVmDiscountedCosts,
+        GcpFwTotalComputeCoreDiscountedCosts,
+        GcpFwTotalComputeCoreCpuHours,
+
+        GcpFwTotalMiscDiscountedCosts,
+        GcpFwTotalKubernetesDiscountedCosts,
+
+        GcpFwTotalStorageDiscountedCosts,
+        GcpFwTotalStorageGB,
+        GcpFwTotalStorageStandardDiscountedCosts,
+        GcpFwTotalStorageStandardGB,
+        GcpFwTotalStorageMiscDiscountedCosts,
+        GcpFwTotalStorageColdlineDiscountedCosts,
+        GcpFwTotalStorageColdlineGB,
+
+        GcpFwTotalUnLblDiscountedCosts,
+
+    FROM
+        `'"${Project}.${Dataset}.TempFwProjectJobAndUsageReport"'` t1
+    LEFT JOIN (
+        SELECT 
+             InvoiceMonth,
+    
+             SUM(GcpFwDiscountedCosts) AS GcpFwDiscountedCosts,
+
+             SUM(GcpFwComputeDiscountedCosts) AS GcpFwTotalComputeDiscountedCosts,
+             SUM(GcpFwComputeMiscDiscountedCosts) AS GcpFwTotalComputeMiscDiscountedCosts,
+             SUM(GcpFwComputeVmDiscountedCosts) AS GcpFwTotalComputeVmDiscountedCosts,
+             SUM(GcpFwComputeCoreDiscountedCosts) AS GcpFwTotalComputeCoreDiscountedCosts,
+             SUM(GcpFwComputeCoreCpuHours) AS GcpFwTotalComputeCoreCpuHours,
+
+             SUM(GcpFwMiscDiscountedCosts) AS GcpFwTotalMiscDiscountedCosts,
+             SUM(GcpFwKubernetesDiscountedCosts) AS GcpFwTotalKubernetesDiscountedCosts,
+
+             SUM(GcpFwStorageDiscountedCosts) AS GcpFwTotalStorageDiscountedCosts,
+             SUM(GcpFwStorageGB) AS GcpFwTotalStorageGB,
+             SUM(GcpFwStorageStandardDiscountedCosts) AS GcpFwTotalStorageStandardDiscountedCosts,
+             SUM(GcpFwStorageStandardGB) AS GcpFwTotalStorageStandardGB,
+             SUM(GcpFwStorageMiscDiscountedCosts) AS GcpFwTotalStorageMiscDiscountedCosts,
+             SUM(GcpFwStorageColdlineDiscountedCosts) AS GcpFwTotalStorageColdlineDiscountedCosts,
+             SUM(GcpFwStorageColdlineGB) AS GcpFwTotalStorageColdlineGB,
+
+             SUM(GcpFwUnLblDiscountedCosts) AS GcpFwTotalUnLblDiscountedCosts,
+
+       FROM
+#           `pennbrain-center.BillingAllocation.TempGcpFwTotals` 
+            `'"${Project}.${Dataset}.TempGcpFwTotals"'`
+        # *** only non-null groups will appear in the left JOIN
+        WHERE
+            `Group` IS NOT NULL
+        GROUP BY
+            InvoiceMonth
+
+    ) t2
+    ON
+        t1.InvoiceMonth = t2.InvoiceMonth
+
+    ORDER BY
+        InvoiceMonth,
+	`Group`,
+	Project
+;
+
+# 7
+CREATE OR REPLACE TABLE
+    `'"${Project}.${Dataset}.TempGcpFwJobUsageGroupTotals"'`
+AS
+    SELECT 
+        t1.InvoiceMonth,
+        t1.`Group`,
+        t1.Project,
+
+        FwProjectInitialAnalysis,
+
+	FwProjectToGroupCpuHoursRatio,
+
+        GcpFwLblGroupDiscountedCosts,
+
+        GcpFwLblGroupComputeDiscountedCosts,
+        GcpFwLblGroupStorageDiscountedCosts,
+        GcpFwLblGroupMiscDiscountedCosts,
+
+        GcpFwLblGroupComputeMiscDiscountedCosts,
+        GcpFwLblGroupComputeVmDiscountedCosts,
+        GcpFwLblGroupComputeCoreDiscountedCosts,
+        GcpFwLblGroupComputeCoreCpuHours,
+
+        GcpFwLblGroupStaticComputeVmDiscountedCosts,
+        GcpFwLblGroupStaticComputeMiscDiscountedCosts,
+        GcpFwLblGroupStaticComputeCoreDiscountedCosts,
+        GcpFwLblGroupStaticComputeCoreCpuHours,
+
+        GcpFwLblGroupDynamicComputeVmDiscountedCosts,
+        GcpFwLblGroupDynamicComputeMiscDiscountedCosts,
+        GcpFwLblGroupDynamicComputeCoreDiscountedCosts,
+        GcpFwLblGroupDynamicComputeCpuHours,
+
+    FROM 
+#        `pennbrain-center.BillingAllocation.` 
+        `'"${Project}.${Dataset}.TempFwProjectJobAndUsageReport"'`
+	t1
+    LEFT JOIN (
+        SELECT
+	    InvoiceMonth,
+	    `Group`,
+
+	    SUM(GcpFwLblDiscountedCosts) AS GcpFwLblGroupDiscountedCosts,
+
+	    SUM(GcpFwLblComputeDiscountedCosts) AS GcpFwLblGroupComputeDiscountedCosts,
+	    SUM(GcpFwLblStorageDiscountedCosts) AS GcpFwLblGroupStorageDiscountedCosts,
+	    SUM(GcpFwLblMiscDiscountedCosts) AS GcpFwLblGroupMiscDiscountedCosts,
+
+	    SUM(GcpFwLblComputeMiscDiscountedCosts) AS GcpFwLblGroupComputeMiscDiscountedCosts,
+	    SUM(GcpFwLblComputeVmDiscountedCosts) AS GcpFwLblGroupComputeVmDiscountedCosts,
+	    SUM(GcpFwLblComputeCoreDiscountedCosts) AS GcpFwLblGroupComputeCoreDiscountedCosts,
+	    SUM(GcpFwLblComputeCoreCpuHours) AS GcpFwLblGroupComputeCoreCpuHours,
+
+	    SUM(GcpFwLblStaticComputeVmDiscountedCosts) AS GcpFwLblGroupStaticComputeVmDiscountedCosts,
+	    SUM(GcpFwLblStaticComputeMiscDiscountedCosts) AS GcpFwLblGroupStaticComputeMiscDiscountedCosts,
+	    SUM(GcpFwLblStaticComputeCoreDiscountedCosts) AS GcpFwLblGroupStaticComputeCoreDiscountedCosts,
+	    SUM(GcpFwLblStaticComputeCoreCpuHours) AS GcpFwLblGroupStaticComputeCoreCpuHours,
+
+	    SUM(GcpFwLblDynamicComputeVmDiscountedCosts) AS GcpFwLblGroupDynamicComputeVmDiscountedCosts,
+	    SUM(GcpFwLblDynamicComputeMiscDiscountedCosts) AS GcpFwLblGroupDynamicComputeMiscDiscountedCosts,
+	    SUM(GcpFwLblDynamicComputeCoreDiscountedCosts) AS GcpFwLblGroupDynamicComputeCoreDiscountedCosts,
+	    SUM(GcpFwLblDynamicComputeCpuHours) AS GcpFwLblGroupDynamicComputeCpuHours,
+
+        FROM
+#            `pennbrain-center.BillingAllocation.TempGcpFwTotals`
+             `'"${Project}.${Dataset}.TempGcpFwTotals"'`
+	WHERE
+	    `Group` IS NOT NULL
+
+        GROUP BY
+	    InvoiceMonth,
+	    `Group`
+	
+        ORDER BY
+	    InvoiceMonth,
+	    `Group`
+	
+    ) t2
+
+    ON
+            t1.InvoiceMonth = t2.InvoiceMonth
+        AND t1.Group        = t2.Group
+
+    ORDER BY 
+        t1.InvoiceMonth,
+        t1.Group,
+        t1.Project
+;
+ 
+# 8
+CREATE OR REPLACE TABLE
+  `'"${Project}.${Dataset}.TempGcpFwBillingTable"'`
+AS
+    SELECT
+	IF (jugt.InvoiceMonth IS NOT NULL, jugt.InvoiceMonth, jut.InvoiceMonth) AS InvoiceMonth,
+
+	jugt.`Group`,
+	jugt.Project,
+       
+	FwProjectInitialAnalysis,
+
+	FwProjectToGroupCpuHoursRatio,
+	FwProjectToTotalCpuHoursRatio,
+	FwProjectToTotalStorageGBRatio,
+
+	FwProjectCpuHours,
+	FwProjectStorageGB,
+	FwProjectDeletedStorageGB,
+	FwProjectActiveStorageGB,
+
+#	GcpFwLblDiscountedCosts,
+
+#	GcpFwLblComputeMiscDiscountedCosts,
+#	GcpFwLblComputeVmDiscountedCosts,
+#	GcpFwLblComputeCoreDiscountedCosts,
+#	GcpFwLblComputeCoreCpuHours,
+
+	# From totals
+
+        GcpFwDiscountedCosts * FwProjectToTotalCpuHoursRatio AS AllocatedTotalDiscountedCost,
+
+        GcpFwTotalComputeDiscountedCosts * FwProjectToTotalCpuHoursRatio AS AllocatedTotalComputeDiscountedCosts,
+        GcpFwTotalComputeMiscDiscountedCosts * FwProjectToTotalCpuHoursRatio AS AllocatedTotalComputeMiscDiscountedCosts,
+        GcpFwTotalComputeVmDiscountedCosts * FwProjectToTotalCpuHoursRatio AS AllocatedTotalComputeVmDiscountedCosts,
+        GcpFwTotalComputeCoreDiscountedCosts * FwProjectToTotalCpuHoursRatio AS AllocatedTotalComputeCoreDiscountedCosts,
+        GcpFwTotalComputeCoreCpuHours * FwProjectToTotalCpuHoursRatio AS AllocatedTotalComputeCoreCpuHours,
+
+        GcpFwTotalMiscDiscountedCosts * FwProjectToTotalCpuHoursRatio AS AllocatedTotalMiscDiscountedCosts,
+        GcpFwTotalKubernetesDiscountedCosts * FwProjectToTotalCpuHoursRatio AS AllocatedTotalKubernetesDiscountedCosts,
+
+        GcpFwTotalStorageDiscountedCosts * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageDiscountedCosts,
+        GcpFwTotalStorageGB * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageGB,
+        GcpFwTotalStorageStandardDiscountedCosts * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageStandardDiscountedCosts,
+        GcpFwTotalStorageStandardGB * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageStandardGB,
+        GcpFwTotalStorageMiscDiscountedCosts * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageMiscDiscountedCosts,
+        GcpFwTotalStorageColdlineDiscountedCosts * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageColdlineDiscountedCosts,
+        GcpFwTotalStorageColdlineGB * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageColdlineGB,
+
+	# Allocate by ProjectToGroupCpuHoursRatio
+        GcpFwLblGroupDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupDiscountedCosts,
+
+        GcpFwLblGroupComputeDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupComputeDiscountedCosts,
+        GcpFwLblGroupStorageDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStorageDiscountedCosts,
+        GcpFwLblGroupMiscDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupMiscDiscountedCosts,
+
+        GcpFwLblGroupComputeMiscDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupComputeMiscDiscountedCosts,
+        GcpFwLblGroupComputeVmDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupComputeVmDiscountedCosts,
+        GcpFwLblGroupComputeCoreDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupComputeCoreDiscountedCosts,
+        GcpFwLblGroupComputeCoreCpuHours * FwProjectToGroupCpuHoursRatio AS AllocatedGroupComputeCoreCpuHours,
+
+        GcpFwLblGroupStaticComputeVmDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStaticComputeVmDiscountedCosts,
+        GcpFwLblGroupStaticComputeMiscDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStaticComputeMiscDiscountedCosts,
+        GcpFwLblGroupStaticComputeCoreDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStaticComputeCoreDiscountedCosts,
+        GcpFwLblGroupStaticComputeCoreCpuHours * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStaticComputeCoreCpuHours,
+
+        GcpFwLblGroupDynamicComputeVmDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupDynamicComputeVmDiscountedCosts,
+        GcpFwLblGroupDynamicComputeMiscDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupDynamicComputeMiscDiscountedCosts,
+        GcpFwLblGroupDynamicComputeCoreDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupDynamicComputeCoreDiscountedCosts,
+
+        GcpFwLblGroupDynamicComputeCpuHours * FwProjectToGroupCpuHoursRatio AS AllocatedGroupDynamicComputeCpuHours,
 
 
+    FROM
+        `'"${Project}.${Dataset}.TempGcpFwJobUsageGroupTotals"'` jugt
+    FULL OUTER JOIN
+        `'"${Project}.${Dataset}.TempGcpFwJobUsageTotals"'` jut
+      
+    ON
+	jugt.InvoiceMonth = jut.InvoiceMonth
+	AND jugt.Group = jut.Group
+	AND jugt.Project = jut.Project
+
+    ORDER BY
+        InvoiceMonth,
+	`Group`,
+	Project
+;
 
 '
+
