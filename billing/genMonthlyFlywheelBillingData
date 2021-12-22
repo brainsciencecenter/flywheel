@@ -72,6 +72,9 @@ Args+=( -d "${Dataset}" )
 Args+=( -m "${Month}" )
 Args+=( -y "${Year}" )
 
+[ -n "$opt_v" ] && Args+=( -v )
+
+
 createCostsTable -o GcpNonFlywheelCosts -w 'project.name != "upenn-flywheel"' -m "${Month}" -y "${Year}"
 createCostsTable -o FlywheelCosts -w 'project.name = "upenn-flywheel"' -m "${Month}" -y "${Year}"
 #sys createFlywheelCostsTable "${Args[@]}"
@@ -103,8 +106,10 @@ then
 else
     sys uploadUsageReport "${Args[@]}"
 fi
-sys calculateMonthlyFlywheelTotals "${Args[@]}" 
 
+#sys calculateMonthlyFlywheelTotals "${Args[@]}" 
+
+sys createTempTables "${Args[@]}" 
 sys allocateProjectCosts "${Args[@]}" 
 sys allocateProjectGearCosts "${Args[@]}" 
 

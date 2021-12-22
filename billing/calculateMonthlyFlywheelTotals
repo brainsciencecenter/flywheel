@@ -2,12 +2,21 @@
 
 CmdName=$(basename "$0")
 
-syntax="${CmdName} [-d Dataset][-p Project] {-m Month} {-y Year}"
+syntax="${CmdName} [-d Dataset][-p Project][-v] {-m Month} {-y Year}"
 
-while getopts d:m:p:y: arg
+function OutputControl {
+    if [ -n "$opt_v" ]
+    then
+	cat
+    else
+	cat > /dev/null
+    fi
+}
+
+while getopts d:m:p:vy: arg
 do
 	case "$arg" in
-		d|m|p|y)
+		d|m|p|v|y)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -290,4 +299,4 @@ VALUES(
     ;
 
  
-'
+' | OutputControl

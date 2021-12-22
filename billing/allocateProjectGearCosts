@@ -168,14 +168,14 @@ INSERT
             SUM(FwGroupGearCpuHours) AS FwGroupGearCpuHours,
             SUM(FwProjectGearCpuHours / FwGroupGearCpuHours) AS GearToGroupCpuRatio
         FROM
-            `pennbrain-center.BillingAllocation.TempFwProjectJobReport` tfpjr
+            `'"${Project}.${Dataset}.TempFwProjectJobReport"'` tfpjr
         LEFT JOIN (
             SELECT 
                 tgfjr.InvoiceMonth,
                 tgfjr.`Group`,
                 SUM(FwProjectGearCpuHours) AS FwGroupGearCpuHours,
             FROM 
-                `pennbrain-center.BillingAllocation.TempFwProjectJobReport` tgfjr
+                `'"${Project}.${Dataset}.TempFwProjectJobReport"'` tgfjr
             GROUP BY 
                 tgfjr.InvoiceMonth,
                 tgfjr.`Group`   
@@ -195,7 +195,7 @@ INSERT
             `Group`,
             SUM(AllocatedGroupDynamicComputeDiscountedCosts) AS GroupDynamicComputeCosts
         FROM
-            `pennbrain-center.BillingAllocation.TempGcpFwBillingAllocation`
+            `'"${Project}.${Dataset}.TempGcpFwBillingAllocation"'`
         GROUP BY 
             InvoiceMonth,
             `Group`
