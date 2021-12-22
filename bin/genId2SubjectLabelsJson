@@ -1,0 +1,39 @@
+#/bin/bash
+
+CmdName=$(basename "$0")
+syntax="${CmdName} -g Group -p Project"
+
+function getFwProjectId {
+    local Group="$1"
+    local Project="$2"
+    
+    ProjectId=$(fw ls "$Group" --ids  2> /dev/null | grep -P "\s${Project}\s+$" | sed 's/>.*$//; s/^.*id://')
+    if [ -z "$ProjectId" ]
+    then	 
+	echo "'${Group}/${Project}' not found" 1>&2
+	exit 1
+    fi
+
+    echo "$ProjectId"
+}
+
+while getopts g:p: arg
+do
+	case "$arg" in
+	     g|p)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+Group=unknown
+[ -n "$opt_g" ] && Group="$opt_g"
+
+Project=Unsorted
+[ -n "$opt_p" ] && Project="$opt_p"
+
+ProjectId=$(getFwProjectId "$Group" "$Project")
+fwfind -s group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add '
+
