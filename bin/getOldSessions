@@ -4,7 +4,7 @@ Group=unknown
 Project=Unsorted
 
 CmdName=$(basename "$0")
-syntax="$CmdName [-d YYYY-MM-DD][-g Group][-j JsonFile][-m MinAge][-s SubjectJsonFile][-p Project]"
+syntax="$CmdName [-d YYYY-MM-DD][-g Group][-j JsonFile][-m MinAge][-s SubjectJsonFile][-P ProjectJsonFile][-p Project]"
 
 function getFwProjectId {
     local Group="$1"
@@ -22,15 +22,18 @@ function getFwProjectId {
 
 
 function json2Csv () {
-    echo "CreatedDate,SessionId,Group,ParentsGroup,Subject,Session"
-    jq -r -L /tmp/ '
-        import "unknown-Unsorted-Id2SubjectLabels" as $Id2SubjectLabels;
+    echo "CreatedDate,SessionId,Group,ParentsGroup,Project,Subject,Session"
+
+    jq -r -L "$Id2SubjectLabelJsonDir" '
+        import "'"${Id2ProjectLabelJsonFile}"'" as $Id2ProjectLabels;
+        import "'"${Id2SubjectLabelJsonFile}"'" as $Id2SubjectLabels;
 
 	[ 
 	      .created,
 	      ._id,
       	      .group,
 	      .parents.group,
+	      $Id2ProjectLabels::Id2ProjectLabels[][.parents.project],
       	      $Id2SubjectLabels::Id2SubjectLabels[][.parents.subject],
       	      .label
 	] | @csv
@@ -60,22 +63,39 @@ then
     ToOldDate="$opt_d"
 fi
 
-echo "ToOldDate = $ToOldDate"
+#echo "ToOldDate = $ToOldDate" 1>&2
 
 ProjectId=$(getFwProjectId "${Group}" "${Project}")
 
-Id2SubjectLabelJsonFile=$(mktemp /tmp/Id2SubjectLabels-XXXXX.json)
+Id2ProjectLabelJsonFilePath=$(mktemp /tmp/Id2ProjectLabels-XXXXX.json)
+if [ -n "$opt_P" ]
+then
+    Id2ProjectLabelJsonFilePath="$opt_s"
+else
+    genId2ProjectLabelsJson > "$Id2ProjectLabelJsonFilePath"
+fi
+Id2ProjectLabelJsonDir=$(dirname "$Id2ProjectLabelJsonFilePath")
+Id2ProjectLabelJsonFile=$(basename "$Id2ProjectLabelJsonFilePath" | sed 's/.json$//')
+
+Id2SubjectLabelJsonFilePath=$(mktemp /tmp/Id2SubjectLabels-XXXXX.json)
 if [ -n "$opt_s" ]
 then
-    Id2SubjectLabelJsonFile="$opt_s"
+    Id2SubjectLabelJsonFilePath="$opt_s"
+else
+    genId2SubjectLabelsJson -g "$Group" -p "$Project" > "$Id2SubjectLabelJsonFilePath"
 fi
+
+Id2SubjectLabelJsonDir=$(dirname "$Id2SubjectLabelJsonFilePath")
+Id2SubjectLabelJsonFile=$(basename "$Id2SubjectLabelJsonFilePath" | sed 's/.json$//')
 
 # should select on group=$Group 
 if [ -n "$opt_j" ]
 then
     cat "$opt_j" | json2Csv
 else
-    fwfind -1 -r -S group="$Group" project="$ProjectId" "created<${ToOldDate}" | json2Csv
+    # The flywheel database has a few sessions which were moved, and parents.group = unknown, but group=<anothergroup>
+    # The grep ensures we only release info sessions where .group == .parents.group
+    fwfind -1 -r -S group="$Group" project="$ProjectId" "created<${ToOldDate}" | json2Csv | grep "\"${Group}\",\"${Group}\",\"${Project}\""
 fi
 			  
 
