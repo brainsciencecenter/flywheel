@@ -2,12 +2,21 @@
 
 CmdName=$(basename "$0")
 
-syntax="${CmdName} [-d Dataset][-p Project] {-m Month} {-y Year}"
+syntax="${CmdName} [-d Dataset][-p Project][-v] {-m Month} {-y Year}"
 
-while getopts d:m:p:y: arg
+function OutputControl {
+    if [ -n "$opt_v" ]
+    then
+	cat
+    else
+	cat > /dev/null
+    fi
+}
+
+while getopts d:m:p:vy: arg
 do
 	case "$arg" in
-		d|m|p|y)
+		d|m|p|v|y)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -230,6 +239,18 @@ AS
     SUM(IF (    `Group` IS NOT NULL
             AND ServiceDescription = "Compute Engine"
 	    AND (
+        	    	     SkuDescription LIKE "%Instance Core%"
+                          OR SkuDescription LIKE "%Small Instance%"
+                          OR SkuDescription LIKE "%PD Capacity%"
+                          OR SkuDescription LIKE "%PD Snapshot%"
+                          OR SkuDescription LIKE "%Instance Ram%"
+	    ),
+            DiscountedCosts,
+            0.0)) AS GcpFwLblComputeVmDiscountedCosts,
+
+    SUM(IF (    `Group` IS NOT NULL
+            AND ServiceDescription = "Compute Engine"
+	    AND (
        	    	      SkuDescription NOT LIKE "%Instance Core%"
                   AND SkuDescription NOT LIKE "%Small Instance%"
                   AND SkuDescription NOT LIKE "%PD Capacity%"
@@ -239,17 +260,6 @@ AS
             DiscountedCosts,
             0.0)) AS GcpFwLblComputeMiscDiscountedCosts,
 
-    SUM(IF (    `Group` IS NOT NULL
-            AND ServiceDescription = "Compute Engine"
-	    AND (
-        	    	     SkuDescription LIKE "%Instance Core%"
-                          OR SkuDescription LIKE "%Small Instance%"
-                          OR SkuDescription LIKE "%PD Capacity%"
-                          OR SkuDescription LIKE "%PD Snapshot%"
-                          OR SkuDescription LIKE "%Instance Ram%"
-	    ),
-            DiscountedCosts,
-            0.0)) AS GcpFwLblComputeVmDiscountedCosts,
     SUM(IF (    ServiceDescription = "Compute Engine"
             AND `Group` IS NOT NULL
 	    AND SkuDescription LIKE "%Instance Core%",
@@ -267,6 +277,12 @@ AS
 
     # 
     # LblStatic
+    SUM(IF (    ServiceDescription = "Compute Engine"
+            AND `Group` = "flywheel-static"
+	    ,
+            DiscountedCosts,
+            0.0)) AS GcpFwLblStaticComputeDiscountedCosts,
+
     SUM(IF (    ServiceDescription = "Compute Engine"
             AND `Group` = "flywheel-static"
 		    AND (
@@ -305,6 +321,11 @@ AS
 
     # LblDynamic
     SUM(IF (     ServiceDescription = "Compute Engine"
+            AND `Group` IS NOT NULL AND `Group` != "flywheel-static",
+            DiscountedCosts,
+            0.0)) AS GcpFwLblDynamicComputeDiscountedCosts,
+
+    SUM(IF (     ServiceDescription = "Compute Engine"
             AND `Group` IS NOT NULL AND `Group` != "flywheel-static"
 	    AND (
         	    	     SkuDescription LIKE "%Instance Core%"
@@ -333,6 +354,7 @@ AS
 	    AND SkuDescription LIKE "%Instance Core%",
             DiscountedCosts,
             0.0)) AS GcpFwLblDynamicComputeCoreDiscountedCosts,
+
     SUM(IF (    ServiceDescription = "Compute Engine"
             AND `Group` IS NOT NULL AND `Group` != "flywheel-static"
 	    AND SkuDescription LIKE "%Instance Core%",
@@ -359,6 +381,7 @@ AS
       `group` AS `Group`,
       project AS Project,
       gear_name AS GearName,
+      COUNT(gear_name) AS GearRuns,
       SUM( IF(initial_analysis, 1, 0)) AS InitialAnalysis,
       SUM((job_elapsed_time_ms * gcp_cpus) / 1000.0/3600.0) AS FwProjectGearCpuHours
     FROM
@@ -653,18 +676,20 @@ AS
         GcpFwLblGroupComputeCoreDiscountedCosts,
         GcpFwLblGroupComputeCoreCpuHours,
 
+        GcpFwLblGroupStaticComputeDiscountedCosts,
         GcpFwLblGroupStaticComputeVmDiscountedCosts,
         GcpFwLblGroupStaticComputeMiscDiscountedCosts,
         GcpFwLblGroupStaticComputeCoreDiscountedCosts,
         GcpFwLblGroupStaticComputeCoreCpuHours,
 
+        GcpFwLblGroupDynamicComputeDiscountedCosts,
         GcpFwLblGroupDynamicComputeVmDiscountedCosts,
         GcpFwLblGroupDynamicComputeMiscDiscountedCosts,
         GcpFwLblGroupDynamicComputeCoreDiscountedCosts,
         GcpFwLblGroupDynamicComputeCpuHours,
 
     FROM 
-#        `pennbrain-center.BillingAllocation.` 
+
         `'"${Project}.${Dataset}.TempFwProjectJobAndUsageReport"'`
 	t1
     LEFT JOIN (
@@ -683,11 +708,13 @@ AS
 	    SUM(GcpFwLblComputeCoreDiscountedCosts) AS GcpFwLblGroupComputeCoreDiscountedCosts,
 	    SUM(GcpFwLblComputeCoreCpuHours) AS GcpFwLblGroupComputeCoreCpuHours,
 
+	    SUM(GcpFwLblStaticComputeDiscountedCosts) AS GcpFwLblGroupStaticComputeDiscountedCosts,
 	    SUM(GcpFwLblStaticComputeVmDiscountedCosts) AS GcpFwLblGroupStaticComputeVmDiscountedCosts,
 	    SUM(GcpFwLblStaticComputeMiscDiscountedCosts) AS GcpFwLblGroupStaticComputeMiscDiscountedCosts,
 	    SUM(GcpFwLblStaticComputeCoreDiscountedCosts) AS GcpFwLblGroupStaticComputeCoreDiscountedCosts,
 	    SUM(GcpFwLblStaticComputeCoreCpuHours) AS GcpFwLblGroupStaticComputeCoreCpuHours,
 
+	    SUM(GcpFwLblDynamicComputeDiscountedCosts) AS GcpFwLblGroupDynamicComputeDiscountedCosts,
 	    SUM(GcpFwLblDynamicComputeVmDiscountedCosts) AS GcpFwLblGroupDynamicComputeVmDiscountedCosts,
 	    SUM(GcpFwLblDynamicComputeMiscDiscountedCosts) AS GcpFwLblGroupDynamicComputeMiscDiscountedCosts,
 	    SUM(GcpFwLblDynamicComputeCoreDiscountedCosts) AS GcpFwLblGroupDynamicComputeCoreDiscountedCosts,
@@ -721,7 +748,7 @@ AS
  
 # 8
 CREATE OR REPLACE TABLE
-  `'"${Project}.${Dataset}.TempGcpFwBillingTable"'`
+  `'"${Project}.${Dataset}.TempGcpFwBillingAllocation"'`
 AS
     SELECT
 	IF (jugt.InvoiceMonth IS NOT NULL, jugt.InvoiceMonth, jut.InvoiceMonth) AS InvoiceMonth,
@@ -775,16 +802,18 @@ AS
         GcpFwLblGroupStorageDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStorageDiscountedCosts,
         GcpFwLblGroupMiscDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupMiscDiscountedCosts,
 
-        GcpFwLblGroupComputeMiscDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupComputeMiscDiscountedCosts,
         GcpFwLblGroupComputeVmDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupComputeVmDiscountedCosts,
+        GcpFwLblGroupComputeMiscDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupComputeMiscDiscountedCosts,
         GcpFwLblGroupComputeCoreDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupComputeCoreDiscountedCosts,
         GcpFwLblGroupComputeCoreCpuHours * FwProjectToGroupCpuHoursRatio AS AllocatedGroupComputeCoreCpuHours,
 
+        GcpFwLblGroupStaticComputeDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStaticComputeDiscountedCosts,
         GcpFwLblGroupStaticComputeVmDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStaticComputeVmDiscountedCosts,
         GcpFwLblGroupStaticComputeMiscDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStaticComputeMiscDiscountedCosts,
         GcpFwLblGroupStaticComputeCoreDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStaticComputeCoreDiscountedCosts,
         GcpFwLblGroupStaticComputeCoreCpuHours * FwProjectToGroupCpuHoursRatio AS AllocatedGroupStaticComputeCoreCpuHours,
 
+        GcpFwLblGroupDynamicComputeDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupDynamicComputeDiscountedCosts,
         GcpFwLblGroupDynamicComputeVmDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupDynamicComputeVmDiscountedCosts,
         GcpFwLblGroupDynamicComputeMiscDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupDynamicComputeMiscDiscountedCosts,
         GcpFwLblGroupDynamicComputeCoreDiscountedCosts * FwProjectToGroupCpuHoursRatio AS AllocatedGroupDynamicComputeCoreDiscountedCosts,
@@ -808,5 +837,5 @@ AS
 	Project
 ;
 
-'
+' | OutputControl
 

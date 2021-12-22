@@ -2,12 +2,21 @@
 
 CmdName=$(basename "$0")
 
-syntax="${CmdName} [-d Dataset][-p Project][-m Month][-y Year]"
+syntax="${CmdName} [-d Dataset][-p Project][-m Month][-y Year][-v]"
 
-while getopts d:m:p:y: arg
+function OutputControl {
+    if [ -n "$opt_v" ]
+    then
+	cat
+    else
+	cat > /dev/null
+    fi
+}
+
+while getopts d:m:p:vy: arg
 do
 	case "$arg" in
-		d|m|p|y)
+		d|m|p|v|y)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -22,7 +31,10 @@ Year=$(date --date="$nowmonth -1 month" +'%Y')
 Month=$(date --date="$nowmonth -1 month" +'%m')
 [ -n "$opt_m" ] && Month="$opt_m"
 
+Dataset=BillingAllocation
 [ -n "$opt_d" ] && Dataset="$opt_d"
+
+Project=pennbrain-center
 [ -n "$opt_p" ] && Project="$opt_p"
 
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter=InvoiceMonth:STRING:"${opt_y}${opt_m}" --parameter=FlywheelProject::upenn-flywheel '
@@ -44,7 +56,9 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
     WHERE
       InvoiceMonth = @InvoiceMonth
   ;
-      
+' | OutputControl
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter=InvoiceMonth:STRING:"${opt_y}${opt_m}" --parameter=FlywheelProject::upenn-flywheel '
   INSERT `'"${Project}.${Dataset}.FlywheelCosts"'`
   SELECT
     invoice.month as InvoiceMonth,
@@ -72,7 +86,8 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
           c.type = "PROMOTION" ),
         0)) AS Promotions
   FROM
-    `unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F`
+    `unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F` t1
+#    , `upenn-017978-eb30e0-a7e2f9.billing_export.gcp_billing_export_v1_017978_EB30E0_A7E2F9` t2
   LEFT JOIN
     UNNEST(labels) AS labels
   ON
@@ -88,4 +103,51 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
         ServiceDescription,
         SkuDescription,
         UsagePricingUnit
-' > /dev/null
+' | OutputControl
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter=InvoiceMonth:STRING:"${opt_y}${opt_m}" --parameter=FlywheelProject::upenn-flywheel '
+  INSERT `'"${Project}.${Dataset}.FlywheelCosts"'`
+  SELECT
+    invoice.month as InvoiceMonth,
+    labels.value as FlywheelGroup,
+    project.name as GcpProjectName,
+    service.description as ServiceDescription,
+    sku.description as SkuDescription,
+    sum(usage.amount_in_pricing_units) as UsageAmountInPricingUnits,
+    usage.pricing_unit as UsagePricingUnit,
+    SUM(cost) AS Costs,
+    SUM(IFNULL((
+        SELECT
+          SUM(c.amount)
+        FROM
+          UNNEST(credits) c
+        WHERE
+          c.type != "PROMOTION" ),
+        0)) AS Discounts,
+    SUM(IFNULL((
+        SELECT
+          SUM(c.amount)
+        FROM
+          UNNEST(credits) c
+        WHERE
+          c.type = "PROMOTION" ),
+        0)) AS Promotions
+  FROM
+#    `unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F` t1
+    `upenn-017978-eb30e0-a7e2f9.billing_export.gcp_billing_export_v1_017978_EB30E0_A7E2F9` t2
+  LEFT JOIN
+    UNNEST(labels) AS labels
+  ON
+    labels.key = "billing"
+  WHERE
+        invoice.month = @InvoiceMonth
+    AND 
+        project.name = @FlywheelProject
+    GROUP BY
+        InvoiceMonth,
+        FlywheelGroup,
+        GcpProjectName,
+        ServiceDescription,
+        SkuDescription,
+        UsagePricingUnit
+' | OutputControl

@@ -55,6 +55,8 @@ DECLARE TotalVMCoreHours float64;
 DECLARE TotalVMStaticCoreHours float64;
 DECLARE TotalVMDynamicCoreHours float64;
 
+DECLARE TotalFwProjectCpuHours FLOAT64;
+
 DECLARE TotalStorageCosts float64;
 DECLARE TotalGcpStorageStandardUsage float64;
 DECLARE TotalFwStorageStandardUsage float64;
@@ -77,8 +79,8 @@ CREATE TEMP FUNCTION isTbOrMore(StorageUsage FLOAT64) RETURNS BOOL AS (
 	  FALSE)
 );
 
-CREATE TEMP FUNCTION calculateBscStorageCharge(StorageStandardCharge FLOAT64) RETURNS FLOAT64 AS (
-       StorageStandardCharge * BscStorageOverheadRate()
+CREATE TEMP FUNCTION calculateBscStorageCharge(StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+       StorageCharge * BscStorageOverheadRate()
 );
 
 CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOAT64) RETURNS FLOAT64 AS (
@@ -86,9 +88,9 @@ CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOA
 );
 
 
-CREATE TEMP FUNCTION calculateBscProjectCharge(StorageUsage FLOAT64, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+CREATE TEMP FUNCTION calculateBscProjectCharge(StorageStandardUsage FLOAT64, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
         IF (round(StorageCharge,2) >= OneCent(),
-                IF (isTbOrMore(StorageUsage),
+                IF (isTbOrMore(StorageStandardUsage),
 		   BscLargeProjectCharge(),
 		   BscSmallProjectCharge()
 		),
@@ -96,159 +98,83 @@ CREATE TEMP FUNCTION calculateBscProjectCharge(StorageUsage FLOAT64, StorageChar
 	)
 );
 
-
-SET TotalComputeDiscountedCosts = (
-    SELECT DiscountedCosts AS TotalComputeDiscountedCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "Compute"
+SET TotalFwProjectCpuHours = (
+    SELECT 
+        SUM(FwProjectCpuHours)
+    FROM 
+        `'"${Project}.${Dataset}.TempGcpFwBillingAllocation"'` 
 );
+ 
 
-SET TotalVMDynamicCoreHours = (
-    SELECT UsageAmountInPricingUnits AS TotalDynamicCoreHours FROM  `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMDynamicCore"
-);
-
-SET TotalVMCosts = (
-    SELECT DiscountedCosts AS TotalVMCost FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VM"
-);
-
-SET TotalVMStaticCosts = (
-    SELECT DiscountedCosts AS TotalVMStaticCost FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMStatic"
-);
-
-SET TotalVMDynamicCosts = (
-    SELECT TotalVMCosts - TotalVMStaticCosts AS TotalVMDDynamicCosts
-);
-
-SET TotalStorageCosts = (
-    SELECT DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-      WHERE 
-        ChargeType = "Storage"
-);
-
-SET TotalGcpStorageStandardUsage = (
-    SELECT
-	UsageAmountInPricingUnits AS TotalStorageStandardUsage 
-      FROM
-	`'"${Project}.${Dataset}.TempFwTotalCosts"'`
-      WHERE
-	ChargeType = "StorageStandard"
-);
-
-SET TotalFwStorageStandardUsage = (
-    SELECT
-	SUM(total_storage_byte_day / days)/1024.0/1024.0/1024.0 AS TotalProjectStorageStandardUsage
-    FROM
-	`'"${Project}.${Dataset}.FwUsageReport"'`
-    WHERE
-	CAST(invoice_month AS STRING) = @InvoiceMonth
-	AND project IS NOT NULL
-);
-
-SET TotalMiscCosts = (
-    SELECT DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-    WHERE 
-        ChargeType = "Misc"
-);
-
-SET TotalComputeCosts = (
-    SELECT DiscountedCosts AS TotalComputeCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-    WHERE 
-        ChargeType = "Compute"
-);
-
-SET TotalKubernetesCosts = (
-    SELECT DiscountedCosts AS TotalKubernetesCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-    WHERE 
-        ChargeType = "Kubernetes"
-);
-
-CREATE OR REPLACE TABLE 
-       `'"${Project}.${Dataset}.TempJobsReport"'`
-AS
-#    SELECT
-#	*,
-#    FROM (
-       SELECT
-    	InvoiceMonth,
-    	`group`,
-    	project,
-    	ProjectVMDynamicCoreHours, 
-    	TotalVMCosts * (ProjectVMDynamicCoreHours / TotalVMDynamicCoreHours) AS ProjectVMCosts,
-    	TotalVMDynamicCosts * (ProjectVMDynamicCoreHours / TotalVMDynamicCoreHours) AS ProjectVMDynamicCosts,
-    	TotalVMStaticCosts * (ProjectVMDynamicCoreHours / TotalVMDynamicCoreHours) AS ProjectVMStaticCosts,
-    	TotalComputeDiscountedCosts * (ProjectVMDynamicCoreHours / TotalVMDynamicCoreHours) AS ProjectComputeCosts,
-    	TotalKubernetesCosts * (ProjectVMDynamicCoreHours / TotalVMDynamicCoreHours) AS ProjectKubernetesCosts,
-    	TotalMiscCosts * (ProjectVMDynamicCoreHours / TotalVMDynamicCoreHours) AS ProjectMiscCosts,
-        InitialAnalysisCount,
-       FROM (
-        SELECT 
-           invoice_month AS InvoiceMonth,
-           `group`, 
-    	   project, 
-    	   sum(job_elapsed_time_ms * gcp_cpus) / 1000.0 / 3600.0 AS ProjectVMDynamicCoreHours,
-           SUM( if (initial_analysis, 1, 0) ) AS InitialAnalysisCount,
-    
-        FROM `'"${Project}.${Dataset}.FwJobsReport"'`
-        # *** This guard needs to be pushed back to earlier jobs report
-        WHERE 
-             project IS NOT NULL
-	  AND
-	     CAST(invoice_month AS STRING) = @InvoiceMonth
-    #        Dont filter completed jobs as there were still cpu time allocated to the failed jobs
-    #        job_state = "complete"
-        GROUP BY 
-            InvoiceMonth,
-            `group`,
-            project
-        ORDER BY 
-            `group`,
-            project
-      )
-#    )
-;
-
-CREATE OR REPLACE TABLE
-       `'"${Project}.${Dataset}.TempUsageReport"'`
-AS
-   SELECT
-       *,
-       isTbOrMore(ProjectGcpStorageStandardUsage) AS IsTbOrMore,
-       calculateBscStorageCharge(ProjectStorageCosts) AS BscProjectStorageCharge,
-       calculateBscProjectCharge(ProjectGcpStorageStandardUsage,ProjectStorageCosts) AS BscProjectCharge,
-       
-   FROM (
-        SELECT 
-           *,
-    	   TotalStorageCosts * (ProjectStorageUsage/TotalFwStorageStandardUsage) AS ProjectStorageCosts,
-    	   TotalGcpStorageStandardUsage * (ProjectStorageUsage/TotalFwStorageStandardUsage) AS ProjectGcpStorageStandardUsage,
-        FROM (
-           SELECT 
-    	  	 CAST(invoice_month AS STRING) AS InvoiceMonth,
-    		 `group`,
-    		 project_label,
-    		 sum(total_storage_byte_day / days)/1024.0/1024.0/1024.0 AS ProjectStorageUsage,
-           
-              FROM `'"${Project}.${Dataset}.FwUsageReport"'`
-        	  WHERE
-    		         project IS NOT NULL
-                     AND 
-		     	 CAST(invoice_month AS STRING) = @InvoiceMonth
-                  GROUP BY
-                     InvoiceMonth,
-          	    `group`,
-              	     project_label
-                  ORDER BY
-    	             InvoiceMonth,
-          	    `group`,
-          	     project_label
-         )
-    )
-;
-
+# 
+# SET TotalComputeDiscountedCosts = (
+#     SELECT DiscountedCosts AS TotalComputeDiscountedCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "Compute"
+# );
+# 
+# SET TotalVMDynamicCoreHours = (
+#     SELECT UsageAmountInPricingUnits AS TotalDynamicCoreHours FROM  `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMDynamicCore"
+# );
+# 
+# SET TotalVMCosts = (
+#     SELECT DiscountedCosts AS TotalVMCost FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VM"
+# );
+# 
+# SET TotalVMStaticCosts = (
+#     SELECT DiscountedCosts AS TotalVMStaticCost FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMStatic"
+# );
+# 
+# SET TotalVMDynamicCosts = (
+#     SELECT TotalVMCosts - TotalVMStaticCosts AS TotalVMDDynamicCosts
+# );
+# 
+# SET TotalStorageCosts = (
+#     SELECT DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
+#       WHERE 
+#         ChargeType = "Storage"
+# );
+# 
+# SET TotalGcpStorageStandardUsage = (
+#     SELECT
+# 	UsageAmountInPricingUnits AS TotalStorageStandardUsage 
+#       FROM
+# 	`'"${Project}.${Dataset}.TempFwTotalCosts"'`
+#       WHERE
+# 	ChargeType = "StorageStandard"
+# );
+# 
+# SET TotalFwStorageStandardUsage = (
+#     SELECT
+# 	SUM(total_storage_byte_day / days)/1024.0/1024.0/1024.0 AS TotalProjectStorageStandardUsage
+#     FROM
+# 	`'"${Project}.${Dataset}.FwUsageReport"'`
+#     WHERE
+# 	CAST(invoice_month AS STRING) = @InvoiceMonth
+# 	AND project IS NOT NULL
+# );
+# 
+# SET TotalMiscCosts = (
+#     SELECT DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
+#     WHERE 
+#         ChargeType = "Misc"
+# );
+# 
+# SET TotalComputeCosts = (
+#     SELECT DiscountedCosts AS TotalComputeCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
+#     WHERE 
+#         ChargeType = "Compute"
+# );
+# 
+# SET TotalKubernetesCosts = (
+#     SELECT DiscountedCosts AS TotalKubernetesCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
+#     WHERE 
+#         ChargeType = "Kubernetes"
+# );
 
 CREATE TABLE IF NOT EXISTS
-       `'"${Project}.${Dataset}.FwProjectUsage"'`
+       `'"${Project}.${Dataset}.TempFwProjectBilling"'`
   (
 	InvoiceMonth			STRING,
-	`group`				STRING,	
+	`Group`				STRING,	
 	project				STRING,	
 	IsTbOrMore			BOOLEAN,	
 	ProjectStorageUsage		FLOAT64,	
@@ -266,67 +192,108 @@ CREATE TABLE IF NOT EXISTS
 	BscInitialAnalysisCharge	FLOAT64,	
 	ProjectVMDynamicCoreHours	FLOAT64,	
 	ProjectBscCharges		FLOAT64,	
-		ProjectBscGcpCosts		FLOAT64,	
 	ProjectGcpCosts			FLOAT64,
-	TotalVMDynamicCoreHours		FLOAT64,	
-  );
-
-DELETE FROM 
-       `'"${Project}.${Dataset}.FwProjectUsage"'`
-    WHERE
-      InvoiceMonth = @InvoiceMonth
-  ;
-
-INSERT 
-       `'"${Project}.${Dataset}.FwProjectUsage"'`
-
-  SELECT
-	*,
-    	BscProjectStorageCharge + BscProjectCharge + BscInitialAnalysisCharge AS ProjectBscCharges,
-    	ProjectComputeCosts + ProjectStorageCosts + ProjectMiscCosts +
-    	    # *** Leaving out to match Julys billing ProjectKubernetesCosts + 
-    	    BscProjectStorageCharge + BscProjectCharge + BscInitialAnalysisCharge AS ProjectBscGcpCosts,
-    	ProjectComputeCosts + ProjectStorageCosts + 
-    	   # *** Leaving out to match Julys billing ProjectKubernetesCosts + 
-    	   ProjectMiscCosts AS ProjectGcpCosts,
-	TotalVMDynamicCoreHours,
-    
-    FROM (
-       SELECT
-    	TempUsageReport.InvoiceMonth AS InvoiceMonth,
-    	TempUsageReport.`group`,
-    	TempUsageReport.project_label AS project,
-    	TempUsageReport.IsTbOrMore as IsTbOrMore,
-    
-    	mapNullToZero(TempUsageReport.ProjectStorageUsage) AS ProjectStorageUsage,
-    	mapNullToZero(TempUsageReport.ProjectStorageCosts) AS ProjectStorageCosts,
-	mapNullToZero(TempUsageReport.ProjectGcpStorageStandardUsage) AS ProjectGcpStorageStandardUsage,
-    	mapNullToZero(TempUsageReport.BscProjectStorageCharge) AS BscProjectStorageCharge,
-    	mapNullToZero(TempUsageReport.BscProjectCharge) AS BscProjectCharge,
-    
-    	mapNullToZero(TempJobsReport.ProjectVMCosts) AS ProjectVMCosts,
-    	mapNullToZero(TempJobsReport.ProjectVMDynamicCosts) AS ProjectVMDynamicCosts,
-    	mapNullToZero(TempJobsReport.ProjectVMStaticCosts) AS ProjectVMStaticCosts,
-    	mapNullToZero(TempJobsReport.ProjectComputeCosts) AS ProjectComputeCosts,
-    	mapNullToZero(TempJobsReport.ProjectKubernetesCosts) ProjectKubernetesCosts,
-    	mapNullToZero(TempJobsReport.ProjectMiscCosts) AS ProjectMiscCosts,
-    
-    	mapNullToZero(InitialAnalysisCount) AS InitialAnalysisCount,
-    	mapNullToZero(calculateBscInitialAnalysisCharge(InitialAnalysisCount)) AS BscInitialAnalysisCharge,
-    
-    	mapNullToZero(TempJobsReport.ProjectVMDynamicCoreHours) AS ProjectVMDynamicCoreHours,
-    	
-      FROM
-       `'"${Project}.${Dataset}.TempUsageReport"'` TempUsageReport
-  FULL OUTER JOIN
-       `'"${Project}.${Dataset}.TempJobsReport"'` TempJobsReport
-  ON 
-   TempUsageReport.`group` = TempJobsReport.`group`
-   AND TempUsageReport.project_label = TempJobsReport.project
-  ORDER BY
-      `group`,
-      project
+	ProjectBscGcpCosts		FLOAT64,	
+	TotalVMDynamicCoreHours		FLOAT64,
+	FwProjectCpuHours		FLOAT64,
+        TotalFwProjectCpuHours		FLOAT64,
+	AllocatedGroupDiscountedCosts	FLOAT64,
   )
 ;
+
+DELETE FROM 
+       `'"${Project}.${Dataset}.TempFwProjectBilling"'`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT 
+       `'"${Project}.${Dataset}.TempFwProjectBilling"'`
+
+    SELECT
+        InvoiceMonth,
+	`Group`,
+	Project,
+
+	IsTbOrMore,
+
+	ProjectStorageUsage,
+	ProjectStorageCosts,
+	ProjectGcpStorageStandardUsage,
+	BscProjectStorageCharge,
+	BscProjectCharge,
+
+	ProjectVMCosts,
+	ProjectVMDynamicCosts,
+	ProjectVMStaticCosts,
+	ProjectComputeCosts,
+
+	ProjectKubernetesCosts,
+	ProjectMiscCosts,
+
+	InitialAnalysisCount,
+	BscInitialAnalysisCharge,
+
+	ProjectVMDynamicCoreHours,
+
+    	(BscProjectStorageCharge + BscProjectCharge + BscInitialAnalysisCharge) AS ProjectBscCharges,
+
+        # *** Leaving out to match Julys billing ProjectKubernetesCosts + 
+        (ProjectComputeCosts + ProjectStorageCosts + ProjectMiscCosts) AS ProjectGcpCosts,
+
+        (ProjectComputeCosts + ProjectStorageCosts + ProjectMiscCosts +
+            BscProjectStorageCharge + BscProjectCharge + BscInitialAnalysisCharge) AS ProjectBscGcpCosts,
+
+	TotalVMDynamicCoreHours,
+    
+        FwProjectCpuHours,
+        TotalFwProjectCpuHours,
+	AllocatedGroupDiscountedCosts,
+
+    FROM (
+        SELECT
+            InvoiceMonth,
+            `Group`,
+            Project,
+
+	    mapNullToZero(FwProjectInitialAnalysis) AS InitialAnalysisCount,
+	    mapNullToZero(calculateBscInitialAnalysisCharge(FwProjectInitialAnalysis)) AS BscInitialAnalysisCharge,
+
+            isTbOrMore(AllocatedTotalStorageStandardGB) AS IsTbOrMore,
+
+	    mapNullToZero(AllocatedTotalStorageGB) AS ProjectStorageUsage,
+	    mapNullToZero(AllocatedTotalStorageDiscountedCosts) AS ProjectStorageCosts,
+	    mapNullToZero(AllocatedTotalStorageStandardGB) AS ProjectGcpStorageStandardUsage,
+	    mapNullToZero(calculateBscStorageCharge(AllocatedTotalStorageDiscountedCosts)) AS BscProjectStorageCharge,
+	    mapNullToZero(calculateBscProjectCharge(AllocatedTotalStorageStandardGB,AllocatedTotalStorageDiscountedCosts)) AS BscProjectCharge,
+
+#	    mapNullToZero(AllocatedGroupComputeVmDiscountedCosts) AS ProjectVMCosts,
+#	    mapNullToZero(AllocatedGroupDynamicComputeVmDiscountedCosts) AS ProjectVMDynamicCosts,
+
+	    mapNullToZero(AllocatedGroupComputeDiscountedCosts) AS ProjectVMCosts,
+	    mapNullToZero(AllocatedGroupDynamicComputeDiscountedCosts) AS ProjectVMDynamicCosts,
+	    mapNullToZero(AllocatedGroupStaticComputeVmDiscountedCosts) AS ProjectVMStaticCosts,
+	    mapNullToZero(AllocatedTotalComputeDiscountedCosts) AS ProjectComputeCosts,
+
+	    mapNullToZero(AllocatedTotalKubernetesDiscountedCosts) AS ProjectKubernetesCosts,
+	    mapNullToZero(AllocatedGroupMiscDiscountedCosts) AS ProjectMiscCosts,
+
+	    # These hours are from GCP billing -- not from FwJobs
+	    mapNullToZero(AllocatedGroupDynamicComputeCpuHours) AS ProjectVMDynamicCoreHours,
+
+	    FwProjectCpuHours,
+	    AllocatedGroupDiscountedCosts,
+
+        FROM
+            `'"${Project}.${Dataset}.TempGcpFwBillingAllocation"'` tgfba
+
+        ORDER BY
+            InvoiceMonth,
+            `Group`,
+            Project
+    )
+
+;
+
 
 ' | OutputControl

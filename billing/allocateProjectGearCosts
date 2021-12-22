@@ -2,12 +2,21 @@
 
 CmdName=$(basename "$0")
 
-syntax="${CmdName} [-d Dataset][-p Project] {-m Month} {-y Year}"
+syntax="${CmdName} [-d Dataset][-p Project][-v] {-m Month} {-y Year}"
 
-while getopts d:m:p:y: arg
+function OutputControl {
+    if [ -n "$opt_v" ]
+    then
+	cat
+    else
+	cat > /dev/null
+    fi
+}
+
+while getopts d:m:p:vy: arg
 do
 	case "$arg" in 
-		d|m|p|y)
+		d|m|p|v|y)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -41,70 +50,162 @@ DECLARE TotalGearCost FLOAT64;
 DECLARE TotalGearCpuHours FLOAT64;
 
 SET TotalGearCost = (
-    SELECT DiscountedCosts FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMDynamic"
+#    SELECT DiscountedCosts FROM `'"${Project}.${Dataset}.FwTotalCosts"'` WHERE ChargeType = "VMDynamic"
+    SELECT SUM(GcpFwLblDynamicComputeDiscountedCosts) FROM `'"${Project}.${Dataset}.TempGcpFwTotals"'` 
 );
 
 SET TotalGearCpuHours = (
-    SELECT UsageAmountInPricingUnits FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMDynamicCore"
+#    SELECT UsageAmountInPricingUnits FROM `'"${Project}.${Dataset}.FwTotalCosts"'` WHERE ChargeType = "VMDynamicCore"
+    SELECT SUM((gcp_cpus * job_elapsed_time_ms) / 1000.0 / 3600.0) FROM `'"${Project}.${Dataset}.FwJobsReport"'`
+    WHERE
+            project IS NOT NULL
+	    AND CAST(invoice_month AS STRING) = @InvoiceMonth
 );
 
 
 CREATE TABLE IF NOT EXISTS
-       `'"${Project}.${Dataset}.FwProjectGearCosts"'`
+       `'"${Project}.${Dataset}.TempFwProjectGearCosts"'`
    (
+      InvoiceMonth		STRING,
       `group`			STRING,
       project			STRING,
       gear_name			STRING,
-      GearCpuHours		FLOAT64,
       GearRuns			INTEGER,
+
+      GearCpuHours     FLOAT64,
+
       GearCpuHoursAvg		FLOAT64,
       ProjectGearCost		FLOAT64,
       ProjectAvgGearCost	FLOAT64,
-      InvoiceMonth		STRING,
     );
 
 DELETE FROM
-       `'"${Project}.${Dataset}.FwProjectGearCosts"'`
+       `'"${Project}.${Dataset}.TempFwProjectGearCosts"'`
     WHERE
       InvoiceMonth = @InvoiceMonth
   ;
 
-INSERT 
-       `'"${Project}.${Dataset}.FwProjectGearCosts"'`
+#
+# *** This formula is pretends that the GearCpuHours is an absolute measure instead of a relative value
+#  
 
-    SELECT 
-        `group`,
-	project,
-	gear_name,
-	GearCpuHours,
-	GearRuns,
-        GearCpuHours/GearRuns AS GearCpuHoursAvg,
-        TotalGearCost * (GearCpuHours/TotalGearCpuHours) AS ProjectGearCost,
-        TotalGearCost * (GearCpuHours/TotalGearCpuHours)/GearRuns AS ProjectAvgGearCost,
-        InvoiceMonth,
-    
+INSERT 
+       `'"${Project}.${Dataset}.TempFwProjectGearCosts"'`
+
+#     SELECT 
+#         fjr.InvoiceMonth,
+#         fjr.`group`,
+# 	fjr.project,
+# 	gear_name,
+# 
+# 	GearCpuHours,
+# 	GearRuns,
+#         GearCpuHours/GearRuns AS GearCpuHoursAvg,
+#         AllocatedGroupDynamicComputeDiscountedCosts * (GearCpuHours/TotalGearCpuHours) AS ProjectGearCost,
+#         AllocatedGroupDynamicComputeDiscountedCosts * (GearCpuHours/TotalGearCpuHours)/GearRuns AS ProjectAvgGearCost,
+# 	TotalGearCost,
+#         AllocatedGroupDynamicComputeDiscountedCosts,
+#     FROM (
+#         SELECT
+#             `group`,
+#             project,
+#             gear_name,
+#             (SUM(gcp_cpus * job_elapsed_time_ms) / 1000.0 / 3600.0) AS GearCpuHours,
+#             COUNT(gear_name) AS GearRuns,
+#             CAST(invoice_month AS STRING) AS InvoiceMonth,
+#         FROM `'"${Project}.${Dataset}.FwJobsReport"'`
+#         WHERE
+#             project IS NOT NULL
+# 	    AND CAST(invoice_month AS STRING) = @InvoiceMonth
+#         GROUP BY 
+#             invoice_month,
+#             `group`,
+#             project,
+#             gear_name
+#     
+#         ORDER BY 
+#             invoice_month,
+#             `group`,
+#             project
+#     ) fjr
+#     LEFT JOIN (
+#     	SELECT
+# 	    InvoiceMonth,
+# 	    `Group`,
+ # 	    Project,
+# 	    AllocatedGroupDynamicComputeDiscountedCosts,
+# 	FROM
+#             `'"${Project}.${Dataset}.TempGcpFwBillingAllocation"'`
+#    
+#     ) tgfba
+#     ON
+#         fjr.InvoiceMonth = tgfba.InvoiceMonth
+# 	AND fjr.group = tgfba.Group
+# 	AND fjr.project = tgfba.Project
+# 
+
+    SELECT
+        ggh.InvoiceMonth,
+        ggh.`Group`,
+        Project,
+        GearName,
+        GearRuns,
+
+        FwProjectGearCpuHours AS GearCpuHours,
+
+        FwGroupGearCpuHours / GearRuns AS GearCpuHoursAvg,
+        (GroupDynamicComputeCosts * GearToGroupCpuRatio) AS ProjectGearCost,
+        (GroupDynamicComputeCosts * GearToGroupCpuRatio)/GearRuns AS ProjectAvgGearCost,
+
     FROM (
-        SELECT
-            `group`,
-            project,
-            gear_name,
-            (SUM(gcp_cpus * job_elapsed_time_ms) / 1000.0 / 3600.0) AS GearCpuHours,
-            COUNT(gear_name) AS GearRuns,
-            CAST(invoice_month AS STRING) AS InvoiceMonth,
-        FROM `'"${Project}.${Dataset}.FwJobsReport"'`
-        WHERE
-            project IS NOT NULL
-	    AND CAST(invoice_month AS STRING) = @InvoiceMonth
+        SELECT 
+            tfpjr.InvoiceMonth,
+            tfpjr.`Group`,
+            Project,
+            GearName,
+            SUM(GearRuns) AS GearRuns,
+            SUM(FwProjectGearCpuHours) AS FwProjectGearCpuHours,
+            SUM(FwGroupGearCpuHours) AS FwGroupGearCpuHours,
+            SUM(FwProjectGearCpuHours / FwGroupGearCpuHours) AS GearToGroupCpuRatio
+        FROM
+            `pennbrain-center.BillingAllocation.TempFwProjectJobReport` tfpjr
+        LEFT JOIN (
+            SELECT 
+                tgfjr.InvoiceMonth,
+                tgfjr.`Group`,
+                SUM(FwProjectGearCpuHours) AS FwGroupGearCpuHours,
+            FROM 
+                `pennbrain-center.BillingAllocation.TempFwProjectJobReport` tgfjr
+            GROUP BY 
+                tgfjr.InvoiceMonth,
+                tgfjr.`Group`   
+        ) gpj
+        ON 
+            tfpjr.InvoiceMonth = gpj.InvoiceMonth
+            AND    tfpjr.Group = gpj.Group
         GROUP BY 
-            invoice_month,
-            `group`,
-            project,
-            gear_name
+            tfpjr.InvoiceMonth,
+            tfpjr.Group,
+            tfpjr.Project,
+            tfpjr.GearName
+    ) ggh
+    LEFT JOIN (
+        SELECT 
+            InvoiceMonth,
+            `Group`,
+            SUM(AllocatedGroupDynamicComputeDiscountedCosts) AS GroupDynamicComputeCosts
+        FROM
+            `pennbrain-center.BillingAllocation.TempGcpFwBillingAllocation`
+        GROUP BY 
+            InvoiceMonth,
+            `Group`
+    ) tgfba
+    ON
+        ggh.InvoiceMonth = tgfba.InvoiceMonth
+        AND ggh.Group = tgfba.Group
+
+
+
+;
     
-        ORDER BY 
-            invoice_month,
-            `group`,
-            project
-    );
-    
-' > /dev/null
+' | OutputControl
