@@ -64,23 +64,23 @@ SET TotalGearCpuHours = (
 
 
 CREATE TABLE IF NOT EXISTS
-       `'"${Project}.${Dataset}.TempFwProjectGearCosts"'`
+       `'"${Project}.${Dataset}.ProjectGearCosts"'`
    (
-      InvoiceMonth		STRING,
       `group`			STRING,
       project			STRING,
       gear_name			STRING,
+
+      GearCpuHours    		 FLOAT64,
       GearRuns			INTEGER,
-
-      GearCpuHours     FLOAT64,
-
       GearCpuHoursAvg		FLOAT64,
+
       ProjectGearCost		FLOAT64,
       ProjectAvgGearCost	FLOAT64,
+      InvoiceMonth		STRING,
     );
 
 DELETE FROM
-       `'"${Project}.${Dataset}.TempFwProjectGearCosts"'`
+       `'"${Project}.${Dataset}.FwProjectGearCosts"'`
     WHERE
       InvoiceMonth = @InvoiceMonth
   ;
@@ -90,72 +90,20 @@ DELETE FROM
 #  
 
 INSERT 
-       `'"${Project}.${Dataset}.TempFwProjectGearCosts"'`
-
-#     SELECT 
-#         fjr.InvoiceMonth,
-#         fjr.`group`,
-# 	fjr.project,
-# 	gear_name,
-# 
-# 	GearCpuHours,
-# 	GearRuns,
-#         GearCpuHours/GearRuns AS GearCpuHoursAvg,
-#         AllocatedGroupDynamicComputeDiscountedCosts * (GearCpuHours/TotalGearCpuHours) AS ProjectGearCost,
-#         AllocatedGroupDynamicComputeDiscountedCosts * (GearCpuHours/TotalGearCpuHours)/GearRuns AS ProjectAvgGearCost,
-# 	TotalGearCost,
-#         AllocatedGroupDynamicComputeDiscountedCosts,
-#     FROM (
-#         SELECT
-#             `group`,
-#             project,
-#             gear_name,
-#             (SUM(gcp_cpus * job_elapsed_time_ms) / 1000.0 / 3600.0) AS GearCpuHours,
-#             COUNT(gear_name) AS GearRuns,
-#             CAST(invoice_month AS STRING) AS InvoiceMonth,
-#         FROM `'"${Project}.${Dataset}.FwJobsReport"'`
-#         WHERE
-#             project IS NOT NULL
-# 	    AND CAST(invoice_month AS STRING) = @InvoiceMonth
-#         GROUP BY 
-#             invoice_month,
-#             `group`,
-#             project,
-#             gear_name
-#     
-#         ORDER BY 
-#             invoice_month,
-#             `group`,
-#             project
-#     ) fjr
-#     LEFT JOIN (
-#     	SELECT
-# 	    InvoiceMonth,
-# 	    `Group`,
- # 	    Project,
-# 	    AllocatedGroupDynamicComputeDiscountedCosts,
-# 	FROM
-#             `'"${Project}.${Dataset}.TempGcpFwBillingAllocation"'`
-#    
-#     ) tgfba
-#     ON
-#         fjr.InvoiceMonth = tgfba.InvoiceMonth
-# 	AND fjr.group = tgfba.Group
-# 	AND fjr.project = tgfba.Project
-# 
+       `'"${Project}.${Dataset}.FwProjectGearCosts"'`
 
     SELECT
-        ggh.InvoiceMonth,
         ggh.`Group`,
         Project,
         GearName,
-        GearRuns,
 
         FwProjectGearCpuHours AS GearCpuHours,
-
+        GearRuns,
         FwGroupGearCpuHours / GearRuns AS GearCpuHoursAvg,
+
         (GroupDynamicComputeCosts * GearToGroupCpuRatio) AS ProjectGearCost,
         (GroupDynamicComputeCosts * GearToGroupCpuRatio)/GearRuns AS ProjectAvgGearCost,
+        ggh.InvoiceMonth,
 
     FROM (
         SELECT 

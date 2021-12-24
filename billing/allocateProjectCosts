@@ -106,72 +106,8 @@ SET TotalFwProjectCpuHours = (
 );
  
 
-# 
-# SET TotalComputeDiscountedCosts = (
-#     SELECT DiscountedCosts AS TotalComputeDiscountedCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "Compute"
-# );
-# 
-# SET TotalVMDynamicCoreHours = (
-#     SELECT UsageAmountInPricingUnits AS TotalDynamicCoreHours FROM  `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMDynamicCore"
-# );
-# 
-# SET TotalVMCosts = (
-#     SELECT DiscountedCosts AS TotalVMCost FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VM"
-# );
-# 
-# SET TotalVMStaticCosts = (
-#     SELECT DiscountedCosts AS TotalVMStaticCost FROM `'"${Project}.${Dataset}.TempFwTotalCosts"'` WHERE ChargeType = "VMStatic"
-# );
-# 
-# SET TotalVMDynamicCosts = (
-#     SELECT TotalVMCosts - TotalVMStaticCosts AS TotalVMDDynamicCosts
-# );
-# 
-# SET TotalStorageCosts = (
-#     SELECT DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-#       WHERE 
-#         ChargeType = "Storage"
-# );
-# 
-# SET TotalGcpStorageStandardUsage = (
-#     SELECT
-# 	UsageAmountInPricingUnits AS TotalStorageStandardUsage 
-#       FROM
-# 	`'"${Project}.${Dataset}.TempFwTotalCosts"'`
-#       WHERE
-# 	ChargeType = "StorageStandard"
-# );
-# 
-# SET TotalFwStorageStandardUsage = (
-#     SELECT
-# 	SUM(total_storage_byte_day / days)/1024.0/1024.0/1024.0 AS TotalProjectStorageStandardUsage
-#     FROM
-# 	`'"${Project}.${Dataset}.FwUsageReport"'`
-#     WHERE
-# 	CAST(invoice_month AS STRING) = @InvoiceMonth
-# 	AND project IS NOT NULL
-# );
-# 
-# SET TotalMiscCosts = (
-#     SELECT DiscountedCosts AS TotalStorageCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-#     WHERE 
-#         ChargeType = "Misc"
-# );
-# 
-# SET TotalComputeCosts = (
-#     SELECT DiscountedCosts AS TotalComputeCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-#     WHERE 
-#         ChargeType = "Compute"
-# );
-# 
-# SET TotalKubernetesCosts = (
-#     SELECT DiscountedCosts AS TotalKubernetesCosts from `'"${Project}.${Dataset}.TempFwTotalCosts"'`
-#     WHERE 
-#         ChargeType = "Kubernetes"
-# );
-
 CREATE TABLE IF NOT EXISTS
-       `'"${Project}.${Dataset}.TempFwProjectBilling"'`
+       `'"${Project}.${Dataset}.FwProjectBilling"'`
   (
 	InvoiceMonth			STRING,
 	`Group`				STRING,	
@@ -202,13 +138,13 @@ CREATE TABLE IF NOT EXISTS
 ;
 
 DELETE FROM 
-       `'"${Project}.${Dataset}.TempFwProjectBilling"'`
+       `'"${Project}.${Dataset}.FwProjectBilling"'`
     WHERE
         InvoiceMonth = @InvoiceMonth
 ;
 
 INSERT 
-       `'"${Project}.${Dataset}.TempFwProjectBilling"'`
+       `'"${Project}.${Dataset}.FwProjectBilling"'`
 
     SELECT
         InvoiceMonth,

@@ -83,7 +83,7 @@ FROM (
             BscProjectStorageCharge,
             BscProjectCharge,
             (ProjectBscCharges+ProjectGcpCosts) AS TotalProjectCharges
-          FROM `pennbrain-center.BillingAllocation.FwProjectUsage` 
+          FROM `pennbrain-center.BillingAllocation.FwProjectBilling` 
           WHERE InvoiceMonth = "'"${Year}${Month}"'" 
     ) ProjectCosts
     ON 

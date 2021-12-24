@@ -406,7 +406,8 @@ AS
 #     For now, Summing the amount for both and saying project has not been deleted
 # *** Deleted missing
 CREATE OR REPLACE TABLE 
-`'"${Project}.${Dataset}.TempFwProjectUsageReport"'`
+#    `pennbrain-center.BillingAllocation.TempFwProjectUsageReport`
+    `'"${Project}.${Dataset}.TempFwProjectUsageReport"'`
 AS
     SELECT
         InvoiceMonth,
@@ -424,7 +425,9 @@ AS
           IF (t.deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectDeletedStorageGB,
           IF (NOT t.deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectActiveStorageGB
         FROM
-          `'"${Project}.${Dataset}.FwUsageReport"'` t
+#          `pennbrain-center.BillingAllocation.FwUsageReport`
+          `'"${Project}.${Dataset}.FwUsageReport"'`
+	  t
         WHERE
           invoice_month = @InvoiceMonth
           AND project_label IS NOT NULL
