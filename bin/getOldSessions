@@ -37,7 +37,7 @@ function json2Csv () {
       	      $Id2SubjectLabels::Id2SubjectLabels[][.parents.subject],
       	      .label
 	] | @csv
-    ' | sort
+    ' | sort | grep "\"${Group}\",\"${Group}\",\"${Project}\""
 }
 
 while getopts d:g:j:m:p:s: arg
@@ -95,7 +95,8 @@ then
 else
     # The flywheel database has a few sessions which were moved, and parents.group = unknown, but group=<anothergroup>
     # The grep ensures we only release info sessions where .group == .parents.group
-    fwfind -1 -r -S group="$Group" project="$ProjectId" "created<${ToOldDate}" | json2Csv | grep "\"${Group}\",\"${Group}\",\"${Project}\""
+    fwfind -1 -r -S group="$Group" project="$ProjectId" "created<${ToOldDate}" | json2Csv
+
 fi
 			  
 

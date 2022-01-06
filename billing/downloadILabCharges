@@ -1,4 +1,229 @@
-syntax="${CmdName} [-d Dataset][-p Project] {-m Month} {-y Year}"
+#!/bin/bash
+
+function downloadFwIlabCharges {
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    
+    #
+    # The TempProjectInfo has the current service request numbers from all the flywheel projects
+    # Do an inner join to grab all the charges that match the group/projects and format into 
+    # ilab compatiable csv file.
+    #
+    # *** service id should come from a config file
+    #
+    SELECT 
+        "472933" AS service_id,
+        note,
+        format("%8.2f",round(TotalProjectCharges,2)) AS service_quantity,
+        "" AS price,
+        "" AS purchased_on,
+        iLabServiceRequestNumber as service_request_id,
+        "" AS owner_email,
+        "" AS pi_email_or_group_id,
+        "" AS payment_number
+    FROM (
+        SELECT * from `'"${Project}.${Dataset}.TempProjectInfo"'` ProjectInfo
+    
+        INNER JOIN (
+    
+            SELECT 
+                InvoiceMonth,
+                `Group` AS `Group`,
+                project AS project,
+                format("%s/%s Analysis Gears %.2f Storage Charge %.2f Storage Usage(Gb) %.2f Bsc Storage %.2f Bsc Initial Analysis %.2f Bsc Project %.2f",
+                        `Group`,
+                        if (project is NULL, "Deleted", project),
+                        ProjectVMDynamicCosts,
+                        ProjectStorageCosts,
+                        ProjectGcpStorageStandardUsage,
+                        BscProjectStorageCharge,
+                        BscInitialAnalysisCharge,
+                        BscProjectCharge
+                    ) AS `note`,
+    
+                InitialAnalysisCount,
+                ProjectVMCosts,
+                ProjectVMDynamicCosts,
+                ProjectStorageCosts,
+                ProjectGcpStorageStandardUsage,
+                BscProjectStorageCharge,
+                BscProjectCharge,
+                (ProjectBscCharges+ProjectGcpCosts) AS TotalProjectCharges
+              FROM `'"${Project}.${Dataset}."'FwProjectBilling` 
+              WHERE InvoiceMonth = "'"${Year}${Month}"'" 
+        ) ProjectCosts
+        ON 
+                ProjectInfo.`Group` = ProjectCosts.`Group`
+            AND
+                ProjectInfo.project = ProjectCosts.project 
+        WHERE 
+                REGEXP_CONTAINS(iLabServiceRequestNumber,"^([0-9]+)$")
+                AND round(TotalProjectCharges,2) >= 0.01
+    )
+    ORDER BY service_quantity desc
+    '
+}
+
+function downloadNonFwGcpIlabCharges {
+
+BscGcpProjectCostAllocationsFile=$(mktemp /tmp/BscGcpProjectCostAllocations-XXXXXX)
+(wget -q -O - https://docs.google.com/spreadsheets/d/e/2PACX-1vQo4_xTQmetGhNCH_sEo_B1KI7glRgRqizq1LthUo36g3tIZ9iO5-Ll07qk6-NFw1FjLQQ5yDkmtp1S/pub?output=csv ; echo "") > "$BscGcpProjectCostAllocationsFile"
+
+DB="${Dataset}.BscGcpProjectCostAllocations"
+
+ServiceId=455000
+BscStorageFeePercent=0.25
+#curl -q -H "Authorization: Bearer $token"  "https://api.ilabsolutions.com/v1/cores/4822/services" | jq -r '.ilab_response.services[]|[.id,.name]|@csv'
+
+bq load --autodetect --project_id="${Project}" --skip_leading_rows 1 --replace --source_format=CSV "$DB" "$BscGcpProjectCostAllocationsFile"
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    
+    SELECT 
+        "'"$ServiceId"'" AS service_id,
+        format("%s (%8.2f + (%8.2f * %0.2f = %8.2f)) * %0.2f = %8.2f",
+             GcpProjectName,
+    	 TotalDiscountedCosts,
+    	 TotalDiscountedStorageCosts,
+    	 '"$BscStorageFeePercent"',
+    	 BscGcpStorageFee,
+    	 AllocationPercent,
+    	 TotalAllocatedCharges
+          )
+          AS note,
+        format("%8.2f", ROUND(TotalAllocatedCharges,2)) AS service_quantity,
+        "" AS price,
+        "" AS purchased_on,
+        iLabServiceRequestNumber AS service_request_id,
+        "" AS owner_email,
+        "" AS pi_email_or_group_id,
+        "" AS payment_number
+    FROM (
+         SELECT
+    	*
+         FROM (
+    	SELECT
+    	        AllocationPercent,
+    	        GcpProjectName,
+    	        TotalDiscountedCosts,
+    	        TotalDiscountedStorageCosts,
+    	        ROUND((TotalDiscountedStorageCosts * '"$BscStorageFeePercent"'),2) AS BscGcpStorageFee,
+    	        ROUND(TotalDiscountedStorageCosts + (TotalDiscountedStorageCosts * 0.25),2) AS TotalCharges,
+    	        ROUND((TotalDiscountedCosts + (TotalDiscountedStorageCosts * 0.25)) * AllocationPercent,2) AS TotalAllocatedCharges,
+    		IlabServiceRequestNumber,
+    		FundNumber,
+    	FROM (
+    	    SELECT 
+    	        BscGcpProjectCosts.InvoiceMonth AS InvoiceMonth,
+    	        BscGcpProjectCosts.GcpProjectName AS GcpProjectName,
+    	        ROUND(SUM(DiscountedCosts),2) AS TotalDiscountedCosts,
+    	        ROUND(SUM(DiscountedStorageCosts),2) AS TotalDiscountedStorageCosts,
+    	        BscGcpProjectCostAllocations.AllocationPercent AS AllocationPercent,
+    	        BscGcpProjectCostAllocations.iLabServiceRequestNumber AS IlabServiceRequestNumber,
+    	        BscGcpProjectCostAllocations.FundNumber AS FundNumber
+    	    FROM (
+    	        SELECT 
+    	            InvoiceMonth,
+    	            GcpProjectName,
+    	            ServiceDescription,
+    	            Costs + Discounts AS DiscountedCosts,
+    	            IF ((ServiceDescription = "Cloud Storage"), (Costs + Discounts), 0.0) AS DiscountedStorageCosts,
+    	        FROM `'"${Project}.${Dataset}."'GcpNonFlywheelCosts` 
+    	        WHERE 
+    	            InvoiceMonth = @InvoiceMonth
+    	    ) BscGcpProjectCosts
+    	    FULL OUTER JOIN 
+    	    	`'"${Project}.${Dataset}."'BscGcpProjectCostAllocations` BscGcpProjectCostAllocations
+    	    ON
+    		BscGcpProjectCosts.GcpProjectName = BscGcpProjectCostAllocations.GcpProjectName
+    	    GROUP BY 
+    	        BscGcpProjectCosts.InvoiceMonth,
+    	        BscGcpProjectCosts.GcpProjectName,
+    	    	BscGcpProjectCostAllocations.AllocationPercent,
+    		BscGcpProjectCostAllocations.FundNumber,
+    		IlabServiceRequestNumber
+    	    ORDER BY 
+    	        BscGcpProjectCosts.GcpProjectName ASC
+    	)
+         )
+         WHERE
+    	  ROUND(TotalAllocatedCharges,2) >= 0.01
+    	AND
+    	  FundNumber != "InternalBenNumber"
+    )	
+    '
+}
+
+function downloadFwMriIlabCharges {
+    bq query --batch=true --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    
+	# *** Should pull scanners out of flywheel
+        CREATE TEMP TABLE Scanners 
+        AS ( 
+            SELECT 
+                "HUP6" AS Scanner, "455017" AS ServiceId
+        
+            UNION ALL SELECT
+                "SC3T" AS Scanner, "454998" AS ServiceId
+        
+            UNION ALL SELECT
+                "SC7T" AS Scanner, "455018" AS ServiceId
+        );
+        
+        SELECT 
+            ServiceId AS service_id,
+            format("%s %s %s %s %s",
+                SessionID,
+                Ilab.Scanner,
+                CAST(Date AS STRING),
+                REGEXP_REPLACE(Path,"/[^/]+/[^/]+$",""),
+                StudyComments
+            ) AS note,
+            1 AS service_quantity,
+            "" AS price,
+            FORMAT_DATE("%Y-%m-%d",DATE) AS purchased_on,
+        	"3050653" AS service_request_id,
+        	"" AS owner_email,
+        	"" AS pi_email_or_group_id,
+        	"" AS payment_number
+        
+        
+
+        FROM `'"${Project}.${Dataset}."'FwSessionReport` Ilab
+        INNER JOIN 
+            Scanners
+        ON 
+        Ilab.Scanner = Scanners.Scanner 
+        WHERE 
+                FORMAT_DATE("%Y%m",Date) = "'"${Year}${Month}"'" 
+            AND Scanners.Scanner IN ( SELECT Scanner FROM Scanners)
+            AND StudyComments NOT LIKE "not-flywheel"
+            AND StudyDescription NOT LIKE "not-flywheel"
+            AND Path NOT LIKE "%techdev%"
+	    AND StudyComments NOT LIKE "%techdev%"
+	    AND StudyDescription NOT LIKE "%techdev%"
+            AND Path NOT LIKE "%phantom%"
+            AND StudyComments NOT LIKE "%phantom%"
+            AND StudyDescription NOT LIKE "%phantom"
+            AND Path NOT LIKE "%unknown%"
+        ORDER BY 
+	   service_quantity desc
+	;
+
+    ' | sed '1,/^[	 ]*service_quantity/d'
+}
+
+syntax="${CmdName} [-d Dataset][-p Project][-f][-g][-M] {-m Month} {-y Year}"
+
+while getopts d:fgMm:p:y: arg
+do
+	case "$arg" in 
+		d|f|g|M|m|p|y)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1))
 
 if echo "$0" | grep -q /
 then
@@ -6,17 +231,6 @@ then
 else
 	FlywheelUtilsDir=$(dirname $(dirname $(which "$0")))
 fi
-
-while getopts d:m:p:y: arg
-do
-	case "$arg" in 
-		d|m|p|y)
-			eval "opt_${arg}=${OPTARG:=1}"
-			;;
-	esac
-done
-
-shift $(($OPTIND - 1))
 
 if [ -z "$opt_y" ] || [ -z "$opt_m" ]
 then
@@ -29,7 +243,7 @@ Year=$(date --date="$nowmonth -1 month" +'%Y')
 [ -n "$opt_y" ] && Year="$opt_y"
 
 Month=$(date --date="$nowmonth -1 month" +'%m')
-[ -n "$opt_m" ] && Month="$opt_m"
+	     [ -n "$opt_m" ] && Month="$opt_m"
 
 Dataset=BillingAllocation
 [ -n "$opt_d" ] && Dataset="$opt_d"
@@ -37,62 +251,39 @@ Dataset=BillingAllocation
 Project=pennbrain-center
 [ -n "$opt_p" ] && Project="$opt_p"
 
-ProjectInfoFile=$(mktemp /tmp/ProjectInfo-XXXXX.csv)
-fwProjectInfoCrud -p '.ProjectFunding' | jq -r -f "${FlywheelUtilsDir}/lib/ProjectInfo2CSV.jq" | sed 's/\.name/Name/; s/\.email/Email/' > "$ProjectInfoFile"
+if [ -n "$opt_f" ]
+then
+	TableName=FwProjectBilling
 
-Schema=$(head -n 1 "$ProjectInfoFile" | sed 's/"//g; s/,/:string,/g; s/$/:string/')
-bq load --project_id pennbrain-center  --autodetect --replace --source_format=CSV BillingAllocation.TempProjectInfo "$ProjectInfoFile" "$Schema"
+	ProjectInfoFile=$(mktemp /tmp/ProjectInfo-XXXXX.csv)
+	fwProjectInfoCrud -p '.ProjectFunding' | jq -r -f "${FlywheelUtilsDir}/lib/ProjectInfo2CSV.jq" | sed 's/\.name/Name/; s/\.email/Email/' > "$ProjectInfoFile"
 
-bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+	Schema=$(head -n 1 "$ProjectInfoFile" | sed 's/"//g; s/,/:string,/g; s/$/:string/')
+	bq load --project_id pennbrain-center  --autodetect --replace --source_format=CSV BillingAllocation.TempProjectInfo "$ProjectInfoFile" "$Schema"
 
-SELECT 
-    "472933" AS service_id,
-    note,
-    format("%8.2f",round(TotalProjectCharges,2)) AS service_quantity,
-    "" AS price,
-    "" AS purchased_on,
-    iLabServiceRequestNumber as service_request_id,
-    "" AS owner_email,
-    "" AS pi_email_or_group_id,
-    "" AS payment_number
-FROM (
-    SELECT * from `'"${Project}.${Dataset}.TempProjectInfo"'` ProjectInfo
+	downloadFwIlabCharges
+fi
 
-    INNER JOIN (
+if [ -n "$opt_g" ]
+then
+	downloadNonFwGcpIlabCharges
+fi
 
-        SELECT 
-            InvoiceMonth,
-            `Group` AS `Group`,
-            project AS project,
-            format("%s/%s Analysis Gears %.2f Storage Charge %.2f Storage Usage(Gb) %.2f Bsc Storage %.2f Bsc Initial Analysis %.2f Bsc Project %.2f",
-                    `Group`,
-                    if (project is NULL, "Deleted", project),
-                    ProjectVMDynamicCosts,
-                    ProjectStorageCosts,
-                    ProjectGcpStorageStandardUsage,
-                    BscProjectStorageCharge,
-                    BscInitialAnalysisCharge,
-                    BscProjectCharge
-                ) AS `note`,
+if [ -n "$opt_M" ]
+then
+	#
+	# *** Should read from iLab
+	#
+	ServiceRequestId=3050653
 
-            InitialAnalysisCount,
-            ProjectVMCosts,
-            ProjectVMDynamicCosts,
-            ProjectStorageCosts,
-            ProjectGcpStorageStandardUsage,
-            BscProjectStorageCharge,
-            BscProjectCharge,
-            (ProjectBscCharges+ProjectGcpCosts) AS TotalProjectCharges
-          FROM `pennbrain-center.BillingAllocation.FwProjectBilling` 
-          WHERE InvoiceMonth = "'"${Year}${Month}"'" 
-    ) ProjectCosts
-    ON 
-            ProjectInfo.`Group` = ProjectCosts.`Group`
-        AND
-            ProjectInfo.project = ProjectCosts.project 
-    WHERE 
-            REGEXP_CONTAINS(iLabServiceRequestNumber,"^([0-9]+)$")
-            AND round(TotalProjectCharges,2) >= 0.01
-)
-ORDER BY service_quantity desc
-'
+	#
+	# *** Should read from flywheel
+	#
+	declare -A ServiceIDs=( [HUP6]=455017 [SC3T]=454998 [SC7T]=455018 )
+	Scanners=$(echo "${!ServiceIDs[@]}" | sed 's/ /|/g')
+
+	downloadFwMriIlabCharges
+fi
+
+
+

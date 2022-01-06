@@ -33,25 +33,29 @@ NextYearMonth=$(date --date="${Year}-${Month}-15 next month" +%Y-%m)
 
 case "$CmdName" in
 	uploadJobsReport)
-		DB="${Dataset}.FwJobsReport"
-		;;
+	    DB="${Dataset}.FwJobsReport"
+	    Cast='CAST(invoice_month AS STRING)'
+	    ;;
 
 	uploadUsageReport)
-		DB="${Dataset}.FwUsageReport"
-		;;
+	    DB="${Dataset}.FwUsageReport"
+	    Cast='CAST(invoice_month AS STRING)'
+	    ;;
 
 	uploadSessionReport)
 	    DB="${Dataset}.FwSessionReport"
+	    Cast='FORMAT_DATE("%Y%m", Date)'
 	    ;;
 
 	uploadCostTableReport)
 	    DB="${Dataset}.CostTable"
+	    Cast='CAST(invoice_month AS STRING)'
 	    ;;
 
 	*)
-		echo "Unknown command name" 1>&2
-		exit 1
-		;;
+	    echo "Unknown command name" 1>&2
+	    exit 1
+	    ;;
 esac
 
 if [ -n "$1" ] || [ -n "$opt_k" ]
@@ -62,7 +66,7 @@ else
     Cleanup=1
 fi
 
-if [ -n "$opt_k" ]
+if [ -n "$opt_k" ] && [ ! -e "$ReportFile" ]
 then
     if [ "$CmdName" == "uploadJobsReport" ]
     then
@@ -89,7 +93,7 @@ fi
 
 if isTable -q -d "$Dataset" -p "$Project" -t $(echo "$DB" | cut -d . -f 2)
 then
-    bq query -q --use_legacy_sql=false 'DELETE FROM `'"${DB}"'` WHERE CAST(invoice_month AS STRING) = "'"${Year}${Month}"'"'
+    bq query -q --use_legacy_sql=false 'DELETE FROM `'"${DB}"'` WHERE '"$Cast"' = "'"${Year}${Month}"'"'
 
     bq load --project_id="${Project}" --skip_leading_rows 1 --noreplace --source_format=CSV "$DB" "$ReportFile"
 else

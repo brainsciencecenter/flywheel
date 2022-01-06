@@ -40,6 +40,7 @@ Month=$(date --date="$nowmonth -1 month" +'%m')
 Dataset=BillingAllocation
 [ -n "$opt_d" ] && Dataset="$opt_d"
 
+# should dig these out of a configuration file
 InputTables='
     `unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F`
     `upenn-017978-eb30e0-a7e2f9.billing_export.gcp_billing_export_v1_017978_EB30E0_A7E2F9`
@@ -76,52 +77,52 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
 
 for InputTable in $InputTables
 do
-bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter=InvoiceMonth:STRING:"${opt_y}${opt_m}" --parameter=FlywheelProject::upenn-flywheel '
-  INSERT `'"${Project}.${Dataset}.${OutputTable}"'`
-  SELECT
-    invoice.month as InvoiceMonth,
-    labels.value as FlywheelGroup,
-    project.name as GcpProjectName,
-    service.description as ServiceDescription,
-    sku.description as SkuDescription,
-    sum(usage.amount_in_pricing_units) as UsageAmountInPricingUnits,
-    usage.pricing_unit as UsagePricingUnit,
-    SUM(cost) AS Costs,
-    SUM(IFNULL((
-        SELECT
-          SUM(c.amount)
-        FROM
-          UNNEST(credits) c
-        WHERE
-          c.type != "PROMOTION" ),
-        0)) AS Discounts,
-    SUM(IFNULL((
-        SELECT
-          SUM(c.amount)
-        FROM
-          UNNEST(credits) c
-        WHERE
-          c.type = "PROMOTION" ),
-        0)) AS Promotions
-  FROM
-    '"${InputTable}"'
-  LEFT JOIN
-    UNNEST(labels) AS labels
-  ON
-    labels.key = "billing"
-  WHERE
-	invoice.month = @InvoiceMonth
-    AND 
-        '"$WhereClause"'
-    GROUP BY
-        InvoiceMonth,
-        FlywheelGroup,
-        GcpProjectName,
-        ServiceDescription,
-        SkuDescription,
-        UsagePricingUnit
-' | OutputControl
-
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter=InvoiceMonth:STRING:"${opt_y}${opt_m}" --parameter=FlywheelProject::upenn-flywheel '
+      INSERT `'"${Project}.${Dataset}.${OutputTable}"'`
+      SELECT
+        invoice.month as InvoiceMonth,
+        labels.value as FlywheelGroup,
+        project.name as GcpProjectName,
+        service.description as ServiceDescription,
+        sku.description as SkuDescription,
+        sum(usage.amount_in_pricing_units) as UsageAmountInPricingUnits,
+        usage.pricing_unit as UsagePricingUnit,
+        SUM(cost) AS Costs,
+        SUM(IFNULL((
+            SELECT
+              SUM(c.amount)
+            FROM
+              UNNEST(credits) c
+            WHERE
+              c.type != "PROMOTION" ),
+            0)) AS Discounts,
+        SUM(IFNULL((
+            SELECT
+              SUM(c.amount)
+            FROM
+              UNNEST(credits) c
+            WHERE
+              c.type = "PROMOTION" ),
+            0)) AS Promotions
+      FROM
+        '"${InputTable}"'
+      LEFT JOIN
+        UNNEST(labels) AS labels
+      ON
+        labels.key = "billing"
+      WHERE
+    	invoice.month = @InvoiceMonth
+        AND 
+            '"$WhereClause"'
+        GROUP BY
+            InvoiceMonth,
+            FlywheelGroup,
+            GcpProjectName,
+            ServiceDescription,
+            SkuDescription,
+            UsagePricingUnit
+    ' | OutputControl
+    
 done
 
 if [ -n "$opt_c" ]

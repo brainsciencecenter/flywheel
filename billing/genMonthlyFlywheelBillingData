@@ -16,14 +16,6 @@ function sys {
     [ -n "${opt_n}" ] || "$@"
 }
 
-#
-# Should dig these out of a configuration file
-#
-
-# unipen-015ee8-997645-50785f:billing_export.gcp_billing_export_v1_015EE8_997645_50785F
-
-GcpCostTable='unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F'
-
 CmdName=$(basename "$0")
 syntax="${CmdName} [-d Dataset][-f][-j JobReport][-m MM][-n][-p Project][-t Table][-u UsageReport][-v][-y YYYY]"
 
@@ -78,8 +70,6 @@ Args+=( -y "${Year}" )
 sys createCostsTable -o GcpNonFlywheelCosts -w 'project.name != "upenn-flywheel"' -m "${Month}" -y "${Year}"
 sys createCostsTable -o FlywheelCosts -w 'project.name = "upenn-flywheel"' -m "${Month}" -y "${Year}"
 
-#sys createFlywheelCostsTable "${Args[@]}"
-
 if [ -n "$opt_j" ]
 then
     if [ -e "$opt_j" ]
@@ -108,9 +98,8 @@ else
     sys uploadUsageReport "${Args[@]}"
 fi
 
-#sys calculateMonthlyFlywheelTotals "${Args[@]}" 
-
 sys createTempTables "${Args[@]}" 
+
 sys allocateProjectCosts "${Args[@]}" 
 sys allocateProjectGearCosts "${Args[@]}" 
 
