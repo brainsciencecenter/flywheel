@@ -17,18 +17,21 @@ function sys {
 }
 
 CmdName=$(basename "$0")
-syntax="${CmdName} [-d Dataset][-f][-j JobReport][-m MM][-n][-p Project][-t Table][-u UsageReport][-v][-y YYYY]"
+syntax="${CmdName} [-D WorkDir][-d Dataset][-f][-j JobReport][-m MM][-n][-p Project][-t Table][-u UsageReport][-v][-y YYYY]"
 
-while getopts d:fj:m:np:t:u:vy: arg
+while getopts D:d:fj:m:np:t:u:vy: arg
 do
 	case $arg in
-	     d|f|j|m|n|p|t|u|v|y)
+	     D|d|f|j|m|n|p|t|u|v|y)
 		eval "opt_${arg}=${OPTARG:=1}"
 		;;
 	esac
 done
 
 shift $((OPTIND - 1))
+
+WorkDir=.
+[ -n "$opt_D" ] && WorkDir="$opt_D"
 
 nowmonth=$(date +%Y-%m-15)
 Year=$(date --date="$nowmonth -1 month" +'%Y')
@@ -70,33 +73,23 @@ Args+=( -y "${Year}" )
 sys createCostsTable -o GcpNonFlywheelCosts -w 'project.name != "upenn-flywheel"' -m "${Month}" -y "${Year}"
 sys createCostsTable -o FlywheelCosts -w 'project.name = "upenn-flywheel"' -m "${Month}" -y "${Year}"
 
+KeepFile=-k
+
+FwJobReportFile="${WorkDir}/${Year}-${Month}-FwJobReport.csv"
 if [ -n "$opt_j" ]
 then
-    if [ -e "$opt_j" ]
-    then
-	KeepFile=
-    else
-	KeepFile=-k
-    fi
-    
-    sys uploadJobsReport $KeepFile "${Args[@]}" "$opt_j"
-else
-    sys uploadJobsReport "${Args[@]}"
+    FwJobReportFile="$opt_j"
 fi
+    
+sys uploadJobsReport $KeepFile "${Args[@]}" "$FwJobReportFile"
 
+FwUsageReportFile="${WorkDir}/${Year}-${Month}-FwUsageReport.csv"
 if [ -n "$opt_u" ]
 then
-    if [ -e "$opt_u" ]
-    then
-	KeepFile=
-    else
-	KeepFile=-k
-    fi
-    
-    sys uploadUsageReport $KeepFile "${Args[@]}" "$opt_u"
-else
-    sys uploadUsageReport "${Args[@]}"
+    FwUsageReportFile="$opt_u"
 fi
+    
+sys uploadUsageReport $KeepFile "${Args[@]}" "$FwUsageReportFile"
 
 sys createTempTables "${Args[@]}" 
 
