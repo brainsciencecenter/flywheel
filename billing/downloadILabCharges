@@ -212,12 +212,12 @@ function downloadFwMriIlabCharges {
     ' | sed '1,/^[	 ]*service_quantity/d'
 }
 
-syntax="${CmdName} [-d Dataset][-p Project][-f][-g][-M] {-m Month} {-y Year}"
+syntax="${CmdName} [-d Dataset][-p Project][-f][-g][-M][-n][-v] {-m Month} {-y Year}"
 
-while getopts d:fgMm:p:y: arg
+while getopts d:fgMm:p:vy: arg
 do
 	case "$arg" in 
-		d|f|g|M|m|p|y)
+		d|f|g|M|m|n|p|v|y)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
