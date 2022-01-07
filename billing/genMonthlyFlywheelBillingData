@@ -91,6 +91,10 @@ fi
     
 sys uploadUsageReport $KeepFile "${Args[@]}" "$FwUsageReportFile"
 
+FwSessionReportFile="${WorkDir}/${Year}-${Month}-FwSessionReport.csv"
+sys uploadUsageReport $KeepFile "${Args[@]}" "$FwSessionReportFile"
+
+
 sys createTempTables "${Args[@]}" 
 
 sys allocateProjectCosts "${Args[@]}" 
