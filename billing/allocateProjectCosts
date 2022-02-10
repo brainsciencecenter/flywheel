@@ -197,11 +197,21 @@ INSERT
 
             isTbOrMore(AllocatedTotalStorageStandardGB) AS IsTbOrMore,
 
-	    mapNullToZero(AllocatedTotalStorageGB) AS ProjectStorageUsage,
-	    mapNullToZero(AllocatedTotalStorageDiscountedCosts) AS ProjectStorageCosts,
-	    mapNullToZero(AllocatedTotalStorageStandardGB) AS ProjectGcpStorageStandardUsage,
-	    mapNullToZero(calculateBscStorageCharge(AllocatedTotalStorageDiscountedCosts)) AS BscProjectStorageCharge,
-	    mapNullToZero(calculateBscProjectCharge(AllocatedTotalStorageStandardGB,AllocatedTotalStorageDiscountedCosts)) AS BscProjectCharge,
+	    # Spreading the GCP costs across the project
+#	    mapNullToZero(AllocatedTotalStorageGB) AS ProjectStorageUsage,
+#	    mapNullToZero(AllocatedTotalStorageDiscountedCosts) AS ProjectStorageCosts,
+
+#	    mapNullToZero(AllocatedTotalStorageStandardGB) AS ProjectGcpStorageStandardUsage,
+#	    mapNullToZero(calculateBscStorageCharge(AllocatedTotalStorageDiscountedCosts)) AS BscProjectStorageCharge,
+#	    mapNullToZero(calculateBscProjectCharge(AllocatedTotalStorageStandardGB,AllocatedTotalStorageDiscountedCosts)) AS BscProjectCharge,
+
+	    # Using only the FwUsage Report numbers
+	    mapNullToZero(FwProjectStorageGB) AS ProjectStorageUsage,
+	    mapNullToZero(FwProjectStorageStandardCosts) AS ProjectStorageCosts,
+
+	    mapNullToZero(FwProjectStorageGB) AS ProjectGcpStorageStandardUsage,
+	    mapNullToZero(calculateBscStorageCharge(FwProjectStorageStandardCosts)) AS BscProjectStorageCharge,
+	    mapNullToZero(calculateBscProjectCharge(FwProjectStorageGB,FwProjectStorageStandardCosts)) AS BscProjectCharge,
 
 #	    mapNullToZero(AllocatedGroupComputeVmDiscountedCosts) AS ProjectVMCosts,
 #	    mapNullToZero(AllocatedGroupDynamicComputeVmDiscountedCosts) AS ProjectVMDynamicCosts,
