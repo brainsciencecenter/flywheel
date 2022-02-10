@@ -79,6 +79,13 @@ CREATE TEMP FUNCTION isTbOrMore(StorageUsage FLOAT64) RETURNS BOOL AS (
 	  FALSE)
 );
 
+CREATE TEMP FUNCTION calculateGcpStorageStandardCharge(ProjectLabel STRING, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+       IF (ProjectLabel = "Unsorted",
+       	  0.0,
+	  StorageCharge
+      )
+);
+
 CREATE TEMP FUNCTION calculateBscStorageCharge(ProjectLabel STRING, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
        IF (ProjectLabel = "Unsorted",
        	  0.0,
@@ -213,7 +220,7 @@ INSERT
 
 	    # Using only the FwUsage Report numbers
 	    mapNullToZero(FwProjectStorageGB) AS ProjectStorageUsage,
-	    mapNullToZero(FwProjectStorageStandardCosts) AS ProjectStorageCosts,
+	    mapNullToZero(calculateGcpStorageStandardCharge(Project, FwProjectStorageStandardCosts)) AS ProjectStorageCosts,
 
 	    mapNullToZero(FwProjectStorageGB) AS ProjectGcpStorageStandardUsage,
 	    mapNullToZero(calculateBscStorageCharge(Project, FwProjectStorageStandardCosts)) AS BscProjectStorageCharge,
