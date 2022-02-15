@@ -5,6 +5,7 @@ import "Id2ProjectLabels" as $ProjectId2Labels;
 import "Id2SubjectLabels" as $SubjectId2Labels;
 import "Id2SessionLabels" as $SessionId2Labels;
 import "Id2SessionTimeStamps" as $SessionId2Timestamps;
+import "Id2SessionTags" as $SessionId2Tags;
 
       .parents.group as $GroupLabel 
     | .parents.project as $ProjectId
@@ -15,6 +16,7 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
     | $SubjectId2Labels::SubjectId2Labels[][.parents.subject] as $SubjectLabel 
     | $SessionId2Labels::SessionId2Labels[][.parents.session] as $SessionLabel 
     | $SessionId2Timestamps::SessionId2Timestamps[][.parents.session] as $SessionTimeStamp
+    | $SessionId2Tags::SessionId2Tags[][$SessionId] as $SessionTags
 
     | ._id as $AcquisitionId
     | .label as $AcquisitionLabel 
@@ -44,6 +46,7 @@ import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 	    "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data",
 	    $SessionId,
 	    $SessionLabel,
+	    $SessionTags,
 	    $ProjectId,
 	    $AcquisitionLabel,
 	    $Intent,
