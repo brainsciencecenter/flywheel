@@ -28,6 +28,7 @@ FieldsCommon=(
         'FlywheelSessionURL'
         'FlywheelSessionInternalID'
 	'FlywheelSessionLabel'
+	'FlywheelSessionTags'
         'FlywheelProjectInternalID'
         'FlywheelAcquisitionLabel'
         'FlywheelAcquisitionIntent'
@@ -217,6 +218,12 @@ Id2SessionTimeStampsJson="${TmpDir}/Id2SessionTimeStamps.json"
 if [ -n "$opt_f" -o ! -e "$Id2SessionTimeStampsJson" ]
 then
 	fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .timestamp}] | add ' > "$Id2SessionTimeStampsJson"
+fi
+
+Id2SessionTagsJson="${TmpDir}/Id2SessionTags.json"
+if [ -n "$opt_f" -o ! -e "$Id2SessionTagsJson" ]
+then
+	fwfind -g -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): (.tags|join(":"))}] | add ' > "$Id2SessionTagsJson"
 fi
 
 # *** update the json file

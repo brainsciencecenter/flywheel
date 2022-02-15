@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# want to warn users that next week we'll delete things that are three months old and here is what is on the block
+# date --date="now + 1 week - 3 months " +'%Y-%m-%d'
+
+function sys {
+	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	 [ -n "$opt_n" ] || "$@"
+}
+
+while getopts d:m:nvw arg
+do
+	case "$arg" in
+	     d|m|n|v|w)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -n "$1" ]
+then
+	GroupProjects="$@"
+else
+	GroupProjects=$(jq -r '[.group,.label]|@csv' /tmp/json | sort -u | sed 's/\"//g; s+,+/+')
+fi
+
+MinAge="3 months"
+if [ -n "$opt_m" ]
+then
+    MinAge="$opt_m"
+    Args+=( -m "$MinAge" )
+fi
+
+ToOldDate=$(date --date="now - $MinAge" +'%Y-%m-%d')
+if [ -n "$opt_d" ]
+then
+    ToOldDate="$opt_d"
+
+    Args+=( -d "$ToOldDate" )
+fi
+
+for gp in $GroupProjects
+do
+	Group=$(echo "$gp" | cut -f 1 -d /)
+	Project=$(echo "$gp" | cut -f 2 -d /)
+
+	SessionsCsv=$(getOldSessions "${Args[@]}" -g "$Group" -p "$Project")
+	if [ "$opt_w" ]
+	then
+		echo "$SessionsCsv"
+	else
+		SessionUids=$(echo "$SessionsCsv" | csvcut -c SessionId | tail +2 | sort -u)
+		echo "$SessionUids"
+	fi
+done
