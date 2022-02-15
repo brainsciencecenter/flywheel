@@ -17,6 +17,14 @@ CmdName=$(basename "$0")
 syntax="${CmdName} [-a][-Q] [[group/project] [findargs]"
 GroupProjects=()
 
+function getProjectId {
+    local Group=$(echo "$1" | cut -f 1 -d /)
+    local Project=$(echo "$1" | cut -f 2 -d /)
+
+    ProjectId=$(fwfind -1 -p group="$Group" | jq -r 'select(.label | match("'"$Project"'")) | ._id')
+    echo "$ProjectId"
+}
+
 while getopts aQ arg
 do
     case "$arg" in
@@ -54,6 +62,14 @@ do
 	CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
 
 	time syncAcqData2Indd $opt_Q -d "$gp"  -c "$CachedAcquisitionsFile" "$gp"
+
+	ProjectId=$(getProjectId "$gp")
+	InddRegEx=$(fwget -1 "$ProjectId" | jq -r '.info.labels.INDDRegEx|select(. != null)')
+	if [ -n "$InddRegEx" ]
+	then
+	    sed -E -i "${InddRegEx}" ${gp}/*.csv
+	fi
+	
 done
 
 if [ -n "$opt_a" ]
