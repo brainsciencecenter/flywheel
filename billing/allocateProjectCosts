@@ -76,21 +76,16 @@ CREATE TEMP FUNCTION mapNullToZero(v FLOAT64) RETURNS FLOAT64 AS (IF (v IS NULL,
 CREATE TEMP FUNCTION isTbOrMore(StorageUsage FLOAT64) RETURNS BOOL AS (
        IF ((StorageUsage > OneTeraByte()),
        	  TRUE,
-	  FALSE)
+	  FALSE
+       )
 );
 
-CREATE TEMP FUNCTION calculateGcpStorageStandardCharge(ProjectLabel STRING, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
-       IF (ProjectLabel = "Unsorted",
-       	  0.0,
+CREATE TEMP FUNCTION calculateGcpStorageStandardCharge(StorageCharge FLOAT64) RETURNS FLOAT64 AS (
 	  StorageCharge
-      )
 );
 
-CREATE TEMP FUNCTION calculateBscStorageCharge(ProjectLabel STRING, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
-       IF (ProjectLabel = "Unsorted",
-       	  0.0,
+CREATE TEMP FUNCTION calculateBscStorageCharge(StorageCharge FLOAT64) RETURNS FLOAT64 AS (
 	  StorageCharge * BscStorageOverheadRate()
-      )
 );
 
 CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOAT64) RETURNS FLOAT64 AS (
@@ -98,16 +93,13 @@ CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOA
 );
 
 
-CREATE TEMP FUNCTION calculateBscProjectCharge(ProjectLabel STRING, StorageStandardUsage FLOAT64, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
-       IF (ProjectLabel = "Unsorted",
-       	      0.0,
-              IF (round(StorageCharge,2) >= OneCent(),
-       	          IF (isTbOrMore(StorageStandardUsage),
+CREATE TEMP FUNCTION calculateBscProjectCharge(StorageStandardUsage FLOAT64, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+        IF (round(StorageCharge,2) >= OneCent(),
+	        IF (isTbOrMore(StorageStandardUsage),
 		      BscLargeProjectCharge(),
 		      BscSmallProjectCharge()
-		  ),
-		  0.0
-	      )
+		),
+		0.0
        )
 );
 
@@ -220,11 +212,11 @@ INSERT
 
 	    # Using only the FwUsage Report numbers
 	    mapNullToZero(FwProjectStorageGB) AS ProjectStorageUsage,
-	    mapNullToZero(calculateGcpStorageStandardCharge(Project, FwProjectStorageStandardCosts)) AS ProjectStorageCosts,
+	    mapNullToZero(calculateGcpStorageStandardCharge(FwProjectStorageStandardCosts)) AS ProjectStorageCosts,
 
 	    mapNullToZero(FwProjectStorageGB) AS ProjectGcpStorageStandardUsage,
-	    mapNullToZero(calculateBscStorageCharge(Project, FwProjectStorageStandardCosts)) AS BscProjectStorageCharge,
-	    mapNullToZero(calculateBscProjectCharge(Project, FwProjectStorageGB,FwProjectStorageStandardCosts)) AS BscProjectCharge,
+	    mapNullToZero(calculateBscStorageCharge(FwProjectStorageStandardCosts)) AS BscProjectStorageCharge,
+	    mapNullToZero(calculateBscProjectCharge(FwProjectStorageGB,FwProjectStorageStandardCosts)) AS BscProjectCharge,
 
 #	    mapNullToZero(AllocatedGroupComputeVmDiscountedCosts) AS ProjectVMCosts,
 #	    mapNullToZero(AllocatedGroupDynamicComputeVmDiscountedCosts) AS ProjectVMDynamicCosts,
