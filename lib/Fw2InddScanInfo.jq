@@ -45,7 +45,7 @@ import "Id2SessionTags" as $SessionId2Tags;
 	    (if $SessionTimeStamp then $SessionTimeStamp else "1900-01-01T00:00:00+00:00" end),
 	    "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data",
 	    $SessionId,
-	    $SessionLabel,
+#	    $SessionLabel,
 	    $SessionTags,
 	    $ProjectId,
 	    $AcquisitionLabel,
