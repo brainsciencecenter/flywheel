@@ -49,7 +49,7 @@ else
     while read line
     do
     	GroupProjects+=( $line )
-    done < <( fwfind -p 'info.labels.ExportToINDD=true' | jq -r '.[]|"\(.group)/\(.label)"' )
+    done < <( fwfind -p 'info.labels.ExportToINDD=true' | jq -r '.[]|"\(.group)/\(.label)"' | sort )
 fi
 
 for gp in "${GroupProjects[@]}"
