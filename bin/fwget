@@ -89,9 +89,14 @@ if __name__ == '__main__':
         if (Container):
 
             if (args.recurse):
-                Outputs.append( fwgearutils.recurse(fw,Outputs, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info) )
+                Output = fwgearutils.recurse(fw,Outputs, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
             else:
-                Outputs.append( fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)))
+                Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
+
+            if (args.one_at_a_time):
+                print(json.dumps(Output, indent=2))
+            else:
+                Outputs.append(Output)
 
     if (not (args.one_at_a_time)):
         print(json.dumps(Outputs, indent=2))

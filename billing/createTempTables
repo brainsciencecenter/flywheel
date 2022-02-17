@@ -603,6 +603,9 @@ AS
         GcpFwTotalStorageGB,
         GcpFwTotalStorageStandardDiscountedCosts,
         GcpFwTotalStorageStandardGB,
+
+        GcpFwTotalStorageStandardDiscountedCosts / GcpFwTotalStorageStandardGB AS GcpFwTotalStorageStandardCostPerGB,
+
         GcpFwTotalStorageMiscDiscountedCosts,
         GcpFwTotalStorageColdlineDiscountedCosts,
         GcpFwTotalStorageColdlineGB,
@@ -770,6 +773,10 @@ AS
 	FwProjectDeletedStorageGB,
 	FwProjectActiveStorageGB,
 
+	FwProjectStorageGB * GcpFwTotalStorageStandardCostPerGB AS FwProjectStorageStandardCosts,
+
+	GcpFwTotalStorageStandardCostPerGB,
+
 #	GcpFwLblDiscountedCosts,
 
 #	GcpFwLblComputeMiscDiscountedCosts,
@@ -794,6 +801,7 @@ AS
         GcpFwTotalStorageGB * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageGB,
         GcpFwTotalStorageStandardDiscountedCosts * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageStandardDiscountedCosts,
         GcpFwTotalStorageStandardGB * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageStandardGB,
+
         GcpFwTotalStorageMiscDiscountedCosts * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageMiscDiscountedCosts,
         GcpFwTotalStorageColdlineDiscountedCosts * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageColdlineDiscountedCosts,
         GcpFwTotalStorageColdlineGB * FwProjectToTotalStorageGBRatio AS AllocatedTotalStorageColdlineGB,

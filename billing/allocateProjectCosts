@@ -76,11 +76,16 @@ CREATE TEMP FUNCTION mapNullToZero(v FLOAT64) RETURNS FLOAT64 AS (IF (v IS NULL,
 CREATE TEMP FUNCTION isTbOrMore(StorageUsage FLOAT64) RETURNS BOOL AS (
        IF ((StorageUsage > OneTeraByte()),
        	  TRUE,
-	  FALSE)
+	  FALSE
+       )
+);
+
+CREATE TEMP FUNCTION calculateGcpStorageStandardCharge(StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+	  StorageCharge
 );
 
 CREATE TEMP FUNCTION calculateBscStorageCharge(StorageCharge FLOAT64) RETURNS FLOAT64 AS (
-       StorageCharge * BscStorageOverheadRate()
+	  StorageCharge * BscStorageOverheadRate()
 );
 
 CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOAT64) RETURNS FLOAT64 AS (
@@ -90,12 +95,12 @@ CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOA
 
 CREATE TEMP FUNCTION calculateBscProjectCharge(StorageStandardUsage FLOAT64, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
         IF (round(StorageCharge,2) >= OneCent(),
-                IF (isTbOrMore(StorageStandardUsage),
-		   BscLargeProjectCharge(),
-		   BscSmallProjectCharge()
+	        IF (isTbOrMore(StorageStandardUsage),
+		      BscLargeProjectCharge(),
+		      BscSmallProjectCharge()
 		),
 		0.0
-	)
+       )
 );
 
 SET TotalFwProjectCpuHours = (
@@ -197,11 +202,21 @@ INSERT
 
             isTbOrMore(AllocatedTotalStorageStandardGB) AS IsTbOrMore,
 
-	    mapNullToZero(AllocatedTotalStorageGB) AS ProjectStorageUsage,
-	    mapNullToZero(AllocatedTotalStorageDiscountedCosts) AS ProjectStorageCosts,
-	    mapNullToZero(AllocatedTotalStorageStandardGB) AS ProjectGcpStorageStandardUsage,
-	    mapNullToZero(calculateBscStorageCharge(AllocatedTotalStorageDiscountedCosts)) AS BscProjectStorageCharge,
-	    mapNullToZero(calculateBscProjectCharge(AllocatedTotalStorageStandardGB,AllocatedTotalStorageDiscountedCosts)) AS BscProjectCharge,
+	    # Spreading the GCP costs across the project
+#	    mapNullToZero(AllocatedTotalStorageGB) AS ProjectStorageUsage,
+#	    mapNullToZero(AllocatedTotalStorageDiscountedCosts) AS ProjectStorageCosts,
+
+#	    mapNullToZero(AllocatedTotalStorageStandardGB) AS ProjectGcpStorageStandardUsage,
+#	    mapNullToZero(calculateBscStorageCharge(Project, AllocatedTotalStorageDiscountedCosts)) AS BscProjectStorageCharge,
+#	    mapNullToZero(calculateBscProjectCharge(Project, AllocatedTotalStorageStandardGB, AllocatedTotalStorageDiscountedCosts)) AS BscProjectCharge,
+
+	    # Using only the FwUsage Report numbers
+	    mapNullToZero(FwProjectStorageGB) AS ProjectStorageUsage,
+	    mapNullToZero(calculateGcpStorageStandardCharge(FwProjectStorageStandardCosts)) AS ProjectStorageCosts,
+
+	    mapNullToZero(FwProjectStorageGB) AS ProjectGcpStorageStandardUsage,
+	    mapNullToZero(calculateBscStorageCharge(FwProjectStorageStandardCosts)) AS BscProjectStorageCharge,
+	    mapNullToZero(calculateBscProjectCharge(FwProjectStorageGB,FwProjectStorageStandardCosts)) AS BscProjectCharge,
 
 #	    mapNullToZero(AllocatedGroupComputeVmDiscountedCosts) AS ProjectVMCosts,
 #	    mapNullToZero(AllocatedGroupDynamicComputeVmDiscountedCosts) AS ProjectVMDynamicCosts,

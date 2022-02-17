@@ -57,10 +57,20 @@ then
     MinAge="$opt_m"
 fi
 
+if [ -n "$opt_g" ]
+then
+    Group="$opt_g"
+fi
+
+if [ -n "$opt_p" ]
+then
+    Project="$opt_p"
+fi
+
 ToOldDate=$(date --date="now - $MinAge" +'%Y-%m-%d')
 if [ -n "$opt_d" ]
 then
-    ToOldDate="$opt_d"
+    ToOldDate=$(date --date="$opt_d" +'%Y-%m-%d')
 fi
 
 #echo "ToOldDate = $ToOldDate" 1>&2

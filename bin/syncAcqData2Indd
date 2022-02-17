@@ -28,6 +28,7 @@ FieldsCommon=(
         'FlywheelSessionURL'
         'FlywheelSessionInternalID'
 	'FlywheelSessionLabel'
+	'FlywheelSessionTags'
         'FlywheelProjectInternalID'
         'FlywheelAcquisitionLabel'
         'FlywheelAcquisitionIntent'
