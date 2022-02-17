@@ -3,6 +3,8 @@
 # want to warn users that next week we'll delete things that are three months old and here is what is on the block
 # date --date="now + 1 week - 3 months " +'%Y-%m-%d'
 
+CmdName=$(basename "$0")
+
 function sys {
 	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
 	 [ -n "$opt_n" ] || "$@"
@@ -49,9 +51,14 @@ do
 	SessionsCsv=$(getOldSessions "${Args[@]}" -g "$Group" -p "$Project")
 	if [ "$opt_w" ]
 	then
-		echo "$SessionsCsv"
+	       echo "$SessionsCsv"
 	else
-		SessionUids=$(echo "$SessionsCsv" | csvcut -c SessionId | tail +2 | sort -u)
-		sys fwrm $SessionUids
+	   SessionUids=$(echo "$SessionsCsv" | csvcut -c SessionId | tail +2 | sort -u)
+	   if [ -n "$SessionsUids" ]
+	   then
+	       sys fwrm $SessionUids
+	   else
+	       echo "${CmdName} : ${gp} : No Sessions Scheduled to be purged" 1>&2
+	   fi
 	fi
 done
