@@ -46,7 +46,7 @@ import "Id2SessionTags" as $SessionId2Tags;
 	    "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data",
 	    $SessionId,
 	    $SessionLabel,
-#	    $SessionTags,
+	    $SessionTags,
 	    $ProjectId,
 	    $AcquisitionLabel,
 	    $Intent,
