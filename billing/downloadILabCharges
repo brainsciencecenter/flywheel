@@ -15,7 +15,7 @@ function downloadFwIlabCharges {
         note,
         format("%8.2f",round(TotalProjectCharges,2)) AS service_quantity,
         "" AS price,
-        "" AS purchased_on,
+        format("%s01", InvoiceMonth) AS purchased_on,
         iLabServiceRequestNumber as service_request_id,
         "" AS owner_email,
         "" AS pi_email_or_group_id,
