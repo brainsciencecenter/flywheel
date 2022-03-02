@@ -99,10 +99,10 @@ INSERT
 
         FwProjectGearCpuHours AS GearCpuHours,
         GearRuns,
-        FwGroupGearCpuHours / GearRuns AS GearCpuHoursAvg,
+        IF(GearRuns != 0.0, FwGroupGearCpuHours / GearRuns, 0.0) AS GearCpuHoursAvg,
 
         (GroupDynamicComputeCosts * GearToGroupCpuRatio) AS ProjectGearCost,
-        (GroupDynamicComputeCosts * GearToGroupCpuRatio)/GearRuns AS ProjectAvgGearCost,
+        IF(GearRuns != 0.0, (GroupDynamicComputeCosts * GearToGroupCpuRatio)/GearRuns,0.0) AS ProjectAvgGearCost,
         ggh.InvoiceMonth,
 
     FROM (
