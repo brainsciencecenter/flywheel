@@ -113,8 +113,10 @@ INSERT
             GearName,
             SUM(GearRuns) AS GearRuns,
             SUM(FwProjectGearCpuHours) AS FwProjectGearCpuHours,
-            SUM(FwGroupGearCpuHours) AS FwGroupGearCpuHours,
-            SUM(FwProjectGearCpuHours / FwGroupGearCpuHours) AS GearToGroupCpuRatio
+            SUM(gpj.FwGroupGearCpuHours) AS FwGroupGearCpuHours,
+            IF (SUM(gpj.FwGroupGearCpuHours) != 0.0, SUM(gpj.FwProjectGearCpuHours) / SUM(gpj.FwGroupGearCpuHours), 0.0) AS GearToGroupCpuRatio
+
+
         FROM
             `'"${Project}.${Dataset}.TempFwProjectJobReport"'` tfpjr
         LEFT JOIN (
