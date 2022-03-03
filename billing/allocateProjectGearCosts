@@ -114,7 +114,7 @@ INSERT
             SUM(GearRuns) AS GearRuns,
             SUM(FwProjectGearCpuHours) AS FwProjectGearCpuHours,
             SUM(gpj.FwGroupGearCpuHours) AS FwGroupGearCpuHours,
-            IF (SUM(gpj.FwGroupGearCpuHours) != 0.0, SUM(gpj.FwProjectGearCpuHours) / SUM(gpj.FwGroupGearCpuHours), 0.0) AS GearToGroupCpuRatio
+            IF (SUM(gpj.FwGroupGearCpuHours) != 0.0, SUM(FwProjectGearCpuHours) / SUM(gpj.FwGroupGearCpuHours), 0.0) AS GearToGroupCpuRatio
 
 
         FROM
