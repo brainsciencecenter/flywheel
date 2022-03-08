@@ -92,6 +92,10 @@ DELETE FROM
 INSERT 
        `'"${Project}.${Dataset}.FwProjectGearCosts"'`
 
+    #
+    # *** Not clear how we get a gear without a number of gear runs, but they seem to creap in,
+    #     so need elaborate guards to keep from dividing by zero
+    # 
     SELECT
         ggh.`Group`,
         Project,
@@ -106,6 +110,9 @@ INSERT
         ggh.InvoiceMonth,
 
     FROM (
+    	# 
+	# Calculate costs, cpu hours, by group, project, gear
+	#
         SELECT 
             tfpjr.InvoiceMonth,
             tfpjr.`Group`,
@@ -120,6 +127,9 @@ INSERT
         FROM
             `'"${Project}.${Dataset}.TempFwProjectJobReport"'` tfpjr
         LEFT JOIN (
+	     #
+	     # Sum Gear Cpu Hours from the Project Job Report by group
+	     #
             SELECT 
                 tgfjr.InvoiceMonth,
                 tgfjr.`Group`,
