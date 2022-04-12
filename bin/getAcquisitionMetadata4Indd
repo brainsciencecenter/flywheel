@@ -61,7 +61,7 @@ do
 
 	CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
 
-	time syncAcqData2Indd $opt_Q -d "$gp"  -c "$CachedAcquisitionsFile" "$gp"
+	time syncAcqData2Indd $opt_Q -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
 
 	ProjectId=$(getProjectId "$gp")
 	InddRegEx=$(fwget -1 "$ProjectId" | jq -r '.info.labels.INDDRegEx|select(. != null)')
