@@ -53,8 +53,8 @@ do
 	then
 	       echo "$SessionsCsv"
 	else
-	   SessionsUids=$(echo "$SessionsCsv" | csvcut -c SessionId | tail +2 | sort -u)
-	   if [ -n "$SessionsUids" ]
+	   SessionUids=$(echo "$SessionsCsv" | csvcut -c SessionId | tail +2 | sort -u)
+	   if [ -n "$SessionUids" ]
 	   then
 	       sys fwrm $SessionUids
 	   else
