@@ -67,13 +67,13 @@ then
     Project="$opt_p"
 fi
 
-ToOldDate=$(date --date="now - $MinAge" +'%Y-%m-%d')
+TooOldDate=$(date --date="now - $MinAge" +'%Y-%m-%d')
 if [ -n "$opt_d" ]
 then
-    ToOldDate=$(date --date="$opt_d" +'%Y-%m-%d')
+    TooOldDate=$(date --date="$opt_d" +'%Y-%m-%d')
 fi
 
-#echo "ToOldDate = $ToOldDate" 1>&2
+#echo "TooOldDate = $ToOldDate" 1>&2
 
 ProjectId=$(getFwProjectId "${Group}" "${Project}")
 
@@ -105,7 +105,7 @@ then
 else
     # The flywheel database has a few sessions which were moved, and parents.group = unknown, but group=<anothergroup>
     # The grep ensures we only release info sessions where .group == .parents.group
-    fwfind -1 -r -S group="$Group" project="$ProjectId" "created<${ToOldDate}" | json2Csv
+    fwfind -1 -r -S group="$Group" project="$ProjectId" "created<${TooOldDate}" | json2Csv
 
 fi
 			  

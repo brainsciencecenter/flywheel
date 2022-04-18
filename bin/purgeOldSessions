@@ -38,9 +38,9 @@ fi
 ToOldDate=$(date --date="now - $MinAge" +'%Y-%m-%d')
 if [ -n "$opt_d" ]
 then
-    ToOldDate="$opt_d"
+    TooOldDate="$opt_d"
 
-    Args+=( -d "$ToOldDate" )
+    Args+=( -d "$TooOldDate" )
 fi
 
 for gp in $GroupProjects
@@ -53,7 +53,7 @@ do
 	then
 	       echo "$SessionsCsv"
 	else
-	   SessionUids=$(echo "$SessionsCsv" | csvcut -c SessionId | tail +2 | sort -u)
+	   SessionsUids=$(echo "$SessionsCsv" | csvcut -c SessionId | tail +2 | sort -u)
 	   if [ -n "$SessionsUids" ]
 	   then
 	       sys fwrm $SessionUids
