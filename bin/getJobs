@@ -5,6 +5,12 @@
 # get the session ids for those analyses
 # Get the flywheel paths for those sessions sorting by group/project
 
+#
+# you can run as:
+#  getJobs -v -d -aei 'created>2022-04-28' 'created<2022-04-29' group=dwolklab
+# to narrow down the scope of jobs being considered
+#
+
 import argparse
 import csv
 import flywheel
@@ -120,14 +126,30 @@ def isJobInitialSessionAnalysis(JobId=None, SessionId=None, debug=False):
     session_id = SessionId
     session = fw.get(SessionId)
 
+    if (debug):
+        print("isJobInitialSessionAnalysis checking '{}'".format(session_id), file=sys.stderr)
+
+    if (debug):
+        print("  type(InitialSessionAnalysis) = {}".format(type(InitialSessionAnalysis)), file=sys.stderr)
+
     if (session_id in InitialSessionAnalysis.keys()):
+        if (debug):
+            print("  session_id({}) in InitialSessionAnalysis".format(session_id), file=sys.stderr)
+
         if (JobId == InitialSessionAnalysis[session_id]):
             if (debug):
                 print("{} already in InitialSessionAnalysis".format(session_id), file=sys.stderr)
 
             return(True)
 
+    if (debug):
+        print("  session_id({}) not in InitialSessionAnalysis".format(session_id), file=sys.stderr)
+
     analyses = sorted(session.analyses, key=lambda a: a.created)
+
+    if (debug):
+        print("  analyses len = {}".format(len(analyses)), file=sys.stderr)
+
     if (len(analyses)):
         if (debug):
             stuff = []
