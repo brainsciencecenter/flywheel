@@ -2,6 +2,10 @@
 
 cmd=$(basename "$0")
 
+#
+# pushFWProjectContext -p cnds/RecodeDemo /tmp/json
+#
+
 while getopts "adgnpP:sv" arg
 do
 	case "$arg" in
