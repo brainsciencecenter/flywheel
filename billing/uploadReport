@@ -4,10 +4,15 @@ CmdName=$(basename "$0")
 
 syntax="${CmdName} [-d Dataset][-m Month][-k][-p Project][-v][-y Year] [ReportFile]"
 
-while getopts d:km:p:vy: arg
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "${opt_n}" ] || "$@"
+}
+
+while getopts d:km:np:vy: arg
 do
 	case "$arg" in 
-		d|k|m|p|v|y)
+		d|k|m|n|p|v|y)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -70,17 +75,17 @@ if [ -n "$opt_k" ] && [ ! -e "$ReportFile" ]
 then
     if [ "$CmdName" == "uploadJobsReport" ]
     then
-	getJobs -aei -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$ReportFile"
+	sys getJobs -aei -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$ReportFile"
     fi
 
     if [ "$CmdName" == "uploadUsageReport" ]
     then
-	getFwUsageReport -m "$Month" -y "$Year" "$ReportFile"
+	sys getFwUsageReport -m "$Month" -y "$Year" "$ReportFile"
     fi
 
     if [ "$CmdName" == "uploadSessionReport" ]
     then
-	genSessionCSV -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$ReportFile"
+	sys genSessionCSV -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$ReportFile"
     fi
 
     if [ "$CmdName" == "uploadCostTableReport" ]

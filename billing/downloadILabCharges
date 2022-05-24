@@ -187,8 +187,6 @@ function downloadFwMriIlabCharges {
         	"" AS owner_email,
         	"" AS pi_email_or_group_id,
         	"" AS payment_number
-        
-        
 
         FROM `'"${Project}.${Dataset}."'FwSessionReport` Ilab
         INNER JOIN 
