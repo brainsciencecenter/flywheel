@@ -124,7 +124,7 @@ def acquisitionId2SessionId(AcquisitionId):
 def isJobInitialSessionAnalysis(JobId=None, SessionId=None, debug=False):
     
     session_id = SessionId
-    session = fw.get(SessionId)
+    session = fw.get_session(SessionId)
 
     if (debug):
         print("isJobInitialSessionAnalysis checking '{}'".format(session_id), file=sys.stderr)
