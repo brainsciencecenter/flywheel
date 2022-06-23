@@ -5,15 +5,17 @@
 
 CmdName=$(basename "$0")
 
+syntax="${CmdName} [-d TooOldDate][-m Month][-n][-t][-v][-w]"
+
 function sys {
 	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
 	 [ -n "$opt_n" ] || "$@"
 }
 
-while getopts d:m:nvw arg
+while getopts d:m:ntvw arg
 do
 	case "$arg" in
-	     d|m|n|v|w)
+	     d|m|n|t|v|w)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -43,12 +45,17 @@ then
     Args+=( -d "$TooOldDate" )
 fi
 
+if [ -n "$opt_t" ]
+then
+    Args+=( -t )
+fi
+
 for gp in $GroupProjects
 do
 	Group=$(echo "$gp" | cut -f 1 -d /)
 	Project=$(echo "$gp" | cut -f 2 -d /)
 
-	SessionsCsv=$(getOldSessions "${Args[@]}" -g "$Group" -p "$Project")
+	SessionsCsv=$(getOldSessions "${Args[@]}" -g "$Group" -p "$Project" -t)
 	if [ "$opt_w" ]
 	then
 	       echo "$SessionsCsv"

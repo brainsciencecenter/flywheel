@@ -192,7 +192,7 @@ function downloadFwMriIlabCharges {
         INNER JOIN 
             Scanners
         ON 
-        Ilab.Scanner = Scanners.Scanner 
+           Ilab.Scanner = Scanners.Scanner 
         WHERE 
                 FORMAT_DATE("%Y%m",Date) = "'"${Year}${Month}"'" 
             AND Scanners.Scanner IN ( SELECT Scanner FROM Scanners)
