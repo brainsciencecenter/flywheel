@@ -95,7 +95,9 @@ then
 	fi
 	sys genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
 
-	sys jq -s -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile" | sed -r 's/\r\n//g'
+	# The perl command is an attempt to remove \r\n from the dicom header fields.
+	# *** This function should be moved into the jq processing so each field can be cleaned.
+	sys jq -s -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile" | perl -p -e 's/\r\n//g'
 else
 	echo No sessions found 1>&2
 	exit 1
