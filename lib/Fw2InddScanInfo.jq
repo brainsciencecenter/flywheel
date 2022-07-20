@@ -19,18 +19,20 @@ import "Id2SessionTags" as $SessionId2Tags;
     | $SessionId2Tags::SessionId2Tags[][$SessionId] as $SessionTags
 
     | ._id as $AcquisitionId
-    | .label as $AcquisitionLabel 
+    | .label as $AcquisitionLabel
     | (if (.timestamp) then .timestamp else .created end) as $TimeStamp
 
     # Only select the first .dicom.zip
     | .files
-    | [([.[] | select(.name|match(".dicom.zip$"))]|first) , ([.[] | select(.name|match(".nii.gz$"))]|first)]|map(select(.))
+    | [([.[] | select(.name|match("."+$DicomExt+"$"))]|first) , ([.[] | select(.name|match("."+$NiftiExt+"$"))]|first)]|map(select(.))
     | .[]
-    | select(.name | match("(.dicom.zip)|(.nii.gz)$"))
+    | select(.name | match("(("+$DicomExt+")|("+$NiftiExt+"))$"))
 
 
 
       | .name as $AcquisitionFileName
+      | .type as $AcquisitionType
+      | .size as $AcquisitionSize
       | (if .classification.Intent then .classification.Intent|join(";") else "None" end) as $Intent
       | (if .classification.Measurement then .classification.Measurement|join(";") else "None" end) as $Measurement
       | (if .classification.Features then .classification.Features|join(";") else "" end) as $Features
@@ -49,6 +51,8 @@ import "Id2SessionTags" as $SessionId2Tags;
 	    $SessionTags,
 	    $ProjectId,
 	    $AcquisitionLabel,
+	    $AcquisitionType,
+	    $AcquisitionSize,
 	    $Intent,
 	    $Measurement,
 	    $Features,
