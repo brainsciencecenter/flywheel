@@ -291,7 +291,7 @@ gg <- gg + theme_few() +
   labs(title="Hippocampal volume evolution with dementia stages", 
        subtitle="H.A.R.P - Harmonized Hippocampal Protocol",
        y="Normalized Hippocampal Volume", x="Age", caption="Normative Data") +
-  annotation_custom(grob = textGrob(TeX("\\textit{Volume =  $\\frac{ \\sigma(ICV) $\\times$ (HV_{L]+HV_{R})}{ICV}$}"), 
+  annotation_custom(grob = textGrob(TeX("\\textit{Volume =  $\\frac{ \\sigma(ICV) $\\times$ (HV_{L}+HV_{R})}{ICV}$}"), 
                                     gp = gpar(col="black", fontsize=8)), xmin=amax-0.16*amax, xmax=amax, ymin=vmax-0.05*vmax, ymax=vmax) +
   scale_color_manual(name = "Diagnosis",values = ggcolors, labels = legend_labels) +
   scale_fill_manual(name = "Diagnosis",values = ggcolors, labels = legend_labels) +

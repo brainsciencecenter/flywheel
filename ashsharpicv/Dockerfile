@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM ubuntu:20.04
 
 ENV FLYWHEEL /flywheel/v0
 ENV FLYWHEEL_INPUT /flywheel/v0/input
@@ -11,9 +11,11 @@ RUN mkdir -p ${FLYWHEEL_OUTPUT}
 
 RUN apt update
 
-RUN DEBIAN_FRONTEND="noninteractive" apt install -y curl git python unzip wget imagemagick pandoc libxml2-dev libssl-dev libcurl4-openssl-dev texlive-latex-base bc  texlive-fonts-extra texlive-fonts-recommended autoconf libtool libssh2-1-dev
+RUN DEBIAN_FRONTEND="noninteractive" apt install -y curl git
+RUN DEBIAN_FRONTEND="noninteractive" apt install -y python3 python-is-python3 unzip wget imagemagick pandoc libxml2-dev libssl-dev libcurl4-openssl-dev texlive-latex-base bc 
+RUN DEBIAN_FRONTEND="noninteractive" apt install -y texlive-fonts-extra texlive-fonts-recommended autoconf libtool libssh2-1-dev
 
-RUN apt install -y r-base r-base-dev 
+RUN apt install -y r-base r-base-dev libfontconfig1-dev cmake
 
 COPY Rprofile.site /etc/R/
 #RUN R -e "install.packages('devtools'); require('devtools'); install_version('cowplot', version = '0.9.3', repos = 'https://ftp.osuosl.org/pub/cran/');"
@@ -21,7 +23,7 @@ COPY Rprofile.site /etc/R/
 RUN for i in  rmarkdown xml2 rvest latex2exp kableExtra ggplot2 ggthemes wesanderson extrafont fontcm gridExtra ggpubr tinytex; do R --quiet -e "install.packages('$i')"; done
 
 RUN apt install -y python3 python3-pip jq 
-RUN pip3 install flywheel-sdk~=14.3.3 pytz tzlocal
+RUN pip3 install flywheel-sdk~=16.9.1 pytz tzlocal
 RUN pip3 install requests
 RUN pip3 install globre
 

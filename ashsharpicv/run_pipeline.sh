@@ -61,17 +61,17 @@ full_id=${session_id}_${scan_id}
 native_image=${full_id}_native_mri.nii.gz
 input_image=${full_id}_mri.nii.gz
 
-if [ ! -d $TMPDIR ] ; then mkdir -p $TMPDIR ; fi
+if [ ! -d "$TMPDIR" ] ; then mkdir -p $TMPDIR ; fi
 
 if [ -f "$INPUTDIR" ]
 then
 	cp "$INPUTDIR" "$TMPDIR/$native_image"
 elif [ -d "$INPUTDIR" ] ; then 
-	c3d -dicom-series-list $INPUTDIR 
-	series_id=$(c3d -dicom-series-list $INPUTDIR | grep 2 | awk '{ print $NF }')
-	c3d -dicom-series-read $INPUTDIR $series_id -o "$TMPDIR/$native_image"
+	c3d -dicom-series-list "$INPUTDIR" 
+	series_id=$(c3d -dicom-series-list "$INPUTDIR" | grep 2 | awk '{ print $NF }')
+	c3d -dicom-series-read "$INPUTDIR" "$series_id" -o "$TMPDIR/$native_image"
 else
-	echo "The folder $INPUTDIR doesn't exist."
+	echo "The folder "$INPUTDIR" doesn't exist."
 	exit 1
 fi
 
@@ -89,11 +89,11 @@ aspect_ratio_max=$(python -c "print( float($smax)/float($smin))")
 if (( $width > 40 )) && (( $height > 40 )) ; then 
 	if [[ $(echo "$aspect_ratio_max < 3" | bc) == 1 ]] && [[ $(echo "$aspect_ratio_min > 0.33" | bc) == 1 ]] ; then	
 		trim_script=./trim_neck.sh
-		MASKDIR=$TMPDIR/mask
-		INTERDIR=$TMPDIR/inter
-		if [ ! -d $MASKDIR ] ; then mkdir -p $MASKDIR ; fi  
-		if [ ! -d $INTERDIR ] ; then mkdir -p $INTERDIR ; fi
-		$trim_script -m $MASKDIR -w $INTERDIR "$TMPDIR/$native_image" "$TMPDIR/$input_image"
+		MASKDIR="$TMPDIR"/mask
+		INTERDIR="$TMPDIR"/inter
+		if [ ! -d "$MASKDIR" ] ; then mkdir -p "$MASKDIR" ; fi  
+		if [ ! -d "$INTERDIR" ] ; then mkdir -p "$INTERDIR" ; fi
+		"$trim_script" -m "$MASKDIR" -w "$INTERDIR" "$TMPDIR/$native_image" "$TMPDIR/$input_image"
 	else 
 		echo "Wrong scan input: the aspect ratio of the image is < 0.33 or > 3."
 		exit 1
@@ -104,7 +104,7 @@ else
 fi 
 
 # Create input workspace
-input_workspace=${full_id}_input.itksnap
+input_workspace="${full_id}"_input.itksnap
 itksnap-wt -laa "$TMPDIR/$input_image" -ta T1 -psn "MRI" -ll -o "$TMPDIR/$input_workspace"
 
 
@@ -115,34 +115,34 @@ done
 
 # Create ticket with the HARP-ICV service number
 service=ASHS-HarP
-ticket_create_out=$TMPDIR/${full_id}_ticket_info.txt
+ticket_create_out="$TMPDIR/${full_id}_ticket_info.txt"
 
-if [ -f $ticket_create_out ] ; then rm $ticket_create_out ; fi
-touch $ticket_create_out
-chmod 755 $ticket_create_out
+if [ -f "$ticket_create_out" ] ; then rm "$ticket_create_out" ; fi
+touch "$ticket_create_out"
+chmod 755 "$ticket_create_out"
 
-itksnap-wt -i "$TMPDIR/$input_workspace" -dss-tickets-create $service > $ticket_create_out
-ticket_number=$(cat $ticket_create_out | grep "^2> " | awk '{print $2}')
-ticket_code=$(printf %08d $ticket_number)
+itksnap-wt -i "$TMPDIR/$input_workspace" -dss-tickets-create "$service" > "$ticket_create_out"
+ticket_number=$(cat "$ticket_create_out" | grep "^2> " | awk '{print $2}')
+ticket_code=$(printf %08d "$ticket_number")
 
 # Check the processing of the ticket
 sleep 30s
-itksnap-wt -dss-tickets-wait $ticket_number 86400
+itksnap-wt -dss-tickets-wait "$ticket_number" 86400
 sleep 30s
 
 # Rename result files
-itksnap-wt -dss-tickets-download $ticket_number $TMPDIR 
-ticket_workspace=$TMPDIR/ticket_${ticket_code}_results.itksnap
+itksnap-wt -dss-tickets-download "$ticket_number" "$TMPDIR" 
+ticket_workspace="$TMPDIR/ticket_${ticket_code}_results.itksnap"
 xnat_workspace="$TMPDIR/${full_id}_results.itksnap"
 
-mri_layer=$(itksnap-wt -i $ticket_workspace -ll | grep MRI | awk '{print $2}')
-icv_layer=$(itksnap-wt -i $ticket_workspace -ll | grep ICV | awk '{print $2}')
-harp_layer=$(itksnap-wt -i $ticket_workspace -ll | grep -P 'JLF/CL-lite|HARP' | awk '{print $2}')
+mri_layer=$(itksnap-wt -i "$ticket_workspace" -ll | grep MRI | awk '{print $2}')
+icv_layer=$(itksnap-wt -i "$ticket_workspace" -ll | grep ICV | awk '{print $2}')
+harp_layer=$(itksnap-wt -i "$ticket_workspace" -ll | grep -P 'JLF/CL-lite|HARP' | awk '{print $2}')
 
 itksnap-wt -i $ticket_workspace \
-	        -layers-pick $mri_layer -props-rename-file $TMPDIR/${full_id}_mri.nii.gz \
-                -layers-pick $icv_layer -props-rename-file $TMPDIR/${full_id}_icv.nii.gz \
-	        -layers-pick $harp_layer -props-rename-file $TMPDIR/${full_id}_harp.nii.gz \
+	        -layers-pick "$mri_layer" -props-rename-file "$TMPDIR/${full_id}_mri.nii.gz" \
+                -layers-pick "$icv_layer" -props-rename-file "$TMPDIR/${full_id}_icv.nii.gz" \
+	        -layers-pick "$harp_layer" -props-rename-file "$TMPDIR/${full_id}_harp.nii.gz" \
 		-o $xnat_workspace
 
 cp "$ticket_workspace" "${TMPDIR}/${full_id}"_{mri,icv,harp}.nii.gz "$OUTPUTDIR"

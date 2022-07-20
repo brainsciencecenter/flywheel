@@ -11,7 +11,7 @@ export PYTHONPATH=/usr/local/pyjq:/usr/local/flywheel/lib
 export FLYWHEEL_INPUTDIR="${FLYWHEEL}/input"
 export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
 
-CONFIG_FILE=${FLYWHEEL}/config.json
+CONFIG_FILE="${FLYWHEEL}/config.json"
 
 #echo 35.184.111.29 dss.itksnap.org >> /etc/hosts
 
@@ -35,8 +35,8 @@ fi
 
 itksnap-wt -dss-tickets-list
 
-echo Zipfiles in $FLYWHEEL_INPUTDIR:
-find ${FLYWHEEL_INPUTDIR} -type f | grep '.zip$'
+echo Zipfiles in "$FLYWHEEL_INPUTDIR":
+find "${FLYWHEEL_INPUTDIR}" -type f | grep '.zip$'
 
 # Run the pipeline
 
@@ -64,7 +64,7 @@ do
 
     SessionID=$(getGearParam "${CONFIG_FILE}:.config.SessionID" "fwget:${CONFIG_FILE},.destination.id,.[].parents.session,.[].label" "${CONFIG_FILE}:.inputs.dicom.object.info.StudyDescription" UnknownSession)
 
-    Age=$(getGearParam "${CONFIG_FILE}:.config.Age" "${CONFIG_FILE}:.inputs.dicom.object.info.PatientAge" UnknownAge)
+    Age=$(getGearParam "${CONFIG_FILE}:.config.Age" "${CONFIG_FILE}:.inputs.dicom.object.info.PatientAge" default:UnknownAge)
 
     # See if the age is in months and then take the floor of the age in months/12 (Arun's recommendataion)
     if echo "$Age" | grep -qP '\d+M$'
@@ -90,7 +90,7 @@ do
     SessionID=$(echo "$SessionID" | sed 's/\^/-/g')
 
     run_pipeline.sh -s "$SessionID" -n "$SubjectID" -p "$ProjectName" -a "$Age" "$ExtractDir" "$FLYWHEEL_OUTPUTDIR"
-done < <(find ${FLYWHEEL_INPUTDIR} -type f | grep -P '(\.zip|.gz)$')
+done < <(find "${FLYWHEEL_INPUTDIR}" -type f | grep -P '(\.zip|.gz)$')
 
 
 echo "/flywheel/v0"

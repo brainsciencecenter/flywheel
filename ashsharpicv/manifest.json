@@ -1,72 +1,72 @@
 {
-	"name": "ashsharpicv",
-	"label": "AshsHarpICV",
-	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
-	"version": "0.2.54",
-	"inputs": {
-		"api-key": {
-			"base": "api-key"
-		},
-		"dicom": {
-			"base": "file",
-			"description": "Any dicom file.",
-			"optional": true,
-			"type": {
-				"enum": [
-					"dicom"
-				]
-			}
-		}
-	},
-	"config": {
-		"Age": {
-			"default": "",
-			"description": "Age of subject in years. Default found in dicom headers.",
-			"type": "string"
-		},
-		"ProjectName": {
-			"default": "",
-			"description": "Project Name. Default found from gear manifest.",
-			"type": "string"
-		},
-		"SessionID": {
-			"default": "",
-			"description": "Session ID. Default found from flywheel Session label.",
-			"type": "string"
-		},
-		"Subject": {
-			"default": "",
-			"description": "SubjectID. Default found from flywheel Subject label.",
-			"type": "string"
-		}
-	},
-	"environment": {
-		"FLYWHEEL": "/flywheel/v0",
-		"FLYWHEEL_INPUT": "/flywheel/v0/input",
-		"FLYWHEEL_OUTPUT": "/flywheel/v0/output",
-		"GPG_KEY": "C01E1CAD5EA2C4F0B8E3571504C367C218ADD4FF",
-		"LANG": "C.UTF-8",
-		"PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"PYTHONIOENCODING": "UTF-8",
-		"PYTHON_PIP_VERSION": "19.0.2",
-		"PYTHON_VERSION": "2.7.15",
-		"WORKDIR": "/app"
-	},
-	"command": "./run",
-	"author": "Gaylord Holder",
-	"maintainer": "Gaylord Holder",
-	"cite": "List citations here.",
-	"license": "Other",
-	"source": "",
-	"url": "",
-	"custom": {
-		"flywheel": {
-			"suite": "BrainScienceCenter"
-		},
-		"gear-builder": {
-			"category": "analysis",
-			"container": "c1de00eea3b8ece2ef52f7ad8a69169b01df7fdd1c41cbc5432e12bb1a102913",
-			"image": "gear-builder-xygehjhoym-20220125135342"
-		}
-	}
+    "name": "ashsharpicv",
+    "label": "AshsHarpICV",
+    "description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
+    "version": "0.2.56",
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "dicom": {
+            "base": "file",
+            "description": "Any dicom file.",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "dicom"
+                ]
+            }
+        }
+    },
+    "config": {
+        "Age": {
+            "default": "",
+            "description": "Age of subject in years. Default found in dicom headers.",
+            "type": "string"
+        },
+        "ProjectName": {
+            "default": "",
+            "description": "Project Name. Default found from gear manifest.",
+            "type": "string"
+        },
+        "SessionID": {
+            "default": "",
+            "description": "Session ID. Default found from flywheel Session label.",
+            "type": "string"
+        },
+        "Subject": {
+            "default": "",
+            "description": "SubjectID. Default found from flywheel Subject label.",
+            "type": "string"
+        }
+    },
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0",
+        "FLYWHEEL_INPUT": "/flywheel/v0/input",
+        "FLYWHEEL_OUTPUT": "/flywheel/v0/output",
+        "GPG_KEY": "C01E1CAD5EA2C4F0B8E3571504C367C218ADD4FF",
+        "LANG": "C.UTF-8",
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PYTHONIOENCODING": "UTF-8",
+        "PYTHON_PIP_VERSION": "19.0.2",
+        "PYTHON_VERSION": "2.7.15",
+        "WORKDIR": "/app"
+    },
+    "command": "./run",
+    "author": "Gaylord Holder",
+    "maintainer": "Gaylord Holder",
+    "cite": "List citations here.",
+    "license": "Other",
+    "source": "",
+    "url": "",
+    "custom": {
+        "flywheel": {
+            "suite": "BrainScienceCenter"
+        },
+        "gear-builder": {
+            "category": "analysis",
+            "container": "a39c45a3f61197d89dfe0778c0e3213477fd161afcc36768c1a8e2cca46f13ec",
+            "image": "gear-builder-yfwzdrtbts-20220715112820:0.2.56"
+        }
+    }
 }
