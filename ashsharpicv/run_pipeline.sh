@@ -110,20 +110,24 @@ itksnap-wt -laa "$TMPDIR/$input_image" -ta T1 -psn "MRI" -ll -o "$TMPDIR/$input_
 
 for i in $(itksnap-wt -dss-tickets-list | grep -P 'success|failed' | awk '{print $2}')
 do
-        itksnap-wt -dss-tickets-delete $i
+        itksnap-wt -dss-tickets-delete "$i"
 done
 
 # Create ticket with the HARP-ICV service number
 service=ASHS-HarP
 ticket_create_out="$TMPDIR/${full_id}_ticket_info.txt"
 
-if [ -f "$ticket_create_out" ] ; then rm "$ticket_create_out" ; fi
+if [ -f "$ticket_create_out" ]
+then
+    rm "$ticket_create_out"
+fi
+
 touch "$ticket_create_out"
 chmod 755 "$ticket_create_out"
 
 itksnap-wt -i "$TMPDIR/$input_workspace" -dss-tickets-create "$service" > "$ticket_create_out"
 ticket_number=$(cat "$ticket_create_out" | grep "^2> " | awk '{print $2}')
-ticket_code=$(printf %08d "$ticket_number")
+ticket_code=$(printf "%08d" "$ticket_number")
 
 # Check the processing of the ticket
 sleep 30s
@@ -143,16 +147,16 @@ itksnap-wt -i $ticket_workspace \
 	        -layers-pick "$mri_layer" -props-rename-file "$TMPDIR/${full_id}_mri.nii.gz" \
                 -layers-pick "$icv_layer" -props-rename-file "$TMPDIR/${full_id}_icv.nii.gz" \
 	        -layers-pick "$harp_layer" -props-rename-file "$TMPDIR/${full_id}_harp.nii.gz" \
-		-o $xnat_workspace
+		-o "$xnat_workspace"
 
 cp "$ticket_workspace" "${TMPDIR}/${full_id}"_{mri,icv,harp}.nii.gz "$OUTPUTDIR"
 cp clinical_report.Rmd ADNI_metadata_for_R.csv "$TMPDIR"
 
-make_report.sh -s $session_id \
-			  -n $scan_id \
-			  -a $age \
-			  -t $ticket_code \
-			  -i "$TMPDIR" \
-			  -w "$OUTPUTDIR"
+make_report.sh 	-s "$session_id"	\
+		-n "$scan_id"		\
+		-a "$age"		\
+		-t "$ticket_code"	\
+		-i "$TMPDIR"		\
+		-w "$OUTPUTDIR"
 
 itksnap-wt -dss-tickets-delete "$ticket_number"
