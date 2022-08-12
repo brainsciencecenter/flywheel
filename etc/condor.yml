@@ -1,29 +1,34 @@
+.size-tags: &size-tags
+  - small
+  - vm-n1-standard-1_disk-300G_swap-30G
+  - large
+  - vm-n1-highmem-4_disk-300GB_swap-30G
+  - extra-large
+  - vm-n1-highmem-8_disk-1500G_swap-60G
+  - antsct-aging-batch
+# added antsct-aging-batch tag as a temporary batch tag for ZD6352
 condor:
+  # Increased resources for more providers
+  resources:
+    limits:
+      memory: '1.2Gi'
   profiles:
-    - condor_id: 'a3f30742b10a'
-      cloud:
-        machineType: n1-standard-1
-        project: upenn-flywheel
-        pollDelay: 180
-        maxCompute: 32
-        diskSize: 300
-        swapSize: 30
-        queueThreshold: 1
-        prefix: tags-small
-      engineMatch:
-        whitelist:
-          tag: [
-            small,
-            vm-n1-standard-1_disk-300G_swap-30G
-          ]
-    - condor_id: 'c8aca0b'
+    ###
+    # Gear-Based Condor Profiles
+    # NOTE: If you define a new profile here, it needs
+    # to include size-tags in the blacklist
+    # e.g.
+    # blacklist:
+    #   tag: *size-tags
+    ###
+    default:
       cloud:
         machineType: n1-highmem-2
         project: upenn-flywheel
         pollDelay: 60
-        maxCompute: 96
+        maxCompute: 32
         queueThreshold: 1
-        prefix: highmem-2core
+        prefix: default
       engineMatch:
         blacklist:
           gear-name: [
@@ -48,22 +53,15 @@ condor:
             qsirecon-fw-hpc,
             dcm2niix
           ]
-          tag: [
-              extra-large,
-              small,
-              large,
-              vm-n1-highmem-4_disk-300GB_swap-30G,
-              vm-n1-standard-1_disk-300G_swap-30G,
-              vm-n1-highmem-8_disk-1500G_swap-60G
-          ]
-    - condor_id: '30da1f68a37b'
+          tag: *size-tags
+    analysis:
       cloud:
         machineType: n1-highmem-8
         project: upenn-flywheel
         pollDelay: 180
-        maxCompute: 32
+        maxCompute: 8
         queueThreshold: 1
-        prefix: highmem-8core
+        prefix: fw-engine-analysis
       engineMatch:
         whitelist:
           gear-name: [
@@ -75,35 +73,89 @@ condor:
             qsirecon-fw,
             xcpenginestruc-fw
           ]
-    - condor_id: 'aad79ef78281'
+        blacklist:
+          tag: *size-tags
+    utility:
+      cloud:
+        machineType: n1-highmem-8
+        project: upenn-flywheel
+        pollDelay: 180
+        maxCompute: 8
+        queueThreshold: 1
+        prefix: fw-engine-utility
+      engineMatch:
+        whitelist:
+          gear-name: [
+            dcm2niix,
+            dicom-mr-classifier,
+          ]
+        blacklist:
+          tag: *size-tags
+
+    ###
+    # Tag-Based Condor Profiles
+    # NOTE: If you define a new tag here, it needs
+    # to be included in size-tags above
+    ###
+    small:
+      cloud:
+        machineType: n1-standard-1
+        project: upenn-flywheel
+        pollDelay: 180
+        maxCompute: 8
+        diskSize: 300
+        swapSize: "30G"
+        queueThreshold: 1
+        prefix: fw-engine-small
+      engineMatch:
+        whitelist:
+          tag: [
+            small,
+            vm-n1-standard-1_disk-300G_swap-30G
+          ]
+    large:
       cloud:
         machineType: n1-highmem-4
         project: upenn-flywheel
         pollDelay: 180
-        maxCompute: 32
+        maxCompute: 8
         diskSize: 300
-        swapSize: 30
+        swapSize: "30G"
         queueThreshold: 1
-        prefix: tags-large
+        prefix: fw-engine-large
       engineMatch:
         whitelist:
           tag: [
             large,
             vm-n1-highmem-4_disk-300GB_swap-30G
           ]
-    - condor_id: '8822b13e3853'
+    xlarge:
       cloud:
         machineType: n1-highmem-8
         project: upenn-flywheel
         pollDelay: 180
-        maxCompute: 32
+        maxCompute: 8
         diskSize: 1500
-        swapSize: 60
+        swapSize: "60G"
         queueThreshold: 1
-        prefix: tags-extra-large
+        prefix: fw-engine-xlarge
       engineMatch:
         whitelist:
           tag: [
             extra-large,
-            vm-n1-highmem-8_disk-1500G_swap-60G
+            vm-n1-highmem-8_disk-1500G_swap-60G,
+          ]
+    # added antsct-aging-batch tag as a temporary batch tag for ZD6352
+    antsct-aging-batch:
+      cloud:
+        machineType: n1-highmem-2
+        project: upenn-flywheel
+        pollDelay: 180
+        maxCompute: 120
+        queueThreshold: 1
+        prefix: fw-engine-antsct-aging
+      engineMatch:
+        whitelist:
+          tag: [
+            antsct-aging-batch
           ]
