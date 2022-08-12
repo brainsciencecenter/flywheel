@@ -115,11 +115,6 @@ CREATE TEMP FUNCTION isUtilityGear(GearCategory STRING) RETURNS BOOLEAN AS (
   IF (isAnalysisGear(GearCategory),FALSE,TRUE)
   );
 
-
-#
-# *** Not correctly grouping rows
-#
-
 CREATE OR REPLACE TABLE
 
   `pennbrain-center.Bob.TempProjectJobReport`
@@ -176,7 +171,8 @@ AS
               invoice_month = "202207"
               AND (
 	            `group` = "dwolklab"
-             	     OR `group` = "pennftdcenter")
+             	     OR `group` = "pennftdcenter"
+	      )
           
             GROUP BY
               InvoiceMonth,
