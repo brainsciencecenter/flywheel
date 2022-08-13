@@ -9,6 +9,7 @@ import os
 import pyjq
 import re
 import sys
+import time
 
 def runGear(gear, inputs, dest):
    """Submits a job with specified gear and inputs.
@@ -33,14 +34,19 @@ def runGear(gear, inputs, dest):
 
 if __name__ == '__main__':
 
+    CmdName = os.path.basename(sys.argv[0])
+
     logging.basicConfig(format='%(message)s')
 
     ap = argparse.ArgumentParser()
+    ap.add_argument('-d', '--debug', default=False,  action='store_true', help='debug')
     ap.add_argument('-g', '--gear-name', required=True, action='store', help='gear name')
     ap.add_argument('-t', '--tag', required=True,  action='store', help='gear input key')
     ap.add_argument('-v', '--version', action='store', help='gear version to run')
+    ap.add_argument('-w', '--wait', default=False,  action='store_true', help='wait for job completion')
 
-    ap.add_argument(metavar='AcqFile', nargs='+',  dest='acqfiles',  type=str, default=None, help='AcquisitionFileName pairs')
+    ap.add_argument('acqfilepaths', nargs='+', type=str, action='store', help='acquisition filename paths')
+    #ap.add_argument(metavar='AcqFile', nargs='+',  dest='acqfiles',  type=str, default=None, help='AcquisitionFileName pairs')
 
     args = ap.parse_args()
 
@@ -53,20 +59,25 @@ if __name__ == '__main__':
         sys.exit(1)
 
     gear = fw.lookup('gears/{}'.format(args.gear_name))
+    # *** should check if the gear isn't found
 
-    for AcqFile in args.acqfiles:
-       print("'{}'".format(AcqFile))
-       (AcqId,FileName) = AcqFile.split(',',1)
+    for fn in args.acqfilepaths:
+       print("'{}'".format(fn))
 
        try:
-          Acq = fw.get(AcqId)
+          file_obj = fw.lookup(fn)
        except (flywheel.rest.ApiException) as e:
-          print("No such acquisition '{}'".format(AcqId), file=sys.stderr)
+          print("{} : No such acquisition '{}'".format(CmdName,fn), file=sys.stderr)
           continue
 
-       AcqFiles = Acq.files
+       dest = file_obj.parent
+       job_id = runGear(gear,{InputKey: file_obj}, dest)
 
-       for f in list(filter(lambda f: f.name == FileName, AcqFiles)):
-#          print("AcqId '{}', FileName = '{}'".format(Acq.id, f.name), file=sys.stderr)
-          print(runGear(gear,{InputKey: f},Acq))
-
+       if args.wait:
+          while True:
+             time.sleep(1)
+             job_info = fw.get_job(job_id)
+             if (args.debug):
+                print("{} : Job {} status {}".format(CmdName,job_id, job_info.state), file=sys.stderr)
+             if (job_info.state == 'complete'):
+                break
