@@ -9,7 +9,7 @@
 #    The dynamic will be used to apportion the Gcp cost of the group compute resources to the gears.
 #    The static will be used to apportion the Gcp cost of the flywheel-static compute resources to the gears
 #
-# ***
+# *** Done
 #    Should be able to allocate the costs of the unlabeled compute resources which are all
 #       BigQuery
 #	Cloud Key Management Service (KMS)
@@ -21,6 +21,8 @@
 #    Currently all dynamic compute nodes come with 200GB SSD drives. The unlabeled SSD backed PD Capacity is in gibibyte months
 #    Divide by 200 gibibytes to get # of months and convert to hours using average 30 day month
 #    Use the ratio of analysis gears dynamic cpu hours to total dynamic cpu hours to allocate unlabeled compute costs
+#
+#    All compute engine costs are assigned as Unlabeled Compute Costs.  The remaining unlabeled costs are unlabeled Misc Costs
 #
 # *** Done
 #    Need to allocate flywheel-static compute costs across the gear runs
@@ -78,7 +80,9 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
 
 DECLARE GcpFwTotalUtilityGearCpuHours FLOAT64;
 DECLARE GcpFwTotalUnlabeledComputeHours FLOAT64;
-DECLARE GcpFwTotalFlywheelStaticComputeCost FLOAT64;
+DECLARE GcpFwTotalUnlabeledComputeCosts FLOAT64;
+DECLARE GcpFwTotalUnlabeledMiscCosts FLOAT64;
+DECLARE GcpFwTotalFlywheelStaticComputeCosts FLOAT64;
 DECLARE FwComputeDefaultSsdSize FLOAT64 DEFAULT 200.0; # GibiBytes
 
 CREATE TEMP FUNCTION fwCpuMsToCpuHours(CpuMs FLOAT64) RETURNS FLOAT64 AS (
@@ -197,8 +201,6 @@ AS
 
   ;
 
-SELECT * FROM 	`pennbrain-center.Bob.TempProjectJobReport`;
-
 CREATE or REPLACE TABLE
   `pennbrain-center.Bob.GcpFlywheelCosts`
 AS
@@ -315,7 +317,7 @@ SET GcpFwTotalUtilityGearCpuHours = (
 )
 ;
 
-SET GcpFwTotalFlywheelStaticComputeCost = (
+SET GcpFwTotalFlywheelStaticComputeCosts = (
     SELECT
 	SUM(DiscountedCosts)
     FROM
@@ -349,10 +351,35 @@ SET GcpFwTotalUnlabeledComputeHours = (
 )
 ;
 	
+
+SET GcpFwTotalUnlabeledComputeCosts = (
+    SELECT
+	SUM(DiscountedCosts)
+    FROM
+	`pennbrain-center.Bob.TempGcpFlywheelCosts`
+    WHERE
+       FwGroup IS NULL
+       AND ServiceDescription = "Compute Engine"	
+)
+;
+	
+SET GcpFwTotalUnlabeledMiscCosts = (
+    SELECT
+	SUM(DiscountedCosts)
+    FROM
+	`pennbrain-center.Bob.TempGcpFlywheelCosts`
+    WHERE
+       FwGroup IS NULL
+       AND ServiceDescription != "Compute Engine"	
+)
+;
+	
 SELECT FwComputeDefaultSsdSize;
 SELECT GcpFwTotalUtilityGearCpuHours;
-SELECT GcpFwTotalFlywheelStaticComputeCost;
+SELECT GcpFwTotalFlywheelStaticComputeCosts;
 SELECT GcpFwTotalUnlabeledComputeHours;
+SELECT GcpFwTotalUnlabeledComputeCosts;
+SELECT GcpFwTotalUnlabeledMiscCosts;
 
 
 SELECT
@@ -369,7 +396,9 @@ SELECT
        GcpFwGroupComputeDiscountedCosts,
        GcpFwGroupComputeCoreCpuHours,
        GcpFwGroupComputeDiscountedCosts * AnalysisGearCpuHours / GroupAnalysisGearCpuHours AS GcpAllocatedDynamicComputeCosts,
-       GcpFwTotalFlywheelStaticComputeCost * UtilityGearCpuHours / GcpFwTotalUtilityGearCpuHours AS GcpAllocatedStaticComputeCosts
+       GcpFwTotalUnlabeledComputeCosts * AnalysisGearCpuHours / GroupAnalysisGearCpuHours AS GcpAllocatedUnlabeledComputeCost,
+       GcpFwTotalFlywheelStaticComputeCosts * UtilityGearCpuHours / GcpFwTotalUtilityGearCpuHours AS GcpAllocatedStaticComputeCosts
+
 FROM (
 
     SELECT
