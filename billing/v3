@@ -78,6 +78,7 @@ Project=pennbrain-center
 
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
 
+DECLARE GcpFwTotalAnalysisGearCpuHours FLOAT64;
 DECLARE GcpFwTotalUtilityGearCpuHours FLOAT64;
 DECLARE GcpFwTotalUnlabeledComputeHours FLOAT64;
 DECLARE GcpFwTotalUnlabeledComputeCosts FLOAT64;
@@ -119,6 +120,11 @@ CREATE TEMP FUNCTION isUtilityGear(GearCategory STRING) RETURNS BOOLEAN AS (
   IF (isAnalysisGear(GearCategory),FALSE,TRUE)
   );
 
+#
+# 1   `pennbrain-center.Bob.TempProjectJobReport`
+#
+#	Sorts gear hours into utility and analysis hours
+#	Sum everything else up into fwgroup/project/gear bins
 CREATE OR REPLACE TABLE
 
   `pennbrain-center.Bob.TempProjectJobReport`
@@ -145,7 +151,10 @@ AS
           IF (isAnalysisGear(GearCategory), SUM(GearCpuHours), 0.0) AS AnalysisGearCpuHours,
           IF (isAnalysisGear(GearCategory), 0.0, SUM(GearCpuHours)) AS UtilityGearCpuHours,
           SUM(GearInitialAnalysis) AS InitialAnalysisCount
-    
+
+#
+# *** This select could be easily merged with the one above this.
+#
       FROM (
             SELECT 
           
@@ -173,6 +182,7 @@ AS
           
             WHERE
               invoice_month = "202207"
+# ***
               AND (
 	            `group` = "dwolklab"
              	     OR `group` = "pennftdcenter"
@@ -201,8 +211,11 @@ AS
 
   ;
 
+#
+# 2
+#
 CREATE or REPLACE TABLE
-  `pennbrain-center.Bob.GcpFlywheelCosts`
+  `pennbrain-center.Bob.TempGcpFlywheelCosts`
 AS
       SELECT
         invoice.month as InvoiceMonth,
@@ -210,17 +223,18 @@ AS
         project.name as GcpProjectName,
         service.description as ServiceDescription,
         sku.description as SkuDescription,
-        sum(usage.amount_in_pricing_units) as UsageAmountInPricingUnits,
+        sum(usage.amount_in_pricing_units) as UsageAmount,
         usage.pricing_unit as UsagePricingUnits,
-        SUM(cost) AS Costs,
-        SUM(IFNULL((
+
+        SUM(cost + IFNULL((
             SELECT
               SUM(c.amount)
             FROM
               UNNEST(credits) c
             WHERE
               c.type != "PROMOTION" ),
-            0)) AS Discounts,
+            0)) AS DiscountedCosts,
+	    
         SUM(IFNULL((
             SELECT
               SUM(c.amount)
@@ -255,26 +269,10 @@ AS
             UsagePricingUnits
 ;
 
-CREATE OR REPLACE TABLE
-  `pennbrain-center.Bob.TempGcpFlywheelCosts`
-AS
-SELECT
-  InvoiceMonth,
-  FwGroup,
-  ServiceDescription,
-  SkuDescription,
 
-  Costs + Discounts AS DiscountedCosts,
-
-  UsageAmountInPricingUnits AS UsageAmount,
-  UsagePricingUnits
-
-FROM
-  `pennbrain-center.Bob.GcpFlywheelCosts`
-WHERE
-  InvoiceMonth = "202207"
-;
-
+#
+# 3
+#
 CREATE OR REPLACE TABLE
   `pennbrain-center.Bob.TempGcpFlywheelClassifiedComputeCosts`
 AS
@@ -305,6 +303,18 @@ AS
 ;
 
 
+SET GcpFwTotalAnalysisGearCpuHours = (
+    SELECT
+        SUM(AnalysisGearCpuHours)
+    FROM
+        `pennbrain-center.Bob.TempProjectJobReport`
+    WHERE
+        FwGroup IS NOT NULL
+    AND
+        FWGroup != "flywheel-static"
+)
+;
+
 SET GcpFwTotalUtilityGearCpuHours = (
     SELECT
         SUM(UtilityGearCpuHours)
@@ -328,28 +338,42 @@ SET GcpFwTotalFlywheelStaticComputeCosts = (
 )
 ;
 
+##
+## UsageAmount in GibiByte Months
+##
+#SET GcpFwTotalUnlabeledComputeHours = (
+#  SELECT
+#	(SUM(SsdPdHours) * 30 * 24) / FwComputeDefaultSsdSize, 
+#  FROM (
+#    SELECT
+#	FwGroup
+#	ServiceDescription,
+#	SkuDescription,
+#	IF (isSsdPdCost(ServiceDescription,SkuDescription),
+#	   UsageAmount,
+#	   0.0) AS SsdPdHours
+#    FROM
+#	`pennbrain-center.Bob.TempGcpFlywheelCosts`
+#    WHERE
+#       FwGroup IS NULL
+#	
+#  )
+#)
+#;
+#	
 #
-# UsageAmount in GibiByte Months
+# Misc costs are not part of compute costs - not used yet
 #
-SET GcpFwTotalUnlabeledComputeHours = (
-  SELECT
-	(SUM(SsdPdHours) * 30 * 24) / FwComputeDefaultSsdSize, 
-  FROM (
-    SELECT
-	FwGroup
-	ServiceDescription,
-	SkuDescription,
-	IF (isSsdPdCost(ServiceDescription,SkuDescription),
-	   UsageAmount,
-	   0.0) AS SsdPdHours
-    FROM
-	`pennbrain-center.Bob.TempGcpFlywheelCosts`
-    WHERE
-       FwGroup IS NULL
-	
-  )
-)
-;
+#SET GcpFwTotalUnlabeledMiscCosts = (
+#    SELECT
+#	SUM(DiscountedCosts)
+#    FROM
+#	`pennbrain-center.Bob.TempGcpFlywheelCosts`
+#    WHERE
+#       FwGroup IS NULL
+#       AND ServiceDescription != "Compute Engine"	
+#)
+#;
 	
 
 SET GcpFwTotalUnlabeledComputeCosts = (
@@ -362,25 +386,22 @@ SET GcpFwTotalUnlabeledComputeCosts = (
        AND ServiceDescription = "Compute Engine"	
 )
 ;
-	
-SET GcpFwTotalUnlabeledMiscCosts = (
-    SELECT
-	SUM(DiscountedCosts)
-    FROM
-	`pennbrain-center.Bob.TempGcpFlywheelCosts`
-    WHERE
-       FwGroup IS NULL
-       AND ServiceDescription != "Compute Engine"	
-)
-;
-	
+
 SELECT FwComputeDefaultSsdSize;
+SELECT GcpFwTotalAnalysisGearCpuHours;
 SELECT GcpFwTotalUtilityGearCpuHours;
 SELECT GcpFwTotalFlywheelStaticComputeCosts;
-SELECT GcpFwTotalUnlabeledComputeHours;
 SELECT GcpFwTotalUnlabeledComputeCosts;
 SELECT GcpFwTotalUnlabeledMiscCosts;
 
+#
+# 4
+#
+CREATE OR REPLACE TABLE
+
+  `pennbrain-center.Bob.TempGcpFwAllocatedComputeCosts`
+
+AS
 
 SELECT
        t3.InvoiceMonth,
@@ -396,7 +417,7 @@ SELECT
        GcpFwGroupComputeDiscountedCosts,
        GcpFwGroupComputeCoreCpuHours,
        GcpFwGroupComputeDiscountedCosts * AnalysisGearCpuHours / GroupAnalysisGearCpuHours AS GcpAllocatedDynamicComputeCosts,
-       GcpFwTotalUnlabeledComputeCosts * AnalysisGearCpuHours / GroupAnalysisGearCpuHours AS GcpAllocatedUnlabeledComputeCost,
+       GcpFwTotalUnlabeledComputeCosts * AnalysisGearCpuHours / GcpFwTotalAnalysisGearCpuHours AS GcpAllocatedUnlabeledComputeCost,
        GcpFwTotalFlywheelStaticComputeCosts * UtilityGearCpuHours / GcpFwTotalUtilityGearCpuHours AS GcpAllocatedStaticComputeCosts
 
 FROM (
