@@ -1,6 +1,20 @@
 #!/bin/bash
 
 #
+# *** Want cost of 
+#     cpu hour
+#     Standard Storage Tb/year
+#     Coldline Storage Tb/year
+#     Archive Storage Tb/year
+#     Cost/Gear Run
+#     CPU Hour/Gear Run
+
+#     Misc Compute Costs - Do not need as we allocate all the compute costs to the gears based on cpu hours
+
+#
+# *** Misc Storage charges - $3 in July
+#
+
 # *** Done
 #    Need to deal with dynamic vs static jobs
 #    analysis gears are run on the compute nodes spun up for the group
@@ -82,9 +96,18 @@ DECLARE GcpFwTotalAnalysisGearCpuHours FLOAT64;
 DECLARE GcpFwTotalUtilityGearCpuHours FLOAT64;
 DECLARE GcpFwTotalUnlabeledComputeHours FLOAT64;
 DECLARE GcpFwTotalUnlabeledComputeCosts FLOAT64;
-DECLARE GcpFwTotalUnlabeledMiscCosts FLOAT64;
 DECLARE GcpFwTotalFlywheelStaticComputeCosts FLOAT64;
 DECLARE FwComputeDefaultSsdSize FLOAT64 DEFAULT 200.0; # GibiBytes
+
+DECLARE GcpFwStaticStorageStandardCosts FLOAT64;
+DECLARE GcpFwStaticStorageColdlineCosts FLOAT64;
+DECLARE GcpFwStaticStorageArchiveCosts FLOAT64;
+DECLARE GcpFwStaticStorageMiscCosts FLOAT64;
+DECLARE FwTotalProjectStorageGb FLOAT64;
+
+DECLARE GcpFwTotalMiscLabeledCosts FLOAT64;
+DECLARE GcpFwTotalMiscUnlabeledCosts FLOAT64;
+DECLARE GcpFwTotalMiscStaticCosts FLOAT64;
 
 CREATE TEMP FUNCTION fwCpuMsToCpuHours(CpuMs FLOAT64) RETURNS FLOAT64 AS (
   CpuMs / 1000.0 / 3600.0
@@ -93,6 +116,14 @@ CREATE TEMP FUNCTION fwCpuMsToCpuHours(CpuMs FLOAT64) RETURNS FLOAT64 AS (
 
 CREATE TEMP FUNCTION isComputeCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
   IF (ServiceDescription = "Compute Engine", TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isComputeDynamicCost(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (    ServiceDescription = "Compute Engine"
+      AND FwGroup IS NOT NULL
+      AND FwGroup != "flywheel-static",
+      TRUE, 
+      FALSE)
   );
 
 CREATE TEMP FUNCTION isComputeCoreHours(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
@@ -119,6 +150,240 @@ CREATE TEMP FUNCTION isAnalysisGear(GearCategory STRING) RETURNS BOOLEAN AS (
 CREATE TEMP FUNCTION isUtilityGear(GearCategory STRING) RETURNS BOOLEAN AS (
   IF (isAnalysisGear(GearCategory),FALSE,TRUE)
   );
+
+
+CREATE TEMP FUNCTION isStorageStandardCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription = "Cloud Storage"
+       AND
+	   SkuDescription LIKE "Standard Storage%"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isStorageColdlineCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription = "Cloud Storage"
+       AND
+	   SkuDescription LIKE "Coldline Storage%"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isStorageArchiveCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription = "Cloud Storage"
+       AND
+	   SkuDescription LIKE "Archive Storage%"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isStorageMiscCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription = "Cloud Storage"
+       AND SkuDescription NOT LIKE "Standard Storage%"
+       AND SkuDescription NOT LIKE "Coldline Storage%"
+       AND SkuDescription NOT LIKE "Archive Storage%"
+
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isMiscLabeledCosts(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription != "Compute Engine"
+       AND ServiceDescription != "Cloud Storage"
+       AND FwGroup IS NOT NULL
+       AND FwGroup != "flywheel-static"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isMiscUnlabeledCosts(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription != "Compute Engine"
+       AND ServiceDescription != "Cloud Storage"
+       AND FwGroup IS NULL
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isMiscStaticCosts(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription != "Compute Engine"
+       AND ServiceDescription != "Cloud Storage"
+       AND FwGroup = "flywheel-static"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isMiscCost(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription NOT LIKE "Compute Engine%"
+       AND ServiceDescription NOT LIKE "Cloud Storage"
+  , TRUE, FALSE)
+  );
+
+
+#
+# 1 `pennbrain-center.Bob.TempGcpFlywheelCosts`
+#
+#      All the Gcp Flywheel charges for this invoice month in a table we can process
+#
+CREATE or REPLACE TABLE
+  `pennbrain-center.Bob.TempGcpFlywheelCosts`
+AS
+    SELECT
+        invoice.month as InvoiceMonth,
+        labels.value as FwGroup,
+        project.name as GcpProjectName,
+        service.description as ServiceDescription,
+        sku.description as SkuDescription,
+        sum(usage.amount_in_pricing_units) as UsageAmount,
+        usage.pricing_unit as UsagePricingUnits,
+
+        SUM(cost + IFNULL((
+            SELECT
+              SUM(c.amount)
+            FROM
+              UNNEST(credits) c
+            WHERE
+              c.type != "PROMOTION" ),
+            0)) AS DiscountedCosts,
+	    
+        SUM(IFNULL((
+            SELECT
+              SUM(c.amount)
+            FROM
+              UNNEST(credits) c
+            WHERE
+              c.type = "PROMOTION" ),
+            0)) AS Promotions
+    FROM
+        #
+        # *** The billing sources should be passed in
+	#
+        upenn-017978-eb30e0-a7e2f9.billing_export.gcp_billing_export_v1_017978_EB30E0_A7E2F9
+    LEFT JOIN
+        UNNEST(labels) AS labels
+    ON
+        labels.key = "billing"
+    WHERE
+	    Invoice.month = "202207"
+        AND project.name = "upenn-flywheel"
+
+    GROUP BY
+            InvoiceMonth,
+            FwGroup,
+            GcpProjectName,
+            ServiceDescription,
+            SkuDescription,
+            UsagePricingUnits
+;
+
+CREATE OR REPLACE TABLE
+  `pennbrain-center.Bob.TempGcpFwClassifiedCosts`
+AS
+    SELECT
+        *
+	, GcpFwGroupComputeCosts + GcpFwGroupStorageCosts + GcpFwGroupMiscCosts AS GcpFwGroupCosts
+    FROM (
+        SELECT
+    	  *
+    	  , IF (GcpFwGroupComputeCoreCpuHours > 0.0, GcpFwGroupComputeCosts / GcpFwGroupComputeCoreCpuHours, 0.0) AS ComputeCostPerCpuHour
+    	  , IF (GcpFwGroupStorageStandardGb > 0.0, GcpFwGroupStorageStandardCosts / GcpFwGroupStorageStandardGb, 0.0) AS StorageStandarCostPerGb
+    	  , IF (GcpFwGroupStorageColdlineGb > 0.0, GcpFwGroupStorageColdlineCosts / GcpFwGroupStorageColdlineGb, 0.0) AS StorageColdlineCostPerGb
+    	  , IF (GcpFwGroupStorageArchiveGb > 0.0, GcpFwGroupStorageArchiveCosts / GcpFwGroupStorageArchiveGb, 0.0) AS StorageArchiveCostPerGb
+    	  , (
+    	      + GcpFwGroupStorageStandardCosts
+    	      + GcpFwGroupStorageColdlineCosts
+    	      + GcpFwGroupStorageArchiveCosts
+    	      + GcpFwGroupStorageMiscCosts
+    	    ) AS GcpFwGroupStorageCosts
+    
+        FROM (
+            SELECT
+        	InvoiceMonth,
+        	FwGroup,
+        
+        	#
+        	# Compute
+        	#   Core Hours Used
+        	#   Total
+        	#   $/CPU hour
+        	#
+        	SUM(IF (isComputeCost(ServiceDescription,SkuDescription),
+                       DiscountedCosts,
+        	       0.0)) AS GcpFwGroupComputeCosts,  
+        
+                SUM(IF (isComputeCoreHours(ServiceDescription,SkuDescription),
+                       UsageAmount,
+                       0.0)) AS GcpFwGroupComputeCoreCpuHours,
+        
+        	SUM(IF (isComputeDynamicCost(ServiceDescription,FwGroup),
+                       DiscountedCosts,
+        	       0.0)) AS GcpFwGroupComputeDynamicCosts,  
+        
+             #
+             # *** As of 2022-08-15 all storage is under flywheel static and none is grouped.
+             #
+             SUM(IF (isStorageStandardCost(ServiceDescription,SkuDescription),
+                 DiscountedCosts,
+                 0.0)) AS GcpFwGroupStorageStandardCosts,  
+        
+             SUM(IF (isStorageStandardCost(ServiceDescription,SkuDescription),
+                 UsageAmount,
+                 0.0)) AS GcpFwGroupStorageStandardGb,  
+        
+             SUM(IF (isStorageColdlineCost(ServiceDescription,SkuDescription),
+                 DiscountedCosts,
+                 0.0)) AS GcpFwGroupStorageColdlineCosts,
+        
+             SUM(IF (isStorageColdlineCost(ServiceDescription,SkuDescription),
+                 UsageAmount,
+                 0.0)) AS GcpFwGroupStorageColdlineGb,
+        
+             SUM(IF (isStorageArchiveCost(ServiceDescription,SkuDescription),
+                 DiscountedCosts,
+                 0.0)) AS GcpFwGroupStorageArchiveCosts,
+        
+             SUM(IF (isStorageArchiveCost(ServiceDescription,SkuDescription),
+                 UsageAmount,
+                 0.0)) AS GcpFwGroupStorageArchiveGb,
+        
+             SUM(IF (isStorageMiscCost(ServiceDescription,SkuDescription),
+                 DiscountedCosts,
+                 0.0)) AS GcpFwGroupStorageMiscCosts,
+        
+             #
+             # Misc Costs
+             #
+             SUM(IF (isMiscCost(ServiceDescription,SkuDescription),
+                 DiscountedCosts,
+                 0.0)) AS GcpFwGroupMiscCosts,
+
+	     SUM(IF (isMiscStaticCosts(ServiceDescription,FwGroup),
+                 DiscountedCosts,
+		 0.0)) AS GcpFwMiscStaticCostsCosts,  
+
+	     SUM(IF (isMiscUnlabeledCosts(ServiceDescription,FwGroup),
+                 DiscountedCosts,
+	         0.0)) AS GcpFwMiscUnlabeledCosts,
+
+	     SUM(IF (isMiscLabeledCosts(ServiceDescription,FwGroup),
+             	 DiscountedCosts,
+		 0.0)) AS GcpFwMiscLabeledCosts,
+
+          FROM
+              `pennbrain-center.Bob.TempGcpFlywheelCosts`
+        
+          WHERE
+              InvoiceMonth = "202207"
+        
+          GROUP BY
+                InvoiceMonth
+              , FwGroup
+        
+          ORDER BY
+                InvoiceMonth
+              , FwGroup
+    )
+)
+;
 
 #
 # 1   `pennbrain-center.Bob.TempProjectJobReport`
@@ -182,11 +447,6 @@ AS
           
             WHERE
               invoice_month = "202207"
-# ***
-              AND (
-	            `group` = "dwolklab"
-             	     OR `group` = "pennftdcenter"
-	      )
           
             GROUP BY
               InvoiceMonth,
@@ -210,98 +470,6 @@ AS
  
 
   ;
-
-#
-# 2
-#
-CREATE or REPLACE TABLE
-  `pennbrain-center.Bob.TempGcpFlywheelCosts`
-AS
-      SELECT
-        invoice.month as InvoiceMonth,
-        labels.value as FwGroup,
-        project.name as GcpProjectName,
-        service.description as ServiceDescription,
-        sku.description as SkuDescription,
-        sum(usage.amount_in_pricing_units) as UsageAmount,
-        usage.pricing_unit as UsagePricingUnits,
-
-        SUM(cost + IFNULL((
-            SELECT
-              SUM(c.amount)
-            FROM
-              UNNEST(credits) c
-            WHERE
-              c.type != "PROMOTION" ),
-            0)) AS DiscountedCosts,
-	    
-        SUM(IFNULL((
-            SELECT
-              SUM(c.amount)
-            FROM
-              UNNEST(credits) c
-            WHERE
-              c.type = "PROMOTION" ),
-            0)) AS Promotions
-      FROM
-        upenn-017978-eb30e0-a7e2f9.billing_export.gcp_billing_export_v1_017978_EB30E0_A7E2F9
-      LEFT JOIN
-        UNNEST(labels) AS labels
-      ON
-        labels.key = "billing"
-      WHERE
-    	invoice.month = "202207"
-        AND 
-           project.name = "upenn-flywheel"
-	AND (
-	      labels.value = "dwolklab"
-           OR labels.value = "pennftdcenter"
-	   OR labels.value = "flywheel-static"
-	   OR labels.value IS NULL
-	   )
-
-        GROUP BY
-            InvoiceMonth,
-            FwGroup,
-            GcpProjectName,
-            ServiceDescription,
-            SkuDescription,
-            UsagePricingUnits
-;
-
-
-#
-# 3
-#
-CREATE OR REPLACE TABLE
-  `pennbrain-center.Bob.TempGcpFlywheelClassifiedComputeCosts`
-AS
-
-  SELECT
-    InvoiceMonth,
-    FwGroup,
-
-    SUM(IF (isComputeCost(ServiceDescription,SkuDescription),
-        DiscountedCosts,
-        0.0)) AS GcpFwGroupComputeDiscountedCosts,  
-
-     SUM(IF (isComputeCoreHours(ServiceDescription,SkuDescription),
-        UsageAmount,
-        0.0)) AS GcpFwGroupComputeCoreCpuHours,
-#
-# 2022-08-12 The ssd for VM Gear compute machines is not currently labeled, so this comes out a $0.00
-#
-
-  FROM
-    `pennbrain-center.Bob.TempGcpFlywheelCosts`
-    WHERE
-    ServiceDescription = "Compute Engine"
-
-  GROUP BY
-        InvoiceMonth,
-    FwGroup
-;
-
 
 SET GcpFwTotalAnalysisGearCpuHours = (
     SELECT
@@ -338,44 +506,6 @@ SET GcpFwTotalFlywheelStaticComputeCosts = (
 )
 ;
 
-##
-## UsageAmount in GibiByte Months
-##
-#SET GcpFwTotalUnlabeledComputeHours = (
-#  SELECT
-#	(SUM(SsdPdHours) * 30 * 24) / FwComputeDefaultSsdSize, 
-#  FROM (
-#    SELECT
-#	FwGroup
-#	ServiceDescription,
-#	SkuDescription,
-#	IF (isSsdPdCost(ServiceDescription,SkuDescription),
-#	   UsageAmount,
-#	   0.0) AS SsdPdHours
-#    FROM
-#	`pennbrain-center.Bob.TempGcpFlywheelCosts`
-#    WHERE
-#       FwGroup IS NULL
-#	
-#  )
-#)
-#;
-#	
-#
-# Misc costs are not part of compute costs - not used yet
-#
-#SET GcpFwTotalUnlabeledMiscCosts = (
-#    SELECT
-#	SUM(DiscountedCosts)
-#    FROM
-#	`pennbrain-center.Bob.TempGcpFlywheelCosts`
-#    WHERE
-#       FwGroup IS NULL
-#       AND ServiceDescription != "Compute Engine"	
-#)
-#;
-	
-
 SET GcpFwTotalUnlabeledComputeCosts = (
     SELECT
 	SUM(DiscountedCosts)
@@ -392,84 +522,303 @@ SELECT GcpFwTotalAnalysisGearCpuHours;
 SELECT GcpFwTotalUtilityGearCpuHours;
 SELECT GcpFwTotalFlywheelStaticComputeCosts;
 SELECT GcpFwTotalUnlabeledComputeCosts;
-SELECT GcpFwTotalUnlabeledMiscCosts;
 
 #
 # 4
+#
+# This table is grouped by group/project/gear so you can not allocate storage costs by project
 #
 CREATE OR REPLACE TABLE
 
   `pennbrain-center.Bob.TempGcpFwAllocatedComputeCosts`
 
 AS
-
-SELECT
-       t3.InvoiceMonth,
-       t3.FwGroup,
-       FwProject,
-       GearName,
-       GearRunCount,
-       AnalysisGearCpuHours,
-       UtilityGearCpuHours,
-       InitialAnalysisCount,
-       GroupAnalysisGearCpuHours,
-       GroupUtilityGearCpuHours,
-       GcpFwGroupComputeDiscountedCosts,
-       GcpFwGroupComputeCoreCpuHours,
-       GcpFwGroupComputeDiscountedCosts * AnalysisGearCpuHours / GroupAnalysisGearCpuHours AS GcpAllocatedDynamicComputeCosts,
-       GcpFwTotalUnlabeledComputeCosts * AnalysisGearCpuHours / GcpFwTotalAnalysisGearCpuHours AS GcpAllocatedUnlabeledComputeCost,
-       GcpFwTotalFlywheelStaticComputeCosts * UtilityGearCpuHours / GcpFwTotalUtilityGearCpuHours AS GcpAllocatedStaticComputeCosts
-
-FROM (
-
     SELECT
-       t1.InvoiceMonth,
-       t1.FwGroup,
-       FwProject,
-       GearName,
-       SUM(GearRunCount) AS GearRunCount,
-       SUM(AnalysisGearCpuHours) AS AnalysisGearCpuHours,
-       SUM(UtilityGearCpuHours) AS UtilityGearCpuHours,
-       SUM(InitialAnalysisCount) AS InitialAnalysisCount,
-       SUM(GroupAnalysisGearCpuHours) AS GroupAnalysisGearCpuHours,
-       SUM(GroupUtilityGearCpuHours) AS GroupUtilityGearCpuHours,
-    
+        *
+        , GcpAllocatedDynamicComputeCosts + GcpAllocatedStaticComputeCosts + GcpAllocatedUnlabeledComputeCosts AS TotalComputeCosts
+    FROM (
+        SELECT
+               t4.InvoiceMonth,
+               t4.FwGroup,
+               FwProject,
+               GearName,
+               GearRunCount,
+               AnalysisGearCpuHours,
+               UtilityGearCpuHours,
+               InitialAnalysisCount,
+               GroupAnalysisGearCpuHours,
+               GroupUtilityGearCpuHours,
+               GcpFwGroupComputeCosts,
+               GcpFwGroupComputeCoreCpuHours,
+               IF (GroupAnalysisGearCpuHours > 0.0, GcpFwGroupComputeDynamicCosts * AnalysisGearCpuHours / GroupAnalysisGearCpuHours, 0.0) AS GcpAllocatedDynamicComputeCosts,
+               IF (GcpFwTotalUtilityGearCpuHours > 0.0, GcpFwTotalFlywheelStaticComputeCosts * UtilityGearCpuHours / GcpFwTotalUtilityGearCpuHours, 0.0) AS GcpAllocatedStaticComputeCosts,
+               IF (GcpFwTotalAnalysisGearCpuHours > 0.0, GcpFwTotalUnlabeledComputeCosts * AnalysisGearCpuHours / GcpFwTotalAnalysisGearCpuHours,0.0) AS GcpAllocatedUnlabeledComputeCosts,
+        
+        FROM (
+        
+            SELECT
+               t1.InvoiceMonth,
+               t1.FwGroup,
+               FwProject,
+               GearName,
+               SUM(GearRunCount) AS GearRunCount,
+               SUM(AnalysisGearCpuHours) AS AnalysisGearCpuHours,
+               SUM(UtilityGearCpuHours) AS UtilityGearCpuHours,
+               SUM(InitialAnalysisCount) AS InitialAnalysisCount,
+               SUM(GroupAnalysisGearCpuHours) AS GroupAnalysisGearCpuHours,
+               SUM(GroupUtilityGearCpuHours) AS GroupUtilityGearCpuHours,
+            
+            FROM
+              `pennbrain-center.Bob.TempProjectJobReport` t1
+            
+            LEFT JOIN (
+              	 SELECT
+            	     InvoiceMonth,
+            	     FwGroup,
+            	     SUM(AnalysisGearCpuHours) AS GroupAnalysisGearCpuHours, 
+            	     SUM(UtilityGearCpuHours) AS GroupUtilityGearCpuHours
+            	 FROM
+            	         `pennbrain-center.Bob.TempProjectJobReport`
+            	 GROUP BY
+            	   InvoiceMonth,
+            	   FwGroup
+            ) t2
+            ON
+                    t1.InvoiceMonth = t2.InvoiceMonth
+                  AND
+                    t1.FwGroup = t2.FwGroup
+             GROUP BY
+                 InvoiceMonth,
+        	 FwGroup,
+        	 FwProject,
+        	 GearName
+        
+        ) t3
+	#
+	# *** This join is not workig
+	# There may be groups which did not run jobs but have compute costs -- like unlabeled group
+	#
+        RIGHT OUTER JOIN 
+          `pennbrain-center.Bob.TempGcpFwClassifiedCosts` t4
+        
+        ON
+              t3.InvoiceMonth = t4.InvoiceMonth
+          AND t3.FwGroup = t4.FwGroup
+)
+;
+        
+
+#
+# 5   `pennbrain-center.Bob.TempProjectUsageReport`
+#
+
+CREATE OR REPLACE TABLE 
+       `pennbrain-center.Bob.TempFwProjectUsageReportV3` 
+#    `'"${Project}.${Dataset}.TempFwProjectUsageReport"'`
+
+AS
+    SELECT
+        InvoiceMonth,
+        FwGroup,
+        FwProject,
+	SUM(FwProjectStorageGB) AS FwProjectStorageGb,
+	SUM(FwProjectDeletedStorageGB) AS FwProjectDeletedStorageGb,
+	SUM(FwProjectActiveStorageGB) AS FwProjectActiveStorageGb,
+    FROM (
+        SELECT
+          invoice_month AS InvoiceMonth,
+          `group` AS FwGroup,
+          project_label AS FwProject,
+          SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0) AS FwProjectStorageGb,
+          IF (deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectDeletedStorageGb,
+          IF (NOT deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectActiveStorageGb
+        FROM
+          `pennbrain-center.Bob.FwUsageReport`
+#          `'"${Project}.${Dataset}.FwUsageReport"'`
+
+        WHERE
+          invoice_month = "202207"
+          AND project_label IS NOT NULL
+
+        GROUP BY
+            InvoiceMonth,
+            FwGroup,
+            FwProject,
+	    deleted
+        ORDER BY
+            InvoiceMonth,
+            FwGroup,
+            FwProject
+    )
+    GROUP BY
+            InvoiceMonth,
+            FwGroup,
+            FwProject
+    ORDER BY
+            InvoiceMonth,
+            FwGroup,
+            FwProject
+
+;
+
+#
+# 6   `pennbrain-center.Bob.TempProjectAllocatedStorageCosts`
+#
+
+SET GcpFwStaticStorageStandardCosts = (
+    SELECT
+        SUM(DiscountedCosts)
     FROM
-      `pennbrain-center.Bob.TempProjectJobReport` t1
+	`pennbrain-center.Bob.TempGcpFlywheelCosts`
+    WHERE
+       FwGroup = "flywheel-static"
+       AND ServiceDescription = "Cloud Storage"	
+       AND SkuDescription LIKE "Standard Storage%"
+)
+;
+
+SET GcpFwStaticStorageColdlineCosts = (
+    SELECT
+        SUM(DiscountedCosts)
+    FROM
+	`pennbrain-center.Bob.TempGcpFlywheelCosts`
+    WHERE
+       FwGroup = "flywheel-static"
+       AND ServiceDescription = "Cloud Storage"	
+       AND SkuDescription LIKE "Coldline Storage%"
+)
+;
+
+SET GcpFwStaticStorageArchiveCosts = (
+    SELECT
+        SUM(DiscountedCosts)
+    FROM
+	`pennbrain-center.Bob.TempGcpFlywheelCosts`
+    WHERE
+       FwGroup = "flywheel-static"
+       AND ServiceDescription = "Cloud Storage"	
+       AND SkuDescription LIKE "Archive Storage%"
+)
+;
+
+SET GcpFwStaticStorageMiscCosts = (
+    SELECT
+        SUM(DiscountedCosts)
+    FROM
+	`pennbrain-center.Bob.TempGcpFlywheelCosts`
+    WHERE
+       FwGroup = "flywheel-static"
+       AND ServiceDescription = "Cloud Storage"	
+       AND SkuDescription NOT LIKE "Archive Storage%"
+       AND SkuDescription NOT LIKE "Coldline Storage%"
+       AND SkuDescription NOT LIKE "Standard Storage%"
+)
+;
+
+SET FwTotalProjectStorageGb = (
+    SELECT
+        SUM(FwProjectStorageGb)
+    FROM
+	`pennbrain-center.Bob.TempFwProjectUsageReportV3`
+)
+;
+
+SELECT GcpFwStaticStorageStandardCosts;
+SELECT GcpFwStaticStorageColdlineCosts;
+SELECT GcpFwStaticStorageArchiveCosts;
+SELECT GcpFwStaticStorageMiscCosts;
+SELECT FwTotalProjectStorageGb;
+	
+
+CREATE OR REPLACE TABLE 
+       `pennbrain-center.Bob.TempFwProjectAllocatedStorageCostsV3` 
+#    `'"${Project}.${Dataset}.TempFwProjectAllocatedStorageCostsV3"'`
+
+AS
+    SELECT
+        *,
+	  FwProjectStorageStandardCosts
+	+ FwProjectStorageColdlineCosts
+	+ FwProjectStorageArchiveCosts 
+	+ FwProjectStorageMiscCosts AS FwProjectStorageCosts, 
+
+
+    FROM (
+        SELECT
+            InvoiceMonth,
+            FwGroup,
+            FwProject,
     
-    LEFT JOIN (
-        	 SELECT
-    	     InvoiceMonth,
-    	     FwGroup,
-    	     SUM(AnalysisGearCpuHours) AS GroupAnalysisGearCpuHours, 
-    	     SUM(UtilityGearCpuHours) AS GroupUtilityGearCpuHours
-    	 FROM
-    	         `pennbrain-center.Bob.TempProjectJobReport`
-    	 GROUP BY
-    	   InvoiceMonth,
-    	   FwGroup
-    ) t2
-    ON
-            t1.InvoiceMonth = t2.InvoiceMonth
-          AND
-            t1.FwGroup = t2.FwGroup
-     GROUP BY
-         InvoiceMonth,
-	 FwGroup,
-	 FwProject,
-	 GearName
+    	SUM(FwProjectStorageGb) AS FwProjectStorageGb,
+    
+    	#
+    	# *** All storage is in flywheel-static at the moment, but this does not handle the case where there are other
+    	# repositories of storage costs
+    	# These should be GcpFwStorage{Standard,Coldline,Archive,Misc}
+    	#
+    	GcpFwStaticStorageStandardCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageStandardCosts,
+    	GcpFwStaticStorageColdlineCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageColdlineCosts,
+    	GcpFwStaticStorageArchiveCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageArchiveCosts,
+    	GcpFwStaticStorageMiscCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageMiscCosts,
+    
+    	Sum(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageRatio,
+    
+    	GcpFwStaticStorageStandardCosts,
+    	GcpFwStaticStorageColdlineCosts,
+    	GcpFwStaticStorageArchiveCosts,
+    
+    	SUM(FwProjectDeletedStorageGb) AS FwProjectDeletedStorageGb,
+    	SUM(FwProjectActiveStorageGb) AS FwProjectActiveStorageGb,
+    
+        FROM 
+            `pennbrain-center.Bob.TempFwProjectUsageReportV3`
+    
+        GROUP BY
+            InvoiceMonth,
+    	FwGroup,
+    	FwProject
+    
+        ORDER BY
+            InvoiceMonth,
+    	FwGroup,
+    	FwProject
+    )
+;
 
-) t3
-LEFT JOIN 
 
-  `pennbrain-center.Bob.TempGcpFlywheelClassifiedComputeCosts` t4
-ON
-   t3.InvoiceMonth = t4.InvoiceMonth
-  AND
-   t3.FwGroup = t4.FwGroup
+CREATE OR REPLACE TABLE 
+       `pennbrain-center.Bob.TempGcpFwAllocatedMiscCostsV3` 
+#    `'"${Project}.${Dataset}.TempFwGcpllocatedMiscCostsV3"'`
 
+AS
+    SELECT
+        InvoiceMonth,
+        FwGroup,
 
+    SUM(IF (isMiscStaticCosts(ServiceDescription,FwGroup),
+        DiscountedCosts,
+        0.0)) AS GcpFwMiscStaticCostsDiscountedCosts,  
 
+    SUM(IF (isMiscUnlabeledCosts(ServiceDescription,FwGroup),
+        DiscountedCosts,
+        0.0)) AS GcpFwMiscUnlabeledCosts,
+
+    SUM(IF (isMiscLabeledCosts(ServiceDescription,FwGroup),
+        DiscountedCosts,
+        0.0)) AS GcpFwMiscLabeledCosts,
+
+  FROM
+    `pennbrain-center.Bob.TempGcpFlywheelCosts`
+
+    GROUP BY
+        InvoiceMonth,
+	FwGroup
+
+    ORDER BY
+        InvoiceMonth,
+	FwGroup
+
+;
 
 
 '
