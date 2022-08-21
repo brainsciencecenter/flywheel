@@ -92,12 +92,16 @@ Project=pennbrain-center
 
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
 
-DECLARE GcpFwTotalAnalysisGearCpuHours FLOAT64;
-DECLARE GcpFwTotalUtilityGearCpuHours FLOAT64;
+DECLARE FwTotalAnalysisGearCpuHours FLOAT64;
+DECLARE FwTotalUtilityGearCpuHours FLOAT64;
 DECLARE GcpFwTotalUnlabeledComputeHours FLOAT64;
 DECLARE GcpFwTotalUnlabeledComputeCosts FLOAT64;
+DECLARE GcpFwTotalMiscCosts FLOAT64;
+
 DECLARE GcpFwTotalFlywheelStaticComputeCosts FLOAT64;
+DECLARE GcpFwTotalFlywheelDynamicComputeCosts FLOAT64;
 DECLARE FwComputeDefaultSsdSize FLOAT64 DEFAULT 200.0; # GibiBytes
+DECLARE GcpFwTotalComputeNonGearCosts FLOAT64;
 
 DECLARE GcpFwStaticStorageStandardCosts FLOAT64;
 DECLARE GcpFwStaticStorageColdlineCosts FLOAT64;
@@ -105,9 +109,15 @@ DECLARE GcpFwStaticStorageArchiveCosts FLOAT64;
 DECLARE GcpFwStaticStorageMiscCosts FLOAT64;
 DECLARE FwTotalProjectStorageGb FLOAT64;
 
+
 DECLARE GcpFwTotalMiscLabeledCosts FLOAT64;
 DECLARE GcpFwTotalMiscUnlabeledCosts FLOAT64;
 DECLARE GcpFwTotalMiscStaticCosts FLOAT64;
+
+CREATE TEMP FUNCTION zeroIfNull(Value FLOAT64) RETURNS FLOAT64 AS (
+  IF (Value IS NOT NULL, Value, 0.0)
+  )
+  ;
 
 CREATE TEMP FUNCTION fwCpuMsToCpuHours(CpuMs FLOAT64) RETURNS FLOAT64 AS (
   CpuMs / 1000.0 / 3600.0
@@ -280,8 +290,9 @@ CREATE OR REPLACE TABLE
 AS
     SELECT
         *
-	, GcpFwGroupComputeCosts + GcpFwGroupStorageCosts + GcpFwGroupMiscCosts AS GcpFwGroupCosts
-    FROM (
+	, IF (GcpFwGroupStorageStandardGb > 0.0, GcpFwGroupStorageCosts / GcpFwGroupStorageStandardGb, 0.0) AS GcpFwGropuStorageCostPerStandardGb
+	, zeroIfNull(GcpFwGroupComputeCosts) + zeroIfNull(GcpFwGroupStorageCosts) + zeroIfNull(GcpFwGroupMiscCosts) AS GcpFwGroupCosts
+    FROM ( # A
         SELECT
     	  *
     	  , IF (GcpFwGroupComputeCoreCpuHours > 0.0, GcpFwGroupComputeCosts / GcpFwGroupComputeCoreCpuHours, 0.0) AS ComputeCostPerCpuHour
@@ -289,13 +300,13 @@ AS
     	  , IF (GcpFwGroupStorageColdlineGb > 0.0, GcpFwGroupStorageColdlineCosts / GcpFwGroupStorageColdlineGb, 0.0) AS StorageColdlineCostPerGb
     	  , IF (GcpFwGroupStorageArchiveGb > 0.0, GcpFwGroupStorageArchiveCosts / GcpFwGroupStorageArchiveGb, 0.0) AS StorageArchiveCostPerGb
     	  , (
-    	      + GcpFwGroupStorageStandardCosts
-    	      + GcpFwGroupStorageColdlineCosts
-    	      + GcpFwGroupStorageArchiveCosts
-    	      + GcpFwGroupStorageMiscCosts
+    	      + zeroIfNull(GcpFwGroupStorageStandardCosts)
+    	      + zeroIfNull(GcpFwGroupStorageColdlineCosts)
+    	      + zeroIfNull(GcpFwGroupStorageArchiveCosts)
+    	      + zeroIfNull(GcpFwGroupStorageMiscCosts)
     	    ) AS GcpFwGroupStorageCosts
     
-        FROM (
+        FROM ( # B
             SELECT
         	InvoiceMonth,
         	FwGroup,
@@ -403,6 +414,7 @@ AS
       SUM(GearRunCount) AS GearRunCount,
       SUM(AnalysisGearCpuHours) AS AnalysisGearCpuHours,
       SUM(UtilityGearCpuHours) AS UtilityGearCpuHours,
+      SUM(GenericGearCpuHours) AS GenericGearCpuHours,
       SUM(InitialAnalysisCount) AS InitialAnalysisCount,
     
     FROM (
@@ -415,6 +427,7 @@ AS
           SUM(GearRuns) GearRunCount,
           IF (isAnalysisGear(GearCategory), SUM(GearCpuHours), 0.0) AS AnalysisGearCpuHours,
           IF (isAnalysisGear(GearCategory), 0.0, SUM(GearCpuHours)) AS UtilityGearCpuHours,
+	  SUM(GearCpuHours) AS GenericGearCpuHours,
           SUM(GearInitialAnalysis) AS InitialAnalysisCount
 
 #
@@ -424,7 +437,7 @@ AS
             SELECT 
           
               invoice_month AS InvoiceMonth,
-              `group` AS FwGroup,
+              REPLACE(`group`,"_","-") AS FwGroup,
               project AS FwProject,
               gear_name AS GearName,
               gear_category AS GearCategory,
@@ -471,7 +484,7 @@ AS
 
   ;
 
-SET GcpFwTotalAnalysisGearCpuHours = (
+SET FwTotalAnalysisGearCpuHours = (
     SELECT
         SUM(AnalysisGearCpuHours)
     FROM
@@ -483,7 +496,7 @@ SET GcpFwTotalAnalysisGearCpuHours = (
 )
 ;
 
-SET GcpFwTotalUtilityGearCpuHours = (
+SET FwTotalUtilityGearCpuHours = (
     SELECT
         SUM(UtilityGearCpuHours)
     FROM
@@ -506,6 +519,18 @@ SET GcpFwTotalFlywheelStaticComputeCosts = (
 )
 ;
 
+SET GcpFwTotalFlywheelDynamicComputeCosts = (
+    SELECT
+	SUM(DiscountedCosts)
+    FROM
+	`pennbrain-center.Bob.TempGcpFlywheelCosts`
+    WHERE
+           FwGroup != "flywheel-static"
+       AND FwGroup IS NOT NULL
+       AND ServiceDescription = "Compute Engine"
+)
+;
+
 SET GcpFwTotalUnlabeledComputeCosts = (
     SELECT
 	SUM(DiscountedCosts)
@@ -517,11 +542,21 @@ SET GcpFwTotalUnlabeledComputeCosts = (
 )
 ;
 
+SET GcpFwTotalMiscCosts = (
+    SELECT
+	SUM(GcpFwGroupMiscCosts)
+    FROM
+      `pennbrain-center.Bob.TempGcpFwClassifiedCosts`
+)
+;
+
 SELECT FwComputeDefaultSsdSize;
-SELECT GcpFwTotalAnalysisGearCpuHours;
-SELECT GcpFwTotalUtilityGearCpuHours;
+SELECT FwTotalAnalysisGearCpuHours;
+SELECT FwTotalUtilityGearCpuHours;
 SELECT GcpFwTotalFlywheelStaticComputeCosts;
+SELECT GcpFwTotalFlywheelDynamicComputeCosts;
 SELECT GcpFwTotalUnlabeledComputeCosts;
+SELECT GcpFwTotalMiscCosts;
 
 #
 # 4
@@ -534,84 +569,110 @@ CREATE OR REPLACE TABLE
 
 AS
     SELECT
-        *
-        , GcpAllocatedDynamicComputeCosts + GcpAllocatedStaticComputeCosts + GcpAllocatedUnlabeledComputeCosts AS TotalComputeCosts
+          *
+	, zeroIfNull(TotalComputeCosts) + zeroIfNull(GcpAllocatedMiscCosts) AS TotalMiscNComputeCosts
     FROM (
+
         SELECT
-               t4.InvoiceMonth,
-               t4.FwGroup,
-               FwProject,
-               GearName,
-               GearRunCount,
-               AnalysisGearCpuHours,
-               UtilityGearCpuHours,
-               InitialAnalysisCount,
-               GroupAnalysisGearCpuHours,
-               GroupUtilityGearCpuHours,
-               GcpFwGroupComputeCosts,
-               GcpFwGroupComputeCoreCpuHours,
-               IF (GroupAnalysisGearCpuHours > 0.0, GcpFwGroupComputeDynamicCosts * AnalysisGearCpuHours / GroupAnalysisGearCpuHours, 0.0) AS GcpAllocatedDynamicComputeCosts,
-               IF (GcpFwTotalUtilityGearCpuHours > 0.0, GcpFwTotalFlywheelStaticComputeCosts * UtilityGearCpuHours / GcpFwTotalUtilityGearCpuHours, 0.0) AS GcpAllocatedStaticComputeCosts,
-               IF (GcpFwTotalAnalysisGearCpuHours > 0.0, GcpFwTotalUnlabeledComputeCosts * AnalysisGearCpuHours / GcpFwTotalAnalysisGearCpuHours,0.0) AS GcpAllocatedUnlabeledComputeCosts,
-        
+              *
+            , zeroIfNull(GcpAllocatedDynamicComputeCosts) + zeroIfNull(GcpAllocatedStaticComputeCosts) + zeroIfNull(GcpAllocatedUnlabeledComputeCosts) AS TotalComputeCosts
+
         FROM (
+          SELECT
+            t3.InvoiceMonth,
+            t3.FwGroup,
+            t4.FwProject,
+            t4.GearName,
+            t4.GearRunCount,
+            t4.AnalysisGearCpuHours,
+            t4.UtilityGearCpuHours,
+            t4.GenericGearCpuHours,
+            t4.InitialAnalysisCount,
+            t4.GroupAnalysisGearCpuHours,
+            t4.GroupUtilityGearCpuHours,
+            t3.GcpFwGroupComputeCosts,
+            t3.GcpFwGroupComputeCoreCpuHours,
         
+            IF (GroupAnalysisGearCpuHours > 0.0, GcpFwGroupComputeDynamicCosts * AnalysisGearCpuHours / GroupAnalysisGearCpuHours, 0.0) AS GcpAllocatedDynamicComputeCosts,
+            IF (FwTotalUtilityGearCpuHours > 0.0, GcpFwTotalFlywheelStaticComputeCosts * UtilityGearCpuHours / FwTotalUtilityGearCpuHours, 0.0) AS GcpAllocatedStaticComputeCosts,
+            IF (FwTotalAnalysisGearCpuHours > 0.0, GcpFwTotalUnlabeledComputeCosts * AnalysisGearCpuHours / FwTotalAnalysisGearCpuHours,0.0) AS GcpAllocatedUnlabeledComputeCosts,
+        
+           IF (GcpFwTotalMiscCosts > 0.0, GcpFwTotalMiscCosts * AnalysisGearCpuHours / FwTotalAnalysisGearCpuHours, 0.0) AS GcpAllocatedMiscCosts,
+
+          FROM (
             SELECT
-               t1.InvoiceMonth,
-               t1.FwGroup,
-               FwProject,
-               GearName,
-               SUM(GearRunCount) AS GearRunCount,
-               SUM(AnalysisGearCpuHours) AS AnalysisGearCpuHours,
-               SUM(UtilityGearCpuHours) AS UtilityGearCpuHours,
-               SUM(InitialAnalysisCount) AS InitialAnalysisCount,
-               SUM(GroupAnalysisGearCpuHours) AS GroupAnalysisGearCpuHours,
-               SUM(GroupUtilityGearCpuHours) AS GroupUtilityGearCpuHours,
-            
+              *
             FROM
-              `pennbrain-center.Bob.TempProjectJobReport` t1
-            
-            LEFT JOIN (
-              	 SELECT
-            	     InvoiceMonth,
-            	     FwGroup,
-            	     SUM(AnalysisGearCpuHours) AS GroupAnalysisGearCpuHours, 
-            	     SUM(UtilityGearCpuHours) AS GroupUtilityGearCpuHours
-            	 FROM
-            	         `pennbrain-center.Bob.TempProjectJobReport`
-            	 GROUP BY
-            	   InvoiceMonth,
-            	   FwGroup
+               `pennbrain-center.Bob.TempGcpFwClassifiedCosts` 
+        
+          ) t3
+          LEFT OUTER JOIN (
+         
+            SELECT
+                  t1.InvoiceMonth
+                , t1.FwGroup
+                , FwProject
+                , GearName
+                , GearRunCount
+                , AnalysisGearCpuHours
+                , UtilityGearCpuHours
+                , GenericGearCpuHours
+                , InitialAnalysisCount
+                , t2.GroupAnalysisGearCpuHours
+                , t2.GroupUtilityGearCpuHours
+            From (
+              SELECT
+                InvoiceMonth,
+                FwGroup,
+                FwProject,
+                GearName,
+                SUM(GearRunCount) AS GearRunCount,
+                SUM(AnalysisGearCpuHours) AS AnalysisGearCpuHours,
+                SUM(UtilityGearCpuHours) AS UtilityGearCpuHours,
+                SUM(GenericGearCpuHours) AS GenericGearCpuHours,
+                SUM(InitialAnalysisCount) AS InitialAnalysisCount,
+              FROM
+                `pennbrain-center.Bob.TempProjectJobReport`
+        
+              GROUP BY
+                InvoiceMonth,
+                FwGroup,
+                FwProject,
+                GearName 
+             ) t1
+            FULL OUTER JOIN (
+              SELECT
+                InvoiceMonth,
+                FwGroup,
+                SUM(AnalysisGearCpuHours) AS GroupAnalysisGearCpuHours, 
+                SUM(UtilityGearCpuHours) AS GroupUtilityGearCpuHours
+              FROM
+                `pennbrain-center.Bob.TempProjectJobReport`
+              GROUP BY
+                InvoiceMonth,
+                  FwGroup
             ) t2
             ON
-                    t1.InvoiceMonth = t2.InvoiceMonth
-                  AND
-                    t1.FwGroup = t2.FwGroup
-             GROUP BY
-                 InvoiceMonth,
-        	 FwGroup,
-        	 FwProject,
-        	 GearName
+                  t1.InvoiceMonth = t2.InvoiceMonth
+              AND t1.FwGroup = t2.FwGroup
+          ) t4
+          ON
+                  t3.InvoiceMonth = t4.InvoiceMonth
+              AND t3.FwGroup = t4.FwGroup
+          ORDER BY
+            InvoiceMonth
+            , FwGroup
+            , FwProject
+            , GearName
         
-        ) t3
-	#
-	# *** This join is not workig
-	# There may be groups which did not run jobs but have compute costs -- like unlabeled group
-	#
-        RIGHT OUTER JOIN 
-          `pennbrain-center.Bob.TempGcpFwClassifiedCosts` t4
-        
-        ON
-              t3.InvoiceMonth = t4.InvoiceMonth
-          AND t3.FwGroup = t4.FwGroup
-)
+        )
+    )
 ;
-        
 
 #
 # 5   `pennbrain-center.Bob.TempProjectUsageReport`
 #
-
+# Gcp charges us for 106TB of Standard storage, flwheel can account for 79 of them
 CREATE OR REPLACE TABLE 
        `pennbrain-center.Bob.TempFwProjectUsageReportV3` 
 #    `'"${Project}.${Dataset}.TempFwProjectUsageReport"'`
@@ -627,7 +688,7 @@ AS
     FROM (
         SELECT
           invoice_month AS InvoiceMonth,
-          `group` AS FwGroup,
+          REPLACE(`group`,"_","-") AS FwGroup,
           project_label AS FwProject,
           SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0) AS FwProjectStorageGb,
           IF (deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectDeletedStorageGb,
@@ -664,6 +725,37 @@ AS
 #
 # 6   `pennbrain-center.Bob.TempProjectAllocatedStorageCosts`
 #
+
+
+#
+# *** There are a few groups which have compute costs and no analysis jobs
+# For July, this works out to about $4.24, so we are still missing about $1.50 of compute costs
+#
+# There is another $1.47 missing from the flywheel-static/utility costs  do not know where that is hiding
+#
+
+SET GcpFwTotalComputeNonGearCosts = (
+    SELECT
+      SUM(GcpFwGroupComputeCosts)
+    FROM (
+      SELECT 
+          InvoiceMonth
+        , FwGroup
+        , GcpFwGroupComputeCosts
+        , SUM(AnalysisGearCpuHours) AS AnalysisGearCpuHours
+      FROM `pennbrain-center.Bob.TempGcpFwAllocatedComputeCosts` 
+     GROUP BY
+        InvoiceMonth
+        , FwGroup
+        , GcpFwGroupComputeCosts
+    
+      
+    )
+    WHERE 
+            AnalysisGearCpuHours = 0
+	AND GcpFwGroupComputeCosts != 0
+)
+;
 
 SET GcpFwStaticStorageStandardCosts = (
     SELECT
@@ -723,6 +815,7 @@ SET FwTotalProjectStorageGb = (
 )
 ;
 
+SELECT GcpFwTotalComputeNonGearCosts;
 SELECT GcpFwStaticStorageStandardCosts;
 SELECT GcpFwStaticStorageColdlineCosts;
 SELECT GcpFwStaticStorageArchiveCosts;
@@ -730,95 +823,138 @@ SELECT GcpFwStaticStorageMiscCosts;
 SELECT FwTotalProjectStorageGb;
 	
 
+#
+# Putting the non gear costs here because they are have to be allocated by project -- there are no gears associated with
+# these compute costs
+#
+# *** Still missing $1.47 in compute costs
+#
+
+# *** Want to calculate cost/gb metrics --- This is done in the Classified costs table skip
+
 CREATE OR REPLACE TABLE 
        `pennbrain-center.Bob.TempFwProjectAllocatedStorageCostsV3` 
 #    `'"${Project}.${Dataset}.TempFwProjectAllocatedStorageCostsV3"'`
 
 AS
     SELECT
-        *,
-	  FwProjectStorageStandardCosts
-	+ FwProjectStorageColdlineCosts
-	+ FwProjectStorageArchiveCosts 
-	+ FwProjectStorageMiscCosts AS FwProjectStorageCosts, 
-
-
+        *
+	, zeroIfNull(FwProjectStorageCosts) + zeroIfNull(FwProjectComputeNonGearCosts) AS FwProjectStorageNonGearCosts
     FROM (
         SELECT
-            InvoiceMonth,
-            FwGroup,
-            FwProject,
+            *
+    	    ,   zeroIfNull(FwProjectStorageStandardCosts)
+	      + zeroIfNull(FwProjectStorageColdlineCosts)
+	      + zeroIfNull(FwProjectStorageArchiveCosts)
+	      + zeroIfNull(FwProjectStorageMiscCosts) AS FwProjectStorageCosts, 
     
-    	SUM(FwProjectStorageGb) AS FwProjectStorageGb,
+        FROM (
+            SELECT
+                InvoiceMonth,
+                FwGroup,
+                FwProject,
+        
+    	    GcpFwTotalComputeNonGearCosts  * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectComputeNonGearCosts,
     
-    	#
-    	# *** All storage is in flywheel-static at the moment, but this does not handle the case where there are other
-    	# repositories of storage costs
-    	# These should be GcpFwStorage{Standard,Coldline,Archive,Misc}
-    	#
-    	GcpFwStaticStorageStandardCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageStandardCosts,
-    	GcpFwStaticStorageColdlineCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageColdlineCosts,
-    	GcpFwStaticStorageArchiveCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageArchiveCosts,
-    	GcpFwStaticStorageMiscCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageMiscCosts,
-    
-    	Sum(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageRatio,
-    
-    	GcpFwStaticStorageStandardCosts,
-    	GcpFwStaticStorageColdlineCosts,
-    	GcpFwStaticStorageArchiveCosts,
-    
-    	SUM(FwProjectDeletedStorageGb) AS FwProjectDeletedStorageGb,
-    	SUM(FwProjectActiveStorageGb) AS FwProjectActiveStorageGb,
-    
-        FROM 
-            `pennbrain-center.Bob.TempFwProjectUsageReportV3`
-    
-        GROUP BY
-            InvoiceMonth,
-    	FwGroup,
-    	FwProject
-    
-        ORDER BY
-            InvoiceMonth,
-    	FwGroup,
-    	FwProject
-    )
+                SUM(FwProjectStorageGb) AS FwProjectStorageGb,
+        
+                #
+                # *** All storage is in flywheel-static at the moment, but this does not handle the case where there are other
+                # repositories of storage costs
+                # These should be GcpFwStorage{Standard,Coldline,Archive,Misc}
+                #
+                GcpFwStaticStorageStandardCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageStandardCosts,
+                GcpFwStaticStorageColdlineCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageColdlineCosts,
+                GcpFwStaticStorageArchiveCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageArchiveCosts,
+                GcpFwStaticStorageMiscCosts * SUM(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageMiscCosts,
+            
+                Sum(FwProjectStorageGb) / FwTotalProjectStorageGb AS FwProjectStorageRatio,
+            
+                GcpFwStaticStorageStandardCosts,
+                GcpFwStaticStorageColdlineCosts,
+                GcpFwStaticStorageArchiveCosts,
+            
+                SUM(FwProjectDeletedStorageGb) AS FwProjectDeletedStorageGb,
+                SUM(FwProjectActiveStorageGb) AS FwProjectActiveStorageGb,
+            
+            FROM 
+                `pennbrain-center.Bob.TempFwProjectUsageReportV3`
+        
+            GROUP BY
+                  InvoiceMonth
+        	    , FwGroup
+        	    , FwProject
+        
+            ORDER BY
+                  InvoiceMonth
+        	    , FwGroup
+        	    , FwProject
+        )
+   )
 ;
-
 
 CREATE OR REPLACE TABLE 
-       `pennbrain-center.Bob.TempGcpFwAllocatedMiscCostsV3` 
-#    `'"${Project}.${Dataset}.TempFwGcpllocatedMiscCostsV3"'`
+       `pennbrain-center.Bob.TempFwProjectAllocatedCostsV3` 
+#    `'"${Project}.${Dataset}.TempFwProjectAllocatedV3"'`
 
 AS
+  SELECT 
+      t1.InvoiceMonth
+    , t1.FwGroup
+    , t1.FwProject
+    , InitialAnalysisCount
+    , FwProjectStorageAllocatedCosts
+    , FwProjectStorageStandardGb
+    , ProjectComputeCosts
+    , ProjectMiscCosts
+    , FwProjectComputeNonGearCosts
+    ,   zeroIfNull(FwProjectStorageAllocatedCosts)
+      + zeroIfNull(ProjectComputeCosts)
+      + zeroIfNull(ProjectMiscCosts)
+      + zeroIfNull(FwProjectcomputeNonGearcosts) AS Totals
+  FROM (
     SELECT
-        InvoiceMonth,
-        FwGroup,
+          InvoiceMonth
+        , FwGroup
+        , FwProject
+        , SUM(FwProjectStorageGb) AS FwProjectStorageStandardGb
+        , SUM(FwProjectStorageCosts) AS FwProjectStorageAllocatedCosts
+	, SUM(FwProjectComputeNonGearCosts) AS FwProjectComputeNonGearCosts
 
-    SUM(IF (isMiscStaticCosts(ServiceDescription,FwGroup),
-        DiscountedCosts,
-        0.0)) AS GcpFwMiscStaticCostsDiscountedCosts,  
-
-    SUM(IF (isMiscUnlabeledCosts(ServiceDescription,FwGroup),
-        DiscountedCosts,
-        0.0)) AS GcpFwMiscUnlabeledCosts,
-
-    SUM(IF (isMiscLabeledCosts(ServiceDescription,FwGroup),
-        DiscountedCosts,
-        0.0)) AS GcpFwMiscLabeledCosts,
-
-  FROM
-    `pennbrain-center.Bob.TempGcpFlywheelCosts`
+    FROM
+        `pennbrain-center.Bob.TempFwProjectAllocatedStorageCostsV3`
+    WHERE
+      FwGroup IS NOT NULL
+    GROUP BY
+          InvoiceMonth
+        , FwGroup
+        , FwProject
+  ) t1
+  FULL OUTER JOIN (
+    SELECT
+          InvoiceMonth
+        , FwGroup
+        , FwProject
+        , SUM(InitialAnalysisCount) AS InitialAnalysisCount
+        , SUM(TotalComputeCosts) AS ProjectComputeCosts
+        , SUM(GcpAllocatedMiscCosts) ProjectMiscCosts
+    FROM
+        `pennbrain-center.Bob.TempGcpFwAllocatedComputeCosts`
 
     GROUP BY
-        InvoiceMonth,
-	FwGroup
+          InvoiceMonth
+        , FwGroup
+        , FwProject
+  ) t2
+  ON
+        t1.InvoiceMonth = t2.InvoiceMonth
+    AND t1.FwGroup = t2.FwGroup
+    AND t1.FwProject = t2.FwProject
+  ORDER BY
+      t1.InvoiceMonth
+    , t1.FwGroup
+    , t1.FwProject
 
-    ORDER BY
-        InvoiceMonth,
-	FwGroup
-
-;
-
+	
 
 '
