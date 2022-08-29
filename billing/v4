@@ -44,6 +44,14 @@
 #     and iLab billling CSV
 
 #
+# BscGearCharges
+#
+
+# *** There is a basic problem of joining the storage and compute metrics across different levels of organization.  If you join on
+#     Group/Project/Gear the storage metrics will be duplicated for each gear.  If you do not break it down to the gear level, you 
+#     need another table to hold the gear costs information.
+#     Really want all the storage to go the the Bogus gear, and not copied to the all the 
+#
 # Gcp - Data orginated from Gcp
 # Fw - Dat originated from Flywheel
 # Costs - What Google charged us
@@ -93,10 +101,11 @@ Project=pennbrain-center
 
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
 
-DECLARE FwTotalAnalysisGearCpuHours FLOAT64;
-DECLARE FwTotalUtilityGearCpuHours FLOAT64;
+DECLARE FwTotalGearAnalysisCpuHours FLOAT64;
+DECLARE FwTotalGearUtilityCpuHours FLOAT64;
 DECLARE GcpTotalComputeUnlabeledHours FLOAT64;
 DECLARE GcpTotalComputeUnlabeledCosts FLOAT64;
+DECLARE GcpTotalComputeLabeledCosts FLOAT64;
 DECLARE GcpTotalMiscCosts FLOAT64;
 
 DECLARE GcpTotalComputeStaticCosts FLOAT64;
@@ -297,6 +306,11 @@ CREATE TEMP FUNCTION prorate(x FLOAT64, y FLOAT64) RETURNS FLOAT64 AS (
        IF (y IS NULL OR y = 0.0, 0.0, x / y)
 );
 
+#
+# 1 TempGcpClassifiedCostsV4
+# 
+#   Classify all the costs from Gcp
+#
 CREATE OR REPLACE TABLE
   `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
 AS
@@ -442,13 +456,15 @@ AS
    ;
 
 #
-# 1   `pennbrain-center.Alice.TempProjectJobReport`
+# *** Will want to have the group totals
+#
+# 2   `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4`
 #
 #	Sorts gear hours into utility and analysis hours
 #	Sum everything else up into fwgroup/project/gear bins
 CREATE OR REPLACE TABLE
 
-  `pennbrain-center.Alice.TempProjectJobReportV4`
+  `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4`
 
 AS
     SELECT
@@ -458,9 +474,9 @@ AS
       , FwGearName
       , FwGearCategory
       , COUNT(FwGearName) AS FwGearRunCount
-      , SUM(IF (isAnalysisGear(FwGearCategory), FwGearCpuHours, 0.0)) AS FwAnalysisGearCpuHours
-      , SUM(IF (isAnalysisGear(FwGearCategory), 0.0, FwGearCpuHours)) AS FwUtilityGearCpuHours
-      , SUM(FwGearCpuHours) AS FwGenericGearCpuHours
+      , SUM(IF (isAnalysisGear(FwGearCategory), FwGearCpuHours, 0.0)) AS FwGearAnalysisCpuHours
+      , SUM(IF (isAnalysisGear(FwGearCategory), 0.0, FwGearCpuHours)) AS FwGearUtilityCpuHours
+      , SUM(FwGearCpuHours) AS FwGearGenericCpuHours
       , SUM(FwGearInitialAnalysis) AS FwInitialAnalysisCount
     
     FROM (
@@ -522,6 +538,13 @@ SET GcpTotalComputeUnlabeledCosts = (
         `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
     ); 	
 
+SET GcpTotalComputeLabeledCosts = (
+    SELECT
+	SUM(GcpGroupComputeLabeledCosts)
+    FROM
+        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+    ); 	
+
 SET GcpTotalMiscCosts = (
     SELECT
 	SUM(GcpGroupMiscCosts)
@@ -532,15 +555,11 @@ SET GcpTotalMiscCosts = (
         InvoiceMonth = "202207"
     );
 
-'
-exit
-
-'
-SET FwTotalAnalysisGearCpuHours = (
+SET FwTotalGearAnalysisCpuHours = (
     SELECT
-        SUM(AnalysisGearCpuHours)
+        SUM(FwGearAnalysisCpuHours)
     FROM
-        `pennbrain-center.Alice.TempProjectJobReport`
+        `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4`
     WHERE
         FwGroup IS NOT NULL
     AND
@@ -548,11 +567,11 @@ SET FwTotalAnalysisGearCpuHours = (
 )
 ;
 
-SET FwTotalUtilityGearCpuHours = (
+SET FwTotalGearUtilityCpuHours = (
     SELECT
-        SUM(UtilityGearCpuHours)
+        SUM(FwGearUtilityCpuHours)
     FROM
-        `pennbrain-center.Alice.TempProjectJobReport`
+        `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4`
     WHERE
         FwGroup IS NOT NULL
     AND
@@ -561,39 +580,46 @@ SET FwTotalUtilityGearCpuHours = (
 ;
 
 SELECT FwComputeDefaultSsdSize;
-SELECT FwTotalAnalysisGearCpuHours;
-SELECT FwTotalUtilityGearCpuHours;
-SELECT GcpFwTotalFlywheelStaticComputeCosts;
-SELECT GcpFwTotalFlywheelDynamicComputeCosts;
-SELECT GcpFwTotalUnlabeledComputeCosts;
-SELECT GcpFwTotalMiscCosts;
+SELECT FwTotalGearAnalysisCpuHours;
+SELECT FwTotalGearUtilityCpuHours;
+SELECT GcpTotalComputeStaticCosts;
+SELECT GcpTotalComputeDynamicCosts;
+SELECT GcpTotalComputeUnlabeledCosts;
+SELECT GcpTotalComputeLabeledCosts;
+SELECT GcpTotalMiscCosts;
 
 #
-# 5   `pennbrain-center.Alice.TempProjectUsageReport`
+# 3  `pennbrain-center.Alice.TempProjectStorageMetricsV4`
 #
-# Gcp charges us for 106TB of Standard storage, flwheel can account for 79 of them
+#    Gcp charges us for 106TB of Standard storage, flwheel can account for 79 of them
+#
+#    The Bogus gear name column is inserted so the join in the next table does not wind up duplicating all the storage
+#    metrics across each gear  Solves a lot of problems
+#
+
 CREATE OR REPLACE TABLE 
-       `pennbrain-center.Alice.TempFwProjectUsageReportV3` 
-#    `'"${Project}.${Dataset}.TempFwProjectUsageReport"'`
+       `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4` 
+#    `'"${Project}.${Dataset}.TempFwGroupProjectUsageReport"'`
 
 AS
     SELECT
-        InvoiceMonth,
-        FwGroup,
-        FwProject,
-	SUM(FwProjectStorageGB) AS FwProjectStorageGb,
-	SUM(FwProjectDeletedStorageGB) AS FwProjectDeletedStorageGb,
-	SUM(FwProjectActiveStorageGB) AS FwProjectActiveStorageGb,
+          InvoiceMonth
+        , FwGroup
+        , FwProject
+	, "StorageBogusGear" AS FwGearName
+	, SUM(FwProjectStorageGb) AS FwProjectStorageGb
+	, SUM(FwProjectStorageDeletedGb) AS FwProjectStorageDeletedGb
+	, SUM(FwProjectStorageActiveGb) AS FwProjectStorageActiveGb
     FROM (
         SELECT
-          invoice_month AS InvoiceMonth,
-          REPLACE(`group`,"_","-") AS FwGroup,
-          project_label AS FwProject,
-          SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0) AS FwProjectStorageGb,
-          IF (deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectDeletedStorageGb,
-          IF (NOT deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectActiveStorageGb
+            invoice_month AS InvoiceMonth
+          , REPLACE(`group`,"_","-") AS FwGroup
+          , project_label AS FwProject
+          , SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0) AS FwProjectStorageGb
+          , IF (deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectStorageDeletedGb
+          , IF (NOT deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectStorageActiveGb
         FROM
-          `pennbrain-center.Alice.FwUsageReport`
+          `pennbrain-center.BillingAllocation.FwUsageReport`
 #          `'"${Project}.${Dataset}.FwUsageReport"'`
 
         WHERE
@@ -621,6 +647,70 @@ AS
 
 ;
 
+#
+# TempFwAllocatedGroupProjectComputeStorageMetrics
+#
+CREATE OR REPLACE TABLE
+
+  `pennbrain-center.Alice.TempFwGroupProjectComputeStorageMetricsV4`
+
+AS
+    SELECT
+          IF (t1.InvoiceMonth IS NULL, t2.InvoiceMonth, t1.InvoiceMonth) AS InvoiceMonth
+	, IF (t1.FwGroup IS NULL, t2.FwGroup, t1.FwGroup) AS FwGroup
+	, IF (t1.FwProject IS NULL, t2.FwProject, t1.FwProject) AS FwProject
+	, IF (t1.FwGearName IS NULL, t2.FwGearName, t1.FwProject) AS FwGearName
+	, SUM(IF (t1.FwGearRunCount IS NULL, 0.0, t1.FwGearRunCount)) AS FwGearRunCount
+	, SUM(IF (t1.FwGearAnalysisCpuHours IS NULL, 0.0, t1.FwGearAnalysisCpuHours)) AS FwGearAnalysisCpuHours
+	, SUM(IF (t1.FwGearUtilityCpuHours IS NULL, 0.0, t1.FwGearUtilityCpuHours)) AS FwGearUtilityCpuHours
+	, SUM(IF (t1.FwGearGenericCpuHours IS NULL, 0.0, t1.FwGearGenericCpuHours)) AS FwGearGenericCpuHours
+	, SUM(IF (t1.FwInitialAnalysisCount IS NULL, 0.0, t1.FwInitialAnalysisCount)) AS FwInitialAnalysisCount
+	, SUM(IF (t2.FwProjectStorageGb IS NULL, 0.0, t2.FwProjectStorageGb)) AS FwProjectStorageGb
+	, SUM(IF (t2.FwProjectStorageActiveGb IS NULL, 0.0, t2.FwProjectStorageActiveGb)) AS FwProjectStorageActiveGb
+	, SUM(IF (t2.FwProjectStorageDeletedGb IS NULL, 0.0, t2.FwProjectStorageDeletedGb)) AS FwProjectStorageDeletedGb
+
+    FROM
+        `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4` t1
+
+    FULL OUTER JOIN 
+        `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4` t2
+    ON
+	    t1.InvoiceMonth = t2.InvoiceMonth
+	AND t1.FwGroup = t2.FwGroup
+	AND t1.FwProject = t2.FwProject
+	AND t1.FwGearName = t2.FwGearName
+
+    GROUP BY
+          InvoiceMonth
+        , FwGroup
+        , FwProject
+        , FwGearName
+
+    ORDER BY
+          InvoiceMonth
+	, FwGroup
+	, FwProject
+	, FwGearName
+
+;
+
+SELECT
+     SUM(FwGearRunCount) AS FwGearRunCount
+   , SUM(FwGearAnalysisCpuHours) AS FwGearAnalysisCpuHours
+   , SUM(FwGearUtilityCpuHours) AS FwGearUtilityCpuHours
+   , SUM(FwGearGenericCpuHours) AS FwGearGenericCpuHours
+   , SUM(FwInitialAnalysisCount) AS FwInitialAnalysisCount
+   , SUM(FwProjectStorageGb) AS FwProjectStorageGb
+   , SUM(FwProjectStorageActiveGb) AS FwProjectStorageActiveGb
+   , SUM(FwProjectStorageDeletedGb) AS FwProjectStorageDeletedGb
+FROM
+  `pennbrain-center.Alice.TempFwGroupProjectComputeStorageMetricsV4`
+;
+
+'
+exit
+
+'
 
 #
 # 4
@@ -696,7 +786,7 @@ AS
                 SUM(GenericGearCpuHours) AS GenericGearCpuHours,
                 SUM(InitialAnalysisCount) AS InitialAnalysisCount,
               FROM
-                `pennbrain-center.Alice.TempProjectJobReport`
+                `pennbrain-center.Alice.TempFwGroupProjectComputeMetrics`
         
               GROUP BY
                 InvoiceMonth,
@@ -822,7 +912,7 @@ SET FwTotalProjectStorageGb = (
     SELECT
         SUM(FwProjectStorageGb)
     FROM
-	`pennbrain-center.Alice.TempFwProjectUsageReportV3`
+	`pennbrain-center.Alice.TempFwGroupProjectUsageReportV3`
 )
 ;
 
@@ -844,8 +934,8 @@ SELECT FwTotalProjectStorageGb;
 # *** Want to calculate cost/gb metrics --- This is done in the Classified costs table skip
 
 CREATE OR REPLACE TABLE 
-       `pennbrain-center.Alice.TempFwProjectAllocatedStorageCostsV3` 
-#    `'"${Project}.${Dataset}.TempFwProjectAllocatedStorageCostsV3"'`
+       `pennbrain-center.Alice.TempFwGroupProjectAllocatedStorageCostsV3` 
+#    `'"${Project}.${Dataset}.TempFwGroupProjectAllocatedStorageCostsV3"'`
 
 AS
     SELECT
@@ -889,7 +979,7 @@ AS
                 SUM(FwProjectActiveStorageGb) AS FwProjectActiveStorageGb,
             
             FROM 
-                `pennbrain-center.Alice.TempFwProjectUsageReportV3`
+                `pennbrain-center.Alice.TempFwGroupProjectUsageReportV3`
         
             GROUP BY
                   InvoiceMonth
@@ -912,8 +1002,8 @@ AS
 #
 
 CREATE OR REPLACE TABLE 
-       `pennbrain-center.Alice.TempFwProjectAllocatedCostsV3` 
-#    `'"${Project}.${Dataset}.TempFwProjectAllocatedV3"'`
+       `pennbrain-center.Alice.TempFwGroupProjectAllocatedCostsV3` 
+#    `'"${Project}.${Dataset}.TempFwGroupProjectAllocatedV3"'`
 
 AS
   SELECT 
@@ -942,7 +1032,7 @@ AS
 	, SUM(FwProjectComputeNonGearCosts) AS FwProjectComputeNonGearCosts
 
     FROM
-        `pennbrain-center.Alice.TempFwProjectAllocatedStorageCostsV3`
+        `pennbrain-center.Alice.TempFwGroupProjectAllocatedStorageCostsV3`
     WHERE
       FwGroup IS NOT NULL
     GROUP BY
@@ -1013,7 +1103,7 @@ AS
                 + zeroIfNull(FwProjectcomputeNonGearcosts) AS GcpAllocatedComputeDynamicCharges
               , calculateBscProjectCharge(FwProjectStorageStandardGb, FwProjectStorageAllocatedCosts) AS BscProjectCharges
            FROM
-               `pennbrain-center.Alice.TempFwProjectAllocatedCostsV3` 
+               `pennbrain-center.Alice.TempFwGroupProjectAllocatedCostsV3` 
     
     )
 );
