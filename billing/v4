@@ -8,6 +8,9 @@
 #     All the charges from the current invoice month classified along
 #     This table contains all the classifications we need from Gcp.
 #
+# Costs are what google charges us
+# Charges are what we bill labs and PIs
+#
 # Classify all the GCP costs into
 # Compute
 #  Dynamic Gear Compute
@@ -31,13 +34,14 @@
 
 # TempFwAllocatedGroupProjectComputeStorageMetrics
 #     Join of TempFwGroupProjectComputeMetrics and TempFwGroupProjectStorageMetrics with BogusGears generated for
-#     Group/Projects in storage to carry the storage metrics for the Group/Project
-#     Creating this table should use a set of functions to allocate the job, and storage metrics 
-#     across the Group/Project/Gears
+#     Group/Projects in storage to carry the storage metrics for the Group/Project/Gear
+#     Includes group totals for gear metrics
 
 # TempGcpFwAllocatedGroupProjectGearMetricsCosts
 #     Join of TempFwAllocatedGroupProjectComputeStorageMetrics and TempGcpFwClassifiedCosts
 #     Use functions to allocate costs across the Group/Project/Gears
+#     Should be allocate costs per compute metric, allocate costs by storage metric
+#     Does not assign charges -- only allocates costs
 
 # BscAllocatedCharges
 #     Use functions to allocate charges from TempGcpFwAllocatedGroupProjectGearMetricsCosts to drive the data studio reports
@@ -596,6 +600,7 @@ SELECT GcpTotalMiscCosts;
 #    The Bogus gear name column is inserted so the join in the next table does not wind up duplicating all the storage
 #    metrics across each gear  Solves a lot of problems
 #
+#
 
 CREATE OR REPLACE TABLE 
        `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4` 
@@ -607,6 +612,7 @@ AS
         , FwGroup
         , FwProject
 	, "StorageBogusGear" AS FwGearName
+	, SUM(FwProjectStorageSessionCount) AS FwProjectStorageSessionCount
 	, SUM(FwProjectStorageGb) AS FwProjectStorageGb
 	, SUM(FwProjectStorageDeletedGb) AS FwProjectStorageDeletedGb
 	, SUM(FwProjectStorageActiveGb) AS FwProjectStorageActiveGb
@@ -615,6 +621,7 @@ AS
             invoice_month AS InvoiceMonth
           , REPLACE(`group`,"_","-") AS FwGroup
           , project_label AS FwProject
+	  , SUM(session_count) AS FwProjectStorageSessionCount
           , SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0) AS FwProjectStorageGb
           , IF (deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectStorageDeletedGb
           , IF (NOT deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectStorageActiveGb
@@ -631,6 +638,7 @@ AS
             FwGroup,
             FwProject,
 	    deleted
+
         ORDER BY
             InvoiceMonth,
             FwGroup,
@@ -659,21 +667,53 @@ AS
           IF (t1.InvoiceMonth IS NULL, t2.InvoiceMonth, t1.InvoiceMonth) AS InvoiceMonth
 	, IF (t1.FwGroup IS NULL, t2.FwGroup, t1.FwGroup) AS FwGroup
 	, IF (t1.FwProject IS NULL, t2.FwProject, t1.FwProject) AS FwProject
-	, IF (t1.FwGearName IS NULL, t2.FwGearName, t1.FwProject) AS FwGearName
+	, IF (t1.FwGearName IS NULL, t2.FwGearName, t1.FwGearName) AS FwGearName
 	, SUM(IF (t1.FwGearRunCount IS NULL, 0.0, t1.FwGearRunCount)) AS FwGearRunCount
 	, SUM(IF (t1.FwGearAnalysisCpuHours IS NULL, 0.0, t1.FwGearAnalysisCpuHours)) AS FwGearAnalysisCpuHours
 	, SUM(IF (t1.FwGearUtilityCpuHours IS NULL, 0.0, t1.FwGearUtilityCpuHours)) AS FwGearUtilityCpuHours
 	, SUM(IF (t1.FwGearGenericCpuHours IS NULL, 0.0, t1.FwGearGenericCpuHours)) AS FwGearGenericCpuHours
 	, SUM(IF (t1.FwInitialAnalysisCount IS NULL, 0.0, t1.FwInitialAnalysisCount)) AS FwInitialAnalysisCount
+	, SUM(IF (t1.FwGearTotalGroupAnalysisCpuHours IS NULL, 0.0, t1.FwGearTotalGroupAnalysisCpuHours)) AS FwGearTotalGroupAnalysisCpuHours
+	, SUM(IF (t1.FwGearTotalGroupUtilityCpuHours IS NULL, 0.0, t1.FwGearTotalGroupUtilityCpuHours)) AS FwGearTotalGroupUtilityCpuHours
+	, SUM(IF (t1.FwGearTotalGroupGenericCpuHours IS NULL, 0.0, t1.FwGearTotalGroupGenericCpuHours)) AS FwGearTotalGroupGenericCpuHours
 	, SUM(IF (t2.FwProjectStorageGb IS NULL, 0.0, t2.FwProjectStorageGb)) AS FwProjectStorageGb
 	, SUM(IF (t2.FwProjectStorageActiveGb IS NULL, 0.0, t2.FwProjectStorageActiveGb)) AS FwProjectStorageActiveGb
 	, SUM(IF (t2.FwProjectStorageDeletedGb IS NULL, 0.0, t2.FwProjectStorageDeletedGb)) AS FwProjectStorageDeletedGb
 
-    FROM
-        `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4` t1
-
+    FROM (
+        SELECT 
+          t3.*
+          , t4.FwGearTotalGroupAnalysisCpuHours
+          , t4.FwGearTotalGroupUtilityCpuHours
+          , t4.FwGearTotalGroupGenericCpuHours
+        FROM 
+	    `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4` t3
+        LEFT JOIN (
+          SELECT
+              InvoiceMonth
+            , FwGroup
+#            , FwProject
+#            , FwGearName
+            , SUM(FwGearAnalysisCpuHours) AS FwGearTotalGroupAnalysisCpuHours
+            , SUM(FwGearUtilityCpuHours) AS FwGearTotalGroupUtilityCpuHours
+            , SUM(FwGearGenericCpuHours) AS FwGearTotalGroupGenericCpuHours
+          FROM
+	    `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4` 
+          GROUP BY
+              InvoiceMonth
+            , FwGroup
+#            , FwProject
+#            , FwGearName
+        ) t4
+        ON
+              t3.InvoiceMonth = t4.InvoiceMonth
+          AND t3.FwGroup = t4.FwGroup
+#          AND t3.FwProject = t4.FwProject
+#          AND t3.FwGearName = t4.FwGearName
+    ) t1
     FULL OUTER JOIN 
-        `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4` t2
+          `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4`  t2
+    
     ON
 	    t1.InvoiceMonth = t2.InvoiceMonth
 	AND t1.FwGroup = t2.FwGroup
@@ -713,13 +753,13 @@ exit
 '
 
 #
-# 4
+# 5 `pennbrain-center.Alice.TempGcpFwAllocatedGroupProjectGearMetricsCosts`
 #
-# This table is grouped by group/project/gear so you can not allocate storage costs by project
+#   Add gear metrics in to project
 #
 CREATE OR REPLACE TABLE
 
-  `pennbrain-center.Alice.TempGcpFwAllocatedComputeCosts`
+  `pennbrain-center.Alice.TempGcpFwAllocatedGroupProjectGearMetricsCosts`
 
 AS
     SELECT
