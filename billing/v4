@@ -68,6 +68,8 @@
 # *** Should get rid of group level prorating.  Gcp group costs are a good check, but prorating should be across
 #     the total metrics to simplify the tables and reduce the chance of getting the prorating wrong
 
+# *** How do we deal with entire groups which have been deleted by the time we run the reports?
+
 
 CmdName=$(basename "$0")
 
@@ -951,6 +953,10 @@ AS
     FROM (
       SELECT
             *
+	  ,   zeroIfNull(GcpAllocatedComputeDynamicCosts)
+	    + zeroIfNull(GcpAllocatedComputeStaticCosts) 
+	    + zeroIfNull(GcpAllocatedComputeUnlabeledCosts) AS GcpAllocatedComputeCosts
+
 	  ,   zeroIfNull(GcpAllocatedStorageStandardCosts)
 	    + zeroIfNull(GcpAllocatedStorageColdlineCosts)
 	    + zeroIfNull(GcpAllocatedStorageArchiveCosts) 
@@ -972,7 +978,7 @@ AS
 
 	    , t2.FwProjectStorageGb
 
-	    , GcpGroupComputeCosts * prorate(FwGearGenericCpuHours, FwGearTotalGroupGenericCpuHours) AS GcpAllocatedComputeCosts
+	    , GcpGroupComputeCosts * prorate(FwGearGenericCpuHours, FwGearTotalGroupGenericCpuHours) AS GcpAllocatedGroupComputeCosts
 	    , GcpGroupComputeCoreCpuHours * prorate(FwGearAnalysisCpuHours, FwGearTotalGroupAnalysisCpuHours) AS GcpAllocatedComputeCoreCpuHours
 	    , GcpGroupComputeDynamicCosts * prorate(FwGearAnalysisCpuHours, FwGearTotalGroupAnalysisCpuHours) AS GcpAllocatedComputeDynamicCosts
 
@@ -980,7 +986,7 @@ AS
 	    #     prorate from the TotalGcpComputeStaticCosts instead of from the group
 	    , TotalGcpComputeStaticCosts * prorate(FwGearUtilityCpuHours, TotalFwGearUtilityCpuHours) AS GcpAllocatedComputeStaticCosts
 	    , GcpGroupComputeLabeledCosts * prorate(FwGearAnalysisCpuHours, FwGearTotalGroupAnalysisCpuHours) AS GcpAllocatedComputeLabeledCosts
-	    , GcpGroupComputeUnlabeledCosts * prorate(FwGearAnalysisCpuHours, FwGearTotalGroupAnalysisCpuHours) AS GcpAllocatedComputeUnabeledCosts
+	    , TotalGcpComputeUnlabeledCosts * prorate(FwGearAnalysisCpuHours, TotalFwGearAnalysisCpuHours) AS GcpAllocatedComputeUnlabeledCosts
         
 	    # *** Have to prorate from the Totals since misc costs span non-group costs
             , TotalGcpMiscCosts * prorate(FwGearGenericCpuHours, TotalFwGearGenericCpuHours) AS GcpAllocatedMiscCosts
@@ -1008,6 +1014,13 @@ AS
               *
             FROM
                `pennbrain-center.Alice.TempGcpClassifiedCostsV4` 
+	    #
+	    # *** The merged Gcp Costs and Flywheel Metrics should not include the null group or flywheel static
+	    # so costs are only allocated real flywheel groups
+	    #
+	    WHERE
+		FwGroup IS NOT NULL
+		AND FwGroup != "flywheel-static"
         
           ) t1
           FULL OUTER JOIN (
@@ -1076,6 +1089,7 @@ AS
 
 	      , GcpAllocatedComputeDynamicCosts
 	      , GcpAllocatedComputeStaticCosts
+	      , GcpAllocatedComputeUnlabeledCosts
 	      , GcpAllocatedMiscCosts
 
               , GcpAllocatedComputeCosts
