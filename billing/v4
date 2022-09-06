@@ -963,20 +963,54 @@ AS
 	    + zeroIfNull(GcpAllocatedStorageMiscCosts) AS GcpAllocatedStorageCosts
       FROM (
           SELECT
-              t1.*
-            , t2.FwProject
-            , t2.FwGearName
-            , t2.FwInitialAnalysisCount
-            , t2.FwGearRunCount
-            , t2.FwGearAnalysisCpuHours
-            , t2.FwGearUtilityCpuHours
-            , t2.FwGearGenericCpuHours
+#              t1.*
+#            , t2.FwProject
+#            , t2.FwGearName
+#            , t2.FwInitialAnalysisCount
+#            , t2.FwGearRunCount
+#            , t2.FwGearAnalysisCpuHours
+#            , t2.FwGearUtilityCpuHours
+#            , t2.FwGearGenericCpuHours
+#
+#            , t2.FwGearTotalGroupAnalysisCpuHours
+#            , t2.FwGearTotalGroupUtilityCpuHours
+#            , t2.FwGearTotalGroupGenericCpuHours
+#
+#	    , t2.FwProjectStorageGb
 
-            , t2.FwGearTotalGroupAnalysisCpuHours
-            , t2.FwGearTotalGroupUtilityCpuHours
-            , t2.FwGearTotalGroupGenericCpuHours
-
-	    , t2.FwProjectStorageGb
+			IF (t1.FwGroup IS NOT NULL, t1.InvoiceMonth, t2.InvoiceMonth) AS InvoiceMonth
+				, IF (t1.FwGroup IS NOT NULL, t1.FwGroup, t2.FwGroup) AS FwGroup
+				, GcpGroupComputeCosts	
+				, GcpGroupComputeCoreCpuHours	
+				, GcpGroupComputeDynamicCosts	
+				, GcpGroupComputeStaticCosts	
+				, GcpGroupComputeLabeledCosts	
+				, GcpGroupComputeUnlabeledCosts	
+				, GcpGroupStorageStandardCosts	
+				, GcpGroupStorageStandardGb	
+				, GcpGroupStorageColdlineCosts	
+				, GcpGroupStorageColdlineGb	
+				, GcpGroupStorageArchiveCosts	
+				, GcpGroupStorageArchiveGb	
+				, GcpGroupStorageMiscCosts	
+				, GcpGroupMiscCosts	
+				, GcpGroupMiscStaticCosts
+				, FwProject
+				, FwGearName	
+				, FwGearRunCount	
+				, FwGearAnalysisCpuHours	
+				, FwGearUtilityCpuHours	
+				, FwGearGenericCpuHours	
+				, FwInitialAnalysisCount	
+				, FwGearTotalGroupAnalysisCpuHours	
+				, FwGearTotalGroupUtilityCpuHours	
+				, FwGearTotalGroupGenericCpuHours	
+				, FwProjectStorageGb
+				, FwProjectStorageActiveGb
+				, FwProjectStorageDeletedGb	
+				, FwProjectTotalGroupStorageGb	
+				, FwProjectTotalGroupStorageActiveGb	
+				, FwProjectTotalGroupStorageDeletedGb
 
 	    , GcpGroupComputeCosts * prorate(FwGearGenericCpuHours, FwGearTotalGroupGenericCpuHours) AS GcpAllocatedGroupComputeCosts
 	    , GcpGroupComputeCoreCpuHours * prorate(FwGearAnalysisCpuHours, FwGearTotalGroupAnalysisCpuHours) AS GcpAllocatedComputeCoreCpuHours
