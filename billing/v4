@@ -110,12 +110,16 @@ Project=pennbrain-center
 
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
 
+DECLARE TotalFwStorageGb FLOAT64;
+
 DECLARE TotalFwGearAnalysisCpuHours FLOAT64;
 DECLARE TotalFwGearUtilityCpuHours FLOAT64;
 DECLARE TotalFwGearGenericCpuHours FLOAT64;
-DECLARE TotalFwStorageGb FLOAT64;
 
-DECLARE TotalGcpComputeUnlabeledHours FLOAT64;
+DECLARE TotalGcpComputeDynamicCpuHours FLOAT64;
+DECLARE TotalGcpComputeStaticCpuHours FLOAT64;
+DECLARE TotalGcpComputeGenericCpuHours FLOAT64;
+
 DECLARE TotalGcpComputeUnlabeledCosts FLOAT64;
 DECLARE TotalGcpComputeLabeledCosts FLOAT64;
 DECLARE TotalGcpMiscCosts FLOAT64;
@@ -193,10 +197,21 @@ CREATE TEMP FUNCTION isComputeUnlabeledCost(ServiceDescription STRING, FwGroup S
       , FALSE)
   );
 
-CREATE TEMP FUNCTION isComputeCoreHours(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+CREATE TEMP FUNCTION isComputeDynamicCpuHours(ServiceDescription STRING, SkuDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
   IF (     ServiceDescription = "Compute Engine"
-       AND
-	   SkuDescription LIKE "%Instance Core%"
+       AND SkuDescription LIKE "%Instance Core%"
+       AND FwGroup IS NOT NULL
+       AND FwGroup != "flywheel-static"
+    ,
+    TRUE,
+    FALSE)
+  );
+
+CREATE TEMP FUNCTION isComputeStaticCpuHours(ServiceDescription STRING, SkuDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     ServiceDescription = "Compute Engine"
+       AND SkuDescription LIKE "%Instance Core%"
+       AND FwGroup IS NOT NULL
+       AND FwGroup = "flywheel-static"
     ,
     TRUE,
     FALSE)
@@ -347,7 +362,7 @@ AS
     FROM ( # A
         SELECT
             *
-    	  , prorate(GcpGroupComputeCoreCpuHours, GcpGroupComputeCoreCpuHours) AS GcpComputeCostPerCpuHour
+    	  , prorate(GcpGroupComputeDynamicCosts, GcpGroupComputeDynamicCpuHours) AS GcpComputeCostPerCpuHour
     	  , prorate(GcpGroupStorageStandardCosts, GcpGroupStorageStandardGb) AS GcpStorageStandarCostPerGbPerMonth
     	  , prorate(GcpGroupStorageColdlineCosts, GcpGroupStorageColdlineGb) AS GcpStorageColdlineCostPerGbPerMonth
     	  , prorate(GcpGroupStorageArchiveCosts, GcpGroupStorageArchiveGb) AS GcpStorageArchiveCostPerGbPerMonth
@@ -373,13 +388,17 @@ AS
                        DiscountedCosts,
         	       0.0)) AS GcpGroupComputeCosts
         
-                , SUM(IF (isComputeCoreHours(ServiceDescription,SkuDescription),
+                , SUM(IF (isComputeDynamicCpuHours(ServiceDescription,SkuDescription, FwGroup),
                        UsageAmount,
-                       0.0)) AS GcpGroupComputeCoreCpuHours
+                       0.0)) AS GcpGroupComputeDynamicCpuHours
         
                 , SUM(IF (isComputeDynamicCost(ServiceDescription,FwGroup),
                        DiscountedCosts,
         	       0.0)) AS GcpGroupComputeDynamicCosts
+        
+                , SUM(IF (isComputeStaticCpuHours(ServiceDescription,SkuDescription, FwGroup),
+                       UsageAmount,
+                       0.0)) AS GcpGroupComputeStaticCpuHours
         
                 , SUM(IF (isComputeStaticCost(ServiceDescription,FwGroup),
                        DiscountedCosts,
@@ -543,6 +562,13 @@ AS
 
   ;
 
+SET TotalGcpComputeStaticCpuHours = (
+    SELECT
+	SUM(GcpGroupComputeStaticCpuHours)
+    FROM
+        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+    );
+
 SET TotalGcpComputeStaticCosts = (
     SELECT
 	SUM(GcpGroupComputeStaticCosts)
@@ -686,7 +712,7 @@ AS
           InvoiceMonth
         , FwGroup
         , FwProject
-	, "StorageBogusGear" AS FwGearName
+	, "BogusStorageGear" AS FwGearName
 	, SUM(FwProjectStorageSessionCount) AS FwProjectStorageSessionCount
 	, SUM(FwProjectStorageGb) AS FwProjectStorageGb
 	, SUM(FwProjectStorageDeletedGb) AS FwProjectStorageDeletedGb
@@ -819,22 +845,22 @@ AS
 	, SUM(IF (t1.FwGearUtilityCpuHours IS NULL, 0.0, t1.FwGearUtilityCpuHours)) AS FwGearUtilityCpuHours
 	, SUM(IF (t1.FwGearGenericCpuHours IS NULL, 0.0, t1.FwGearGenericCpuHours)) AS FwGearGenericCpuHours
 	, SUM(IF (t1.FwInitialAnalysisCount IS NULL, 0.0, t1.FwInitialAnalysisCount)) AS FwInitialAnalysisCount
-	, SUM(IF (t1.FwGearTotalGroupAnalysisCpuHours IS NULL, 0.0, t1.FwGearTotalGroupAnalysisCpuHours)) AS FwGearTotalGroupAnalysisCpuHours
-	, SUM(IF (t1.FwGearTotalGroupUtilityCpuHours IS NULL, 0.0, t1.FwGearTotalGroupUtilityCpuHours)) AS FwGearTotalGroupUtilityCpuHours
-	, SUM(IF (t1.FwGearTotalGroupGenericCpuHours IS NULL, 0.0, t1.FwGearTotalGroupGenericCpuHours)) AS FwGearTotalGroupGenericCpuHours
+	, SUM(IF (t1.FwGearGroupTotalAnalysisCpuHours IS NULL, 0.0, t1.FwGearGroupTotalAnalysisCpuHours)) AS FwGearGroupTotalAnalysisCpuHours
+	, SUM(IF (t1.FwGearGroupTotalUtilityCpuHours IS NULL, 0.0, t1.FwGearGroupTotalUtilityCpuHours)) AS FwGearGroupTotalUtilityCpuHours
+	, SUM(IF (t1.FwGearGroupTotalGenericCpuHours IS NULL, 0.0, t1.FwGearGroupTotalGenericCpuHours)) AS FwGearGroupTotalGenericCpuHours
 	, SUM(IF (t2.FwProjectStorageGb IS NULL, 0.0, t2.FwProjectStorageGb)) AS FwProjectStorageGb
 	, SUM(IF (t2.FwProjectStorageActiveGb IS NULL, 0.0, t2.FwProjectStorageActiveGb)) AS FwProjectStorageActiveGb
 	, SUM(IF (t2.FwProjectStorageDeletedGb IS NULL, 0.0, t2.FwProjectStorageDeletedGb)) AS FwProjectStorageDeletedGb
-	, SUM(IF (t2.FwProjectTotalGroupStorageGb IS NULL, 0.0, t2.FwProjectTotalGroupStorageGb)) AS FwProjectTotalGroupStorageGb
-	, SUM(IF (t2.FwProjectTotalGroupStorageActiveGb IS NULL, 0.0, t2.FwProjectTotalGroupStorageActiveGb)) AS FwProjectTotalGroupStorageActiveGb
-	, SUM(IF (t2.FwProjectTotalGroupStorageDeletedGb IS NULL, 0.0, t2.FwProjectTotalGroupStorageDeletedGb)) AS FwProjectTotalGroupStorageDeletedGb
+	, SUM(IF (t2.FwProjectGroupTotalStorageGb IS NULL, 0.0, t2.FwProjectGroupTotalStorageGb)) AS FwProjectGroupTotalStorageGb
+	, SUM(IF (t2.FwProjectGroupTotalStorageActiveGb IS NULL, 0.0, t2.FwProjectGroupTotalStorageActiveGb)) AS FwProjectGroupTotalStorageActiveGb
+	, SUM(IF (t2.FwProjectGroupTotalStorageDeletedGb IS NULL, 0.0, t2.FwProjectGroupTotalStorageDeletedGb)) AS FwProjectGroupTotalStorageDeletedGb
 
     FROM (
         SELECT 
             t3.*
-          , t4.FwGearTotalGroupAnalysisCpuHours
-          , t4.FwGearTotalGroupUtilityCpuHours
-          , t4.FwGearTotalGroupGenericCpuHours
+          , t4.FwGearGroupTotalAnalysisCpuHours
+          , t4.FwGearGroupTotalUtilityCpuHours
+          , t4.FwGearGroupTotalGenericCpuHours
         FROM 
 	    `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4` t3
         LEFT JOIN (
@@ -843,9 +869,9 @@ AS
             , FwGroup
 #            , FwProject
 #            , FwGearName
-            , SUM(FwGearAnalysisCpuHours) AS FwGearTotalGroupAnalysisCpuHours
-            , SUM(FwGearUtilityCpuHours) AS FwGearTotalGroupUtilityCpuHours
-            , SUM(FwGearGenericCpuHours) AS FwGearTotalGroupGenericCpuHours
+            , SUM(FwGearAnalysisCpuHours) AS FwGearGroupTotalAnalysisCpuHours
+            , SUM(FwGearUtilityCpuHours) AS FwGearGroupTotalUtilityCpuHours
+            , SUM(FwGearGenericCpuHours) AS FwGearGroupTotalGenericCpuHours
           FROM
 	    `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4` 
           GROUP BY
@@ -865,9 +891,9 @@ AS
 
         SELECT 
             t5.*
-          , t6.FwProjectTotalGroupStorageGb
-          , t6.FwProjectTotalGroupStorageActiveGb
-          , t6.FwProjectTotalGroupStorageDeletedGb
+          , t6.FwProjectGroupTotalStorageGb
+          , t6.FwProjectGroupTotalStorageActiveGb
+          , t6.FwProjectGroupTotalStorageDeletedGb
         FROM 
 	    `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4` t5
         LEFT JOIN (
@@ -876,9 +902,9 @@ AS
             , FwGroup
 #            , FwProject
 #            , FwGearName
-            , SUM(FwProjectStorageGb) AS FwProjectTotalGroupStorageGb
-            , SUM(FwProjectStorageActiveGb) AS FwProjectTotalGroupStorageActiveGb
-            , SUM(FwProjectStorageDeletedGb) AS FwProjectTotalGroupStorageDeletedGb
+            , SUM(FwProjectStorageGb) AS FwProjectGroupTotalStorageGb
+            , SUM(FwProjectStorageActiveGb) AS FwProjectGroupTotalStorageActiveGb
+            , SUM(FwProjectStorageDeletedGb) AS FwProjectGroupTotalStorageDeletedGb
           FROM
             `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4`  
           GROUP BY
@@ -917,7 +943,7 @@ SELECT
    , SUM(FwInitialAnalysisCount) AS FwInitialAnalysisCount
 
    #
-   # Summing the TotalGroup does not make sense.  You would be counting the group totals 
+   # Summing the GroupTotal does not make sense.  You would be counting the group totals 
    # for each gear in the group/project
    #
    , SUM(FwGearAnalysisCpuHours) AS FwGearAnalysisCpuHours
@@ -953,6 +979,8 @@ AS
     FROM (
       SELECT
             *
+	    # *** Would really like to split GcpAllocatedComputeDynamicCosts into GcpAllocatedComputeDynamicGearCosts and 
+	    #     GcpAllocatedComputeDynamicNonGearCosts
 	  ,   zeroIfNull(GcpAllocatedComputeDynamicCosts)
 	    + zeroIfNull(GcpAllocatedComputeStaticCosts) 
 	    + zeroIfNull(GcpAllocatedComputeUnlabeledCosts) AS GcpAllocatedComputeCosts
@@ -966,60 +994,75 @@ AS
 
  	      IF (t1.FwGroup IS NOT NULL, t1.InvoiceMonth, t2.InvoiceMonth) AS InvoiceMonth
 	    , IF (t1.FwGroup IS NOT NULL, t1.FwGroup, t2.FwGroup) AS FwGroup
+
 	    , GcpGroupComputeCosts	
-	    , GcpGroupComputeCoreCpuHours	
 	    , GcpGroupComputeDynamicCosts	
 	    , GcpGroupComputeStaticCosts	
 	    , GcpGroupComputeLabeledCosts	
 	    , GcpGroupComputeUnlabeledCosts	
+
 	    , GcpGroupStorageStandardCosts	
 	    , GcpGroupStorageStandardGb	
 	    , GcpGroupStorageColdlineCosts	
 	    , GcpGroupStorageColdlineGb	
 	    , GcpGroupStorageArchiveCosts	
 	    , GcpGroupStorageArchiveGb	
+
 	    , GcpGroupStorageMiscCosts	
+
 	    , GcpGroupMiscCosts	
 	    , GcpGroupMiscStaticCosts
+
 	    , FwProject
-	    , IF (FwGearName IS NULL, "ComputeBogusGear", FwGearName) as FwGearName
+	    , IF (FwGearName IS NULL, "BogusComputeGear", FwGearName) as FwGearName
 	    , FwGearRunCount	
+
 	    , FwGearAnalysisCpuHours	
 	    , FwGearUtilityCpuHours	
 	    , FwGearGenericCpuHours	
 	    , FwInitialAnalysisCount	
-	    , FwGearTotalGroupAnalysisCpuHours	
-	    , FwGearTotalGroupUtilityCpuHours	
-	    , FwGearTotalGroupGenericCpuHours	
+	    , FwGearGroupTotalAnalysisCpuHours	
+	    , FwGearGroupTotalUtilityCpuHours	
+	    , FwGearGroupTotalGenericCpuHours	
+
 	    , FwProjectStorageGb
 	    , FwProjectStorageActiveGb
 	    , FwProjectStorageDeletedGb	
-	    , FwProjectTotalGroupStorageGb	
-	    , FwProjectTotalGroupStorageActiveGb	
-	    , FwProjectTotalGroupStorageDeletedGb
+	    , FwProjectGroupTotalStorageGb	
+	    , FwProjectGroupTotalStorageActiveGb	
+	    , FwProjectGroupTotalStorageDeletedGb
 
-	    , GcpGroupComputeCosts * prorate(FwGearGenericCpuHours, FwGearTotalGroupGenericCpuHours) AS GcpAllocatedGroupComputeCosts
-	    , GcpGroupComputeCoreCpuHours * prorate(FwGearAnalysisCpuHours, FwGearTotalGroupAnalysisCpuHours) AS GcpAllocatedComputeCoreCpuHours
-
-	    , GcpGroupComputeDynamicCosts * prorate(FwGearAnalysisCpuHours, FwGearTotalGroupAnalysisCpuHours) AS GcpAllocatedComputeDynamicCosts
-
-	    # *** Have to treat static costs special as all static compute costs are only in the flywheel-static group, so 
-	    #     prorate from the TotalGcpComputeStaticCosts instead of from the group
-	    , TotalGcpComputeStaticCosts * prorate(FwGearUtilityCpuHours, TotalFwGearUtilityCpuHours) AS GcpAllocatedComputeStaticCosts
-	    , GcpGroupComputeLabeledCosts * prorate(FwGearAnalysisCpuHours, FwGearTotalGroupAnalysisCpuHours) AS GcpAllocatedComputeLabeledCosts
-	    , TotalGcpComputeUnlabeledCosts * prorate(FwGearAnalysisCpuHours, TotalFwGearAnalysisCpuHours) AS GcpAllocatedComputeUnlabeledCosts
+	    #
+	    # *** Should not the allocated metrics be in a different table?
+	    # 
+	    # We need to allocate Dynamic/Static cpu hours to give accurate gear average runtimes 
+	    # but real chargeable dynamic hours are only known by group and the static hours are all in flywheel static
+	    #
+	    , GcpGroupComputeDynamicCpuHours * prorate(FwGearAnalysisCpuHours, FwGearGroupTotalAnalysisCpuHours) AS GcpAllocatedComputeDynamicCpuHours
+	    , GcpGroupComputeDynamicCosts * prorate(FwGearAnalysisCpuHours, FwGearGroupTotalAnalysisCpuHours) AS GcpAllocatedComputeDynamicCosts
+	    , GcpGroupComputeLabeledCosts * prorate(FwGearAnalysisCpuHours, FwGearGroupTotalAnalysisCpuHours) AS GcpAllocatedComputeLabeledCosts
         
-	    # *** Have to prorate from the Totals since misc costs span non-group costs
+	    , TotalGcpComputeUnlabeledCosts * prorate(FwGearAnalysisCpuHours, TotalFwGearAnalysisCpuHours) AS GcpAllocatedComputeUnlabeledCosts
+
+	    #
+	    # Have to treat static costs special as all static compute costs are only in the flywheel-static group, so 
+	    #     prorate from the TotalGcpComputeStaticCosts instead of from the group
+
+	    , TotalGcpComputeStaticCpuHours * prorate(FwGearUtilityCpuHours, TotalFwGearUtilityCpuHours) AS GcpAllocatedComputeStaticCpuHours
+	    , TotalGcpComputeStaticCosts * prorate(FwGearUtilityCpuHours, TotalFwGearUtilityCpuHours) AS GcpAllocatedComputeStaticCosts
+
+	    #
+	    #  Have to prorate from the Totals since misc costs span non-group costs
+	    #
             , TotalGcpMiscCosts * prorate(FwGearGenericCpuHours, TotalFwGearGenericCpuHours) AS GcpAllocatedMiscCosts
+            , TotalGcpMiscStaticCosts * prorate(FwGearGenericCpuHours, FwGearGroupTotalGenericCpuHours) AS GcpAllocatedMiscStaticCosts
+            , TotalGcpMiscDynamicCosts * prorate(FwGearGenericCpuHours, FwGearGroupTotalGenericCpuHours) AS GcpAllocatedMiscDynamicCosts
+            , TotalGcpMiscLabeledCosts * prorate(FwGearGenericCpuHours, FwGearGroupTotalGenericCpuHours) AS GcpAllocatedMiscLabeledCosts
+            , TotalGcpMiscUnlabeledCosts * prorate(FwGearGenericCpuHours, FwGearGroupTotalGenericCpuHours) AS GcpAllocatedMiscUnlabeledCosts
 
-            , TotalGcpMiscStaticCosts * prorate(FwGearGenericCpuHours, FwGearTotalGroupGenericCpuHours) AS GcpAllocatedMiscStaticCosts
-            , TotalGcpMiscDynamicCosts * prorate(FwGearGenericCpuHours, FwGearTotalGroupGenericCpuHours) AS GcpAllocatedMiscDynamicCosts
-            , TotalGcpMiscLabeledCosts * prorate(FwGearGenericCpuHours, FwGearTotalGroupGenericCpuHours) AS GcpAllocatedMiscLabeledCosts
-            , TotalGcpMiscUnlabeledCosts * prorate(FwGearGenericCpuHours, FwGearTotalGroupGenericCpuHours) AS GcpAllocatedMiscUnlabeledCosts
-
-	    # *** Need to allocate storage costs to individual project/gears
-	    # *** Also undealt with are cost per cpu hour and cost per gb
-	    # *** Have not allocated the storage costs from flywheel-static to the actual projects -- do not want to use the GroupGb, but TotalGb
+	    # 
+	    # These costs and metrics are allocated by invoicemonth/group/project/gear
+	    # 
 	   , TotalGcpStorageStandardCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardCosts
 	   , TotalGcpStorageStandardGb * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardGb
 	   , TotalGcpStorageColdlineCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageColdlineCosts
@@ -1036,7 +1079,7 @@ AS
             FROM
                `pennbrain-center.Alice.TempGcpClassifiedCostsV4` 
 	    #
-	    # *** The merged Gcp Costs and Flywheel Metrics should not include the null group or flywheel static
+	    # The merged Gcp Costs and Flywheel Metrics do not include the null group or flywheel static
 	    # so costs are only allocated real flywheel groups
 	    #
 	    WHERE
@@ -1072,57 +1115,66 @@ INSERT INTO
       InvoiceMonth
       , FwGroup
 
-
-
 , GcpGroupComputeDynamicCosts AS GcpGroupComputeCosts
-, NULL AS GcpGroupComputeCoreCpuHours
 , GcpGroupComputeDynamicCosts AS GcpGroupComputeDynamicCosts
 , NULL AS GcpGroupComputeStaticCosts
 , NULL AS GcpGroupComputeLabeledCosts
 , NULL AS GcpGroupComputeUnlabeledCosts
+
 , NULL AS GcpGroupStorageStandardCosts
 , NULL AS GcpGroupStorageStandardGb
 , NULL AS GcpGroupStorageColdlineCosts
 , NULL AS GcpGroupStorageColdlineGb
 , NULL AS GcpGroupStorageArchiveCosts
 , NULL AS GcpGroupStorageArchiveGb
+
 , NULL AS GcpGroupStorageMiscCosts
+
 , NULL AS GcpGroupMiscCosts
 , NULL AS GcpGroupMiscStaticCosts
+
       , "BogusProject" AS FwProject
       , "BogusComputeGear" AS FwGearName
 , NULL AS FwGearRunCount
+
 , NULL AS FwGearAnalysisCpuHours
 , NULL AS FwGearUtilityCpuHours
 , NULL AS FwGearGenericCpuHours
 , NULL AS FwInitialAnalysisCount
-, NULL AS FwGearTotalGroupAnalysisCpuHours
-, NULL AS FwGearTotalGroupUtilityCpuHours
-, NULL AS FwGearTotalGroupGenericCpuHours
+, NULL AS FwGearGroupTotalAnalysisCpuHours
+, NULL AS FwGearGroupTotalUtilityCpuHours
+, NULL AS FwGearGroupTotalGenericCpuHours
+
 , NULL AS FwProjectStorageGb
 , NULL AS FwProjectStorageActiveGb
 , NULL AS FwProjectStorageDeletedGb
-, NULL AS FwProjectTotalGroupStorageGb
-, NULL AS FwProjectTotalGroupStorageActiveGb
-, NULL AS FwProjectTotalGroupStorageDeletedGb
-, GcpGroupComputeDynamicCosts AS GcpAllocatedGroupComputeCosts
-, NULL AS GcpAllocatedComputeCoreCpuHours
+, NULL AS FwProjectGroupTotalStorageGb
+, NULL AS FwProjectGroupTotalStorageActiveGb
+, NULL AS FwProjectGroupTotalStorageDeletedGb
+
+, GcpGroupComputeDynamicCpuHours AS GcpAllocatedComputeDynamicCpuHours
+, NULL AS GcpAllocatedComputeStaticCpuHours
+
       ,  GcpGroupComputeDynamicCosts AS GcpAllocatedComputeDynamicCosts
 , NULL AS GcpAllocatedComputeStaticCosts
 , NULL AS GcpAllocatedComputeLabeledCosts
 , NULL AS GcpAllocatedComputeUnlabeledCosts
+
 , NULL AS GcpAllocatedMiscCosts
 , NULL AS GcpAllocatedMiscStaticCosts
 , NULL AS GcpAllocatedMiscDynamicCosts
 , NULL AS GcpAllocatedMiscLabeledCosts
 , NULL AS GcpAllocatedMiscUnlabeledCosts
+
 , NULL AS GcpAllocatedStorageStandardCosts
 , NULL AS GcpAllocatedStorageStandardGb
 , NULL AS GcpAllocatedStorageColdlineCosts
 , NULL AS GcpAllocatedStorageColdlineGb
 , NULL AS GcpAllocatedStorageArchiveCosts
 , NULL AS GcpAllocatedStorageArchiveGb
+
 , NULL AS GcpAllocatedStorageMiscCosts
+
 , GcpGroupComputeDynamicCosts AS GcpAllocatedComputeCosts
 , NULL AS GcpAllocatedStorageCosts
 , NULL AS GcpAllocatedCosts
@@ -1133,12 +1185,14 @@ INSERT INTO
         , IF (t1.FwGroup IS NOT NULL, t1.FwGroup, t2.FwGroup) AS FwGroup
         , t2.FwTotalGearAnalysisCpuHours
         , t1.GcpGroupComputeDynamicCosts
+        , t1.GcpGroupComputeDynamicCpuHours
         
       FROM (
         SELECT
           InvoiceMonth
           , FwGroup
           , GcpGroupComputeDynamicCosts
+          , GcpGroupComputeDynamicCpuHours
         FROM
           `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
           #
@@ -1230,4 +1284,50 @@ AS
     )
 );
 
+CREATE OR REPLACE TABLE 
+       `pennbrain-center.Alice.FwProjectAllocatedGearChargesV4` 
+
+AS
+    SELECT
+              *
+       	    , IF ( FwGearRunCount > 0
+	         , zeroIfNull(GcpAllocatedComputeCosts) / zeroIFNull(FwGearRunCount)
+		 , 0.0 ) AS GcpAllocatedAvgRunCost
+
+       	    , IF ( FwGearRunCount > 0
+	      	 , IF ( isAnalysisGear(FwGearName)
+		      , GcpAllocatedComputeDynamicCpuHours
+		      , GcpAllocatedComputeStaticCpuHours) / zeroIFNull(FwGearRunCount)
+		 , 0.0 ) AS GcpAllocatedAvgRuntimeCpuHours
+    
+        FROM (
+          SELECT 	
+                InvoiceMonth
+              , FwGroup
+              , FwProject
+	      , FwGearName
+
+	      , FwGearRunCount
+
+              , GcpAllocatedComputeCosts
+	      , GcpAllocatedComputeDynamicCpuHours
+	      , GcpAllocatedComputeStaticCpuHours
+
+           FROM
+	      `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
+
+	   WHERE
+	           FwGearName != "BogusStorageGear"
+	       AND FwGearName != "BogusComputeGear"
+
+	   ORDER BY
+	         InvoiceMonth
+	       , FwGroup
+	       , FwProject
+	       , FwGearName
+    )
+;
+
 '
+
+
