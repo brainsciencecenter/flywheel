@@ -51,7 +51,7 @@
 # BscGearCharges
 #
 
-# *** There is a basic problem of joining the storage and compute metrics across different levels of organization.  If you join on
+# There is a basic problem of joining the storage and compute metrics across different levels of organization.  If you join on
 #     Group/Project/Gear the storage metrics will be duplicated for each gear.  If you do not break it down to the gear level, you 
 #     need another table to hold the gear costs information.
 #     Really want all the storage to go the the Bogus gear, and not copied to the all the 
@@ -500,8 +500,6 @@ AS
        , FwGroup
    ;
 
-#
-# *** Will want to have the group totals
 #
 # 2   `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4`
 #
@@ -962,9 +960,7 @@ FROM
 #
 # 5 `pennbrain-center.Alice.TempGcpFwAllocatedGroupProjectGearMetricsCostsV4`
 #
-#   Add gear metrics in to costs
-#   *** This leave $4.24 on the table because it does not capture compute costs for groups which have not 
-#       run any analysis gears
+#   This is where all group only metrics and costs get allocated to the gear level
 #
 CREATE OR REPLACE TABLE
 
@@ -1032,8 +1028,6 @@ AS
 	    , FwProjectGroupTotalStorageActiveGb	
 	    , FwProjectGroupTotalStorageDeletedGb
 
-	    #
-	    # *** Should not the allocated metrics be in a different table?
 	    # 
 	    # We need to allocate Dynamic/Static cpu hours to give accurate gear average runtimes 
 	    # but real chargeable dynamic hours are only known by group and the static hours are all in flywheel static
@@ -1107,7 +1101,11 @@ AS
     )
 ;
 
-
+#
+# There is a corner case where groups without analysis gears are being charged for compute resources
+# Probably spinning a machine up or down across the invoice cutoff.  $4.24 in July 2022.  This table
+# allocates those costs and hours to the BogusComputeGear so all the column summations match
+#
 INSERT INTO 
   `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
 
@@ -1196,7 +1194,7 @@ INSERT INTO
         FROM
           `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
           #
-          # *** The merged Gcp Costs and Flywheel Metrics should not include the null group or flywheel static
+          # The merged Gcp Costs and Flywheel Metrics should not include the null group or flywheel static
           # so costs are only allocated real flywheel groups
           #
         WHERE
@@ -1242,8 +1240,8 @@ FROM
 
 
 #
-# *** There are scads of null/projects in this table which should not be there.
-#     Null resources should be allocated to billable projects.  BSC should absorbe tech dev and our own projects (holder flywheel-dev)
+# This table calculates the BSC charges
+#
 
 CREATE OR REPLACE TABLE 
        `pennbrain-center.Alice.FwProjectAllocatedChargesV4` 
@@ -1284,6 +1282,9 @@ AS
     )
 );
 
+#
+# Calculate the per gear costs
+# *** Should change the name to FwAllocatedGearCostsV4, GcpAllocatedGearAvgRuntime GcpAllocatedGearAvgRunCosts
 CREATE OR REPLACE TABLE 
        `pennbrain-center.Alice.FwProjectAllocatedGearChargesV4` 
 
