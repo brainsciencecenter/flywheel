@@ -362,6 +362,7 @@ AS
     FROM ( # A
         SELECT
             *
+	  , zeroIfNull(GcpGroupComputeDynamicCpuHours) + zeroIfNull(GcpGroupComputeStaticCpuHours) as GcpGroupComputeCpuHours
     	  , prorate(GcpGroupComputeDynamicCosts, GcpGroupComputeDynamicCpuHours) AS GcpComputeCostPerCpuHour
     	  , prorate(GcpGroupStorageStandardCosts, GcpGroupStorageStandardGb) AS GcpStorageStandarCostPerGbPerMonth
     	  , prorate(GcpGroupStorageColdlineCosts, GcpGroupStorageColdlineGb) AS GcpStorageColdlineCostPerGbPerMonth
@@ -1244,43 +1245,136 @@ FROM
 #
 
 CREATE OR REPLACE TABLE 
-       `pennbrain-center.Alice.FwProjectAllocatedChargesV4` 
-
+    `pennbrain-center.Alice.FwProjectAllocatedChargesV4` 
 AS
     SELECT
-          *
-	, zeroIfNull(GcpAllocatedCharges) + zeroIfNull(BscProjectTotalCharges) AS ProjectTotalCharges
+	  *
+        , zeroIfNull(GcpAllocatedCharges) + zeroIfNull(BscProjectTotalCharges) AS ProjectTotalCharges
     FROM (
         SELECT
-              *
-    	, zeroIfNull(BscInitialAnalysisCharge) + zeroIfNull(BscStorageCharge) + zeroIfNull(BscProjectCharges) AS BscProjectTotalCharges
-    
+    	  *
+            , zeroIfNull(BscInitialAnalysisCharge) + zeroIfNull(BscStorageCharge) + zeroIfNull(BscProjectCharges) AS BscProjectTotalCharges
         FROM (
-          SELECT 	
-                InvoiceMonth
-              , FwGroup
-              , FwProject
-              , FwInitialAnalysisCount
-              , calculateBscInitialAnalysisCharge(FwInitialAnalysisCount) AS BscInitialAnalysisCharge
-              , GcpAllocatedStorageCosts
-              , GcpAllocatedStorageStandardGb
-              , calculateBscStorageCharge(GcpAllocatedStorageCosts) AS BscStorageCharge
+            SELECT
+        	          *
+        	 	, calculateBscInitialAnalysisCharge(FwInitialAnalysisCount) AS BscInitialAnalysisCharge
+        	 	, calculateBscProjectCharge(GcpAllocatedStorageStandardGb, GcpAllocatedStorageCosts) AS BscProjectCharges
+        	 	, calculateBscStorageCharge(GcpAllocatedStorageCosts) AS BscStorageCharge
+            FROM (
+                SELECT
+                       IF (t1.InvoiceMonth IS NOT NULL, t1.InvoiceMonth, t4.InvoiceMonth) AS InvoiceMonth
+                     , IF (t1.FwGroup IS NOT NULL, t1.FwGroup, t4.FwGroup) AS FwGroup
+                     , IF (t1.FwProject IS NOT NULL, t1.FwProject, t4.FwProject) AS FwProject
+                     , IF (t1.FwGearName IS NOT NULL, t1.FwGearName, t4.FwGearName) AS FwGearName
+            
+                     , FwInitialAnalysisCount
+              	     , FwProjectStorageGb
+        	     , GcpAllocatedStorageCosts
+                     , GcpAllocatedStorageStandardGb
+                     , GcpAllocatedComputeDynamicCosts
+                     , GcpAllocatedComputeStaticCosts
+                     , GcpAllocatedComputeUnlabeledCosts
+                     , GcpAllocatedMiscCosts
+                     , GcpAllocatedComputeCosts
+                     , zeroIfNull(GcpAllocatedStorageCosts) + zeroIfNull(GcpAllocatedMiscCosts) + zeroIfNull(GcpAllocatedComputeCosts) AS GcpAllocatedCharges
+    		 #
+    		 # *** the dynamic cpu hours should be handled in the allocatecomputestoragemetrics table
+    		 #
+            	 , zeroIfNull(GcpAllocatedComputeDynamicCpuGearHours) + zeroIfNull(GcpAllocatedComputeDynamicCpuNonGearHours) AS GcpAllocatedComputeDynamicCpuHours
+                     , GcpAllocatedComputeDynamicCpuGearHours
+                     , GcpAllocatedComputeDynamicCpuNonGearHours
+            
+                FROM 
+                     `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4` t1
+                FULL OUTER JOIN (
+                      SELECT
+                            IF (t2.InvoiceMonth IS NOT NULL, t2.InvoiceMonth, t3.InvoiceMonth) AS InvoiceMonth
+                          , IF (t2.FwGroup IS NOT NULL, t2.FwGroup, t3.FwGroup) AS FwGroup
+                          , IF (t2.FwProject IS NOT NULL, t2.FwProject, t3.FwProject) AS FwProject
+                          , IF (t2.FwGearName IS NOT NULL, t2.FwGearName, t3.FwGearName) AS FwGearName
+                          , GcpAllocatedComputeDynamicCpuGearHours
+                          , GcpAllocatedComputeDynamicCpuNonGearHours
+                      FROM (
+                          SELECT
+                                InvoiceMonth
+                     	      , FwGroup
+                              , FwProject
+                              , FwGearName
+                              , GcpAllocatedComputeDynamicCpuHours AS GcpAllocatedComputeDynamicCpuGearHours
+                          FROM
+			      `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
+                          WHERE
+			      FwGearName NOT LIKE "%Bogus%" 
+              	      ) t2
+                      FULL OUTER JOIN (
+                          SELECT
+			       InvoiceMonth
+                              , FwGroup
+                              , FwProject
+                              , FwGearName
+                              , GcpAllocatedComputeDynamicCpuHours AS GcpAllocatedComputeDynamicCpuNonGearHours
+                          FROM
+            		      `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
+                          WHERE
+              	              FwGearName LIKE "%Bogus%" 
+                          ) t3
+                          ON
+              	                  t2.InvoiceMonth = t3.InvoiceMonth
+                              AND t2.FwGroup = t3.FwGroup
+                              AND t2.FwProject = t3.FwProject
+                              AND t2.FwGearName = t3.FwGearName
+                ) t4
+                ON
+                        t1.InvoiceMonth = t4.InvoiceMonth
+                    AND t1.FwGroup = t4.FwGroup
+                    AND t1.FwProject = t4.FwProject
+                    AND t1.FwGearName = t4.FwGearName 
+            )
+        )
+    );
 
-	      , GcpAllocatedComputeDynamicCosts
-	      , GcpAllocatedComputeStaticCosts
-	      , GcpAllocatedComputeUnlabeledCosts
-	      , GcpAllocatedMiscCosts
-
-              , GcpAllocatedComputeCosts
-              ,   zeroIfNull(GcpAllocatedStorageCosts)
-                + zeroIfNull(GcpAllocatedMiscCosts)
-                + zeroIfNull(GcpAllocatedComputeCosts) AS GcpAllocatedCharges
-              , calculateBscProjectCharge(GcpAllocatedStorageStandardGb, GcpAllocatedStorageCosts) AS BscProjectCharges
-           FROM
-	      `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
-
-    )
-);
+#
+#    SELECT
+#          *
+#	, zeroIfNull(GcpAllocatedCharges) + zeroIfNull(BscProjectTotalCharges) AS ProjectTotalCharges
+#    FROM (
+#        SELECT
+#              *
+#    	, zeroIfNull(BscInitialAnalysisCharge) + zeroIfNull(BscStorageCharge) + zeroIfNull(BscProjectCharges) AS BscProjectTotalCharges
+#    
+#        FROM (
+#          SELECT 	
+#                InvoiceMonth
+#              , FwGroup
+#              , FwProject
+#
+#              , FwInitialAnalysisCount
+#              , calculateBscInitialAnalysisCharge(FwInitialAnalysisCount) AS BscInitialAnalysisCharge
+#	      , FwProjectStorageGb
+#
+#              , GcpAllocatedStorageCosts
+#              , GcpAllocatedStorageStandardGb
+#              , calculateBscStorageCharge(GcpAllocatedStorageCosts) AS BscStorageCharge
+#
+#	      , GcpAllocatedComputeDynamicCpuHours
+#	      , GcpAllocatedComputeDynamicCosts
+#	      , GcpAllocatedComputeStaticCosts
+#	      , GcpAllocatedComputeUnlabeledCosts
+#	      , GcpAllocatedMiscCosts
+#
+#              , GcpAllocatedComputeCosts
+#              ,   zeroIfNull(GcpAllocatedStorageCosts)
+#                + zeroIfNull(GcpAllocatedMiscCosts)
+#                + zeroIfNull(GcpAllocatedComputeCosts) AS GcpAllocatedCharges
+#              , calculateBscProjectCharge(GcpAllocatedStorageStandardGb, GcpAllocatedStorageCosts) AS BscProjectCharges
+#           FROM
+#	      `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
+#
+#
+#
+#
+#    )
+#);
 
 #
 # Calculate the per gear costs
