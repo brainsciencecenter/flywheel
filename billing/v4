@@ -102,7 +102,7 @@ then
 fi
 
 #Dataset=BillingAllocation
-Dataset=Bob
+Dataset=Alice
 [ -n "$opt_d" ] && Dataset="$opt_d"
 
 Project=pennbrain-center
@@ -839,6 +839,8 @@ AS
 	, IF (t1.FwGroup IS NULL, t2.FwGroup, t1.FwGroup) AS FwGroup
 	, IF (t1.FwProject IS NULL, t2.FwProject, t1.FwProject) AS FwProject
 	, IF (t1.FwGearName IS NULL, t2.FwGearName, t1.FwGearName) AS FwGearName
+	, FwGearCategory
+
 	, SUM(IF (t1.FwGearRunCount IS NULL, 0.0, t1.FwGearRunCount)) AS FwGearRunCount
 	, SUM(IF (t1.FwGearAnalysisCpuHours IS NULL, 0.0, t1.FwGearAnalysisCpuHours)) AS FwGearAnalysisCpuHours
 	, SUM(IF (t1.FwGearUtilityCpuHours IS NULL, 0.0, t1.FwGearUtilityCpuHours)) AS FwGearUtilityCpuHours
@@ -928,12 +930,14 @@ AS
         , FwGroup
         , FwProject
         , FwGearName
+        , FwGearCategory
 
     ORDER BY
           InvoiceMonth
 	, FwGroup
 	, FwProject
 	, FwGearName
+        , FwGearCategory
 
 ;
 
@@ -1012,6 +1016,7 @@ AS
 
 	    , FwProject
 	    , IF (FwGearName IS NULL, "BogusComputeGear", FwGearName) as FwGearName
+	    , FwGearCategory	
 	    , FwGearRunCount	
 
 	    , FwGearAnalysisCpuHours	
@@ -1134,6 +1139,7 @@ INSERT INTO
 
       , "BogusProject" AS FwProject
       , "BogusComputeGear" AS FwGearName
+, NULL AS FwGearCategory
 , NULL AS FwGearRunCount
 
 , NULL AS FwGearAnalysisCpuHours
@@ -1250,6 +1256,17 @@ AS
     SELECT
 	  *
         , zeroIfNull(GcpAllocatedCharges) + zeroIfNull(BscProjectTotalCharges) AS ProjectTotalCharges
+       	    , IF ( FwGearRunCount > 0
+	         , zeroIfNull(GcpAllocatedComputeCosts) / zeroIFNull(FwGearRunCount)
+		 , 0.0 ) AS GcpAllocatedAvgRunCost
+
+       	    , IF ( FwGearRunCount > 0
+	      	 , IF ( isAnalysisGear(FwGearCategory)
+		      , GcpAllocatedComputeDynamicCpuHours
+		      , GcpAllocatedComputeStaticCpuHours) / zeroIFNull(FwGearRunCount)
+		 , 0.0 ) AS GcpAllocatedAvgRuntimeCpuHours
+    
+
     FROM (
         SELECT
     	  *
@@ -1267,7 +1284,9 @@ AS
                      , IF (t1.FwProject IS NOT NULL, t1.FwProject, t4.FwProject) AS FwProject
                      , IF (t1.FwGearName IS NOT NULL, t1.FwGearName, t4.FwGearName) AS FwGearName
             
+              	     , FwGearCategory
                      , FwInitialAnalysisCount
+              	     , FwGearRunCount
               	     , FwProjectStorageGb
         	     , GcpAllocatedStorageCosts
                      , GcpAllocatedStorageStandardGb
@@ -1282,6 +1301,7 @@ AS
     		 #
             	 , zeroIfNull(GcpAllocatedComputeDynamicCpuGearHours) + zeroIfNull(GcpAllocatedComputeDynamicCpuNonGearHours) AS GcpAllocatedComputeDynamicCpuHours
                      , GcpAllocatedComputeDynamicCpuGearHours
+                     , GcpAllocatedComputeStaticCpuHours
                      , GcpAllocatedComputeDynamicCpuNonGearHours
             
                 FROM 
@@ -1334,60 +1354,6 @@ AS
     );
 
 
-#
-# *** TempFwGroupProjectComputeMetricsV4, TempFwGroupProjectComputeStorageMetricsV4, FwProjectAllocatedChargesV4 should have Gear in 
-#     the names
-
-#
-# *** The avererage gear calculations should be handled in the TempFwGroupProjectComputeMetricsV4 table
-#     Full join on invoicemonth, group, project gearname
-
-#
-# Calculate the per gear costs
-# 
-CREATE OR REPLACE TABLE 
-       `'"${Project}.${Dataset}"'.FwProjectAllocatedGearChargesV4` 
-
-AS
-    SELECT
-              *
-       	    , IF ( FwGearRunCount > 0
-	         , zeroIfNull(GcpAllocatedComputeCosts) / zeroIFNull(FwGearRunCount)
-		 , 0.0 ) AS GcpAllocatedAvgRunCost
-
-       	    , IF ( FwGearRunCount > 0
-	      	 , IF ( isAnalysisGear(FwGearName)
-		      , GcpAllocatedComputeDynamicCpuHours
-		      , GcpAllocatedComputeStaticCpuHours) / zeroIFNull(FwGearRunCount)
-		 , 0.0 ) AS GcpAllocatedAvgRuntimeCpuHours
-    
-        FROM (
-          SELECT 	
-                InvoiceMonth
-              , FwGroup
-              , FwProject
-	      , FwGearName
-
-	      , FwGearRunCount
-
-              , GcpAllocatedComputeCosts
-	      , GcpAllocatedComputeDynamicCpuHours
-	      , GcpAllocatedComputeStaticCpuHours
-
-           FROM
-	      `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
-
-	   WHERE
-	           FwGearName != "BogusStorageGear"
-	       AND FwGearName != "BogusComputeGear"
-
-	   ORDER BY
-	         InvoiceMonth
-	       , FwGroup
-	       , FwProject
-	       , FwGearName
-    )
-;
 
 '
 
