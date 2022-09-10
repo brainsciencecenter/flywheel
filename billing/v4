@@ -353,7 +353,7 @@ CREATE TEMP FUNCTION prorate(x FLOAT64, y FLOAT64) RETURNS FLOAT64 AS (
 #   Classify all the costs from Gcp
 #
 CREATE OR REPLACE TABLE
-  `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+  `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 AS
     SELECT
         *
@@ -502,13 +502,13 @@ AS
    ;
 
 #
-# 2   `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4`
+# 2   `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
 #
 #	Sorts gear hours into utility and analysis hours
 #	Sum everything else up into fwgroup/project/gear bins
 CREATE OR REPLACE TABLE
 
-  `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4`
+  `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
 
 AS
     SELECT
@@ -565,42 +565,42 @@ SET TotalGcpComputeStaticCpuHours = (
     SELECT
 	SUM(GcpGroupComputeStaticCpuHours)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
     );
 
 SET TotalGcpComputeStaticCosts = (
     SELECT
 	SUM(GcpGroupComputeStaticCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
     );
 
 SET TotalGcpComputeDynamicCosts = (
     SELECT
 	SUM(GcpGroupComputeDynamicCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
     );
 
 SET TotalGcpComputeUnlabeledCosts = (
     SELECT
 	SUM(GcpGroupComputeUnlabeledCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
     ); 	
 
 SET TotalGcpComputeLabeledCosts = (
     SELECT
 	SUM(GcpGroupComputeLabeledCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
     ); 	
 
 SET TotalGcpMiscCosts = (
     SELECT
 	SUM(GcpGroupMiscCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 
     WHERE
         InvoiceMonth = "202207"
@@ -610,7 +610,7 @@ SET TotalGcpMiscDynamicCosts = (
     SELECT
 	SUM(GcpGroupMiscDynamicCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 
     WHERE
         InvoiceMonth = "202207"
@@ -620,7 +620,7 @@ SET TotalGcpMiscStaticCosts = (
     SELECT
 	SUM(GcpGroupMiscStaticCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 
     WHERE
         InvoiceMonth = "202207"
@@ -630,7 +630,7 @@ SET TotalGcpMiscLabeledCosts = (
     SELECT
 	SUM(GcpGroupMiscLabeledCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 
     WHERE
         InvoiceMonth = "202207"
@@ -640,7 +640,7 @@ SET TotalGcpMiscUnlabeledCosts = (
     SELECT
 	SUM(GcpGroupMiscUnlabeledCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 
     WHERE
         InvoiceMonth = "202207"
@@ -652,7 +652,7 @@ SET TotalFwGearAnalysisCpuHours = (
     SELECT
         SUM(FwGearAnalysisCpuHours)
     FROM
-        `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4`
+        `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
     WHERE
         FwGroup IS NOT NULL
     AND
@@ -664,7 +664,7 @@ SET TotalFwGearUtilityCpuHours = (
     SELECT
         SUM(FwGearUtilityCpuHours)
     FROM
-        `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4`
+        `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
     WHERE
         FwGroup IS NOT NULL
     AND
@@ -676,7 +676,7 @@ SET TotalFwGearGenericCpuHours = (
     SELECT
         SUM(FwGearGenericCpuHours)
     FROM
-        `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4`
+        `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
     WHERE
         FwGroup IS NOT NULL
     AND
@@ -694,7 +694,7 @@ SELECT TotalGcpComputeLabeledCosts;
 SELECT TotalGcpMiscCosts;
 
 #
-# 3  `pennbrain-center.Alice.TempProjectStorageMetricsV4`
+# 3  `'"${Project}.${Dataset}"'.TempProjectStorageMetricsV4`
 #
 #    Gcp charges us for 106TB of Standard storage, flwheel can account for 79 of them
 #
@@ -704,7 +704,7 @@ SELECT TotalGcpMiscCosts;
 #
 
 CREATE OR REPLACE TABLE 
-       `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4` 
+       `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4` 
 
 AS
     SELECT
@@ -758,7 +758,7 @@ SET TotalFwProjectStorageGb = (
     SELECT
         SUM(FwProjectStorageGb)
     FROM
-        `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4`
+        `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4`
 )
 ;
 
@@ -766,7 +766,7 @@ SET TotalGcpStorageStandardCosts = (
     SELECT
         SUM(GcpGroupStorageStandardCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4` 
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
 )
 ;
 
@@ -774,7 +774,7 @@ SET TotalGcpStorageColdlineCosts = (
     SELECT
         SUM(GcpGroupStorageColdLineCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4` 
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
 )
 ;
 
@@ -782,7 +782,7 @@ SET TotalGcpStorageArchiveCosts = (
     SELECT
         SUM(GcpGroupStorageArchiveCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4` 
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
 )
 ;
 
@@ -790,7 +790,7 @@ SET TotalGcpStorageMiscCosts = (
     SELECT
         SUM(GcpGroupStorageMiscCosts)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4` 
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
 )
 ;
 
@@ -798,7 +798,7 @@ SET TotalGcpStorageStandardGb = (
     SELECT
         SUM(GcpGroupStorageStandardGb)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4` 
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
 )
 ;
 
@@ -806,7 +806,7 @@ SET TotalGcpStorageColdlineGb = (
     SELECT
         SUM(GcpGroupStorageColdLineGb)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4` 
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
 )
 ;
 
@@ -814,7 +814,7 @@ SET TotalGcpStorageArchiveGb = (
     SELECT
         SUM(GcpGroupStorageArchiveGb)
     FROM
-        `pennbrain-center.Alice.TempGcpClassifiedCostsV4` 
+        `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
 )
 ;
 
@@ -831,7 +831,7 @@ SELECT
 #
 CREATE OR REPLACE TABLE
 
-  `pennbrain-center.Alice.TempFwGroupProjectComputeStorageMetricsV4`
+  `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
 
 AS
     SELECT
@@ -861,7 +861,7 @@ AS
           , t4.FwGearGroupTotalUtilityCpuHours
           , t4.FwGearGroupTotalGenericCpuHours
         FROM 
-	    `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4` t3
+	    `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4` t3
         LEFT JOIN (
           SELECT
               InvoiceMonth
@@ -872,7 +872,7 @@ AS
             , SUM(FwGearUtilityCpuHours) AS FwGearGroupTotalUtilityCpuHours
             , SUM(FwGearGenericCpuHours) AS FwGearGroupTotalGenericCpuHours
           FROM
-	    `pennbrain-center.Alice.TempFwGroupProjectComputeMetricsV4` 
+	    `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4` 
           GROUP BY
               InvoiceMonth
             , FwGroup
@@ -894,7 +894,7 @@ AS
           , t6.FwProjectGroupTotalStorageActiveGb
           , t6.FwProjectGroupTotalStorageDeletedGb
         FROM 
-	    `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4` t5
+	    `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4` t5
         LEFT JOIN (
           SELECT
               InvoiceMonth
@@ -905,7 +905,7 @@ AS
             , SUM(FwProjectStorageActiveGb) AS FwProjectGroupTotalStorageActiveGb
             , SUM(FwProjectStorageDeletedGb) AS FwProjectGroupTotalStorageDeletedGb
           FROM
-            `pennbrain-center.Alice.TempFwGroupProjectStorageMetricsV4`  
+            `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4`  
           GROUP BY
               InvoiceMonth
             , FwGroup
@@ -954,18 +954,18 @@ SELECT
    , SUM(FwProjectStorageDeletedGb) AS FwProjectStorageDeletedGb
 
 FROM
-  `pennbrain-center.Alice.TempFwGroupProjectComputeStorageMetricsV4`
+  `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
 ;
 
 
 #
-# 5 `pennbrain-center.Alice.TempGcpFwAllocatedGroupProjectGearMetricsCostsV4`
+# 5 `'"${Project}.${Dataset}"'.TempGcpFwAllocatedGroupProjectGearMetricsCostsV4`
 #
 #   This is where all group only metrics and costs get allocated to the gear level
 #
 CREATE OR REPLACE TABLE
 
-  `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
+  `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
 
 AS
     SELECT
@@ -1072,7 +1072,7 @@ AS
             SELECT
               *
             FROM
-               `pennbrain-center.Alice.TempGcpClassifiedCostsV4` 
+               `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
 	    #
 	    # The merged Gcp Costs and Flywheel Metrics do not include the null group or flywheel static
 	    # so costs are only allocated real flywheel groups
@@ -1086,7 +1086,7 @@ AS
                SELECT
 	             *
 	       FROM
-	        `pennbrain-center.Alice.TempFwGroupProjectComputeStorageMetricsV4`
+	        `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
         
           ) t2
 	  ON
@@ -1108,7 +1108,7 @@ AS
 # allocates those costs and hours to the BogusComputeGear so all the column summations match
 #
 INSERT INTO 
-  `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
+  `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
 
     SELECT
       InvoiceMonth
@@ -1193,7 +1193,7 @@ INSERT INTO
           , GcpGroupComputeDynamicCosts
           , GcpGroupComputeDynamicCpuHours
         FROM
-          `pennbrain-center.Alice.TempGcpClassifiedCostsV4`
+          `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
           #
           # The merged Gcp Costs and Flywheel Metrics should not include the null group or flywheel static
           # so costs are only allocated real flywheel groups
@@ -1207,7 +1207,7 @@ INSERT INTO
           , FwGroup
           , SUM(FwGearAnalysisCpuHours) AS FwTotalGearAnalysisCpuHours
         FROM
-          `pennbrain-center.Alice.TempFwGroupProjectComputeStorageMetricsV4`
+          `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
         GROUP BY
           InvoiceMonth,
           FwGroup ) t2
@@ -1236,7 +1236,7 @@ SELECT
 
 
 FROM
-    `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
+    `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
 ;
 
 
@@ -1245,7 +1245,7 @@ FROM
 #
 
 CREATE OR REPLACE TABLE 
-    `pennbrain-center.Alice.FwProjectAllocatedChargesV4` 
+    `'"${Project}.${Dataset}"'.FwProjectAllocatedChargesV4` 
 AS
     SELECT
 	  *
@@ -1285,7 +1285,7 @@ AS
                      , GcpAllocatedComputeDynamicCpuNonGearHours
             
                 FROM 
-                     `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4` t1
+                     `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4` t1
                 FULL OUTER JOIN (
                       SELECT
                             IF (t2.InvoiceMonth IS NOT NULL, t2.InvoiceMonth, t3.InvoiceMonth) AS InvoiceMonth
@@ -1302,7 +1302,7 @@ AS
                               , FwGearName
                               , GcpAllocatedComputeDynamicCpuHours AS GcpAllocatedComputeDynamicCpuGearHours
                           FROM
-			      `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
+			      `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
                           WHERE
 			      FwGearName NOT LIKE "%Bogus%" 
               	      ) t2
@@ -1314,7 +1314,7 @@ AS
                               , FwGearName
                               , GcpAllocatedComputeDynamicCpuHours AS GcpAllocatedComputeDynamicCpuNonGearHours
                           FROM
-            		      `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
+            		      `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
                           WHERE
               	              FwGearName LIKE "%Bogus%" 
                           ) t3
@@ -1346,7 +1346,7 @@ AS
 # Calculate the per gear costs
 # 
 CREATE OR REPLACE TABLE 
-       `pennbrain-center.Alice.FwProjectAllocatedGearChargesV4` 
+       `'"${Project}.${Dataset}"'.FwProjectAllocatedGearChargesV4` 
 
 AS
     SELECT
@@ -1375,7 +1375,7 @@ AS
 	      , GcpAllocatedComputeStaticCpuHours
 
            FROM
-	      `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
+	      `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
 
 	   WHERE
 	           FwGearName != "BogusStorageGear"

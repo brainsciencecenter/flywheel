@@ -94,12 +94,12 @@ sys uploadUsageReport $KeepFile "${Args[@]}" "$FwUsageReportFile"
 FwSessionReportFile="${WorkDir}/${Year}-${Month}-FwSessionReport.csv"
 sys uploadSessionReport $KeepFile "${Args[@]}" "$FwSessionReportFile"
 
-sys createTempTables "${Args[@]}" 
+#sys createTempTables "${Args[@]}" 
+sys v4 "${Args[@]}" 
+#sys allocateProjectCosts "${Args[@]}" 
+#sys allocateProjectGearCosts "${Args[@]}" 
 
-sys allocateProjectCosts "${Args[@]}" 
-sys allocateProjectGearCosts "${Args[@]}" 
-
-sys downloadILabCharges -f "${Args[@]}" > "${Year}-${Month}-iLabFlywheelCharges.csv"
+sys downloadILabCharges -4 -f "${Args[@]}" > "${Year}-${Month}-iLabFlywheelCharges.csv"
 sys downloadILabCharges -g "${Args[@]}" > "${Year}-${Month}-iLabNonFwGcpILabCharges.csv"
 sys downloadILabCharges -M "${Args[@]}" > "${Year}-${Month}-iLabFlywheelMriCharges.csv"
   

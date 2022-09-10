@@ -63,6 +63,99 @@ function downloadFwIlabCharges {
     '
 }
 
+function downloadFwIlabChargesV4 {
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    
+    #
+    # The TempProjectInfo has the current service request numbers from all the flywheel projects
+    # Do an inner join to grab all the charges that match the group/projects and format into 
+    # ilab compatiable csv file.
+    #
+    # *** service id should come from a config file
+    #
+    SELECT 
+        "472933" AS service_id,
+        note,
+        format("%8.2f",round(ProjectTotalCharges,2)) AS service_quantity,
+        "" AS price,
+        format("%s01", InvoiceMonth) AS purchased_on,
+        iLabServiceRequestNumber as service_request_id,
+        "" AS owner_email,
+        "" AS pi_email_or_group_id,
+        "" AS payment_number
+    FROM (
+        SELECT 
+	    *
+	FROM (
+	    SELECT
+                 REPLACE(`Group`,"_","-") AS FwGroup
+	        , Project AS FwProject
+	        , iLabServiceRequestNumber
+	    FROM
+	     `'"${Project}.${Dataset}.TempProjectInfo"'` 
+        ) ProjectInfo
+        INNER JOIN (
+    
+            SELECT 
+                InvoiceMonth,
+                FwGroup,
+                FwProject,
+                format("%s/%s Analysis Gears %.2f Storage Charge %.2f Storage Usage(Gb) %.2f Bsc Storage %.2f Bsc Initial Analysis %.2f Bsc Project %.2f",
+                        FwGroup,
+                        if (FwProject is NULL, "Deleted", FwProject),
+                        GcpAllocatedComputeDynamicCosts,
+                        GcpAllocatedStorageCosts,
+                        GcpAllocatedStorageStandardGb,
+                        BscStorageCharge,
+                        BscInitialAnalysisCharge,
+                        BscProjectCharges
+                    ) AS `note`
+                , FwInitialAnalysisCount
+                , GcpAllocatedComputeDynamicCosts
+                , GcpAllocatedStorageCosts
+                , GcpAllocatedStorageStandardGb
+                , BscStorageCharge
+                , BscProjectCharges
+                , ProjectTotalCharges
+    
+             FROM (
+	     SELECT
+		  InvoiceMonth
+		, FwGroup
+		, FwProject
+                , SUM(FwInitialAnalysisCount) AS FwInitialAnalysisCount
+                , SUM(IF (GcpAllocatedComputeDynamicCosts IS NULL, 0.0, GcpAllocatedComputeDynamicCosts)) AS GcpAllocatedComputeDynamicCosts
+                , SUM(GcpAllocatedStorageCosts) AS GcpAllocatedStorageCosts
+                , SUM(GcpAllocatedStorageStandardGb) AS GcpAllocatedStorageStandardGb
+		, SUM(BscInitialAnalysisCharge) AS BscInitialAnalysisCharge
+                , SUM(BscStorageCharge) AS BscStorageCharge
+                , SUM(BscProjectCharges) AS BscProjectCharges
+                , SUM(ProjectTotalCharges) AS ProjectTotalCharges
+              FROM `'"${Project}.${Dataset}."'FwProjectAllocatedChargesV4` 
+              WHERE InvoiceMonth = "'"${Year}${Month}"'" 
+	      GROUP BY
+	          InvoiceMonth
+		, FwGroup
+		, FwProject
+	      ORDER BY
+	          InvoiceMonth
+		, FwGroup
+		, FwProject
+
+	   )
+        ) ProjectCosts
+        ON 
+                ProjectInfo.FwGroup = ProjectCosts.FwGroup
+            AND
+                ProjectInfo.FwProject = ProjectCosts.FwProject 
+        WHERE 
+                REGEXP_CONTAINS(iLabServiceRequestNumber,"^([0-9]+)$")
+                AND round(ProjectTotalCharges,2) >= 0.01
+    )
+    ORDER BY service_quantity desc
+    '
+}
+
 function downloadNonFwGcpIlabCharges {
 
 BscGcpProjectCostAllocationsFile=$(mktemp /tmp/BscGcpProjectCostAllocations-XXXXXX)
@@ -212,12 +305,12 @@ function downloadFwMriIlabCharges {
     ' | sed '1,/^[	 ]*service_quantity/d'
 }
 
-syntax="${CmdName} [-d Dataset][-p Project][-f][-g][-M][-n][-v] {-m Month} {-y Year}"
+syntax="${CmdName} [-4][-d Dataset][-p Project][-f][-g][-M][-n][-v] {-m Month} {-y Year}"
 
-while getopts d:fgMm:p:vy: arg
+while getopts 4d:fgMm:p:vy: arg
 do
 	case "$arg" in 
-		d|f|g|M|m|n|p|v|y)
+		4|d|f|g|M|m|n|p|v|y)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -259,9 +352,14 @@ then
 	fwProjectInfoCrud -p '.ProjectFunding' | jq -r -f "${FlywheelUtilsDir}/lib/ProjectInfo2CSV.jq" | sed 's/\.name/Name/; s/\.email/Email/' > "$ProjectInfoFile"
 
 	Schema=$(head -n 1 "$ProjectInfoFile" | sed 's/"//g; s/,/:string,/g; s/$/:string/')
-	bq load --project_id pennbrain-center  --autodetect --replace --source_format=CSV BillingAllocation.TempProjectInfo "$ProjectInfoFile" "$Schema"
+	bq load --project_id pennbrain-center  --autodetect --replace --source_format=CSV "${Dataset}.TempProjectInfo" "$ProjectInfoFile" "$Schema"
 
-	downloadFwIlabCharges
+	if [ -n "$opt_4" ]
+	then
+	    downloadFwIlabChargesV4
+	else
+	    downloadFwIlabCharges
+	fi
 fi
 
 if [ -n "$opt_g" ]
