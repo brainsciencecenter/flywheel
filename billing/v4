@@ -414,7 +414,7 @@ AS
         	       0.0)) AS GcpGroupComputeUnlabeledCosts
         
                 #
-                # *** As of 2022-08-15 all storage is under flywheel static and none is grouped.
+                # As of 2022-08-15 all storage is under flywheel static and none is grouped.
                 #
                 , SUM(IF (isStorageStandardCost(ServiceDescription,SkuDescription),
                     DiscountedCosts,
@@ -886,7 +886,7 @@ AS
 #          AND t3.FwGearName = t4.FwGearName
     ) t1
     FULL OUTER JOIN (
-    	 # *** Storage is allocated by all flywheel totals - not by group totals
+    	 # Storage is allocated by all flywheel totals - not by group totals
 
         SELECT 
             t5.*
@@ -1333,52 +1333,18 @@ AS
         )
     );
 
+
 #
-#    SELECT
-#          *
-#	, zeroIfNull(GcpAllocatedCharges) + zeroIfNull(BscProjectTotalCharges) AS ProjectTotalCharges
-#    FROM (
-#        SELECT
-#              *
-#    	, zeroIfNull(BscInitialAnalysisCharge) + zeroIfNull(BscStorageCharge) + zeroIfNull(BscProjectCharges) AS BscProjectTotalCharges
-#    
-#        FROM (
-#          SELECT 	
-#                InvoiceMonth
-#              , FwGroup
-#              , FwProject
+# *** TempFwGroupProjectComputeMetricsV4, TempFwGroupProjectComputeStorageMetricsV4, FwProjectAllocatedChargesV4 should have Gear in 
+#     the names
+
 #
-#              , FwInitialAnalysisCount
-#              , calculateBscInitialAnalysisCharge(FwInitialAnalysisCount) AS BscInitialAnalysisCharge
-#	      , FwProjectStorageGb
-#
-#              , GcpAllocatedStorageCosts
-#              , GcpAllocatedStorageStandardGb
-#              , calculateBscStorageCharge(GcpAllocatedStorageCosts) AS BscStorageCharge
-#
-#	      , GcpAllocatedComputeDynamicCpuHours
-#	      , GcpAllocatedComputeDynamicCosts
-#	      , GcpAllocatedComputeStaticCosts
-#	      , GcpAllocatedComputeUnlabeledCosts
-#	      , GcpAllocatedMiscCosts
-#
-#              , GcpAllocatedComputeCosts
-#              ,   zeroIfNull(GcpAllocatedStorageCosts)
-#                + zeroIfNull(GcpAllocatedMiscCosts)
-#                + zeroIfNull(GcpAllocatedComputeCosts) AS GcpAllocatedCharges
-#              , calculateBscProjectCharge(GcpAllocatedStorageStandardGb, GcpAllocatedStorageCosts) AS BscProjectCharges
-#           FROM
-#	      `pennbrain-center.Alice.TempAllocatedGroupProjectGearMetricCostsV4`
-#
-#
-#
-#
-#    )
-#);
+# *** The avererage gear calculations should be handled in the TempFwGroupProjectComputeMetricsV4 table
+#     Full join on invoicemonth, group, project gearname
 
 #
 # Calculate the per gear costs
-# *** Should change the name to FwAllocatedGearCostsV4, GcpAllocatedGearAvgRuntime GcpAllocatedGearAvgRunCosts
+# 
 CREATE OR REPLACE TABLE 
        `pennbrain-center.Alice.FwProjectAllocatedGearChargesV4` 
 
