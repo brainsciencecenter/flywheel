@@ -101,8 +101,8 @@ then
 	exit 1
 fi
 
-#Dataset=BillingAllocation
-Dataset=Alice
+Dataset=BillingAllocation
+
 [ -n "$opt_d" ] && Dataset="$opt_d"
 
 Project=pennbrain-center
@@ -352,9 +352,48 @@ CREATE TEMP FUNCTION prorate(x FLOAT64, y FLOAT64) RETURNS FLOAT64 AS (
 # 
 #   Classify all the costs from Gcp
 #
-CREATE OR REPLACE TABLE
-  `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
-AS
+CREATE TABLE IF NOT EXISTS
+       `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
+    (
+	InvoiceMonth				STRING,
+	FwGroup					STRING,
+	GcpGroupComputeCosts			FLOAT64,
+	GcpGroupComputeDynamicCpuHours		FLOAT64,
+	GcpGroupComputeDynamicCosts		FLOAT64,
+	GcpGroupComputeStaticCpuHours		FLOAT64,
+	GcpGroupComputeStaticCosts		FLOAT64,
+	GcpGroupComputeLabeledCosts		FLOAT64,
+	GcpGroupComputeUnlabeledCosts		FLOAT64,
+	GcpGroupStorageStandardCosts		FLOAT64,
+	GcpGroupStorageStandardGb		FLOAT64,
+	GcpGroupStorageColdlineCosts		FLOAT64,
+	GcpGroupStorageColdlineGb		FLOAT64,
+	GcpGroupStorageArchiveCosts		FLOAT64,
+	GcpGroupStorageArchiveGb		FLOAT64,
+	GcpGroupStorageMiscCosts		FLOAT64,
+	GcpGroupMiscCosts			FLOAT64,
+	GcpGroupMiscStaticCosts			FLOAT64,
+	GcpGroupMiscDynamicCosts		FLOAT64,
+	GcpGroupMiscUnlabeledCosts		FLOAT64,
+	GcpGroupMiscLabeledCosts		FLOAT64,
+	GcpGroupComputeCpuHours			FLOAT64,
+	GcpComputeCostPerCpuHour		FLOAT64,
+	GcpStorageStandarCostPerGbPerMonth	FLOAT64,
+	GcpStorageColdlineCostPerGbPerMonth	FLOAT64,
+	GcpStorageArchiveCostPerGbPerMonth	FLOAT64,
+	GcpGroupStorageCosts			FLOAT64,
+	GcpGroupStorageCostPerStandardGb	FLOAT64,
+	GcpGroupCosts				FLOAT64,
+    );
+
+DELETE FROM
+       `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
+       `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
     SELECT
         *
 	, prorate(GcpGroupStorageCosts, GcpGroupStorageStandardGb) AS GcpGroupStorageCostPerStandardGb
@@ -506,11 +545,29 @@ AS
 #
 #	Sorts gear hours into utility and analysis hours
 #	Sum everything else up into fwgroup/project/gear bins
-CREATE OR REPLACE TABLE
+CREATE TABLE IF NOT EXISTS
+         `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
+     (
+         InvoiceMonth		STRING,
+	 FwGroup		STRING,
+	 FwProject		STRING,
+	 FwGearName		STRING,
+	 FwGearCategory		STRING,
+	 FwGearRunCount		INTEGER,
+	 FwGearAnalysisCpuHours	FLOAT64,
+	 FwGearUtilityCpuHours	FLOAT64,
+	 FwGearGenericCpuHours	FLOAT64,
+	 FwInitialAnalysisCount	INTEGER,
+     );
 
-  `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
+DELETE FROM
+         `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
 
-AS
+INSERT
+         `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
     SELECT
         InvoiceMonth
       , FwGroup
@@ -703,10 +760,27 @@ SELECT TotalGcpMiscCosts;
 #
 #
 
-CREATE OR REPLACE TABLE 
+CREATE TABLE IF NOT EXISTS
        `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4` 
+    (
+	InvoiceMonth			STRING,
+	FwGroup				STRING,
+	FwProject			STRING,
+	FwGearName			STRING,
+	FwProjectStorageSessionCount	INTEGER,
+	FwProjectStorageGb		FLOAT64,
+	FwProjectStorageDeletedGb	FLOAT64,
+	FwProjectStorageActiveGb	FLOAT64,
+    );
 
-AS
+DELETE
+       `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4` 
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
+       `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4` 
     SELECT
           InvoiceMonth
         , FwGroup
@@ -829,29 +903,65 @@ SELECT
 #
 # TempFwAllocatedGroupProjectComputeStorageMetrics
 #
-CREATE OR REPLACE TABLE
+CREATE TABLE IF NOT EXISTS
+        `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
+    (
+        InvoiceMonth				STRING,
+        FwGroup					STRING,
+        FwProject				STRING,
+        FwGearName				STRING,
+        FwGearCategory				STRING,
+        FwGearRunCount				FLOAT64,
 
-  `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
+        FwGearAnalysisCpuHours			FLOAT64,
+        FwGearUtilityCpuHours			FLOAT64,
+        FwGearGenericCpuHours			FLOAT64,
+        FwInitialAnalysisCount			FLOAT64,
 
-AS
+        FwGearGroupTotalAnalysisCpuHours	FLOAT64,
+        FwGearGroupTotalUtilityCpuHours		FLOAT64,
+        FwGearGroupTotalGenericCpuHours		FLOAT64,
+
+        FwProjectStorageGb			FLOAT64,
+        FwProjectStorageActiveGb		FLOAT64,
+        FwProjectStorageDeletedGb		FLOAT64,
+
+        FwProjectGroupTotalStorageGb		FLOAT64,
+        FwProjectGroupTotalStorageActiveGb	FLOAT64,
+        FwProjectGroupTotalStorageDeletedGb	FLOAT64,
+
+    );
+
+
+DELETE FROM 
+        `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
+        `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
     SELECT
           IF (t1.InvoiceMonth IS NULL, t2.InvoiceMonth, t1.InvoiceMonth) AS InvoiceMonth
 	, IF (t1.FwGroup IS NULL, t2.FwGroup, t1.FwGroup) AS FwGroup
 	, IF (t1.FwProject IS NULL, t2.FwProject, t1.FwProject) AS FwProject
 	, IF (t1.FwGearName IS NULL, t2.FwGearName, t1.FwGearName) AS FwGearName
 	, FwGearCategory
-
 	, SUM(IF (t1.FwGearRunCount IS NULL, 0.0, t1.FwGearRunCount)) AS FwGearRunCount
+
 	, SUM(IF (t1.FwGearAnalysisCpuHours IS NULL, 0.0, t1.FwGearAnalysisCpuHours)) AS FwGearAnalysisCpuHours
 	, SUM(IF (t1.FwGearUtilityCpuHours IS NULL, 0.0, t1.FwGearUtilityCpuHours)) AS FwGearUtilityCpuHours
 	, SUM(IF (t1.FwGearGenericCpuHours IS NULL, 0.0, t1.FwGearGenericCpuHours)) AS FwGearGenericCpuHours
 	, SUM(IF (t1.FwInitialAnalysisCount IS NULL, 0.0, t1.FwInitialAnalysisCount)) AS FwInitialAnalysisCount
+
 	, SUM(IF (t1.FwGearGroupTotalAnalysisCpuHours IS NULL, 0.0, t1.FwGearGroupTotalAnalysisCpuHours)) AS FwGearGroupTotalAnalysisCpuHours
 	, SUM(IF (t1.FwGearGroupTotalUtilityCpuHours IS NULL, 0.0, t1.FwGearGroupTotalUtilityCpuHours)) AS FwGearGroupTotalUtilityCpuHours
 	, SUM(IF (t1.FwGearGroupTotalGenericCpuHours IS NULL, 0.0, t1.FwGearGroupTotalGenericCpuHours)) AS FwGearGroupTotalGenericCpuHours
+
 	, SUM(IF (t2.FwProjectStorageGb IS NULL, 0.0, t2.FwProjectStorageGb)) AS FwProjectStorageGb
 	, SUM(IF (t2.FwProjectStorageActiveGb IS NULL, 0.0, t2.FwProjectStorageActiveGb)) AS FwProjectStorageActiveGb
 	, SUM(IF (t2.FwProjectStorageDeletedGb IS NULL, 0.0, t2.FwProjectStorageDeletedGb)) AS FwProjectStorageDeletedGb
+
 	, SUM(IF (t2.FwProjectGroupTotalStorageGb IS NULL, 0.0, t2.FwProjectGroupTotalStorageGb)) AS FwProjectGroupTotalStorageGb
 	, SUM(IF (t2.FwProjectGroupTotalStorageActiveGb IS NULL, 0.0, t2.FwProjectGroupTotalStorageActiveGb)) AS FwProjectGroupTotalStorageActiveGb
 	, SUM(IF (t2.FwProjectGroupTotalStorageDeletedGb IS NULL, 0.0, t2.FwProjectGroupTotalStorageDeletedGb)) AS FwProjectGroupTotalStorageDeletedGb
@@ -941,6 +1051,10 @@ AS
 
 ;
 
+'
+exit
+'
+
 SELECT
      SUM(FwGearRunCount) AS FwGearRunCount
    , SUM(FwInitialAnalysisCount) AS FwInitialAnalysisCount
@@ -967,11 +1081,75 @@ FROM
 #
 #   This is where all group only metrics and costs get allocated to the gear level
 #
-CREATE OR REPLACE TABLE
+CREATE TABLE IF NOT EXISTS
+        `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
+    (
+        InvoiceMonth				STRING,
+        FwGroup					STRING,
+        GcpGroupComputeCosts			FLOAT64,
+        GcpGroupComputeDynamicCosts		FLOAT64,
+        GcpGroupComputeStaticCosts		FLOAT64,
+        GcpGroupComputeLabeledCosts		FLOAT64,
+        GcpGroupComputeUnlabeledCosts		FLOAT64,
+        GcpGroupStorageStandardCosts		FLOAT64,
+        GcpGroupStorageStandardGb		FLOAT64,
+        GcpGroupStorageColdlineCosts		FLOAT64,
+        GcpGroupStorageColdlineGb		FLOAT64,
+        GcpGroupStorageArchiveCosts		FLOAT64,
+        GcpGroupStorageArchiveGb		FLOAT64,
+        GcpGroupStorageMiscCosts		FLOAT64,
+        GcpGroupMiscCosts			FLOAT64,
+        GcpGroupMiscStaticCosts			FLOAT64,
+        FwProject				STRING,
+        FwGearName				STRING,
+        FwGearCategory				STRING,
+        FwGearRunCount				FLOAT64,
+        FwGearAnalysisCpuHours			FLOAT64,
+        FwGearUtilityCpuHours			FLOAT64,
+        FwGearGenericCpuHours			FLOAT64,
+        FwInitialAnalysisCount			FLOAT64,
+        FwGearGroupTotalAnalysisCpuHours	FLOAT64,
+        FwGearGroupTotalUtilityCpuHours		FLOAT64,
+        FwGearGroupTotalGenericCpuHours		FLOAT64,
+        FwProjectStorageGb			FLOAT64,
+        FwProjectStorageActiveGb		FLOAT64,
+        FwProjectStorageDeletedGb		FLOAT64,
+        FwProjectGroupTotalStorageGb		FLOAT64,
+        FwProjectGroupTotalStorageActiveGb	FLOAT64,
+        FwProjectGroupTotalStorageDeletedGb	FLOAT64,
+        GcpAllocatedComputeDynamicCpuHours	FLOAT64,
+        GcpAllocatedComputeDynamicCosts		FLOAT64,
+        GcpAllocatedComputeLabeledCosts		FLOAT64,
+        GcpAllocatedComputeUnlabeledCosts	FLOAT64,
+        GcpAllocatedComputeStaticCpuHours	FLOAT64,
+        GcpAllocatedComputeStaticCosts		FLOAT64,
+        GcpAllocatedMiscCosts			FLOAT64,
+        GcpAllocatedMiscStaticCosts		FLOAT64,
+        GcpAllocatedMiscDynamicCosts		FLOAT64,
+        GcpAllocatedMiscLabeledCosts		FLOAT64,
+        GcpAllocatedMiscUnlabeledCosts		FLOAT64,
+        GcpAllocatedStorageStandardCosts	FLOAT64,
+        GcpAllocatedStorageStandardGb		FLOAT64,
+        GcpAllocatedStorageColdlineCosts	FLOAT64,
+        GcpAllocatedStorageColdlineGb		FLOAT64,
+        GcpAllocatedStorageArchiveCosts		FLOAT64,
+        GcpAllocatedStorageArchiveGb		FLOAT64,
+        GcpAllocatedStorageMiscCosts		FLOAT64,
+        GcpAllocatedComputeCosts		FLOAT64,
+        GcpAllocatedStorageCosts		FLOAT64,
+        GcpAllocatedCosts			FLOAT64,
+    );
+
+DELETE FROM 
+       `'"${Project}.${Dataset}.TempAllocatedGroupProjectGearMetricCostsV4"'`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
 
   `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
 
-AS
     SELECT
           *
 	,   zeroIfNull(GcpAllocatedComputeCosts) 
@@ -1250,9 +1428,47 @@ FROM
 # This table calculates the BSC charges
 #
 
-CREATE OR REPLACE TABLE 
+CREATE TABLE IF NOT EXISTS
+       `'"${Project}.${Dataset}."'FwProjectAllocatedChargesV4`
+    (
+	InvoiceMonth					STRING,
+	FwGroup						STRING,
+	FwProject					STRING,
+	FwGearName					STRING,
+	FwGearCategory					STRING,
+	FwInitialAnalysisCount				FLOAT64,
+	FwGearRunCount					FLOAT64,
+	FwProjectStorageGb				FLOAT64,
+	GcpAllocatedStorageCosts			FLOAT64,
+	GcpAllocatedStorageStandardGb			FLOAT64,
+	GcpAllocatedComputeDynamicCosts		       	FLOAT64,
+	GcpAllocatedComputeStaticCosts			FLOAT64,
+	GcpAllocatedComputeUnlabeledCosts		FLOAT64,
+	GcpAllocatedMiscCosts				FLOAT64,
+	GcpAllocatedComputeCosts			FLOAT64,
+	GcpAllocatedCharges				FLOAT64,
+	GcpAllocatedComputeDynamicCpuHours		FLOAT64,
+	GcpAllocatedComputeDynamicCpuGearHours		FLOAT64,
+	GcpAllocatedComputeStaticCpuHours		FLOAT64,
+	GcpAllocatedComputeDynamicCpuNonGearHours	FLOAT64,
+	BscInitialAnalysisCharge			FLOAT64,
+	BscProjectCharges				FLOAT64,
+	BscStorageCharge				FLOAT64,
+	BscProjectTotalCharges				FLOAT64,
+	ProjectTotalCharges				FLOAT64,
+	GcpAllocatedAvgRunCost				FLOAT64,
+	GcpAllocatedAvgRuntimeCpuHours			FLOAT64,
+    );
+
+DELETE FROM 
+       `'"${Project}.${Dataset}.FwProjectAllocatedChargesV4"'`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
     `'"${Project}.${Dataset}"'.FwProjectAllocatedChargesV4` 
-AS
+
     SELECT
 	  *
         , zeroIfNull(GcpAllocatedCharges) + zeroIfNull(BscProjectTotalCharges) AS ProjectTotalCharges
