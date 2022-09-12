@@ -21,6 +21,11 @@ def runGear(gear, inputs, dest):
         
    Returns:
         str: The id of the submitted job.
+
+   Examples:
+
+        fwRunUtilityGear  -g dcm2niix -t dcm2niix_input dwolklab/NACC/1234/1234-3T/files/foo.dicom
+        fwRunUtilityGear  -g dicom-mr-classifier-t dicom dwolklab/NACC/1234/1234-3T/files/foo.dicom
         
    """
    try:
