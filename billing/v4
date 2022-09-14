@@ -70,6 +70,8 @@
 
 # *** How do we deal with entire groups which have been deleted by the time we run the reports?
 
+# *** Have to make sure every table is filtered through InvoiceMonth including the joined tables
+
 
 CmdName=$(basename "$0")
 
@@ -522,7 +524,8 @@ INSERT
                      `pennbrain-center.BillingAllocation.FlywheelCosts`
    
                  WHERE
-                     InvoiceMonth = "202207"
+		     InvoiceMonth = @InvoiceMonth
+
            
    	     )
            
@@ -605,7 +608,7 @@ INSERT
 	    `pennbrain-center.BillingAllocation.FwJobsReport` 
           
         WHERE
-            invoice_month = "202207"
+	     invoice_month = @InvoiceMonth
         
     )
 
@@ -623,6 +626,8 @@ SET TotalGcpComputeStaticCpuHours = (
 	SUM(GcpGroupComputeStaticCpuHours)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
+    WHERE
+        InvoiceMonth = @InvoiceMonth        
     );
 
 SET TotalGcpComputeStaticCosts = (
@@ -630,6 +635,8 @@ SET TotalGcpComputeStaticCosts = (
 	SUM(GcpGroupComputeStaticCosts)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
+    WHERE
+        InvoiceMonth = @InvoiceMonth        
     );
 
 SET TotalGcpComputeDynamicCosts = (
@@ -637,6 +644,8 @@ SET TotalGcpComputeDynamicCosts = (
 	SUM(GcpGroupComputeDynamicCosts)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
+    WHERE
+        InvoiceMonth = @InvoiceMonth        
     );
 
 SET TotalGcpComputeUnlabeledCosts = (
@@ -644,6 +653,8 @@ SET TotalGcpComputeUnlabeledCosts = (
 	SUM(GcpGroupComputeUnlabeledCosts)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
+    WHERE
+        InvoiceMonth = @InvoiceMonth        
     ); 	
 
 SET TotalGcpComputeLabeledCosts = (
@@ -651,6 +662,8 @@ SET TotalGcpComputeLabeledCosts = (
 	SUM(GcpGroupComputeLabeledCosts)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
+    WHERE
+        InvoiceMonth = @InvoiceMonth        
     ); 	
 
 SET TotalGcpMiscCosts = (
@@ -660,7 +673,7 @@ SET TotalGcpMiscCosts = (
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 
     WHERE
-        InvoiceMonth = "202207"
+        InvoiceMonth = @InvoiceMonth        
     );
 
 SET TotalGcpMiscDynamicCosts = (
@@ -670,7 +683,7 @@ SET TotalGcpMiscDynamicCosts = (
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 
     WHERE
-        InvoiceMonth = "202207"
+        InvoiceMonth = @InvoiceMonth        
     );
 
 SET TotalGcpMiscStaticCosts = (
@@ -680,7 +693,8 @@ SET TotalGcpMiscStaticCosts = (
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 
     WHERE
-        InvoiceMonth = "202207"
+        InvoiceMonth = @InvoiceMonth        
+
     );
 
 SET TotalGcpMiscLabeledCosts = (
@@ -690,7 +704,8 @@ SET TotalGcpMiscLabeledCosts = (
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 
     WHERE
-        InvoiceMonth = "202207"
+        InvoiceMonth = @InvoiceMonth        
+
     );
 
 SET TotalGcpMiscUnlabeledCosts = (
@@ -700,7 +715,8 @@ SET TotalGcpMiscUnlabeledCosts = (
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4`
 
     WHERE
-        InvoiceMonth = "202207"
+        InvoiceMonth = @InvoiceMonth        
+
     );
 
 
@@ -712,8 +728,8 @@ SET TotalFwGearAnalysisCpuHours = (
         `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
     WHERE
         FwGroup IS NOT NULL
-    AND
-        FWGroup != "flywheel-static"
+    AND FWGroup != "flywheel-static"
+    AND InvoiceMonth = @InvoiceMonth        
 )
 ;
 
@@ -724,8 +740,8 @@ SET TotalFwGearUtilityCpuHours = (
         `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
     WHERE
         FwGroup IS NOT NULL
-    AND
-        FWGroup != "flywheel-static"
+    AND FWGroup != "flywheel-static"
+    AND InvoiceMonth = @InvoiceMonth        
 )
 ;
 
@@ -736,8 +752,8 @@ SET TotalFwGearGenericCpuHours = (
         `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
     WHERE
         FwGroup IS NOT NULL
-    AND
-        FWGroup != "flywheel-static"
+    AND FWGroup != "flywheel-static"
+    AND InvoiceMonth = @InvoiceMonth        
 )
 ;
 
@@ -803,7 +819,7 @@ INSERT
           `pennbrain-center.BillingAllocation.FwUsageReport`
 
         WHERE
-          invoice_month = "202207"
+          invoice_month = @InvoiceMonth
           AND project_label IS NOT NULL
 
         GROUP BY
@@ -833,6 +849,9 @@ SET TotalFwProjectStorageGb = (
         SUM(FwProjectStorageGb)
     FROM
         `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+
 )
 ;
 
@@ -841,6 +860,8 @@ SET TotalGcpStorageStandardCosts = (
         SUM(GcpGroupStorageStandardCosts)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
+    WHERE
+        InvoiceMonth = @InvoiceMonth
 )
 ;
 
@@ -849,6 +870,8 @@ SET TotalGcpStorageColdlineCosts = (
         SUM(GcpGroupStorageColdLineCosts)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
+    WHERE
+        InvoiceMonth = @InvoiceMonth
 )
 ;
 
@@ -857,6 +880,8 @@ SET TotalGcpStorageArchiveCosts = (
         SUM(GcpGroupStorageArchiveCosts)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
+    WHERE
+        InvoiceMonth = @InvoiceMonth
 )
 ;
 
@@ -865,6 +890,8 @@ SET TotalGcpStorageMiscCosts = (
         SUM(GcpGroupStorageMiscCosts)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
+    WHERE
+        InvoiceMonth = @InvoiceMonth
 )
 ;
 
@@ -873,6 +900,8 @@ SET TotalGcpStorageStandardGb = (
         SUM(GcpGroupStorageStandardGb)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
+    WHERE
+        InvoiceMonth = @InvoiceMonth
 )
 ;
 
@@ -881,6 +910,8 @@ SET TotalGcpStorageColdlineGb = (
         SUM(GcpGroupStorageColdLineGb)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
+    WHERE
+        InvoiceMonth = @InvoiceMonth
 )
 ;
 
@@ -889,6 +920,8 @@ SET TotalGcpStorageArchiveGb = (
         SUM(GcpGroupStorageArchiveGb)
     FROM
         `'"${Project}.${Dataset}"'.TempGcpClassifiedCostsV4` 
+    WHERE
+        InvoiceMonth = @InvoiceMonth
 )
 ;
 
@@ -972,8 +1005,15 @@ INSERT
           , t4.FwGearGroupTotalAnalysisCpuHours
           , t4.FwGearGroupTotalUtilityCpuHours
           , t4.FwGearGroupTotalGenericCpuHours
-        FROM 
-	    `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4` t3
+	FROM (
+	    SELECT
+	        *
+            FROM 
+                `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4`
+            WHERE
+                InvoiceMonth = @InvoiceMonth
+	) t3
+# *** Why is this a left join?
         LEFT JOIN (
           SELECT
               InvoiceMonth
@@ -984,13 +1024,17 @@ INSERT
             , SUM(FwGearUtilityCpuHours) AS FwGearGroupTotalUtilityCpuHours
             , SUM(FwGearGenericCpuHours) AS FwGearGroupTotalGenericCpuHours
           FROM
-	    `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4` 
+              `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeMetricsV4` 
+          WHERE
+              InvoiceMonth = @InvoiceMonth
+
           GROUP BY
               InvoiceMonth
             , FwGroup
 #            , FwProject
 #            , FwGearName
         ) t4
+
         ON
               t3.InvoiceMonth = t4.InvoiceMonth
           AND t3.FwGroup = t4.FwGroup
@@ -1005,8 +1049,14 @@ INSERT
           , t6.FwProjectGroupTotalStorageGb
           , t6.FwProjectGroupTotalStorageActiveGb
           , t6.FwProjectGroupTotalStorageDeletedGb
-        FROM 
-	    `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4` t5
+        FROM (
+	    SELECT
+	        *
+	    FROM	
+                `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4` 
+            WHERE
+                InvoiceMonth = @InvoiceMonth
+	) t5
         LEFT JOIN (
           SELECT
               InvoiceMonth
@@ -1018,6 +1068,8 @@ INSERT
             , SUM(FwProjectStorageDeletedGb) AS FwProjectGroupTotalStorageDeletedGb
           FROM
             `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4`  
+        WHERE
+            InvoiceMonth = @InvoiceMonth
           GROUP BY
               InvoiceMonth
             , FwGroup
@@ -1051,9 +1103,6 @@ INSERT
 
 ;
 
-'
-exit
-'
 
 SELECT
      SUM(FwGearRunCount) AS FwGearRunCount
@@ -1073,6 +1122,8 @@ SELECT
 
 FROM
   `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
+        WHERE
+            InvoiceMonth = @InvoiceMonth
 ;
 
 
@@ -1261,7 +1312,8 @@ INSERT
 	    # so costs are only allocated real flywheel groups
 	    #
 	    WHERE
-		FwGroup IS NOT NULL
+  	        InvoiceMonth = @InvoiceMonth
+	    	AND FwGroup IS NOT NULL
 		AND FwGroup != "flywheel-static"
         
           ) t1
@@ -1383,7 +1435,8 @@ INSERT INTO
           # so costs are only allocated real flywheel groups
           #
         WHERE
-          FwGroup IS NOT NULL
+	  InvoiceMonth = @InvoiceMonth
+          AND FwGroup IS NOT NULL
           AND FwGroup != "flywheel-static" ) t1
       FULL OUTER JOIN (
         SELECT
@@ -1392,6 +1445,8 @@ INSERT INTO
           , SUM(FwGearAnalysisCpuHours) AS FwTotalGearAnalysisCpuHours
         FROM
           `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
+        WHERE
+	  InvoiceMonth = @InvoiceMonth
         GROUP BY
           InvoiceMonth,
           FwGroup ) t2
@@ -1421,6 +1476,8 @@ SELECT
 
 FROM
     `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
+       WHERE
+	  InvoiceMonth = @InvoiceMonth
 ;
 
 
@@ -1520,8 +1577,14 @@ INSERT
                      , GcpAllocatedComputeStaticCpuHours
                      , GcpAllocatedComputeDynamicCpuNonGearHours
             
-                FROM 
-                     `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4` t1
+                FROM (
+		    SELECT
+		        *
+		    FROM  		
+                       `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4` 
+                    WHERE
+                       InvoiceMonth = @InvoiceMonth
+		) t1
                 FULL OUTER JOIN (
                       SELECT
                             IF (t2.InvoiceMonth IS NOT NULL, t2.InvoiceMonth, t3.InvoiceMonth) AS InvoiceMonth
@@ -1540,7 +1603,8 @@ INSERT
                           FROM
 			      `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
                           WHERE
-			      FwGearName NOT LIKE "%Bogus%" 
+			      InvoiceMonth = @InvoiceMonth
+			      AND FwGearName NOT LIKE "%Bogus%" 
               	      ) t2
                       FULL OUTER JOIN (
                           SELECT
@@ -1552,7 +1616,8 @@ INSERT
                           FROM
             		      `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
                           WHERE
-              	              FwGearName LIKE "%Bogus%" 
+			      InvoiceMonth = @InvoiceMonth
+              	              AND FwGearName LIKE "%Bogus%" 
                           ) t3
                           ON
               	                  t2.InvoiceMonth = t3.InvoiceMonth
