@@ -267,14 +267,17 @@ with open(CondorYamlFile) as f:
 def getJobMachineType(GearName, Tags):
     MachineType = 'n1-standard-1'
 
-    MachineTypes = pyjq.all('.[][][]|select(.engineMatch.whitelist and .engineMatch.whitelist["gear-name"] and (.engineMatch.whitelist["gear-name"][]| match("^{}$"))) | .cloud.machineType'.format(GearName), CondorYaml)
-    if (len(MachineTypes) > 0):
-        MachineType = MachineTypes[0]
-    else:
-        # *** Should do something about tags here
-        True
+    try:
+        MachineTypes = pyjq.all('.[][][]|select(.engineMatch.whitelist and .engineMatch.whitelist["gear-name"] and (.engineMatch.whitelist["gear-name"][]| match("^{}$"))) | .cloud.machineType'.format(GearName), CondorYaml)
+        if (len(MachineTypes) > 0):
+            MachineType = MachineTypes[0]
+        else:
+            # *** Should do something about tags here
+            True
+        return(MachineType)
 
-    return(MachineType)
+    except (pyjq.ScriptRuntimeError) as e:
+        print("{} GearName failed".format(GearName), file=sys.stderr)
 
 #
 # *** Need to handle tags correctly
