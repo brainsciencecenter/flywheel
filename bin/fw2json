@@ -68,12 +68,14 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('-a', '--acquisitions',  action='store_true', help='include acquisition information')
     ap.add_argument('-d', '--debug',  action='store_true', help='debug flag')
+    ap.add_argument('-f', '--from-regex',  action='store', default=None, help='from-regex')
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-l', '--localtime',  action='store_true', help='print times in local timezone instead of UTC')
     ap.add_argument('-p', '--progress-bar', default=False,  action='store_true', help='generate progress info on stderr')
     ap.add_argument('-R', '--no-recurse', default=False,  action='store_true', help='no recurse mode')
     ap.add_argument('-r', '--root', default=True,  action='store_true', help='enable manager mode')
     ap.add_argument('-s', '--stream', default=False,  action='store_true', help='streaming mode')
+    ap.add_argument('-t', '--to-regex',  action='store', default="", help='to-regex')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
     ap.add_argument('path', nargs='+', type=str, default=None, help='group/project')
@@ -94,12 +96,18 @@ if __name__ == '__main__':
             Container = fw.get(path)
             if (args.no_recurse):
                 if (args.stream):
-                    print(json.dumps(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)), indent=2))
+                    if (args.from_regex):
+                        print(re.sub(args.from_regex, args.to_regex, json.dumps(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)), indent=2)))
+                    else:
+                        print(json.dumps(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)), indent=2))
                 else:
                     Output.append(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)))
             else:
                 if (args.stream):
-                    print(json.dumps(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info), indent=2))
+                    if (args.from_regex):
+                        print(re.sub(args.from_regex, args.to_regex, json.dumps(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info), indent=2)))
+                    else:
+                        print(json.dumps(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info), indent=2))
                 else:
                     Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
 
@@ -116,7 +124,11 @@ if __name__ == '__main__':
 
                 if (args.no_recurse):
                     if (args.stream):
-                        print(json.dumps(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)), indent=2))
+                        print("args.stream '{}', from_regex = '{}', to_regex = '{}'".format(args.stream, args.from_regex,args.to_regex), file=sys.stderr)
+                        if (args.from_regex):
+                            print(re.sub(args.from_regex,args.to_regex,json.dumps(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)), indent=2)))
+                        else:
+                            print(json.dumps(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)), indent=2))
                     else:
                         Output.append(fwgearutils.sloppyCopy(Container, UTC=(not args.localtime)))
                 else:
@@ -128,5 +140,9 @@ if __name__ == '__main__':
         if (args.progress_bar):
             print("%s" % CleanPath, file=sys.stderr, flush=True)
 
+    print("args.stream '{}', from_regex = '{}', to_regex = '{}'".format(args.stream, args.from_regex,args.to_regex), file=sys.stderr)
     if (not args.stream):
-        print(json.dumps(Output,indent=2))
+        if (args.from_regex):
+            print(re.sub(args.from_regex,args.to_regex,(json.dumps(Output,indent=2))))
+        else:
+            print(json.dumps(Output,indent=2))
