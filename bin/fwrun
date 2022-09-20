@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+
+import argparse
+import flywheel
+import fwgearutils
+import json
+import os
+import re
+import sys
+
+if __name__ == '__main__':
+
+    import argparse
+
+    CmdName = os.path.basename(sys.argv[0])
+    Outputs = []
+
+    ap = argparse.ArgumentParser()
+
+    ap.add_argument('-g', '--gear', type=str, action='store', help='get list of gears')
+    ap.add_argument('files', nargs='*', type=str, default=None, help='group/project/subject/session/acq/files/filename')
+
+    args = ap.parse_args()
+
+    fw = fwgearutils.getFW(args, Root=True)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    dcm_2_nifti_job_list = list()
+    for fn in args.files:
+        file_obj = fw.lookup(fn)
+        if file_obj:
+            inputs = {'dcm2niix_input':file_obj}
+            dest = file_obj.parent
+            job_id = run_gear(dcm_2_nifti_gear, inputs, dest)  # Note: returns a job_id because dcm_2_nifti_gear is a utility gear
+            dcm_2_nifti_job_list.append(job_id)
+        else:
+            print("{} : could not find file '{}'".format(CmdName,fn), file=sys.stderr)
+            
