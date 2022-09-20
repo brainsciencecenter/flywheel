@@ -95,7 +95,11 @@ CREATE TEMP FUNCTION allocateGcpFwGroupNumByRatio(Num FLOAT64, Ratio FLOAT64) RE
 
 
 # 1
-# *** Should be FlwyheelCostTableEntries
+# 
+# TempGcpFlywheelcosts 
+#      Extract of all upenn-flywheel discounted charges
+#      Basis for all cost calculations
+
 CREATE OR REPLACE TABLE
   `'"${Project}.${Dataset}.TempGcpFlywheelCosts"'`
 AS
@@ -104,7 +108,8 @@ SELECT
   FlywheelGroupName AS `Group`,
   ServiceDescription,
   SkuDescription,
-    Costs + Discounts AS DiscountedCosts,
+
+  Costs + Discounts AS DiscountedCosts,
 
   UsageAmountInPricingUnits AS UsageAmount
 FROM
@@ -114,6 +119,10 @@ WHERE
 ;
 
 # 2
+#
+# TempGcpFwTotals
+#     Join of Gcp and Fw tables aggregating all costs we are interested in by flywheel group
+#     
 CREATE OR REPLACE TABLE
   `'"${Project}.${Dataset}.TempGcpFwTotals"'`
 AS
@@ -373,6 +382,11 @@ ORDER BY
 ;
 
 # 3
+#
+# TempFwProjectJobReport
+#     Process JobReport for the InvoiceMonth
+#     Aggregate CPU hours and initial analysis counts by flywheel group/project/gear
+#
 CREATE OR REPLACE TABLE 
        `'"${Project}.${Dataset}.TempFwProjectJobReport"'`
 AS 
@@ -401,10 +415,15 @@ AS
 ;
 
 # 4
-# *** Invoice, Group, Projects may have duplicates when a project gets deleted (true) and re
-#     created with the same name.
-#     For now, Summing the amount for both and saying project has not been deleted
+#
+# TempFwProjectUsageReport
+#     Sums intermediate flywheel usage info by flywheel group and project.
+#
+#     Invoice, Group, Projects may have duplicates when a project gets deleted (true) and recreated with the same name.
+#     For now, Summing the amount for deleted and non-deleted and ignoring whether the project has been deleted
+#
 # *** Deleted missing
+#
 CREATE OR REPLACE TABLE 
 #    `pennbrain-center.BillingAllocation.TempFwProjectUsageReport`
     `'"${Project}.${Dataset}.TempFwProjectUsageReport"'`
@@ -470,6 +489,12 @@ SET FwTotalStorageGB = (
 
 
 # 5
+#
+# TempFwProjectJobAndUsageReport
+#     Join the job and usage reports.  
+#     Sum interesting fields by flywheel group/project
+#     Calculate the FwProjectToGroup CPU and Storage ratios
+# 
 CREATE OR REPLACE TABLE 
     `'"${Project}.${Dataset}.TempFwProjectJobAndUsageReport"'`
 AS
@@ -573,6 +598,10 @@ AS
 ;
 
 # 6
+#
+# TempGcpFwJobUsageTotals
+#     Gcp and Fw Job usage and cost totals by flywheel group/project
+#
 CREATE OR REPLACE TABLE
   `'"${Project}.${Dataset}.TempGcpFwJobUsageTotals"'`
 AS
@@ -659,6 +688,11 @@ AS
 ;
 
 # 7
+#
+# TempGcpFwJobsUsage
+#     Aggregate Gcp and Flywheel job usage and costs on group basis so we can
+#     allocate costs from group to projects instead of from the totals to a project
+#
 CREATE OR REPLACE TABLE
     `'"${Project}.${Dataset}.TempGcpFwJobUsageGroupTotals"'`
 AS
@@ -753,6 +787,10 @@ AS
 ;
  
 # 8
+#
+# TempGcpFwBillingAllocation
+#     Allocate usage and costs to projects from Total
+
 CREATE OR REPLACE TABLE
   `'"${Project}.${Dataset}.TempGcpFwBillingAllocation"'`
 AS
