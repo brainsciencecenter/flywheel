@@ -11,9 +11,10 @@ import sys
 def getContainer(args=None, id=None):
     try:
         if (args.device_get):
-            Container = fw.get_device(id)
-        elif (args.get_all_devices):
-            Container = fw.get_all_devices()
+            if (args.id[0] == "all"):
+                Container = fw.get_all_devices()
+            else:
+                Container = fw.get_device(id)
         elif (args.get_all_gears):
             Container = fw.get_all_gears()
         elif (args.get_job):
@@ -48,14 +49,13 @@ if __name__ == '__main__':
     ap.add_argument('-1', '--one-at-a-time', default=False,  action='store_true', help='Print info one at a time')
     ap.add_argument('-a', '--acquisitions', default=False,  action='store_true', help='include acquisitions')
     ap.add_argument('-D', '--debug', default=False,  action='store_true', help='debug')
-    ap.add_argument('-d', '--device-get', default=False,  action='store_true', help='get device info')
+    ap.add_argument('-d', '--device-get', default=False,  action='store_true', help='get device info|all to get all devices')
     ap.add_argument('-g', '--get-all-gears', default=False,  action='store_true', help='get list of gears')
     ap.add_argument('-G', '--get', default=False,  action='store_true', help='get')
     ap.add_argument('-j', '--get-job', default=False,  action='store_true', help='get job by id')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-R', '--get-role', default=False,  action='store_true', help='get role, or all roles if none specified')
     ap.add_argument('-r', '--recurse', default=False,  action='store_true', help='recurse')
-    ap.add_argument('-S', '--get-all-devices', default=False,  action='store_true', help='get all scanner info')
     ap.add_argument('-u', '--get-user', default=False,  action='store_true', help='all user info')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
     ap.add_argument('-z', '--zip-info', default=False,  action='store_true', help='zip-info')
