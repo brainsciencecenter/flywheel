@@ -30,6 +30,9 @@ then
 	exit 1
 fi
 
+Project=pennbrain-center
+Dataset=Alice
+
 nowmonth=$(date +%Y-%m-15)
 Year=$(date --date="$nowmonth -1 month" +'%Y')
 [ -n "$opt_y" ] && Year="$opt_y"
