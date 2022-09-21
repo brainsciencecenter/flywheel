@@ -1,0 +1,10 @@
+#!/bin/bash
+
+Where=scisub.pmacs.upenn.edu:/project/bsc/Billing/Reports
+
+Date=$(date +%Y-%m-%d)
+
+for Report in userreport.txt projectreport.txt
+do
+	echo scp "/tmp/${Report}" "${Where}/${Date}-${Report}"
+done
