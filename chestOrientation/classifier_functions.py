@@ -22,7 +22,7 @@ import numpy as np
 
 class DCMDataFrameIterator(DataFrameIterator):
     def __init__(self, *arg, **kwargs):
-        self.white_list_formats = ('dcm','nii.gz')
+        self.white_list_formats = ('dcm','dicom','nii.gz')
         super(DCMDataFrameIterator, self).__init__(*arg, **kwargs)
         self.dataframe = kwargs['dataframe']
         self.x = self.dataframe[kwargs['x_col']]
