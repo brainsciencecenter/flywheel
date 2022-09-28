@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+#
+# *** Do want to store 47MB with each image we process, or leave it as part of the project?
+# *** Do we want to tag, or label each scan we process rather than just leaving a file in the acquisiitons?
+#
 import os, shutil,  random
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
@@ -31,7 +35,9 @@ OUT = '/mnt/out'
 
 ap = argparse.ArgumentParser()
 
+ap.add_argument('-c', '--copy-model', default=False,  action='store_true', help='copy model file to output directory')
 ap.add_argument('-i', '--indir', default=False,  action='store', help='input directory')
+ap.add_argument('-m', '--model', default=False,  action='store', help='path to model file, defaults to model.h5;')
 ap.add_argument('-o', '--outdir', default=False,  action='store', help='output directory')
 
 args = ap.parse_args()
@@ -45,22 +51,29 @@ if (args.outdir):
 #IN = 'D:/Dropbox/UPENN/projects/MIDRC/sub-projects/challenge0/submission/IN'
 #OUT = 'D:/Dropbox/UPENN/projects/MIDRC/sub-projects/challenge0/submission/OUT'
 
-# load model in the submission folder
 model= tf.keras.models.load_model("model.h5",custom_objects={'Gray2VGGInput': Gray2VGGInput})
+# load model in the submission folder
+if (args.model):
+    model= tf.keras.models.load_model(args.model,custom_objects={'Gray2VGGInput': Gray2VGGInput})
 
 ## create data frames for validation dataset
-images = [os.path.join(IN,file) for file in os.listdir(IN) if file.find('.dcm') != -1]
-images_base = [file for file in os.listdir(IN) if file.find('.dcm') != -1]
+images_base = [file for file in os.listdir(IN) if ((file.find('.dcm') != -1)  or (file.find('.dicom') != -1)) ]
+images = [os.path.join(IN,file) for file in os.listdir(IN) if ((file.find('.dcm') != -1) or (file.find('.dicom') != -1)) ]
+
 validation_df = pd.DataFrame({'fileNamePath':images,'class':[random.choice([0,1]) for i in images]})
+
 validation_df[['class']] = validation_df[['class']].astype("string")
 
 ## obtain images with preprocessings
 n_images = len(images)
+
+## DCMDataFrameIterator prints the number of images it found to standard out.  Sigh
+
 validation_generator = DCMDataFrameIterator(dataframe=validation_df,
                                        x_col='fileNamePath',
                                        y_col='class',
                                        shuffle=False,
-                                       class_mode='binary',
+                                       class_mode=None,
                                        color_mode='grayscale',
                                        target_size=(500,500),
                                        batch_size=n_images
@@ -75,7 +88,12 @@ validation_df['fileNamePath'] = images_base
 ## write predicted labels 
 validation_df.to_csv(os.path.join(OUT,"classification_results.csv"), index=False)
 
+# >=0.5 means frontal, <0.5 means lateral
+if (len(validation_df) == 1):
+	print("{}".format(validation_df['class'].iloc[0]))
+
 # Copy model to output (more useful for training phase)
-src="model.h5"
-dest=OUT
-shutil.copyfile(src, os.path.join(dest,src))
+if (args.copy_model or args.model is None):
+    src="model.h5"
+    dest=OUT
+    shutil.copyfile(src, os.path.join(dest,src))

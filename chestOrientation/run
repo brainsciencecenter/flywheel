@@ -1,0 +1,3 @@
+#!/bin/sh
+
+python3 inference.py -m model.h5 -i /flywheel/v0/input -o /flywheel/v0/output 2> /dev/null
