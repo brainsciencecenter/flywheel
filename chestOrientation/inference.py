@@ -57,8 +57,10 @@ if (args.model):
     model= tf.keras.models.load_model(args.model,custom_objects={'Gray2VGGInput': Gray2VGGInput})
 
 ## create data frames for validation dataset
-images_base = [file for file in os.listdir(IN) if ((file.find('.dcm') != -1)  or (file.find('.dicom') != -1)) ]
-images = [os.path.join(IN,file) for file in os.listdir(IN) if ((file.find('.dcm') != -1) or (file.find('.dicom') != -1)) ]
+#images_base = [file for file in os.listdir(IN) if ((file.find('.dcm') != -1)  or (file.find('.dicom') != -1)) ]
+#images = [os.path.join(IN,file) for file in os.listdir(IN) if ((file.find('.dcm') != -1) or (file.find('.dicom') != -1)) ]
+images_base = [file for file in os.listdir(IN)] # all ifles in the input folder are supposed to be valid files
+images = [os.path.join(IN,file) for file in os.listdir(IN)] #
 
 validation_df = pd.DataFrame({'fileNamePath':images,'class':[random.choice([0,1]) for i in images]})
 
@@ -76,7 +78,8 @@ validation_generator = DCMDataFrameIterator(dataframe=validation_df,
                                        class_mode=None,
                                        color_mode='grayscale',
                                        target_size=(500,500),
-                                       batch_size=n_images
+                                       batch_size=n_images,
+				       validate_filenames=False  # do not check validity of filenames
                                   )
 image_batch,rand_label=next(validation_generator)
 
