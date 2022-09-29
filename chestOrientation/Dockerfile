@@ -1,25 +1,22 @@
 FROM python:3.9-slim-buster
 
+ENV FLYWHEEL=/flywheel/v0
+WORKDIR ${FLYWHEEL}
+
 # depencies for cv2
 RUN apt-get update
 RUN apt-get install ffmpeg libsm6 libxext6  -y
-
+RUN python3 -m pip install --upgrade pip
 
 # Requirements
-COPY ./requirements.txt  .
+COPY ./requirements.txt ${FLYWHEEL}/
 
 # Install requirements
-RUN pip install -r requirements.txt
+RUN pip install -r ${FLYWHEEL}/requirements.txt
 
-# Algorithm
-RUN mkdir /app
-WORKDIR /app
-COPY ./inference.py /app
-COPY ./classifier_functions.py /app
-COPY ./model.h5  /app
-COPY ./run /app
+COPY inference.py classifier_functions.py model.h5 run ${FLYWHEEL}/
 
-RUN mkdir -p /flywheel/v0/input /flywheel/v0/output
-
-CMD ["/app/run"]
+RUN [ -d ${FLYWHEEL}/output ] || mkdir -p ${FLYWHEEL}/output
+RUN chmod +x ${FLYWHEEL}/run
+ENTRYPOINT ["./run"]
 

@@ -4,7 +4,7 @@
 # *** Do want to store 47MB with each image we process, or leave it as part of the project?
 # *** Do we want to tag, or label each scan we process rather than just leaving a file in the acquisiitons?
 #
-import os, shutil,  random
+import os, sys, shutil,  random
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 import argparse
@@ -40,6 +40,9 @@ ap.add_argument('-i', '--indir', default=False,  action='store', help='input dir
 ap.add_argument('-m', '--model', default=False,  action='store', help='path to model file, defaults to model.h5;')
 ap.add_argument('-o', '--outdir', default=False,  action='store', help='output directory')
 
+#
+# *** need to add extensions, and file names
+#
 args = ap.parse_args()
 
 if (args.indir):
@@ -68,8 +71,18 @@ validation_df[['class']] = validation_df[['class']].astype("string")
 n_images = len(images)
 
 ## DCMDataFrameIterator prints the number of images it found to standard out.  Sigh
+class HiddenPrints:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
 
-validation_generator = DCMDataFrameIterator(dataframe=validation_df,
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
+
+
+with HiddenPrints():
+    validation_generator = DCMDataFrameIterator(dataframe=validation_df,
                                        x_col='fileNamePath',
                                        y_col='class',
                                        shuffle=False,
