@@ -1,0 +1,29 @@
+{
+    "config": {},
+    "inputs": {
+        "input-file": {
+            "base": "file",
+            "location": {
+                "name": "input.dicom",
+                "path": "/flywheel/v0/input/input-file/input.dicom"
+            },
+            "object": {
+                "size": 5483978,
+                "type": null,
+                "mimetype": "application/octet-stream",
+                "modality": null,
+                "classification": {},
+                "tags": [],
+                "info": {},
+                "zip_member_count": null,
+                "version": 1,
+                "file_id": "",
+                "origin": {
+                    "type": "user",
+                    "id": ""
+                }
+            }
+        }
+    },
+    "destination": {}
+}

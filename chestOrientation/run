@@ -2,20 +2,10 @@
 
 ls /flywheel/v0
 
-ls /flywheel/v0/input
-
-InputFile=$(ls /flywheel/v0/input)
-if echo "$InputFile" | grep -q -P '.(dicom|dcm)$'
-then
-	true
-else
-	ExtendedFile="/flywheel/v0/input/${InputFile}.dcm"
-	ln -s "$InputFile" "$ExtendedFile"
-fi
-
 ls -l /flywheel/v0/input
+ls -l /flywheel/v0/input/input-file
 
-python3 inference.py -m model.h5 -i /flywheel/v0/input -o /flywheel/v0/output 
+python3 inference.py -m model.h5 -i /flywheel/v0/input/input-file -o /flywheel/v0/output 
 #2> /dev/null
 
 ls /flywheel/v0/output
