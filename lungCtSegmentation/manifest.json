@@ -1,0 +1,34 @@
+{
+  "author": "holder@upenn.edu",
+  "cite": "Chunrui",
+  "command": "./run.py",
+  "config": {},
+  "description": "Lung CT Segmentation",
+  "environment": {},
+  "custom": {
+    "gear-builder": {
+      "image": "lung-ct-segmentation:0.1.0",
+      "category": "analysis"
+    },
+    "flywheel": {
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "input-file": {
+      "base": "file",
+      "optional": false,
+      "description": "Input file for the gear"
+    },
+    "api-key": {
+      "base": "api-key",
+      "read-only": false
+    }
+  },
+  "label": "lungCtSegmentation",
+  "name": "lung-ct-segmentation",
+  "source": "",
+  "url": "",
+  "license": "MIT",
+  "version": "0.1.0"
+}
