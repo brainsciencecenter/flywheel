@@ -5,6 +5,8 @@ ls /flywheel/v0
 ls -l /flywheel/v0/input
 ls -l /flywheel/v0/input/input-file
 
+[ -d /flywheel/v0/input/input-file ] || mkdir -p /flywheel/v0/input/input-file
+
 python3 inference.py -m model.h5 -i /flywheel/v0/input/input-file -o /flywheel/v0/output 
 #2> /dev/null
 

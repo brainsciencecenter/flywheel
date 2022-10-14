@@ -1,1 +1,11 @@
 flywheel-gear-toolkit
+pydicom
+numpy
+scikit_image
+torch
+torchvision
+scipy
+SimpleITK
+scikit-image
+fill_voids  
+tqdm
