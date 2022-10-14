@@ -1,0 +1,4 @@
+#!/bin/bash
+
+./segmentation.py "$1" "$2"
+

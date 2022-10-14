@@ -3,9 +3,23 @@ FROM python:3.8-buster as base
 ENV FLYWHEEL=/flywheel/v0
 WORKDIR ${FLYWHEEL}
 
-COPY run.py requirements.txt ${FLYWHEEL}/
+RUN apt update
+RUN apt full-upgrade -y
 
+RUN apt install gfortran-8 -y
+RUN apt-get install -y libatlas-base-dev gfortran
+RUN apt-get install python-dev -y
+
+RUN /usr/local/bin/python -m pip install --upgrade pip
+RUN pip install numpy 
+
+COPY requirements.txt ${FLYWHEEL}
 RUN pip install -r requirements.txt
 
-RUN chmod +x run.py
+COPY lungmask ${FLYWHEEL}/lungmask
+COPY model ${FLYWHEEL}/model
+COPY segmentation.py ${FLYWHEEL}
+COPY run ${FLYWHEEL}/
+
+RUN chmod +x run
 ENTRYPOINT ["./run.py"]
