@@ -1,4 +1,3 @@
 #!/bin/bash
 
-./segmentation.py "$1" "$2"
-
+python ./segmentation.py --inImg $1 --outSeg $2

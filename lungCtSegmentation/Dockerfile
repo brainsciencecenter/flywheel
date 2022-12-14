@@ -22,4 +22,4 @@ COPY segmentation.py ${FLYWHEEL}
 COPY run ${FLYWHEEL}/
 
 RUN chmod +x run
-ENTRYPOINT ["./run.py"]
+ENTRYPOINT ["./run"]

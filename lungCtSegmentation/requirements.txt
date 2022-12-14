@@ -1,9 +1,9 @@
 flywheel-gear-toolkit
 pydicom
-numpy
+numpy==1.17.2
 scikit_image
-torch
-torchvision
+torch==1.4.0
+torchvision==0.5.0
 scipy
 SimpleITK
 scikit-image

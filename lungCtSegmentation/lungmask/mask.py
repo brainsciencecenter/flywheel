@@ -20,7 +20,7 @@ model_urls = {('unet', 'R231'): ('https://github.com/JoHof/lungmask/releases/dow
                   'https://github.com/JoHof/lungmask/releases/download/v0.0/unet_r231covid-0de78a7e.pth', 3)}
 
 
-def apply(image, model=None, force_cpu=False, batch_size=20, volume_postprocessing=True, noHU=False):
+def apply(image, model=None, force_cpu=True, batch_size=20, volume_postprocessing=True, noHU=False):
     if model is None:
         model = get_model('unet', 'R231')
     
@@ -59,7 +59,7 @@ def apply(image, model=None, force_cpu=False, batch_size=20, volume_postprocessi
         sanity = [(tvolslices[x]>0.6).sum()>25000 for x in range(len(tvolslices))]
         tvolslices = tvolslices[sanity]
     torch_ds_val = utils.LungLabelsDS_inf(tvolslices)
-    dataloader_val = torch.utils.data.DataLoader(torch_ds_val, batch_size=batch_size, shuffle=False, num_workers=1,
+    dataloader_val = torch.utils.data.DataLoader(torch_ds_val, batch_size=batch_size, shuffle=False, num_workers=0,
                                                  pin_memory=False)
 
     timage_res = np.empty((np.append(0, tvolslices[0].shape)), dtype=np.uint8)
@@ -73,17 +73,21 @@ def apply(image, model=None, force_cpu=False, batch_size=20, volume_postprocessi
 
     # postprocessing includes removal of small connected components, hole filling and mapping of small components to
     # neighbors
+    
     if volume_postprocessing:
+        
         outmask = utils.postrocessing(timage_res)
     else:
         outmask = timage_res
-
+    
+    
     if noHU:
         outmask = skimage.transform.resize(outmask[np.argmax((outmask==1).sum(axis=(1,2)))], inimg_raw.shape[:2], order=0, anti_aliasing=False, preserve_range=True)[None,:,:]
     else:
          outmask = np.asarray(
             [utils.reshape_mask(outmask[i], xnew_box[i], inimg_raw.shape[1:]) for i in range(outmask.shape[0])],
             dtype=np.uint8)
+    
     
     if not numpy_mode:
         if len(directions) == 9:

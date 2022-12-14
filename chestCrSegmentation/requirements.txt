@@ -1,0 +1,7 @@
+flywheel-gear-toolkit
+networks
+torch
+#git+https://github.com/mapillary/inplace_abn.git - requires cuda
+#PyTorch - pip says the correct name is torch
+#functools - according to https://stackoverflow.com/questions/45434650/pip-install-functools-returns-error this has been incorprated in the standard python library since 2.7
+

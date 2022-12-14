@@ -195,24 +195,27 @@ def postrocessing(label_image, spare=[]):
     '''some post-processing mapping small label patches to the neighbout whith which they share the
         largest border. All connected components smaller than min_area will be removed
     '''
-
+    
     # merge small components to neighbours
     regionmask = skimage.measure.label(label_image)
     origlabels = np.unique(label_image)
     origlabels_maxsub = np.zeros((max(origlabels) + 1,), dtype=np.uint32)  # will hold the largest component for a label
+    
     regions = skimage.measure.regionprops(regionmask, label_image)
     regions.sort(key=lambda x: x.area)
     regionlabels = [x.label for x in regions]
-
+    
     # will hold mapping from regionlabels to original labels
     region_to_lobemap = np.zeros((len(regionlabels) + 1,), dtype=np.uint8)
+    
     for r in regions:
-        if r.area > origlabels_maxsub[r.max_intensity]:
-            origlabels_maxsub[r.max_intensity] = r.area
-            region_to_lobemap[r.label] = r.max_intensity
-
+        
+        if r.area > origlabels_maxsub[int(r.max_intensity)]:
+            origlabels_maxsub[int(r.max_intensity)] = r.area
+            region_to_lobemap[int(r.label)] = r.max_intensity
+    
     for r in tqdm(regions):
-        if (r.area < origlabels_maxsub[r.max_intensity] or r.max_intensity in spare) and r.area>2: # area>2 improves runtime because small areas 1 and 2 voxel will be ignored
+        if (r.area < origlabels_maxsub[int(r.max_intensity)] or r.max_intensity in spare) and r.area>2: # area>2 improves runtime because small areas 1 and 2 voxel will be ignored
             bb = bbox_3D(regionmask == r.label)
             sub = regionmask[bb[0]:bb[1], bb[2]:bb[3], bb[4]:bb[5]]
             dil = ndimage.binary_dilation(sub == r.label)
@@ -228,10 +231,10 @@ def postrocessing(label_image, spare=[]):
             regionmask[regionmask == r.label] = mapto
             # print(str(region_to_lobemap[r.label]) + ' -> ' + str(region_to_lobemap[mapto])) # for debugging
             if regions[regionlabels.index(mapto)].area == origlabels_maxsub[
-                regions[regionlabels.index(mapto)].max_intensity]:
-                origlabels_maxsub[regions[regionlabels.index(mapto)].max_intensity] += myarea
+                int(regions[regionlabels.index(mapto)].max_intensity)]:
+                origlabels_maxsub[int(regions[regionlabels.index(mapto)].max_intensity)] += myarea
             regions[regionlabels.index(mapto)].__dict__['_cache']['area'] += myarea
-
+    
     outmask_mapped = region_to_lobemap[regionmask]
     outmask_mapped[outmask_mapped==spare] = 0 
 
@@ -240,7 +243,7 @@ def postrocessing(label_image, spare=[]):
         holefiller = lambda x: skimage.morphology.area_closing(x[0].astype(int), area_threshold=64)[None, :, :] == 1
     else:
         holefiller = fill_voids.fill
-
+    
     outmask = np.zeros(outmask_mapped.shape, dtype=np.uint8)
     for i in np.unique(outmask_mapped)[1:]:
         outmask[holefiller(keep_largest_connected_component(outmask_mapped == i))] = i
