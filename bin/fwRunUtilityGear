@@ -25,7 +25,7 @@ def runGear(gear, inputs, dest):
    Examples:
 
         fwRunUtilityGear  -g dcm2niix -t dcm2niix_input dwolklab/NACC/1234/1234-3T/files/foo.dicom
-        fwRunUtilityGear  -g dicom-mr-classifier-t dicom dwolklab/NACC/1234/1234-3T/files/foo.dicom
+        fwRunUtilityGear  -g dicom-mr-classifier -t dicom dwolklab/NACC/1234/1234-3T/files/foo.dicom
         
    """
    try:
@@ -70,17 +70,24 @@ if __name__ == '__main__':
     for fn in args.acqfilepaths:
        print("'{}'".format(fn))
 
-       try:
-          file_obj = fw.lookup(fn)
-       except (flywheel.rest.ApiException) as e:
-          print("{} : No such acquisition '{}'".format(CmdName,fn), file=sys.stderr)
-          continue
+       if (re.search('/',fn)):
+          try:
+             file_obj = fw.lookup(fn)
+          except (flywheel.rest.ApiException) as e:
+             print("{} : No such acquisition '{}'".format(CmdName,fn), file=sys.stderr)
+             continue
+       else:          
+          try:
+             file_obj = fw.get_file(fn)
+          except (flywheel.rest.ApiException) as e:
+             print("{} : No such file '{}'".format(CmdName,fn), file=sys.stderr)
+             continue
 
-# *** it is possible to specify the Acquisition instead of the acquisisition file and file_obj is a
-# list of file objects -- not what we want.
-# the path parsing should be more robust.
-       print("file_obj = '{}'".format(file_obj), file=sys.stderr)
-
+   # *** it is possible to specify the Acquisition instead of the acquisisition file and file_obj is a
+   # list of file objects -- not what we want.
+   # the path parsing should be more robust.
+          print("file_obj = '{}'".format(file_obj), file=sys.stderr)
+          
        dest = fw.get(file_obj.parents.acquisition)
        
        print("dest = '{}'".format(dest), file=sys.stderr)
@@ -90,12 +97,14 @@ if __name__ == '__main__':
        print("job_id = '{}'".format(job_id), file=sys.stderr)
 
        if args.wait:
+          count = 1
           while True:
+             count = count + 1
              time.sleep(1)
              job_info = fw.get_job(job_id)
              if (args.debug):
-                print("{} : Job {} status {}".format(CmdName,job_id, job_info.state), file=sys.stderr)
-             if (job_info.state == 'complete'):
+                print("{} : {} Job {} status {}".format(CmdName, count, job_id, job_info.state), file=sys.stderr)
+             if (job_info.state == 'running' or job_info.state == "failed"):
                 if (args.show_log):
                    print(fw.get_job_logs(job_id), file=sys.stderr)
                 break
