@@ -1,6 +1,6 @@
 #!/bin/bash
 
-Rhost=scisub.pmacs.upenn.edu
+Rhost=bscsub.pmacs.upenn.edu
 RDir=/project/bsc/Billing/Reports
 RILabChargesDir=/project/bsc/Billing/iLabCharges
 RCalculateCmd=/project/bsc/Billing/bin/calculateBscStorageCharges
