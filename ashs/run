@@ -13,7 +13,14 @@ export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
 CONFIG_FILE=${FLYWHEEL}/config.json
 GearName=ashs
 
-echo 35.184.111.29 dss.itksnap.org >> /etc/hosts
+ip=$(getent hosts dss.itksnap.org | sed 's/ .*$//')
+if [ -z "$ip" ]
+then
+	echo cannot find address for dss.itksnap.org. giving up
+	exit 1
+fi
+
+echo $ip dss.itksnap.org >> /etc/hosts
 
 echo $PATH
 echo $PYTHONPATH
@@ -46,4 +53,3 @@ T2Path=$(getGearParam "${CONFIG_FILE}:.inputs.T2w.location.path")
 
 echo "/flywheel/v0"
 ls -lR /flywheel/v0
-
