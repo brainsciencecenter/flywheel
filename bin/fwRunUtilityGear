@@ -26,6 +26,7 @@ def runGear(gear, inputs, dest):
 
         fwRunUtilityGear  -g dcm2niix -t dcm2niix_input dwolklab/NACC/1234/1234-3T/files/foo.dicom
         fwRunUtilityGear  -g dicom-mr-classifier -t dicom dwolklab/NACC/1234/1234-3T/files/foo.dicom
+        fwRunUtilityGear  -g dicom-mr-classifier -t dicom <InputFileUuid> [ ... ]
         
    """
    try:
@@ -68,7 +69,7 @@ if __name__ == '__main__':
     # *** should check if the gear isn't found
 
     for fn in args.acqfilepaths:
-       print("'{}'".format(fn))
+#       print("'{}'".format(fn))
 
        if (re.search('/',fn)):
           try:
@@ -86,11 +87,11 @@ if __name__ == '__main__':
    # *** it is possible to specify the Acquisition instead of the acquisisition file and file_obj is a
    # list of file objects -- not what we want.
    # the path parsing should be more robust.
-          print("file_obj = '{}'".format(file_obj), file=sys.stderr)
+#          print("file_obj = '{}'".format(file_obj), file=sys.stderr)
           
        dest = fw.get(file_obj.parents.acquisition)
        
-       print("dest = '{}'".format(dest), file=sys.stderr)
+#       print("dest = '{}'".format(dest), file=sys.stderr)
 
        job_id = runGear(gear,{InputKey: file_obj}, dest)
 
