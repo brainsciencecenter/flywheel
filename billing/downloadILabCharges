@@ -159,7 +159,7 @@ function downloadFwIlabChargesV4 {
 function downloadNonFwGcpIlabCharges {
 
 BscGcpProjectCostAllocationsFile=$(mktemp /tmp/BscGcpProjectCostAllocations-XXXXXX)
-[ "$(hostname -s)" == "chead" ] && CmdPrefix="ssh holder@sciget.pmacs.upenn.edu"
+[ "$(hostname -s)" == "chead" ] && CmdPrefix="ssh holder@bscsub.pmacs.upenn.edu"
 
 ($CmdPrefix wget -q -O - https://docs.google.com/spreadsheets/d/e/2PACX-1vQo4_xTQmetGhNCH_sEo_B1KI7glRgRqizq1LthUo36g3tIZ9iO5-Ll07qk6-NFw1FjLQQ5yDkmtp1S/pub?output=csv ; echo "") > "$BscGcpProjectCostAllocationsFile"
 
