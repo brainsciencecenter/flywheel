@@ -158,20 +158,22 @@ function downloadFwIlabChargesV4 {
 
 function downloadNonFwGcpIlabCharges {
 
-BscGcpProjectCostAllocationsFile=$(mktemp /tmp/BscGcpProjectCostAllocations-XXXXXX)
-[ "$(hostname -s)" == "chead" ] && CmdPrefix="ssh holder@bscsub.pmacs.upenn.edu"
+    BscGcpProjectCostAllocations=https://docs.google.com/spreadsheets/d/e/2PACX-1vQo4_xTQmetGhNCH_sEo_B1KI7glRgRqizq1LthUo36g3tIZ9iO5-Ll07qk6-NFw1FjLQQ5yDkmtp1S/pub?output=csv
 
-($CmdPrefix wget -q -O - https://docs.google.com/spreadsheets/d/e/2PACX-1vQo4_xTQmetGhNCH_sEo_B1KI7glRgRqizq1LthUo36g3tIZ9iO5-Ll07qk6-NFw1FjLQQ5yDkmtp1S/pub?output=csv ; echo "") > "$BscGcpProjectCostAllocationsFile"
+    BscGcpProjectCostAllocationsFile=$(mktemp /tmp/BscGcpProjectCostAllocations-XXXXXX)
+    [ "$(hostname -s)" == "chead" ] && CmdPrefix="ssh holder@bscsub.pmacs.upenn.edu"
 
-DB="${Dataset}.BscGcpProjectCostAllocations"
+    ($CmdPrefix wget -q -O - "$BscGcpProjectCostAllocations" ; echo "") > "$BscGcpProjectCostAllocationsFile"
 
-ServiceId=455000
-BscStorageFeePercent=0.25
+    DB="${Dataset}.BscGcpProjectCostAllocations"
+
+    ServiceId=455000
+    BscStorageFeePercent=0.25
 #curl -q -H "Authorization: Bearer $token"  "https://api.ilabsolutions.com/v1/cores/4822/services" | jq -r '.ilab_response.services[]|[.id,.name]|@csv'
 
-bq load --autodetect --project_id="${Project}" --skip_leading_rows 1 --replace --source_format=CSV "$DB" "$BscGcpProjectCostAllocationsFile"
+    bq load --autodetect --project_id="${Project}" --skip_leading_rows 1 --replace --source_format=CSV "$DB" "$BscGcpProjectCostAllocationsFile"
 
-bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
     
     SELECT 
         "'"$ServiceId"'" AS service_id,
