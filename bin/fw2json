@@ -140,7 +140,9 @@ if __name__ == '__main__':
         if (args.progress_bar):
             print("%s" % CleanPath, file=sys.stderr, flush=True)
 
-    print("args.stream '{}', from_regex = '{}', to_regex = '{}'".format(args.stream, args.from_regex,args.to_regex), file=sys.stderr)
+    if (args.debug):
+        print("args.stream '{}', from_regex = '{}', to_regex = '{}'".format(args.stream, args.from_regex,args.to_regex), file=sys.stderr)
+
     if (not args.stream):
         if (args.from_regex):
             print(re.sub(args.from_regex,args.to_regex,(json.dumps(Output,indent=2))))
