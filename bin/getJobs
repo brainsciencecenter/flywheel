@@ -89,7 +89,7 @@ def getPostEpochAcquisitionIds(job=None, debug=False):
         inputs = job.config['inputs']
 
     for i in inputs:
-        InputAcquisitionIds.extend(pyjq.all('..|select(.type == "acquisition")? | .id',i))
+        InputAcquisitionIds.extend(pyjq.all('..|select(.type == "acquisition")? | .id',fwgearutils.sloppyCopy(i)))
 
     for aid in InputAcquisitionIds:
         try:
@@ -268,7 +268,7 @@ def getJobMachineType(GearName, Tags):
     MachineType = 'n1-standard-1'
 
     try:
-        MachineTypes = pyjq.all('.[][][]|select(.engineMatch.whitelist and .engineMatch.whitelist["gear-name"] and (.engineMatch.whitelist["gear-name"][]| match("^{}$"))) | .cloud.machineType'.format(GearName), CondorYaml)
+        MachineTypes = pyjq.all('.condor.profiles[]|select(.engineMatch.whitelist and .engineMatch.whitelist["gear-name"] and (.engineMatch.whitelist["gear-name"][]| match("^{}$"))) | .cloud.machineType'.format(GearName), CondorYaml)
         if (len(MachineTypes) > 0):
             MachineType = MachineTypes[0]
         else:
@@ -291,7 +291,6 @@ def getJobCpus(job,detail):
         cpus = job.profile.executor.cpu_cores 
     else:
         MachineType = getJobMachineType(GearName, job.tags)
-
         m = re.match('^(?P<class>[^-]+)-(?P<type>[^-]+)-(?P<cores>[^-]+)$',MachineType)
         if (m):
             cpus = int(m.group('cores'))
