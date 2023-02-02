@@ -72,11 +72,21 @@ fi
 
 # Subjects don't have a created or timestamp field. Created works.  timestamp doesn't - G 2020/2/6
 #
-sys fwfind $TimeZone -p "created>${Epoch}" | jq . > ${WorkDir}/Projects.json
-sys fwfind $TimeZone -s "created>${Epoch}" | jq . > ${WorkDir}/Subjects.json
+sys fwfind -1 $TimeZone -p "created>${Epoch}" | jq . > ${WorkDir}/Projects.json
+sys jq -r '[ .[] | { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
 
-jq -r '[ .[] | { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
-jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ .[] | { (._id): ($Projects::Projects[][.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > ${WorkDir}/SubjectMap.json
+#
+# Loop through the groups and collect the subjects from there.
+#
+#sys fwfind $TimeZone -s "created>${Epoch}" | jq . > ${WorkDir}/Subjects.json
+
+for i in $(jq -r '._id' ${WorkDir}/Projects.json | sort -u)
+do
+    sys echo $i 1>&2
+    FLYWHEEL_SDK_REQUEST_TIMEOUT=120 sys fwfind -1 -s "parents.project=${i}" 
+done > ${WorkDir}/Subjects.json
+
+sys jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ .[] | { (._id): ($Projects::Projects[][.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > ${WorkDir}/SubjectMap.json
 
 if echo "$@" | grep -qP '=|<|>'
 then
