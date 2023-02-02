@@ -2,7 +2,7 @@
 
 CmdName=$(basename "$0")
 
-syntax="$CmdName [-j jsonfile][-p] fwfindargs....]"
+syntax="$CmdName [-d DicomHeader[[,DicomHeader]...][-j jsonfile][-n][-p][-u][-w WorkDir] fwfindargs....]"
 
 Epoch=1970-01-01
 
@@ -24,10 +24,10 @@ then
 	fi
 fi
 
-while getopts "d:j:npuv" arg 
+while getopts "d:j:npuvw:" arg 
 do
 	case "$arg" in
-	     d|j|n|p|u|v)
+	     d|j|n|p|u|v|w)
 		eval "opt_${arg}=${OPTARG:=1}"
 		;;
 
@@ -36,7 +36,12 @@ done
 
 shift $(($OPTIND - 1))
 
-WorkDir=$(mktemp -d /tmp/genSessionCSV-XXXXX)
+if [ -n "$opt_w" ]
+then
+    WorkDir="$opt_w"
+else
+    WorkDir=$(mktemp -d /tmp/genSessionCSV-XXXXX)
+fi
 
 if [ -n "$opt_d" ]
 then
@@ -63,6 +68,12 @@ else
 	SessionJsonFile="${WorkDir}/Session.json"
 fi
 
+ProgressBarFlag=""
+if [ -n "$opt_p" ]
+then
+    ProgressBarFlag=-p
+fi
+
 if [ -n "$opt_u" ]
 then
     TimeZone=""
@@ -70,29 +81,14 @@ else
     TimeZone="-l"
 fi
 
-# Subjects don't have a created or timestamp field. Created works.  timestamp doesn't - G 2020/2/6
-#
-sys fwfind -1 $TimeZone -p "created>${Epoch}" | jq . > ${WorkDir}/Projects.json
-sys jq -r '[ .[] | { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
-
-#
-# Loop through the groups and collect the subjects from there.
-#
-#sys fwfind $TimeZone -s "created>${Epoch}" | jq . > ${WorkDir}/Subjects.json
-
-for i in $(jq -r '._id' ${WorkDir}/Projects.json | sort -u)
-do
-    sys echo $i 1>&2
-    FLYWHEEL_SDK_REQUEST_TIMEOUT=120 sys fwfind -1 -s "parents.project=${i}" 
-done > ${WorkDir}/Subjects.json
-
-sys jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ . | { (._id): ($Projects::Projects[][.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > ${WorkDir}/SubjectMap.json
-
-if echo "$@" | grep -qP '=|<|>'
+if [ ! -e "${WorkDir}/SessionUIDs" ]
 then
-    sys fwfind -S "$@" | jq -r '.[]._id' > ${WorkDir}/SessionUIDs
-else
-    sys fw2json -R "$1" | jq -r '.[].subjects[].sessions[]._id' > ${WorkDir}/SessionUIDs
+    if echo "$@" | grep -qP '=|<|>'
+    then
+	sys fwfind -S "$@" | jq -r '.[]._id' > "${WorkDir}/SessionUIDs"
+    else
+	sys fw2json -R "$1" | jq -r '.[].subjects[].sessions[]._id' | sort -u > "${WorkDir}/SessionUIDs"
+    fi
 fi
 
 if [ -s "${WorkDir}/SessionUIDs" ]
@@ -103,11 +99,44 @@ then
 	else
 		sys fw2json -f '\\r\\n' -s -ag $Timezone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile"
 	fi
-	sys genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
-
-	sys jq -s -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile"
 
 else
 	echo No sessions found 1>&2
 	exit 1
 fi
+
+if [ ! -e "${WorkDir}/Projects.json" ]
+then
+    sys fwget -1 $TimeZone ${ProgressBarFlag} $(jq -r '.parents.project' "${SessionJsonFile}" | sort -u) > "${WorkDir}/Projects.json"
+fi
+
+if [ ! -e "${WorkDir}/ProjectMap.json" ]
+then
+    sys jq -r '[ { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
+fi
+
+
+#
+# Loop through the groups and collect the subjects from there.
+#
+#sys fwfind $TimeZone -s "created>${Epoch}" | jq . > ${WorkDir}/Subjects.json
+
+if [ ! -e "${WorkDir}/SubjectUids" ]
+then
+    jq -r '.parents.subject' ${SessionJsonFile} | sort -u > "${WorkDir}/SubjectUids"
+fi
+
+if [ ! -e "${WorkDir}/Subjects.json" ]
+then
+    FLYWHEEL_SDK_REQUEST_TIMEOUT=120 sys fwget -1 $(< "${WorkDir}/SubjectUids") > "${WorkDir}/Subjects.json"
+fi
+
+if [ ! -e "${WorkDir}/SubjectMap.json" ]
+then
+    sys jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ . | { (._id): ($Projects::Projects[][.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > "${WorkDir}/SubjectMap.json"
+fi
+
+sys genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
+
+sys jq -s -r -L "${FlywheelUtilsDir}/etc" -L ${WorkDir} -f "${WorkDir}/genSessionCSV.jq" "$SessionJsonFile"
+
