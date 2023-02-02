@@ -112,28 +112,12 @@ fi
 
 if [ ! -e "${WorkDir}/ProjectMap.json" ]
 then
-    sys jq -r '[ { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json > ${WorkDir}/ProjectMap.json
-fi
-
-
-#
-# Loop through the groups and collect the subjects from there.
-#
-#sys fwfind $TimeZone -s "created>${Epoch}" | jq . > ${WorkDir}/Subjects.json
-
-if [ ! -e "${WorkDir}/SubjectUids" ]
-then
-    jq -r '.parents.subject' ${SessionJsonFile} | sort -u > "${WorkDir}/SubjectUids"
-fi
-
-if [ ! -e "${WorkDir}/Subjects.json" ]
-then
-    FLYWHEEL_SDK_REQUEST_TIMEOUT=120 sys fwget -1 $(< "${WorkDir}/SubjectUids") > "${WorkDir}/Subjects.json"
+    sys jq -r '[ { (._id): (.group + "/" + .label) } ] | add' ${WorkDir}/Projects.json | jq -s 'add' > ${WorkDir}/ProjectMap.json
 fi
 
 if [ ! -e "${WorkDir}/SubjectMap.json" ]
 then
-    sys jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ . | { (._id): ($Projects::Projects[][.project] + "/" + .label) } ] | add' ${WorkDir}/Subjects.json > "${WorkDir}/SubjectMap.json"
+    sys jq -r -L ${WorkDir} 'import "ProjectMap" as $Projects; [ . | { (.subject._id): ($Projects::Projects[][.project] + "/" + .subject.label) } ] | add' ${WorkDir}/Session.json| jq -s 'add' > "${WorkDir}/SubjectMap.json"
 fi
 
 sys genSessionAndDicomHeaderTemplate $DicomHeaderFields > "${WorkDir}/genSessionCSV.jq"
