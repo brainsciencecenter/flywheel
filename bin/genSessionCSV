@@ -107,7 +107,7 @@ fi
 
 if [ ! -e "${WorkDir}/Projects.json" ]
 then
-    sys fwget -1 $TimeZone ${ProgressBarFlag} $(jq -r '.parents.project' "${SessionJsonFile}" | sort -u) > "${WorkDir}/Projects.json"
+    sys fwget -1 $TimeZone $(jq -r '.parents.project' "${SessionJsonFile}" | sort -u) > "${WorkDir}/Projects.json"
 fi
 
 if [ ! -e "${WorkDir}/ProjectMap.json" ]
