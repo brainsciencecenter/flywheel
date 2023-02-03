@@ -1,0 +1,13 @@
+#!/bin/bash
+
+export FLYWHEEL=${FLYWHEEL:=/flywheel/v0}
+export PATH=${FLYWHEEL}:/usr/local/flywheel/bin:$PATH
+export PYTHONPATH=/usr/local/pyjq:/usr/local/flywheel/lib
+
+export FLYWHEEL_INPUTDIR="${FLYWHEEL}/input"
+export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
+
+while read line
+do
+	echo "$line"
+done < <( ls "$FLYWHEEL" | grep -E '(.nii|.nii.gz|.dcm|.dicom|.dicom.zip|dcm.zip)$' )
