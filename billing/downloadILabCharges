@@ -254,6 +254,8 @@ function downloadFwMriIlabCharges {
     bq query --batch=true --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
     
 	# *** Should pull scanners out of flywheel
+	# *** Changes here also have to be made in the opt_M if statement at the bottom
+	#
         CREATE TEMP TABLE Scanners 
         AS ( 
             SELECT 
@@ -264,6 +266,9 @@ function downloadFwMriIlabCharges {
         
             UNION ALL SELECT
                 "SC7T" AS Scanner, "455018" AS ServiceId
+
+	    UNION ALL SELECT
+	    	"FWDicomReceiver", "509764" AS ServiceId
         );
         
         SELECT 
@@ -379,7 +384,7 @@ then
 	#
 	# *** Should read from flywheel
 	#
-	declare -A ServiceIDs=( [HUP6]=455017 [SC3T]=454998 [SC7T]=455018 )
+	declare -A ServiceIDs=( [HUP6]=455017 [SC3T]=454998 [SC7T]=455018 [FWDicomReceiver]=509764 )
 	Scanners=$(echo "${!ServiceIDs[@]}" | sed 's/ /|/g')
 
 	downloadFwMriIlabCharges
