@@ -17,7 +17,7 @@
     },
     "custom": {
         "gear-builder": {
-            "image": "lung-ct-segmentation:0.1.0",
+            "image": "lung-ct-segmentation:0.1.2",
             "category": "analysis"
         },
         "flywheel": {
@@ -40,5 +40,5 @@
     "source": "",
     "url": "",
     "license": "MIT",
-    "version": "0.1.0"
+    "version": "0.1.2"
 }

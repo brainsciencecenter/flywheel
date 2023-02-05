@@ -1,9 +1,9 @@
 #!/usr/bin/env bash 
 
-IMAGE=lung-ct-segmentation:0.1.0
+IMAGE=lung-ct-segmentation:0.1.2
 
 # Command:
-docker run --rm -it --entrypoint='/bin/bash'\
+docker run --rm --entrypoint='./run'\
 	-e PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\
 	-e LANG=C.UTF-8\
 	-e GPG_KEY=E3FF2839C048B25C084DEBE9B26995E310250568\
@@ -15,6 +15,4 @@ docker run --rm -it --entrypoint='/bin/bash'\
 	-e FLYWHEEL=/flywheel/v0\
 	-v /home/holder/Work/Despina/flywheel/lungCtSegmentation/config.json:/flywheel/v0/config.json\
 	-v /home/holder/Work/Despina/flywheel/lungCtSegmentation/manifest.json:/flywheel/v0/manifest.json\
-	-v /home/holder/Work/Despina/lungCtSegmentation/input:/flywheel/v0/input\
-	-v /home/holder/Work/Despina/lungCtSegmentation/output:/flywheel/v0/output\
 	$IMAGE
