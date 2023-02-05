@@ -1,14 +1,22 @@
 #!/bin/bash
 
 export FLYWHEEL=${FLYWHEEL:=/flywheel/v0}
-export PATH=${FLYWHEEL}:/usr/local/flywheel/bin:$PATH
-export PYTHONPATH=/usr/local/pyjq:/usr/local/flywheel/lib
+export PATH=${FLYWHEEL}:/usr/local/flywheel/bin:/usr/local/bin:/usr/bin:$PATH
+export PYTHONPATH=${FLYWHEEL}/networks:/usr/local/pyjq:/usr/local/flywheel/lib
 
 export FLYWHEEL_INPUTDIR="${FLYWHEEL}/input"
 export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
 
+echo $PATH
+
+TEMPDIR=$(mktemp -d /tmp/segment-XXXXXX)
+
 while read line
 do
 	f=$(realpath "${FLYWHEEL_INPUTDIR}/${line}")
-	toNifti -v -o "$FLYWHEEL_OUTPUTDIR" "$f"
+	toNifti -v -o "$TEMPDIR" "$f"
 done < <( ls "$FLYWHEEL_INPUTDIR" | grep -E '(.nii|.nii.gz|.dcm|.dicom|.dicom.zip|dcm.zip)$' )
+
+ls "$TEMPDIR"
+
+segment_cxr.py --dataDir "$TEMPDIR" --resultDir "$FLYWHEEL_OUTPUTDIR"

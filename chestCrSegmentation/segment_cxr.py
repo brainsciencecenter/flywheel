@@ -42,7 +42,7 @@ else:
     os.mkdir("temp")
 record = {}
 for ifile in os.listdir(args.dataDir):
-    if ifile.endswith("nii.gz"):
+    if ifile.endswith((".nii", ".nii.gz")):
         irecord = {}
         img = sitk.ReadImage(os.path.join(args.dataDir,ifile))
         img_rescaled = caster.Execute(sitk.RescaleIntensity(img))
