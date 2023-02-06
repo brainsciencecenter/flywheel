@@ -20,6 +20,8 @@ parser = argparse.ArgumentParser(prog="Segmentation",description="Seg CXR Images
 parser.add_argument("--dataDir",required=True,type=str)
 #parser.add_argument("--dataFormat",required=True,type=str)
 parser.add_argument('--resultDir',type=str,required=True)
+args = parser.parse_args()
+
 #args = parser.parse_args(['--dataDir','./data',
 #                          '--dataFormat','png',
 #                          '--resultDir','./results'])

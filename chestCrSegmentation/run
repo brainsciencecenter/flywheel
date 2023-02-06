@@ -9,6 +9,8 @@ export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
 
 echo $PATH
 
+pip install inplace-abn
+
 TEMPDIR=$(mktemp -d /tmp/segment-XXXXXX)
 
 while read line
