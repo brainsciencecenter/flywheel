@@ -19,6 +19,7 @@ RUN pip install -r requirements.txt
 COPY lungmask ${FLYWHEEL}/lungmask
 COPY model ${FLYWHEEL}/model
 COPY segmentation.py ${FLYWHEEL}
+COPY toNifti ${FLYWHEEL}
 COPY run ${FLYWHEEL}/
 
 RUN cat model/unet_r231_v0_0.pkl.* > model/unet_r231_v0_0.pkl

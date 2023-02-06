@@ -1,7 +1,30 @@
 #!/bin/bash -x
 
-InImg="$(ls input/input-file/* | head -n 1)"
-Basename=$(basename "$InImg" | sed 's/.nii.gz//')
-OutImg="output/${Basename}-OutSeg.nii.gz"
+export FLYWHEEL_INPUTDIR="${FLYWHEEL}/input"
+export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
 
-python ./segmentation.py --inImg "$InImg" --outSeg "$OutImg"
+echo $PATH
+
+ls ${FLYWHEEL_INPUTDIR}
+
+# pip install inplace-abn
+
+TEMPDIR=$(mktemp -d /tmp/segment-XXXXXX)
+
+while read line
+do
+        f=$(realpath "${FLYWHEEL_INPUTDIR}/${line}")
+        toNifti -v -o "$TEMPDIR" "$f"
+done < <( ls "$FLYWHEEL_INPUTDIR" | grep -E '(.nii|.nii.gz|.dcm|.dicom|.dicom.zip|dcm.zip)$' )
+
+ls "$TEMPDIR"
+
+for i in $(ls $TEMPDIR | grep '.nii$')
+do
+	InImg="${TEMPDIR}/${i}"
+	OutImg="${FLYWHEEL_OUTPUTDIR}/${i}"
+
+	python ./segmentation.py --inImg "$InImg" --outSeg "$OutImg"
+done
+
+ls "${FLYWHEEL_OUTPUTDIR}"

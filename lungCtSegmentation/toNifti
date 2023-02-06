@@ -1,0 +1,104 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+#
+# -o OutputDir - defaults to the current directory
+# -n no-op - show command that would have been executed
+# -p preserve temp directories
+# -v verbose - show commands being executed
+#
+# InputFiles
+#
+
+Syntax="${CmdName} [-o OutputDir][-npv] {InputFile} [[InputFile]...]"
+
+function sys {
+	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	 [ -n "$opt_n" ] || "$@"
+}
+
+function cleanup {
+	 [ -n "$opt_p" ] && return 0
+
+	 if [ "${#DeleteOnExit[@]}" -gt 0 ]
+	 then
+	 	sys rm -rf "${DeleteOnExit[@]}"
+	 fi
+}
+
+trap cleanup Exit
+
+DeleteOnExit=()
+
+while getopts no:pv arg
+do
+	case "$arg" in
+	     n|o|p|v)
+		eval "opt_${arg}=${OPTARG:=1}"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -n "$opt_o" ]
+then
+	OutputDir="$opt_o"
+else
+	OutputDir="."
+fi
+
+if [ -z "$1" ]
+then
+	echo "$CmdName : No input files specified" 1>&2
+	echo "$Syntax" 1>&2
+	exit 1
+fi
+
+[ -d "$OutputDir" ] || sys mkdir "$OutputDir"
+
+#
+# .nii - link to nii directory
+# .nii.gz - uncompresss to nii directory
+# .dcm, .dicom - convert to nii in nii directory
+# .dicom.zip - uncompress in temp directory and convert to nii in nii directory
+#   Assume dicom..zip only contains .dcm/.dicom files, no compressed or nii files.
+
+
+for f in "$@"
+do
+	[ -z "$f" ] && continue
+
+	case "$f" in
+	     *.dicom.zip)
+		UnZipDir=$(sys mktemp -d /tmp/UnZipDir.XXXXXX)
+		DeleteOnExit+=( $UnZipDir )
+
+		sys unzip -j -d "$UnZipDir" "$f"
+		sys dcm2niix -o "$OutputDir" "$UnZipDir"
+		;;
+
+	     *.dicom|*.dcm)
+		sys dcm2niix -o "$OutputDir" "$f"
+		;;
+
+	     *.nii.gz)
+	        FileName=$(basename "$f" .gz)
+		sys zcat "$f" > "${OutputDir}/${FileName}"
+		;;
+
+	     *.nii|*.nifti)
+		sys ln -s "$f" "$OutputDir"
+		;;
+
+	     *)
+	        echo "$CmdLine} : unknown format '$f' skipping" 1>&2
+		;;
+
+	esac
+
+done
+
+sys ls "$OutputDir"
+
