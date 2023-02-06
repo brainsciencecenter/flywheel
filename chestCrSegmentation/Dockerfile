@@ -7,7 +7,10 @@ RUN apt update
 RUN apt full-upgrade -y
 
 RUN apt install python-dev -y
-RUN /usr/local/bin/python -m pip install --upgrade pip
+
+RUN /usr/local/bin/python -m pip install --upgrade pip 
+
+RUN /usr/local/bin/python -m pip install --upgrade pip 
 
 RUN apt install -y ninja-build
 RUN apt install -y cuda-nvcc-11-8
@@ -18,7 +21,8 @@ RUN apt install vtk-dicom-tools -y
 
 COPY requirements.txt ${FLYWHEEL}/
 RUN pip install -r requirements.txt
-#
+
+
 RUN ls -l /dev/
 
 COPY cc_attention ${FLYWHEEL}/cc_attention
@@ -32,6 +36,8 @@ COPY utils ${FLYWHEEL}/utils
 RUN mkdir -p ${FLYWHEEL}/input ${FLYWHEEL}/output
 
 RUN cat models/XLSor.pth.a? > models/XLSor.pth
+
+#RUN pip install inplace-abn
 
 COPY toNifti ${FLYWHEEL}/
 COPY run ${FLYWHEEL}/
