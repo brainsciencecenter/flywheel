@@ -1,0 +1,41 @@
+{
+    "name": "nvidia-cuda-test",
+    "label": "Nvidia CUDA Test",
+    "description": "Tests Nvidia Driver Availaibility",
+    "version": "0.1.0_11.0.3-rc0-p",
+    "inputs": {
+        "any": {
+            "base": "file",
+            "description": "Any file.",
+            "optional": true
+        }
+    },
+    "config": {},
+    "environment": {
+        "PATH": "/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "FLYWHEEL": "/flywheel/v0",
+        "NVIDIA_REQUIRE_CUDA": "cuda>=11.0 brand=tesla,driver>=418,driver<419 brand=tesla,driver>=440,driver<441 driver>=450",
+        "NVIDIA_DRIVER_CAPABILITIES": "compute,utility",
+        "NVIDIA_VISIBLE_DEVICES": "all",
+        "LD_LIBRARY_PATH": "/usr/local/nvidia/lib:/usr/local/nvidia/lib64",
+        "CUDA_VERSION": "11.0.3"
+    },
+    "command": "/bin/sh -x ./run",
+    "author": "Flywheel Exchange, Inc",
+    "maintainer": "support@flywheel.io",
+    "cite": "",
+    "license": "Other",
+    "source": "https://gitlab.com/flywheel-io/flywheel-apps/nvidia-cuda-test",
+    "url": "https://gitlab.com/flywheel-io/flywheel-apps/nvidia-cuda-test",
+
+    "custom": {
+        "gear-builder": {
+            "category": "converter",
+            "image": "flywheel/cuda:0.1.0_11.0.3-rc0-p"
+        },
+        "flywheel": {
+            "suite": "Test"
+        }
+    }
+}
+

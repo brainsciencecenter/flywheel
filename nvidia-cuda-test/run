@@ -1,0 +1,28 @@
+#!/bin/bash -x
+
+export PATH=/flwyheel/v0:$PATH
+
+distro=ubuntu2004
+arch=x86_64
+apt update
+apt install -y wget kmod
+
+lsmod
+
+cat /proc/driver/nvidia/version
+NvidiaVersion=$(cat /proc/driver/nvidia/version | grep NVRM | sed 's/^.*Module *//; s/ .*$//; s/\..*$//')
+echo "$NvidiaVersion"
+
+wget https://developer.download.nvidia.com/compute/cuda/repos/$distro/$arch/cuda-$distro-keyring.gpg
+mv cuda-$distro-keyring.gpg /usr/share/keyrings/cuda-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/$distro/$arch/ /" | tee /etc/apt/sources.list.d/cuda.list
+rm /etc/apt/sources.list.d/nvidia-ml.list
+apt update
+
+which nvidia-smi
+
+dpkg -l | grep nvidia
+
+nvidia-smi
+
+apt install -y nvidia-utils-$NvidiaVersion
