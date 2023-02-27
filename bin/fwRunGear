@@ -10,6 +10,8 @@ import pyjq
 import re
 import sys
 import time
+from datetime import datetime
+
 
 def runGear(gear, inputs, dest):
    """Submits a job with specified gear and inputs.
@@ -29,9 +31,15 @@ def runGear(gear, inputs, dest):
         fwRunUtilityGear  -g dicom-mr-classifier -t dicom <InputFileUuid> [ ... ]
         
    """
+
+   now = datetime.now()
+   analysis_label = (
+        f'{gear.gear.name} {now.strftime("%m-%d-%Y %H:%M:%S")} SDK launched'
+    )
+
    try:
         # Run the gear on the inputs provided, stored output in dest constainer and returns job ID
-        gear_job_id = gear.run(inputs=inputs, destination=dest)
+        gear_job_id = gear.run(analysis_label=analysis_label, config={}, inputs=inputs, destination=dest)
         logging.debug('Submitted job %s', gear_job_id)
         return gear_job_id
    except flywheel.rest.ApiException:
@@ -52,7 +60,7 @@ if __name__ == '__main__':
     ap.add_argument('-v', '--version', action='store', help='gear version to run')
     ap.add_argument('-w', '--wait', default=False,  action='store_true', help='wait for job completion')
 
-    ap.add_argument('acqfilepaths', nargs='+', type=str, action='store', help='acquisition filename paths')
+    ap.add_argument('acqfilepaths', nargs='*', type=str, action='store', help='acquisition filename paths')
     #ap.add_argument(metavar='AcqFile', nargs='+',  dest='acqfiles',  type=str, default=None, help='AcquisitionFileName pairs')
 
     args = ap.parse_args()
@@ -89,7 +97,10 @@ if __name__ == '__main__':
    # the path parsing should be more robust.
 #          print("file_obj = '{}'".format(file_obj), file=sys.stderr)
           
-       dest = fw.get(file_obj.parents.acquisition)
+       if (gear.category == "analysis"):
+          dest = fw.get(file_obj.parents.session)
+       else:
+          dest = fw.get(file_obj.parents.acquisition)
        
 #       print("dest = '{}'".format(dest), file=sys.stderr)
 
