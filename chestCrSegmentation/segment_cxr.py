@@ -45,10 +45,11 @@ else:
 record = {}
 for ifile in os.listdir(args.dataDir):
     if ifile.endswith((".nii", ".nii.gz")):
+        print("ifile = '{}'\n".format(ifile))
         irecord = {}
         img = sitk.ReadImage(os.path.join(args.dataDir,ifile))
         img_rescaled = caster.Execute(sitk.RescaleIntensity(img))
-        png_filename = re.sub(r"nii\.gz","png",ifile)
+        png_filename = re.sub(r"(nii\.gz)|(nii)$","png",ifile)
         sitk.WriteImage(img_rescaled,os.path.join("temp",png_filename))
         irecord['spacing'] = img.GetSpacing()
         irecord['origin'] = img.GetOrigin()

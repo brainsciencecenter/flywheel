@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 export FLYWHEEL=${FLYWHEEL:=/flywheel/v0}
 export PATH=${FLYWHEEL}:/usr/local/flywheel/bin:/usr/local/bin:/usr/bin:$PATH
@@ -9,16 +9,49 @@ export FLYWHEEL_OUTPUTDIR="${FLYWHEEL}/output"
 
 echo $PATH
 
+find "$FLYWHEEL" -ls 
+apt update
+
+distro=ubuntu2004
+arch=x86_64
+
+apt update
+apt install -y wget kmod apt-utils
+
+cat /proc/driver/nvidia/version
+
+
+# Most of this software seems to come in the form of a filesystem overlay with the right version of 
+# the nvidia utils for the underlying gpu
+# Explicitly installing the nvidia software gets in the way.
+# apt install -y "nvidia-utils-${NvidiaVersion}"
+# NvidiaVersion=$(cat /proc/driver/nvidia/version | grep NVRM | sed 's/^.*Module *//; s/ .*$//; s/\..*$//')
+
+apt install -y cuda-nvcc-11-8
+apt install -y libcublas-dev-11-8
+
+nvidia-smi
+
+python -m pip install --upgrade pip
 pip install inplace-abn
 
 TEMPDIR=$(mktemp -d /tmp/segment-XXXXXX)
+
+if [ -d "${FLYWHEEL_INPUTDIR}/input-file" ]
+then
+	export FLYWHEEL_INPUTDIR="${FLYWHEEL_INPUTDIR}/input-file"
+	ls -l "$FLYWHEEL_INPUTDIR"
+fi
 
 while read line
 do
 	f=$(realpath "${FLYWHEEL_INPUTDIR}/${line}")
 	toNifti -v -o "$TEMPDIR" "$f"
+
+	python segment_cxr.py --dataDir "$TEMPDIR" --resultDir "$FLYWHEEL_OUTPUTDIR"
+
 done < <( ls "$FLYWHEEL_INPUTDIR" | grep -E '(.nii|.nii.gz|.dcm|.dicom|.dicom.zip|dcm.zip)$' )
 
 ls "$TEMPDIR"
 
-segment_cxr.py --dataDir "$TEMPDIR" --resultDir "$FLYWHEEL_OUTPUTDIR"
+ls "$FLYWHEEL_OUTPUTDIR"

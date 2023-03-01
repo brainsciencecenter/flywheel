@@ -19,12 +19,12 @@
         "DEBIAN_FRONTEND": "noninteractive"
     },
     "custom": {
-        "gear-builder": {
-            "image": "chest-x-ray-segmentation:0.1.0",
-            "category": "analysis"
-        },
         "flywheel": {
             "show-job": true
+        },
+        "gear-builder": {
+            "image": "chest-x-ray-segmentation:0.1.11",
+            "category": "analysis"
         }
     },
     "inputs": {
@@ -43,5 +43,5 @@
     "source": "",
     "url": "",
     "license": "MIT",
-    "version": "0.1.0"
+    "version": "0.1.11"
 }

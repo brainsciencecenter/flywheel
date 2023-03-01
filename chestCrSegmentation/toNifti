@@ -75,12 +75,22 @@ do
 		UnZipDir=$(sys mktemp -d /tmp/UnZipDir.XXXXXX)
 		DeleteOnExit+=( $UnZipDir )
 
+		AcquisitionName=$(basename "$f" ".dicom.zip")
+
 		sys unzip -j -d "$UnZipDir" "$f"
-		sys dcm2niix -o "$OutputDir" "$UnZipDir"
+		sys dcm2niix -m y -f "$AcquisitionName" -o "$OutputDir" "$UnZipDir"
 		;;
 
 	     *.dicom|*.dcm)
-		sys dcm2niix -o "$OutputDir" "$f"
+		if echo "$f" | grep -q 'dicom$'
+		then
+                	AcquisitionName=$(basename "$f" ".dicom")
+		elif echo "$f" | grep -q 'dcm$'
+		then
+                	AcquisitionName=$(basename "$f" ".dcm")
+		fi
+
+		sys dcm2niix -m y -f "$AcquisitionName" -o "$OutputDir" "$f"
 		;;
 
 	     *.nii.gz)
@@ -101,4 +111,3 @@ do
 done
 
 sys ls "$OutputDir"
-
