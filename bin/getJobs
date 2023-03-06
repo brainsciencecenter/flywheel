@@ -210,6 +210,7 @@ def initRow(
 	gear_name=None,
 	gear_version=None,
 	gear_category=None,
+	job_compute_node_name=None,
 	job_origin_id=None,
 	job_origin_type=None,
 	job_state=None,
@@ -235,6 +236,7 @@ def initRow(
 	( 'gear_name', gear_name ),
 	( 'gear_version', gear_version ),
 	( 'gear_category', gear_category ),
+        ( 'job_compute_node_name', job_compute_node_name ),
 	( 'job_origin_id', job_origin_id ),
 	( 'job_origin_type', job_origin_type ),
 	( 'job_state', job_state ),
@@ -282,7 +284,10 @@ def getJobMachineType(GearName, Tags):
 #
 # *** Need to handle tags correctly
 #
-def getJobCpus(job,detail):
+
+def getJobCpus(job):
+    prin
+def getJobCpus2(job,detail):
     GearName = detail['gear_info']['name']
 
     if (re.search('hpc',GearName)):
@@ -361,7 +366,6 @@ if (len(args.filter)):
 else:
   jobs = fw.get_all_jobs(limit=args.limit)
 
-print("Len jobs = ",len(jobs), file=sys.stderr)
 
 l = len(jobs)
 i = 0
@@ -372,7 +376,15 @@ Sessions = {}
 OutputRows = []
 ComputeGCPMs = 0.0
 
+DefaultNodeName = 'upenn-flywheel-site'
+
+print("len(jobs) = '{}'\n".format(len(jobs)), file=sys.stderr)
+
+print("job[0].id = '{}'\n".format(jobs[0].id), file=sys.stderr, flush=True)
+
+
 for job in jobs:
+
     job = job.reload()
 
     if (args.progressbar):
@@ -385,92 +397,101 @@ for job in jobs:
     if (not detail.parent_info.project):
         print("detail = ", detail, file=sys.stderr)
 
+    if (args.debug):
+        print("job.id = '{}'".format(job.id), file=sys.stderr, flush=True)
+
+    job_id = job.id
+    gear_id = job.gear_id
+    job_origin_id = job.origin.id
+    job_origin_type = job.origin.type
+
+    session_id = None
     try:
-        job_id = job.id
-        gear_id = job.gear_id
-        job_origin_id = job.origin.id
-        job_origin_type = job.origin.type
+        session_id = detail.parent_info.session.id
+    except (AttributeError,TypeError) as e:
+        print("cannot access detail.parent_info.session.id", detail.parent_info, file=sys.stderr)
 
-        if (getattr(detail.parent_info, 'session') and getattr(detail.parent_info.session, 'id')):
-            session_id = detail.parent_info.session.id
-        else:
-            session_id = None
+    job_origin_id = None
+    if (job_origin_id and job_origin_id in UIDs2Labels.keys()):
+        job_origin_id = UIDs2Labels[job_origin_id]
 
-        if (job_origin_id and job_origin_id in UIDs2Labels.keys()):
-            job_origin_id = UIDs2Labels[job_origin_id]
+    if (getattr(detail.parent_info, 'session') and getattr(detail.parent_info.session, 'id')):
+        session_id = detail.parent_info.session.id
+    else:
+        session_id = None
 
-        if (getattr(detail.parent_info, 'session') and getattr(detail.parent_info.session, 'id')):
-            session_id = detail.parent_info.session.id
-        else:
-            session_id = None
-
-        if (getattr(detail.parent_info, 'acquisition') and getattr(detail.parent_info.acquisition, 'id')):
+    acquisition_id = None
+    try:
+        if (detail.parent_info.acquisition):
             acquisition_id = detail.parent_info.acquisition.id
-        else:
-            acquisition_id = None
-            # print("detail missing acquisition info", detail, file=sys.stderr)
+    except (AttributeError,TypeError) as e:
+        print("detail missing acquisition info", detail, file=sys.stderr)
 
-        try:
-            cores = job['profile']['executor']['cpu_cores']
-        except (AttributeError,TypeError) as e:
-            cores = 0
+    job_compute_node_name = DefaultNodeName
+    if (job.profile and job.profile.executor):
+        job_compute_node_name = job['profile']['executor']['name']
+    else:
+        if (args.debug):
+            print("No compute_node_name for job.id '{}'".format(job.id),file=sys.stderr)
 
-        if(job['profile']['elapsed_time_ms']):
-            job_elapsed_time_ms = job['profile']['elapsed_time_ms']
-        else:
-            job_elapsed_time_ms = 0.0
-            
-        if (args.augment_cpu_count):
-            gcp_cores = getJobCpus(job, detail)
-        elif (re.search('hpc', job.gear_info.name)):
-            gcp_cores = 0
-        else:
-            gcp_cores = cores
+    try:
+        cores = job['profile']['executor']['cpu_cores']
+    except (AttributeError,TypeError) as e:
+        cores = 0
 
-        if (args.initial_analysis):
-            InitialAnalysisCount = (len(getBillableSessionIds(job=job, debug=args.debug)) > 0)
+    if(job['profile']['elapsed_time_ms']):
+        job_elapsed_time_ms = job['profile']['elapsed_time_ms']
+    else:
+        job_elapsed_time_ms = 0.0
 
-        if (detail.parent_info.session.label):
-            session_label = re.sub('\s*$','',re.sub('[\\n\\r]',' ',detail.parent_info.session.label))
-        else:
-            session_label = ""
+    if (args.augment_cpu_count):
+        gcp_cores = getJobCpus(job, detail)
+    elif (re.search('hpc', job.gear_info.name)):
+        gcp_cores = 0
+    else:
+        gcp_cores = cores
 
-        try:
-            out = initRow(
-                job_date=job.created,
-                job_id=job.id,
-                gear_id=job.gear_id,
-                gear_name=job.gear_info.name,
-                gear_version=job.gear_info.version,
-                gear_category=job.gear_info.category,
-                job_origin_id=job.origin.id,
-                job_origin_type=job.origin.type,
-                job_state=job.state,
-                job_elapsed_time_ms=job_elapsed_time_ms,
-                job_runtime_ms=job['profile']['total_time_ms'],
-                job_cpus=cores,
-                gcp_cpus=gcp_cores,
-                initial_analysis=InitialAnalysisCount,
-                group=detail.parent_info.group.id,  #ID is one word lowercase, label can be words and mixed case
-                project=detail.parent_info.project.label,
-                subject=detail.parent_info.subject.label,
-                session=session_label,
-                session_id=detail.parent_info.session.id,
-                acquisition_id=acquisition_id,
-                invoice_month=InvoiceMonth
-            )
-        except (TypeError) as e:
-            print("detail.parent_info.session.label = '{}'".format(detail.parent_info.session.label), file=sys.stderr)
+    InitialAnalysisCount = 0
+    if (args.initial_analysis):
+        InitialAnalysisCount = (len(getBillableSessionIds(job=job, debug=args.debug)) > 0)
 
-        if (job['profile']['elapsed_time_ms']):
-            ComputeGCPMs += float(gcp_cores) * float(job['profile']['elapsed_time_ms'])
+    if (detail.parent_info.session.label):
+        session_label = re.sub('\s*$','',re.sub('[\\n\\r]',' ',detail.parent_info.session.label))
+    else:
+        session_label = ""
 
-        OutputRows.append(out)
+    try:
+        out = initRow(
+            job_date=job.created,
+            job_id=job.id,
+            gear_id=job.gear_id,
+            gear_name=job.gear_info.name,
+            gear_version=job.gear_info.version,
+            gear_category=job.gear_info.category,
+            job_compute_node_name=job_compute_node_name,
+            job_origin_id=job.origin.id,
+            job_origin_type=job.origin.type,
+            job_state=job.state,
+            job_elapsed_time_ms=job_elapsed_time_ms,
+            job_runtime_ms=job['profile']['total_time_ms'],
+            job_cpus=cores,
+            gcp_cpus=gcp_cores,
+            initial_analysis=InitialAnalysisCount,
+            group=detail.parent_info.group.id,  #ID is one word lowercase, label can be words and mixed case
+            project=detail.parent_info.project.label,
+            subject=detail.parent_info.subject.label,
+            session=session_label,
+            session_id=detail.parent_info.session.id,
+            acquisition_id=acquisition_id,
+            invoice_month=InvoiceMonth
+        )
+    except (TypeError) as e:
+        print("detail.parent_info.session.label = '{}'".format(detail.parent_info.session.label), file=sys.stderr)
 
-    except (AttributeError) as e:
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print(exc_type, fname, exc_tb.tb_lineno, file=sys.stderr)
+    if (job['profile']['elapsed_time_ms']):
+        ComputeGCPMs += float(gcp_cores) * float(job['profile']['elapsed_time_ms'])
+
+    OutputRows.append(out)
 
 print("len(OutputRows) = ",len(OutputRows), file=sys.stderr)
 
