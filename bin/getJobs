@@ -398,7 +398,7 @@ for job in jobs:
         print("detail = ", detail, file=sys.stderr)
 
     if (args.debug):
-        print("job.id = '{}'".format(job.id), file=sys.stderr, flush=True)
+        print("({}/{}) job.id = '{} '".format(i,l,job.id), file=sys.stderr, flush=True)
 
     job_id = job.id
     gear_id = job.gear_id
