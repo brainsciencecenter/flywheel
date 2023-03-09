@@ -95,7 +95,7 @@ fi
 if [ -n "$opt_c" ]
 then
     CachedAcquisitionJsonFile="$opt_c"
-    [ -e "$CachedAcquisitionJsonFile ] || touch "$CachedAcquisitionJsonFile" 
+    [ -e "$CachedAcquisitionJsonFile" ] || touch "$CachedAcquisitionJsonFile" 
 else
     CachedAcquisitionJsonFile="${TmpDir}/CachedFwGetAcquisitions.json"
 fi
