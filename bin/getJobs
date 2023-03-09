@@ -210,7 +210,6 @@ def initRow(
 	gear_name=None,
 	gear_version=None,
 	gear_category=None,
-	job_compute_node_name=None,
 	job_origin_id=None,
 	job_origin_type=None,
 	job_state=None,
@@ -227,6 +226,7 @@ def initRow(
 	acquisition_id=None,
         gcp_compute_cost=None,
         invoice_month=None,
+	job_compute_node_name=None,
     ):
 
     row = OrderedDict([
@@ -236,7 +236,6 @@ def initRow(
 	( 'gear_name', gear_name ),
 	( 'gear_version', gear_version ),
 	( 'gear_category', gear_category ),
-        ( 'job_compute_node_name', job_compute_node_name ),
 	( 'job_origin_id', job_origin_id ),
 	( 'job_origin_type', job_origin_type ),
 	( 'job_state', job_state ),
@@ -255,6 +254,7 @@ def initRow(
 	( 'acquisition_id', acquisition_id ),
         ( 'gcp_compute_cost', gcp_compute_cost),
         ( 'invoice_month', invoice_month),
+        ( 'job_compute_node_name', job_compute_node_name ),
     ])
     return(row)
 
@@ -389,8 +389,8 @@ for job in jobs:
 
     if (args.progressbar):
         progress(i, l)
-        i += 1
 
+    i += 1
     detail = fw.get_job_detail(job.id)
     if (args.verbose):
         print("job", job, "detail", detail, file=sys.stderr)
