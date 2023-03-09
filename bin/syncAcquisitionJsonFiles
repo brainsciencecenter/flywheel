@@ -95,7 +95,7 @@ fi
 if [ -n "$opt_c" ]
 then
     CachedAcquisitionJsonFile="$opt_c"
-    # *** Check size is greater than zero?
+    [ -e "$CachedAcquisitionJsonFile ] || touch "$CachedAcquisitionJsonFile" 
 else
     CachedAcquisitionJsonFile="${TmpDir}/CachedFwGetAcquisitions.json"
 fi
