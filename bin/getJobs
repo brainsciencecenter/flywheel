@@ -481,7 +481,7 @@ for job in jobs:
             project=detail.parent_info.project.label,
             subject=subject_label,
             session=session_label,
-            session_id=detail.parent_info.session.id,
+            session_id=session_id,
             acquisition_id=acquisition_id,
             invoice_month=InvoiceMonth
         )
