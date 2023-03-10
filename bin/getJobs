@@ -455,7 +455,7 @@ for job in jobs:
     if (args.initial_analysis):
         InitialAnalysisCount = (len(getBillableSessionIds(job=job, debug=args.debug)) > 0)
 
-    if (detail.parent_info.session.label):
+    if (detail.parent_info.session and detail.parent_info.session.label):
         session_label = re.sub('\s*$','',re.sub('[\\n\\r]',' ',detail.parent_info.session.label))
     else:
         session_label = ""
