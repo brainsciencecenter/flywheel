@@ -82,6 +82,9 @@ if __name__ == '__main__':
                 else:
                     Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
 
+#                if (type(Container) == flywheel.models.job_output.JobOutput):
+#                    Output['detail'] = fwgearutils.sloppyCopy(fw.get_job_detail(id))
+
                 if (args.one_at_a_time):
                     print(json.dumps(Output, indent=2))
                 else:
