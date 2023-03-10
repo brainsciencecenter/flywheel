@@ -378,11 +378,6 @@ ComputeGCPMs = 0.0
 
 DefaultNodeName = 'upenn-flywheel-site'
 
-print("len(jobs) = '{}'\n".format(len(jobs)), file=sys.stderr)
-
-print("job[0].id = '{}'\n".format(jobs[0].id), file=sys.stderr, flush=True)
-
-
 for job in jobs:
 
     job = job.reload()
@@ -460,6 +455,11 @@ for job in jobs:
     else:
         session_label = ""
 
+    if (detail.parent_info.subject and detail.parent_info.subject.label):
+        subject_label = re.sub('\s*$','',re.sub('[\\n\\r]',' ',detail.parent_info.subject.label))
+    else:
+        subject_label = ""
+
     try:
         out = initRow(
             job_date=job.created,
@@ -479,7 +479,7 @@ for job in jobs:
             initial_analysis=InitialAnalysisCount,
             group=detail.parent_info.group.id,  #ID is one word lowercase, label can be words and mixed case
             project=detail.parent_info.project.label,
-            subject=detail.parent_info.subject.label,
+            subject=subject_label,
             session=session_label,
             session_id=detail.parent_info.session.id,
             acquisition_id=acquisition_id,
