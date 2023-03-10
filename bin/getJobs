@@ -409,7 +409,7 @@ for job in jobs:
     try:
         session_id = detail.parent_info.session.id
     except (AttributeError,TypeError) as e:
-        print("cannot access detail.parent_info.session.id", detail.parent_info, file=sys.stderr)
+        print("job id = '{}' : cannot access detail.parent_info.session.id".format(job.id), detail.parent_info, file=sys.stderr)
 
     job_origin_id = None
     if (job_origin_id and job_origin_id in UIDs2Labels.keys()):
