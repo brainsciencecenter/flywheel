@@ -432,7 +432,7 @@ for job in jobs:
         job_compute_node_name = job['profile']['executor']['name']
     else:
         if (args.debug):
-            print("No compute_node_name for job.id '{}'".format(job.id),file=sys.stderr)
+            print("job.id = '{}' : No compute_node_name".format(job.id),file=sys.stderr)
 
     try:
         cores = job['profile']['executor']['cpu_cores']
@@ -486,7 +486,7 @@ for job in jobs:
             invoice_month=InvoiceMonth
         )
     except (TypeError) as e:
-        print("detail.parent_info.session.label = '{}'".format(detail.parent_info.session.label), file=sys.stderr)
+        print("job.id = '{}' : detail.parent_info.session.label = '{}'".format(job.id,detail.parent_info.session.label), file=sys.stderr)
 
     if (job['profile']['elapsed_time_ms']):
         ComputeGCPMs += float(gcp_cores) * float(job['profile']['elapsed_time_ms'])
