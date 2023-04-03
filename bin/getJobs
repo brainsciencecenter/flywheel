@@ -285,7 +285,7 @@ def getJobMachineType(GearName, Tags):
 # *** Need to handle tags correctly
 #
 
-def getJobCpus2(job,detail):
+def getJobCpus(job,detail):
     GearName = detail['gear_info']['name']
 
     if (re.search('hpc',GearName)):
