@@ -285,8 +285,6 @@ def getJobMachineType(GearName, Tags):
 # *** Need to handle tags correctly
 #
 
-def getJobCpus(job):
-    prin
 def getJobCpus2(job,detail):
     GearName = detail['gear_info']['name']
 
@@ -410,6 +408,10 @@ for job in jobs:
     if (job_origin_id and job_origin_id in UIDs2Labels.keys()):
         job_origin_id = UIDs2Labels[job_origin_id]
 
+    #
+    # What does it mean when the subject/session is null
+    # how should that get billed -- bogusSubject/BogusSession ?
+    #
     if (getattr(detail.parent_info, 'session') and getattr(detail.parent_info.session, 'id')):
         session_id = detail.parent_info.session.id
     else:
