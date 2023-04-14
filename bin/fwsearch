@@ -14,6 +14,12 @@ import pprint
 
 from tzlocal import get_localzone
 
+#
+# Get a list of all the pdf files in dwolklab/NACC-SC
+# fwsearch -r file  'group._id = dwolklab AND project.label = NACC-SC AND file.name CONTAINS report.pdf' | jq -r '.[].file.name'
+#
+
+
 ap = argparse.ArgumentParser()
 
 ap.add_argument('-r', '--return-type', default='session',  action='store', help='Structured Query Return Type')
