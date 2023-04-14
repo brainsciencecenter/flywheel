@@ -18,7 +18,10 @@ def getContainer(args=None, id=None):
         elif (args.get_file):
             Container = fw.get_file(id)
         elif (args.get_all_gears):
-            Container = fw.get_all_gears()
+            if (len(args.id) > 0):
+                Container = fw.get_gear(id)
+            else:
+                Container = fw.get_all_gears()
         elif (args.get_job):
             Container = fw.get_job(id)
         elif (args.get_user):
@@ -59,6 +62,7 @@ if __name__ == '__main__':
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-R', '--get-role', default=False,  action='store_true', help='get role, or all roles if none specified')
     ap.add_argument('-r', '--recurse', default=False,  action='store_true', help='recurse')
+    ap.add_argument('-t', '--type', default=False,  action='store_true', help='show container type')
     ap.add_argument('-u', '--get-user', default=False,  action='store_true', help='all user info')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
     ap.add_argument('-z', '--zip-info', default=False,  action='store_true', help='zip-info')
@@ -77,6 +81,9 @@ if __name__ == '__main__':
             Container = getContainer(args=args,id=id)
 
             if (Container):
+                if (args.type):
+                    print("type(fw.get(\"{}\")) = '{}'".format(id,type(Container)), file=sys.stderr)
+
                 if (args.recurse):
                     Output = fwgearutils.recurse(fw,Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
                 else:
