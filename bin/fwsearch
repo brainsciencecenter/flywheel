@@ -1,40 +1,38 @@
 #!/usr/bin/env python3
 
 import argparse
+import csv
+import datetime
 import flywheel
 import fwgearutils
 import json
 import os
 import re
 import sys
+import pyjq
+import pprint
+
+from tzlocal import get_localzone
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument('-r', '--return-type', default='session',  action='store', help='Structured Query Return Type')
+ap.add_argument('terms', nargs='+', type=str, default=None, help='Structured query terms to be anded together')
+
+args = ap.parse_args()
 
 
-if __name__ == '__main__':
+fw = fwgearutils.getFW(args, Root=True)
+if (not fw):
+    print("{} : unable to initialize flywheel object".format(CmdName), file=sys.stderr)
+    sys.exit(1)
 
-    import argparse
+ReturnType = args.return_type
 
-    CmdName = os.path.basename(sys.argv[0])
-    Containers = []
+Query = " AND ".join(args.terms)
 
-    ap = argparse.ArgumentParser()
-    ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
-    ap.add_argument('-s', '--size', default=100000,  action='store_true', help='query return size')
+FileResults = fw.search({'return_type': args.return_type, 'structured_query': Query})
+print(json.dumps(fwgearutils.sloppyCopy(FileResults), indent=2))
 
-    ap.add_argument('query', nargs='+', type=str, default=None, help='fw.search() query string')
+sys.exit(0)
 
-    args = ap.parse_args()
-
-    fw = fwgearutils.getFW(args, Root=True)
-    if (not fw):
-        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
-        sys.exit(1)
-
-    try:
-        print("query",*args.query, file=sys.stderr)
-        Containers = fw.search({'structured_query': args.query[0], 'return_type': 'acquisition', 'all_data': True},  size=10000)
-
-    except (OSError, Exception) as e:
-        print("e",e, file=sys.stderr)
-        sys.exit(1)
-
-    print(json.dumps(fwgearutils.sloppyCopy(Containers,UTC=(not args.localtime)), indent=2))
