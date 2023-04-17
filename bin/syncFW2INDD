@@ -85,7 +85,7 @@ then
 	    done
 	done < <(echo "$PdfsToDownload")
 	
-	sys fwget -f --download --download-dir "$CacheDir" "${FileIds[@]}"
+	sys fwget -f --download-dir "$CacheDir" --download "${FileIds[@]}"
 
 fi
 
