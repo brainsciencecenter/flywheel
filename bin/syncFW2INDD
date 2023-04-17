@@ -9,7 +9,7 @@
 
 cmd=$(basename "$0")
 
-syntax="$cmd [-D][-c CacheDir][-n][-v] [Group/Project]"
+syntax="$cmd [-D][-c CacheDir][-g Gear][-n][-v] [Group/Project]"
 
 function sys {
 	  [ -n "${opt_n}${opt_v}" ] && echo "$cmd : $@" 1>&2
@@ -35,6 +35,9 @@ else
 fi
 Group=$(echo "$GroupProject" | cut -f 1 -d /)
 Project=$(echo "$GroupProject" | cut -f 2 -d /)
+
+Gear=ashsharpicv
+[ -n "$opt_g" ] && Gear="$opt_g"
 
 [ -n "$opt_n" ] && opt_v=-n
 [ -n "$opt_n" ] && opt_v=-n
