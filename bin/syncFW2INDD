@@ -62,7 +62,7 @@ CachedPdfs=$(ls | grep '.pdf$' | sort -u)
 
 fwsearch -r file  'group._id = '"$Group"' AND (project.label = '"$Project"') AND (file.name =~ ".*_report.pdf")' | jq -r '.[] | [ .analysis._id, .file.name] | @csv' | sort -u > /tmp/PdfWithAnalysisIds.csv
 
-PdfsToDownload=$(diff <(csvcut -c 2 /tmp/PdfWithAnalysisIds.csv | sed 's/"//g' | sort -u ) <(echo "$CachedPdfs") | grep '^< ' | sed 's/< //')
+PdfsToDownload="$(diff <(csvcut -c 2 /tmp/PdfWithAnalysisIds.csv | sed 's/"//g' | sort -u ) <(echo "$CachedPdfs") | grep '^< ' | sed 's/< //')"
 
 [ -n "${opt_n}${opt_v}" ] && echo "$cmd : PdfsToDownload = '$PdfsToDownload'" 1>&2
 
@@ -70,10 +70,10 @@ if [ -n "$PdfsToDownload" ]
 then
 	FileIds=()
 
-	for i in $PdfsToDownload
+	while read PdfName
 	do
-	    AnalysisIds=$(grep ",\"${i}\"$" /tmp/PdfWithAnalysisIds.csv | csvcut -c 1 )
-	    [ -z "$AnalysisIds" ] && echo "No Analyses Id for '${i}'" 1>&2 && continue
+	    AnalysisIds=$(grep ",\"${PdfName}\"$" /tmp/PdfWithAnalysisIds.csv | csvcut -c 1 )
+	    [ -z "$AnalysisIds" ] && echo "No Analyses Id for '${PdfName}'" 1>&2 && continue
 
 	    for AnalysisId in $AnalysisIds
 	    do
@@ -83,7 +83,7 @@ then
 		PdfFileId=$(echo "$PdfNameFileId" | csvcut -c 2)
 		FileIds+=( "$PdfFileId" )
 	    done
-	done
+	done < <(echo "$PdfsToDownload")
 	
 	sys fwget -f --download --download-dir "$CacheDir" "${FileIds[@]}"
 
