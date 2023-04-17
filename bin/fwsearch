@@ -16,7 +16,7 @@ from tzlocal import get_localzone
 
 #
 # Get a list of all the pdf files in dwolklab/NACC-SC
-# fwsearch -r file  'group._id = dwolklab AND project.label = NACC-SC AND file.name CONTAINS report.pdf' | jq -r '.[].file.name'
+# fwsearch -r file  'group._id = dwolklab AND project.label = NACC-SC AND (file.name =~ ".*report.pdf.*' | jq -r '.[].file.name'
 #
 
 
@@ -37,8 +37,9 @@ ReturnType = args.return_type
 
 Query = " AND ".join(args.terms)
 
-FileResults = fw.search({'return_type': args.return_type, 'structured_query': Query})
-print(json.dumps(fwgearutils.sloppyCopy(FileResults), indent=2))
+Results = fw.search({'return_type': args.return_type, 'structured_query': Query}, size=10000)
+
+print(json.dumps(fwgearutils.sloppyCopy(Results), indent=2))
 
 sys.exit(0)
 

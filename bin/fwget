@@ -55,11 +55,14 @@ if __name__ == '__main__':
     ap.add_argument('-a', '--acquisitions', default=False,  action='store_true', help='include acquisitions')
     ap.add_argument('-D', '--debug', default=False,  action='store_true', help='debug')
     ap.add_argument('-d', '--device-get', default=False,  action='store_true', help='get device info|all to get all devices')
+    ap.add_argument('--download', default=False,  action='store_true', help='download instead of print')
+    ap.add_argument('--download-dir', default='.',  action='store', help='directory to download to.  defaults to .')
     ap.add_argument('-f', '--get-file', default=False,  action='store_true', help='get_file()')
     ap.add_argument('-g', '--get-all-gears', default=False,  action='store_true', help='get list of gears')
     ap.add_argument('-G', '--get', default=False,  action='store_true', help='get')
     ap.add_argument('-j', '--get-job', default=False,  action='store_true', help='get job by id')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
+    ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-R', '--get-role', default=False,  action='store_true', help='get role, or all roles if none specified')
     ap.add_argument('-r', '--recurse', default=False,  action='store_true', help='recurse')
     ap.add_argument('-t', '--type', default=False,  action='store_true', help='show container type')
@@ -76,6 +79,12 @@ if __name__ == '__main__':
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
+    try:
+        os.chdir(args.download_dir)
+    except (OSError, Exception) as e:
+        print("{} : Could not change to directory '{}'".format(CmdName,args.download_dir), file = sys.stderr)
+        sys.exit(1)
+
     if (len(args.id) > 0):
         for id in args.id:
             Container = getContainer(args=args,id=id)
@@ -84,18 +93,27 @@ if __name__ == '__main__':
                 if (args.type):
                     print("type(fw.get(\"{}\")) = '{}'".format(id,type(Container)), file=sys.stderr)
 
-                if (args.recurse):
-                    Output = fwgearutils.recurse(fw,Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
-                else:
-                    Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
+                if (args.download):
+                    if (hasattr(Container, 'label')):
+                        FileName = Container.label
+                    elif (hasattr(Container, 'name')):
+                        FileName = Container.name
 
-#                if (type(Container) == flywheel.models.job_output.JobOutput):
-#                    Output['detail'] = fwgearutils.sloppyCopy(fw.get_job_detail(id))
+                    if (args.verbose or args.noop):
+                        print("download to '{}'".format(FileName), file=sys.stderr)
 
-                if (args.one_at_a_time):
-                    print(json.dumps(Output, indent=2))
+                    Container.download(FileName)
                 else:
-                    Outputs.append(Output)
+
+                    if (args.recurse):
+                        Output = fwgearutils.recurse(fw,Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
+                    else:
+                        Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
+
+                    if (args.one_at_a_time):
+                        print(json.dumps(Output, indent=2))
+                    else:
+                        Outputs.append(Output)
             else:
                 print("{}: No container for {} found".format(CmdName,id), file=sys.stderr)
 
@@ -113,5 +131,5 @@ if __name__ == '__main__':
             else:
                 Outputs.append(Output)
 
-    if (not (args.one_at_a_time)):
+    if ((not args.one_at_a_time) and (not args.download)):
         print(json.dumps(Outputs, indent=2))
