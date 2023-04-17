@@ -39,8 +39,8 @@ Project=$(echo "$GroupProject" | cut -f 2 -d /)
 Gear=ashsharpicv
 [ -n "$opt_g" ] && Gear="$opt_g"
 
-[ -n "$opt_n" ] && opt_v=-n
-[ -n "$opt_n" ] && opt_v=-n
+[ -n "$opt_n" ] && opt_n=-n
+[ -n "$opt_v" ] && opt_v=-v
 
 if [ -n "$opt_c" ]
 then
