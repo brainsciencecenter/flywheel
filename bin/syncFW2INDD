@@ -16,7 +16,7 @@ function sys {
 	  [ -n "$opt_n" ] || "$@"
 }
 
-while getopts c:nv arg
+while getopts c:Dnv arg
 do
 	case "$arg" in
 	     c|n|v)
@@ -58,7 +58,7 @@ fi
 cd "$CacheDir"
 [ -n "${opt_n}${opt_v}" ] && echo "Current working directory = '$(pwd)'" 1>&2
 
-CachedPdfs=$(ls | grep '.pdf$' | sort -u)
+CachedPdfs="$(ls | grep '.pdf$' | sort -u)"
 
 fwsearch -r file  'group._id = '"$Group"' AND (project.label = '"$Project"') AND (file.name =~ ".*_report.pdf")' | jq -r '.[] | [ .analysis._id, .file.name] | @csv' | sort -u > /tmp/PdfWithAnalysisIds.csv
 
@@ -85,7 +85,10 @@ then
 	    done
 	done < <(echo "$PdfsToDownload")
 	
-	sys fwget -f --download-dir "$CacheDir" --download ${opt_n} ${opt_v} "${FileIds[@]}"
+	#
+	# We're already in the CachedDir
+	#
+	sys fwget -f --download-dir . --download ${opt_n} ${opt_v} "${FileIds[@]}"
 
 fi
 
@@ -93,7 +96,7 @@ if [ -z "$opt_D" -a -n "$CachedPdfs" ]
 then
     InddPdfs=$(smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c dir 2> /dev/null | awk '{print $1}' | grep -P '.pdf$' | sort -u)
 
-    for i in $CachedPdfs
+    while read i
     do
 	InddName=$(echo "$i" | ashsharp2INDDReportName)
 
@@ -102,7 +105,7 @@ then
 	    smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c "put ${i} ${InddName}" 2> /dev/null
 	    [ -n "${opt_n}${opt_v}" ] && echo "$cmd : smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport put '$i' ${InddName}'" 1>&2
 	fi
-    done
+    done < <(echo "$CachedPdfs"
 fi
 
 
