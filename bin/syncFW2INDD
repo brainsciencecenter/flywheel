@@ -53,6 +53,7 @@ then
 fi
 
 cd "$CacheDir"
+[ -n "${opt_n}${opt_v}" ] && echo "Current working directory = '$(pwd)'" 1>&2
 
 CachedPdfs=$(ls | grep '.pdf$' | sort -u)
 
