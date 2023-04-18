@@ -10,30 +10,30 @@ import sys
 
 def getContainer(args=None, id=None):
     try:
-        if (args.device_get):
-            if (args.id[0] == "all"):
+        if (args.device):
+            if (id == "all"):
                 Container = fw.get_all_devices()
             else:
                 Container = fw.get_device(id)
-        elif (args.get_file):
+        elif (args.file):
             Container = fw.get_file(id)
-        elif (args.get_all_gears):
-            if (len(args.id) > 0):
-                Container = fw.get_gear(id)
-            else:
+        elif (args.gear):
+            if (id == "all"):
                 Container = fw.get_all_gears()
-        elif (args.get_job):
+            else:
+                Container = fw.get_gear(id)
+        elif (args.job):
             Container = fw.get_job(id)
-        elif (args.get_user):
-            if (len(args.id) > 0):
-                Container = fw.get_user(id)
-            else:
+        elif (args.user):
+            if (id == "all"):
                 Container = fw.get_all_users()
-        elif (args.get_role):
-            if (len(args.id) > 0):
-                Container = fw.get_role(id)
             else:
+                Container = fw.get_user(id)
+        elif (args.role):
+            if (id == "all"):
                 Container = fw.get_all_roles()
+            else:
+                Container = fw.get_role(id)
         else:
             Container = fw.get(id)
 
@@ -43,30 +43,61 @@ def getContainer(args=None, id=None):
     
     return(Container)
 
+def processId(args=None, id=None):
+
+    Container = getContainer(args=args,id=id)
+
+    if (Container):
+        if (args.type):
+            print("type(fw.get(\"{}\")) = '{}'".format(id,type(Container)), file=sys.stderr)
+
+        if (args.download):
+            if (hasattr(Container, 'label')):
+                FileName = Container.label
+            elif (hasattr(Container, 'name')):
+                FileName = Container.name
+
+            if (args.verbose or args.noop):
+                print("download to '{}'".format(FileName), file=sys.stderr)
+
+            Container.download(FileName)
+
+        else:
+            if (args.recurse):
+                Output = fwgearutils.recurse(fw,Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
+            else:
+                Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
+
+        return(Output)
+
+    else:
+        print("{}: No container for {} found".format(CmdName,id), file=sys.stderr)
+        return(None)
+
 if __name__ == '__main__':
 
     import argparse
 
     CmdName = os.path.basename(sys.argv[0])
-    Outputs = []
 
     ap = argparse.ArgumentParser()
+
     ap.add_argument('-1', '--one-at-a-time', default=False,  action='store_true', help='Print info one at a time')
     ap.add_argument('-a', '--acquisitions', default=False,  action='store_true', help='include acquisitions')
     ap.add_argument('-D', '--debug', default=False,  action='store_true', help='debug')
-    ap.add_argument('-d', '--device-get', default=False,  action='store_true', help='get device info|all to get all devices')
+    ap.add_argument('-d', '--device', default=False,  action='store_true', help='get device info|all to get all devices')
     ap.add_argument('--download', default=False,  action='store_true', help='download instead of print')
     ap.add_argument('--download-dir', default='.',  action='store', help='directory to download to.  defaults to .')
-    ap.add_argument('-f', '--get-file', default=False,  action='store_true', help='get_file()')
-    ap.add_argument('-g', '--get-all-gears', default=False,  action='store_true', help='get list of gears')
-    ap.add_argument('-G', '--get', default=False,  action='store_true', help='get')
-    ap.add_argument('-j', '--get-job', default=False,  action='store_true', help='get job by id')
+    ap.add_argument('-f', '--file', default=False,  action='store_true', help='get_file()')
+    ap.add_argument('-g', '--gear', default=False,  action='store_true', help='get list of gears, get all gears if none specified')
+    ap.add_argument('-G', '--do-get', default=False,  action='store_true', help='do a get on the object')
+    ap.add_argument('-j', '--job', default=False,  action='store_true', help='get job by id')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
-    ap.add_argument('-R', '--get-role', default=False,  action='store_true', help='get role, or all roles if none specified')
+    ap.add_argument('-R', '--role', default=False,  action='store_true', help='get role, or all roles if none specified')
     ap.add_argument('-r', '--recurse', default=False,  action='store_true', help='recurse')
     ap.add_argument('-t', '--type', default=False,  action='store_true', help='show container type')
-    ap.add_argument('-u', '--get-user', default=False,  action='store_true', help='all user info')
+    ap.add_argument('-u', '--user', default=False,  action='store_true', help='all user info')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
     ap.add_argument('-z', '--zip-info', default=False,  action='store_true', help='zip-info')
 
@@ -85,51 +116,24 @@ if __name__ == '__main__':
         print("{} : Could not change to directory '{}'".format(CmdName,args.download_dir), file = sys.stderr)
         sys.exit(1)
 
+    Outputs = []
+
+    IdGenerator = sys.stdin
     if (len(args.id) > 0):
-        for id in args.id:
-            Container = getContainer(args=args,id=id)
+        IdGenerator = args.id
 
-            if (Container):
-                if (args.type):
-                    print("type(fw.get(\"{}\")) = '{}'".format(id,type(Container)), file=sys.stderr)
+    for i in IdGenerator:
+        id = i.rstrip('\n')
 
-                if (args.download):
-                    if (hasattr(Container, 'label')):
-                        FileName = Container.label
-                    elif (hasattr(Container, 'name')):
-                        FileName = Container.name
+        if (args.verbose):
+            print("id = '{}'".format(id), file=sys.stderr)
 
-                    if (args.verbose or args.noop):
-                        print("download to '{}'".format(FileName), file=sys.stderr)
+        Output = processId(args=args,id=id)
 
-                    Container.download(FileName)
-                else:
-
-                    if (args.recurse):
-                        Output = fwgearutils.recurse(fw,Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
-                    else:
-                        Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
-
-                    if (args.one_at_a_time):
-                        print(json.dumps(Output, indent=2))
-                    else:
-                        Outputs.append(Output)
-            else:
-                print("{}: No container for {} found".format(CmdName,id), file=sys.stderr)
-
-    else:
-        Container = getContainer(args=args)
-        if (Container):
-
-            if (args.recurse):
-                Output = fwgearutils.recurse(fw,Outputs, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
-            else:
-                Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
-
-            if (args.one_at_a_time):
-                print(json.dumps(Output, indent=2))
-            else:
-                Outputs.append(Output)
+        if (args.one_at_a_time):
+            print(json.dumps(Output, indent=2))
+        else:
+            Outputs.append(Output)
 
     if ((not args.one_at_a_time) and (not args.download)):
         print(json.dumps(Outputs, indent=2))
