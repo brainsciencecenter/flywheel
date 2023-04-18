@@ -9,17 +9,23 @@
 
 cmd=$(basename "$0")
 
-syntax="$cmd [-D][-c CacheDir][-g Gear][-n][-v] [Group/Project]"
+syntax="$cmd [-D][-d tempdir][-c CacheDir][-g Gear][-n][-v] [Group/Project]"
 
 function sys {
 	  [ -n "${opt_n}${opt_v}" ] && echo "$cmd : $@" 1>&2
 	  [ -n "$opt_n" ] || "$@"
 }
 
-while getopts c:Dnv arg
+function cleanup {
+    [ -n "$opt_d" ] && return 0
+    sys rm -rf "$TempDir"
+}
+
+
+while getopts c:Dd:nv arg
 do
 	case "$arg" in
-	     c|n|v)
+	     c|d|n|v)
 		eval "opt_${arg}=${OPTARG:=1}"
 		;;
 	esac
@@ -35,6 +41,15 @@ else
 fi
 Group=$(echo "$GroupProject" | cut -f 1 -d /)
 Project=$(echo "$GroupProject" | cut -f 2 -d /)
+
+if [ -n "$opt_d" ]
+then
+    TempDir="$opt_d"
+else
+    TempDir="$(mktemp -d /tmp/${CmdName}-XXXXXX)"
+fi
+
+[ -e "$TempDir" ] || mkdir "$TempDir"
 
 Gear=ashsharpicv
 [ -n "$opt_g" ] && Gear="$opt_g"
@@ -58,32 +73,38 @@ fi
 cd "$CacheDir"
 [ -n "${opt_n}${opt_v}" ] && echo "Current working directory = '$(pwd)'" 1>&2
 
-CachedPdfs="$(ls | grep '.pdf$' | sort -u)"
 
-fwsearch -r file  'group._id = '"$Group"' AND (project.label = '"$Project"') AND (file.name =~ ".*_report.pdf")' | jq -r '.[] | [ .analysis._id, .file.name] | @csv' | sort -u > /tmp/PdfWithAnalysisIds.csv
+CachedPdfsFile="${TempDir}/CachedPdfs"
+ls | grep '.pdf$' | sort -u > "$CachedPdfsFile"
 
-PdfsToDownload="$(diff <(csvcut -c 2 /tmp/PdfWithAnalysisIds.csv | sed 's/"//g' | sort -u ) <(echo "$CachedPdfs") | grep '^< ' | sed 's/< //')"
+PdfWithAnalysisIdsCsvFile="${TempDir}/PdfWithAnalysisIds.csv"
+fwsearch -r file  'group._id = '"$Group"' AND (project.label = '"$Project"') AND (file.name =~ ".*_report.pdf")' | jq -r '.[] | [ .analysis._id, .file.name] | @csv' | sort -u > "$PdfWithAnalysisIdsCsvFile"
 
-[ -n "${opt_n}${opt_v}" ] && echo "$cmd : PdfsToDownload = '$PdfsToDownload'" 1>&2
+PdfsToDownloadFile="${TempDir}/PdfsToDownload"
+diff <(csvcut -c 2 "$PdfWithAnalysisIdsCsvFile" | sed 's/\"//g' | sort -u ) "$CachedPdfsFile" | grep '^< ' | sed 's/< //' > "$PdfsToDownloadFile"
 
-if [ -n "$PdfsToDownload" ]
+[ -n "${opt_n}${opt_v}" ] && echo "$cmd : PdfsToDownload = '$(cat ${PdfsToDownloadFile})'" 1>&2
+
+if [ -s "$PdfsToDownloadFile" ]
 then
-	FileIds=()
+	PdfFileIdsFile="${TempDir}/FileIds"
+	echo -n > "$PdfFileIdsFile"
 
 	while read PdfName
 	do
-	    AnalysisIds=$(grep ",\"${PdfName}\"$" /tmp/PdfWithAnalysisIds.csv | csvcut -c 1 )
+	    # *** there shouldn't be very many analyses with the same pdf file - right?
+	    AnalysisIds=$(grep ",\"${PdfName}\"$" "$PdfWithAnalysisIdsCsvFile" | csvcut -c 1 )
 	    [ -z "$AnalysisIds" ] && echo "No Analyses Id for '${PdfName}'" 1>&2 && continue
 
 	    for AnalysisId in $AnalysisIds
 	    do
 		AcquisitionJson=$(fwget -1 "$AnalysisId")
 		[ -z "$AcquisitionJson" ] && echo "fwget -1 \"$AnalysisId\" failed" 1>&2 && continue
+
 		PdfNameFileId=$(echo "$AcquisitionJson" | jq -r '.files[] | select(.name | match("report.pdf")) | [ .name, .file_id ] | @csv')
-		PdfFileId=$(echo "$PdfNameFileId" | csvcut -c 2)
-		FileIds+=( "$PdfFileId" )
+		echo "$PdfNameFileId" | csvcut -c 2 >> "$PdfFileIdsFile"
 	    done
-	done < <(echo "$PdfsToDownload")
+	done < "$PdfsToDownloadFile"
 	
 	#
 	# We're already in the CachedDir
@@ -108,4 +129,5 @@ then
     done < <(echo "$CachedPdfs")
 fi
 
+cleanup
 
