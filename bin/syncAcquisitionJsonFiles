@@ -36,6 +36,11 @@ syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-f][-i][-l][
 # The fw.find options can be used to constrain the search to specific projects, subjects, or sessions
 #
 
+function cleanup {
+    [ "$DeleteTmpDir" == True ] && sys rm -rf "$TmpDir"
+}
+
+
 while getopts a:c:d:filmnpv arg
 do
 	case "$arg" in
@@ -122,14 +127,19 @@ else
 	exit 1
     fi
     
+    AcquisitionIdsToGetFile="${TmpDir}/AcquisitionIdsToGet"
+    AcquisitionIdsDeleteFile="${TmpDir}/AcquisitionIdstoDelete"
     if [ -e "$CachedAcquisitionJsonFile" ]
     then
-	AcquisitionIdsDiffOutput=$(diff <(jq -r '._id' "$CachedAcquisitionJsonFile" | sort -u) <(sort -u "$ActiveAcquisitionIdsFile"))
-	AcquisitionIdsToGet=$(echo "$AcquisitionIdsDiffOutput" | grep '>' | sed 's/> //')
-	AcquisitionIdsToDelete=$(echo "$AcquisitionIdsDiffOutput" | grep '<' | sed 's/< //')
+
+	AcquisitionIdsDiffOutputFile="${TmpDir}/AcquisitionIdsDiffOutput"
+	diff <(jq -r '._id' "$CachedAcquisitionJsonFile" | sort -u) <(sort -u "$ActiveAcquisitionIdsFile") > "$AcquisitionIdsDiffOutputFile"
+
+	grep '>' "$AcquisitionIdsDiffOutputFile" | sed 's/> //' > "$AcquisitionIdsToGetFile"
+	grep '<' "$AcquisitionIdsDiffOutputFile" | sed 's/< //' > "$AcquisitionIdsToDeleteFile"
     else
-	AcquisitionIdsToGet=$(sort -u "$ActiveAcquisitionIdsFile")
-	AcquisitionIdsToDelete=""
+	sort -u "$ActiveAcquisitionIdsFile" > "$AcquisitionIdsToGetFile"
+	cat /dev/null > "$AcquisitionIdsToDeleteFile"
     fi
     
 fi
@@ -194,7 +204,4 @@ else
     cat "$UpdatedAcquisitionsJsonFile"
 fi
 
-if [ "$DeleteTmpDir" == True ]
-then
-	rm -rf "$TmpDir"
-fi
+cleanup
