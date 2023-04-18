@@ -103,7 +103,7 @@ then
 	if ! grep -q "$InddName" <(echo "$InddPdfs")
 	then
 	    smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c 'put "'"${i}"'"' 2> /dev/null
-	    [ -n "${opt_n}${opt_v}" ] && echo "$cmd : smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c 'put \"$i\"'" 1>&2
+	    [ -n "${opt_n}${opt_v}" ] && echo "$cmd : smbClientWrapper //cndr-indd.uphs.pennhealth.prv/mrireport -c 'put \"${i}\"' \"${InddName}\"" 1>&2
 	fi
     done < <(echo "$CachedPdfs")
 fi
