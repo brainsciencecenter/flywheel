@@ -16,6 +16,11 @@ else
     CmdPath=$(which "$0")
 fi
 
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
 FwDir=$(dirname $(dirname "$CmdPath"))
 
 FwAcqData2InddJqFile="$FwDir/lib/Fw2InddScanInfo.jq"
@@ -240,7 +245,7 @@ fi
 
 if [ -n "$opt_f" -o -z "$opt_Q" ]
 then
-    syncAcquisitionJsonFiles -f "${CmdArgs[@]}" -d "$TmpDir" -pi "${Group}/${Project}" "$@"
+    sys syncAcquisitionJsonFiles -f "${CmdArgs[@]}" -d "$TmpDir" -pi "${Group}/${Project}" "$@"
 fi
 
 if [ -n "$opt_a" ]

@@ -36,6 +36,11 @@ syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-f][-i][-l][
 # The fw.find options can be used to constrain the search to specific projects, subjects, or sessions
 #
 
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
 function cleanup {
     [ "$DeleteTmpDir" == True ] && sys rm -rf "$TmpDir"
 }
@@ -128,7 +133,7 @@ else
     fi
     
     AcquisitionIdsToGetFile="${TmpDir}/AcquisitionIdsToGet"
-    AcquisitionIdsDeleteFile="${TmpDir}/AcquisitionIdstoDelete"
+    AcquisitionIdsToDeleteFile="${TmpDir}/AcquisitionIdsToDelete"
     if [ -e "$CachedAcquisitionJsonFile" ]
     then
 
@@ -163,15 +168,15 @@ if [ -e "$CachedAcquisitionJsonFile" ]
 then
     # output the current Cached Acquisition Json file without the Acquisitions to delete
     # You get json of { "": "True" } if there isn't any id to delete which is fine
-    AcquisitionIdsToDeleteJson=$(echo "$AcquisitionIdsToDelete" | sed 's/^.*$/"&"/' | jq -n '[inputs|{(.): "True"}] | add')
+    AcquisitionIdsToDeleteJson=$(sed 's/^.*$/"&"/' "$AcquisitionIdsToDeleteFile" | jq -n '[inputs|{(.): "True"}] | add')
     jq --argjson IdsToDelete "${AcquisitionIdsToDeleteJson}" 'select(._id|in($IdsToDelete)|not)' "$CachedAcquisitionJsonFile" >> "$UpdatedAcquisitionsJsonFile"
 fi
 	
-if [ -n "$AcquisitionIdsToGet" ]
+if [ -s"$AcquisitionIdsToGetFile" ]
 then
     if [ -n "$opt_v" ]
     then
-	echo "${CmdName} : fwget -1" $AcquisitionIdsToGet 1>&2
+	echo "${CmdName} : fwget -1 < ${AcquisitionIdsToGetFile}" 1>&2
 
     fi
 
@@ -179,7 +184,7 @@ then
     # files before and after deleting acquisitions
 
     # *** should fix fwget to take uids from stdin so we don't have to worry about exceeding the arglist size
-    fwget -1 $TimeZone $(echo "$AcquisitionIdsToGet") | jq . >> "$UpdatedAcquisitionsJsonFile"
+    fwget -1 $TimeZone < "$AcquisitionIdsToGetFile" | jq . >> "$UpdatedAcquisitionsJsonFile"
 fi
 
 if [ -n "$opt_i" ]
@@ -193,12 +198,10 @@ then
     if [ -e "$CachedAcquisitionJsonFile" ] && [ -n "$opt_p" ]
     then
 	SavedCachedAcquisitionsJsonFile=$(mktemp "${TmpDir}/CachedAcquisitions-XXXXXX.json")
-	[ -n "$opt_v" ] && echo mv -f "$CachedAcquisitionJsonFile" "$SavedCachedAcquisitionsJsonFile" 1>&2
-	mv -f "$CachedAcquisitionJsonFile" "$SavedCachedAcquisitionsJsonFile"
+	sys mv -f "$CachedAcquisitionJsonFile" "$SavedCachedAcquisitionsJsonFile"
     fi
 
-    [ -n "$opt_v" ] && echo  mv -f "$UpdatedAcquisitionsJsonFile" "$CachedAcquisitionJsonFile" 1>&2
-    mv -f "$UpdatedAcquisitionsJsonFile" "$CachedAcquisitionJsonFile"
+    sys mv -f "$UpdatedAcquisitionsJsonFile" "$CachedAcquisitionJsonFile"
     
 else
     cat "$UpdatedAcquisitionsJsonFile"

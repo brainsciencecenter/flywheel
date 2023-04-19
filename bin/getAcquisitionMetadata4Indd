@@ -43,7 +43,7 @@ done
 shift $(($OPTIND - 1))
 
 [ -n "$opt_n" ] && opt_n=-n
-[ -n "$opt_v" ] && opt_n=-v
+[ -n "$opt_v" ] && opt_v=-v
 
 if [ "$opt_Q" ]
 then
