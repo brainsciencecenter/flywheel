@@ -14,15 +14,20 @@ import pprint
 
 from tzlocal import get_localzone
 
+def printf(format, *args):
+    sys.stderr.write(format % args)
+
 #
 # Get a list of all the pdf files in dwolklab/NACC-SC
-# fwsearch -r file  'group._id = dwolklab AND project.label = NACC-SC AND (file.name =~ ".*report.pdf.*' | jq -r '.[].file.name'
+# fwsearch -r file  'group._id = dwolklab AND project.label = NACC-SC AND (file.name =~ ".*report.pdf.*")' | jq -r '.[].file.name'
 #
 
 
 ap = argparse.ArgumentParser()
 
 ap.add_argument('-r', '--return-type', default='session',  action='store', help='Structured Query Return Type')
+ap.add_argument('-m', '--max-to-return', default='10000',  action='store', help='Maximum number of entries to return')
+ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
 ap.add_argument('terms', nargs='+', type=str, default=None, help='Structured query terms to be anded together')
 
 args = ap.parse_args()
@@ -37,7 +42,10 @@ ReturnType = args.return_type
 
 Query = " AND ".join(args.terms)
 
-Results = fw.search({'return_type': args.return_type, 'structured_query': Query}, size=10000)
+if (args.verbose):
+    printf("fw.search({'return_type': '%s', 'structured_query': '%s'}, size='%s')\n", args.return_type, Query, args.max_to_return)
+    
+Results = fw.search({'return_type': args.return_type, 'structured_query': Query}, size=args.max_to_return)
 
 print(json.dumps(fwgearutils.sloppyCopy(Results), indent=2))
 
