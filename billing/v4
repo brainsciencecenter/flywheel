@@ -836,6 +836,16 @@ SELECT TotalGcpComputeDynamicCosts;
 SELECT TotalGcpComputeUnlabeledCosts;
 SELECT TotalGcpComputeLabeledCosts;
 SELECT TotalGcpMiscCosts;
+SELECT TotalGcpMiscUnlabeledCosts ;
+SELECT TotalFwGearAnalysisCpuHours ;
+SELECT TotalFwGearUtilityCpuHours ;
+SELECT TotalFwGearGenericCpuHours ;
+SELECT TotalFwGearDynamicCpuHours ;
+SELECT TotalFwGearStaticCpuHours ;
+SELECT TotalEstGcpComputeStaticGearCpuHours ;
+SELECT TotalEstGcpComputeStaticNonGearCpuHours ;
+SELECT TotalEstGcpComputeStaticGearCosts ;
+SELECT TotalEstGcpComputeStaticNonGearCosts ;
 
 #
 # 3  `'"${Project}.${Dataset}"'.TempProjectStorageMetricsV4`
@@ -996,13 +1006,14 @@ SET TotalGcpStorageArchiveGb = (
 )
 ;
 
-SELECT
-	  TotalFwProjectStorageGb
-	, TotalGcpStorageStandardCosts
-	, TotalGcpStorageColdlineCosts
-	, TotalGcpStorageArchiveCosts
-	, TotalGcpStorageMiscCosts
-;
+SELECT TotalGcpStorageStandardCosts ;
+SELECT TotalGcpStorageStandardGb ;
+SELECT TotalFwProjectStorageGb ;
+SELECT TotalGcpStorageColdlineCosts ;
+SELECT TotalGcpStorageColdlineGb ;
+SELECT TotalGcpStorageMiscCosts ;
+SELECT TotalGcpStorageArchiveCosts ;
+SELECT TotalGcpStorageArchiveGb ;
 
 #
 # TempFwGroupProjectComputeStorageMetrics
@@ -1208,6 +1219,8 @@ FROM
             InvoiceMonth = @InvoiceMonth
 ;
 
+SELECT TotalGcpStorageColdlineCosts ;
+SELECT TotalGcpStorageColdlineGb ;
 
 #
 # 5 `'"${Project}.${Dataset}"'.TempGcpFwAllocatedGroupProjectGearMetricsCostsV4`
@@ -1303,6 +1316,9 @@ DELETE FROM
         InvoiceMonth = @InvoiceMonth
 ;
 
+SELECT TotalGcpStorageColdlineCosts ;
+SELECT TotalGcpStorageColdlineGb ;
+
 #
 # There are multiple insert statements for TempAllocatedGroupProjectGearMetricCostsV4
 #   The main one handles the usual case
@@ -1336,7 +1352,7 @@ INSERT
 
 	  ,   zeroIfNull(GcpAllocatedStorageStandardCosts)
 	    + zeroIfNull(GcpAllocatedStorageColdlineCosts)
-	    + zeroIfNull(GcpAllocatedStorageArchiveCosts) 
+	    + zeroIfNull(GcpAllocatedStorageArchiveCosts)
 	    + zeroIfNull(GcpAllocatedStorageMiscCosts) AS GcpAllocatedStorageCosts
 
 
@@ -1353,23 +1369,23 @@ INSERT
  	      IF (t1.FwGroup IS NOT NULL, t1.InvoiceMonth, t2.InvoiceMonth) AS InvoiceMonth
 	    , IF (t1.FwGroup IS NOT NULL, t1.FwGroup, t2.FwGroup) AS FwGroup
 
-	    , GcpGroupComputeCosts	
-	    , GcpGroupComputeDynamicCosts	
+	    , GcpGroupComputeCosts
+	    , GcpGroupComputeDynamicCosts
 	    , GcpGroupComputeDynamicCpuHours
 	    , GcpGroupComputeStaticCosts
 	    , GcpGroupComputeStaticCpuHours
-	    , GcpGroupComputeLabeledCosts	
-	    , GcpGroupComputeUnlabeledCosts	
+	    , GcpGroupComputeLabeledCosts
+	    , GcpGroupComputeUnlabeledCosts
 
-	    , GcpGroupStorageStandardCosts	
-	    , GcpGroupStorageStandardGb	
-	    , GcpGroupStorageColdlineCosts	
-	    , GcpGroupStorageColdlineGb	
-	    , GcpGroupStorageArchiveCosts	
-	    , GcpGroupStorageArchiveGb	
-	    , GcpGroupStorageMiscCosts	
+	    , GcpGroupStorageStandardCosts
+	    , GcpGroupStorageStandardGb
+	    , GcpGroupStorageColdlineCosts
+	    , GcpGroupStorageColdlineGb
+	    , GcpGroupStorageArchiveCosts
+	    , GcpGroupStorageArchiveGb
+	    , GcpGroupStorageMiscCosts
 
-	    , GcpGroupMiscCosts	
+	    , GcpGroupMiscCosts
 	    , GcpGroupMiscStaticCosts
 
 	    , FwProject
@@ -1428,23 +1444,22 @@ INSERT
 	    #
 	    #  Have to prorate from the Totals since misc costs span non-group costs
 	    #
-            , TotalGcpMiscCosts * prorate(FwGearGenericCpuHours, FwGearGroupTotalGenericCpuHours) AS GcpAllocatedMiscCosts
-            , TotalGcpMiscStaticCosts * prorate(FwGearStaticCpuHours, FwGearGroupTotalStaticCpuHours) AS GcpAllocatedMiscStaticCosts
-            , TotalGcpMiscDynamicCosts * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscDynamicCosts
-            , TotalGcpMiscLabeledCosts * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscLabeledCosts
+            , TotalGcpMiscCosts          * prorate(FwGearGenericCpuHours, FwGearGroupTotalGenericCpuHours) AS GcpAllocatedMiscCosts
+            , TotalGcpMiscStaticCosts    * prorate(FwGearStaticCpuHours,  FwGearGroupTotalStaticCpuHours)  AS GcpAllocatedMiscStaticCosts
+            , TotalGcpMiscDynamicCosts   * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscDynamicCosts
+            , TotalGcpMiscLabeledCosts   * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscLabeledCosts
             , TotalGcpMiscUnlabeledCosts * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscUnlabeledCosts
 
 	    # 
 	    # These costs and metrics are allocated by invoicemonth/group/project/gear
 	    # 
 	   , TotalGcpStorageStandardCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardCosts
-	   , TotalGcpStorageStandardGb * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardGb
+	   , TotalGcpStorageStandardGb    * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardGb
 	   , TotalGcpStorageColdlineCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageColdlineCosts
-	   , TotalGcpStorageColdlineGb * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageColdlineGb
-	   , TotalGcpStorageArchiveCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageArchiveCosts
-	   , TotalGcpStorageArchiveGb * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageArchiveGb
-	   , TotalGcpStorageMiscCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageMiscCosts
-
+	   , TotalGcpStorageColdlineGb    * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageColdlineGb
+	   , TotalGcpStorageArchiveCosts  * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageArchiveCosts
+	   , TotalGcpStorageArchiveGb     * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageArchiveGb
+	   , TotalGcpStorageMiscCosts     * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageMiscCosts
 
           FROM (
             SELECT
@@ -1479,6 +1494,28 @@ INSERT
 	      , FwGearName
 
     )
+;
+SELECT
+	FwGroup
+	, FwProject
+	, FwGearName
+	, TotalGcpStorageColdlineCosts
+	, TotalGcpStorageColdlineGb
+	, FwProjectStorageGb
+	, TotalFwProjectStorageGb
+	, TotalGcpStorageStandardCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardCosts2
+	, TotalGcpStorageStandardGb    * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardGb2
+	, TotalGcpStorageColdlineCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageColdlineCosts2
+	, TotalGcpStorageColdlineGb    * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageColdlineGb2
+	, GcpAllocatedStorageStandardCosts
+	, GcpAllocatedStorageStandardGb
+	, GcpAllocatedStorageColdlineCosts
+	, GcpAllocatedStorageColdlineGb
+
+FROM
+        `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
+WHERE
+	FwGroup = "tome"
 ;
 
 #
