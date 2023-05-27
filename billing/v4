@@ -605,7 +605,7 @@ INSERT
     FROM (
         SELECT 
           
-              invoice_month AS InvoiceMonth
+              CAST(invoice_month AS STRING) AS InvoiceMonth
             , REPLACE(`group`,"_","-") AS FwGroup
             , project AS FwProject
             , gear_name AS FwGearName
@@ -628,7 +628,7 @@ INSERT
 	    `pennbrain-center.BillingAllocation.FwJobsReport` 
           
         WHERE
-	     invoice_month = @InvoiceMonth
+	     CAST(invoice_month AS STRING) = @InvoiceMonth
         
     )
 
@@ -889,7 +889,7 @@ INSERT
 	, SUM(FwProjectStorageActiveGb) AS FwProjectStorageActiveGb
     FROM (
         SELECT
-            invoice_month AS InvoiceMonth
+            CAST(invoice_month AS STRING) AS InvoiceMonth
           , REPLACE(`group`,"_","-") AS FwGroup
           , project_label AS FwProject
 	  , SUM(session_count) AS FwProjectStorageSessionCount
@@ -900,7 +900,7 @@ INSERT
           `pennbrain-center.BillingAllocation.FwUsageReport`
 
         WHERE
-          invoice_month = @InvoiceMonth
+          CAST(invoice_month AS STRING) = @InvoiceMonth
           AND project_label IS NOT NULL
 
         GROUP BY
@@ -1288,14 +1288,13 @@ CREATE TABLE IF NOT EXISTS
         GcpAllocatedComputeStaticGearCosts	FLOAT64,
         GcpAllocatedComputeStaticNonGearCpuHours	FLOAT64,
         GcpAllocatedComputeStaticNonGearCosts		FLOAT64,
-        GcpAllocatedComputeStaticCpuHours	FLOAT64,
-        GcpAllocatedComputeStaticCosts		FLOAT64,
 
         GcpAllocatedMiscCosts			FLOAT64,
         GcpAllocatedMiscStaticCosts		FLOAT64,
         GcpAllocatedMiscDynamicCosts		FLOAT64,
         GcpAllocatedMiscLabeledCosts		FLOAT64,
         GcpAllocatedMiscUnlabeledCosts		FLOAT64,
+
 
         GcpAllocatedStorageStandardCosts	FLOAT64,
         GcpAllocatedStorageStandardGb		FLOAT64,
@@ -1304,9 +1303,13 @@ CREATE TABLE IF NOT EXISTS
         GcpAllocatedStorageArchiveCosts		FLOAT64,
         GcpAllocatedStorageArchiveGb		FLOAT64,
         GcpAllocatedStorageMiscCosts		FLOAT64,
+        GcpAllocatedStorageCosts		FLOAT64,
+
+        GcpAllocatedComputeStaticCpuHours	FLOAT64,
+        GcpAllocatedComputeStaticCosts		FLOAT64,
 
         GcpAllocatedComputeCosts		FLOAT64,
-        GcpAllocatedStorageCosts		FLOAT64,
+
         GcpAllocatedCosts			FLOAT64,
     );
 
@@ -1440,26 +1443,31 @@ INSERT
 	    , TotalEstGcpComputeStaticNonGearCpuHours * (prorate(estGcpCpuHoursFromFwCpuHours(FwGearStaticCpuHours, TotalGcpComputeDynamicCpuHours, TotalFwGearDynamicCpuHours), TotalEstGcpComputeStaticGearCpuHours)) AS GcpAllocatedComputeStaticNonGearCpuHours
 	    , TotalEstGcpComputeStaticNonGearCosts    * (prorate(estGcpCpuHoursFromFwCpuHours(FwGearStaticCpuHours, TotalGcpComputeDynamicCpuHours, TotalFwGearDynamicCpuHours), TotalEstGcpComputestaticGearCpuHours)) AS GcpAllocatedComputeStaticNonGearCosts
 
-
 	    #
 	    #  Have to prorate from the Totals since misc costs span non-group costs
 	    #
-            , TotalGcpMiscCosts          * prorate(FwGearGenericCpuHours, FwGearGroupTotalGenericCpuHours) AS GcpAllocatedMiscCosts
-            , TotalGcpMiscStaticCosts    * prorate(FwGearStaticCpuHours,  FwGearGroupTotalStaticCpuHours)  AS GcpAllocatedMiscStaticCosts
-            , TotalGcpMiscDynamicCosts   * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscDynamicCosts
-            , TotalGcpMiscLabeledCosts   * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscLabeledCosts
-            , TotalGcpMiscUnlabeledCosts * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscUnlabeledCosts
+#            , TotalGcpMiscCosts          * prorate(FwGearGenericCpuHours, FwGearGroupTotalGenericCpuHours) AS GcpAllocatedMiscCosts
+#            , TotalGcpMiscStaticCosts    * prorate(FwGearStaticCpuHours,  FwGearGroupTotalStaticCpuHours)  AS GcpAllocatedMiscStaticCosts
+#            , TotalGcpMiscDynamicCosts   * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscDynamicCosts
+#            , TotalGcpMiscLabeledCosts   * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscLabeledCosts
+#            , TotalGcpMiscUnlabeledCosts * prorate(FwGearDynamicCpuHours, FwGearGroupTotalDynamicCpuHours) AS GcpAllocatedMiscUnlabeledCosts
+
+            , TotalGcpMiscCosts          * prorate(FwGearGenericCpuHours, TotalFwGearGenericCpuHours) AS GcpAllocatedMiscCosts
+            , TotalGcpMiscStaticCosts    * prorate(FwGearStaticCpuHours,  TotalFwGearStaticCpuHours)  AS GcpAllocatedMiscStaticCosts
+            , TotalGcpMiscDynamicCosts   * prorate(FwGearDynamicCpuHours, TotalFwGearDynamicCpuHours) AS GcpAllocatedMiscDynamicCosts
+            , TotalGcpMiscLabeledCosts   * prorate(FwGearDynamicCpuHours, TotalFwGearDynamicCpuHours) AS GcpAllocatedMiscLabeledCosts
+            , TotalGcpMiscUnlabeledCosts * prorate(FwGearDynamicCpuHours, TotalFwGearDynamicCpuHours) AS GcpAllocatedMiscUnlabeledCosts
 
 	    # 
 	    # These costs and metrics are allocated by invoicemonth/group/project/gear
 	    # 
-	   , TotalGcpStorageStandardCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardCosts
-	   , TotalGcpStorageStandardGb    * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardGb
-	   , TotalGcpStorageColdlineCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageColdlineCosts
-	   , TotalGcpStorageColdlineGb    * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageColdlineGb
-	   , TotalGcpStorageArchiveCosts  * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageArchiveCosts
-	   , TotalGcpStorageArchiveGb     * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageArchiveGb
-	   , TotalGcpStorageMiscCosts     * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageMiscCosts
+	   , (TotalGcpStorageStandardCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb)) AS GcpAllocatedStorageStandardCosts
+	   , (TotalGcpStorageStandardGb    * prorate(FwProjectStorageGb, TotalFwProjectStorageGb)) AS GcpAllocatedStorageStandardGb
+	   , (TotalGcpStorageColdlineCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb)) AS GcpAllocatedStorageColdlineCosts
+	   , (TotalGcpStorageColdlineGb    * prorate(FwProjectStorageGb, TotalFwProjectStorageGb)) AS GcpAllocatedStorageColdlineGb
+	   , (TotalGcpStorageArchiveCosts  * prorate(FwProjectStorageGb, TotalFwProjectStorageGb)) AS GcpAllocatedStorageArchiveCosts
+	   , (TotalGcpStorageArchiveGb     * prorate(FwProjectStorageGb, TotalFwProjectStorageGb)) AS GcpAllocatedStorageArchiveGb
+	   , (TotalGcpStorageMiscCosts     * prorate(FwProjectStorageGb, TotalFwProjectStorageGb)) AS GcpAllocatedStorageMiscCosts
 
           FROM (
             SELECT
@@ -1482,6 +1490,8 @@ INSERT
 	       FROM
 	        `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
         
+	       WHERE
+  	          InvoiceMonth = @InvoiceMonth
           ) t2
 	  ON
 	          t1.InvoiceMonth = t2.InvoiceMonth
@@ -1495,28 +1505,7 @@ INSERT
 
     )
 ;
-SELECT
-	FwGroup
-	, FwProject
-	, FwGearName
-	, TotalGcpStorageColdlineCosts
-	, TotalGcpStorageColdlineGb
-	, FwProjectStorageGb
-	, TotalFwProjectStorageGb
-	, TotalGcpStorageStandardCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardCosts2
-	, TotalGcpStorageStandardGb    * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageStandardGb2
-	, TotalGcpStorageColdlineCosts * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageColdlineCosts2
-	, TotalGcpStorageColdlineGb    * prorate(FwProjectStorageGb, TotalFwProjectStorageGb) AS GcpAllocatedStorageColdlineGb2
-	, GcpAllocatedStorageStandardCosts
-	, GcpAllocatedStorageStandardGb
-	, GcpAllocatedStorageColdlineCosts
-	, GcpAllocatedStorageColdlineGb
 
-FROM
-        `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearMetricCostsV4`
-WHERE
-	FwGroup = "tome"
-;
 
 #
 # There is a corner case where groups are being charged for compute resources but have not run any gears during the month.

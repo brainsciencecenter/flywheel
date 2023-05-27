@@ -4,7 +4,7 @@ CmdName=$(basename "$0")
 
 syntax="${CmdName} [-c][-d Dataset][-i InputTable][-m Month][-o OutputTable][-p Project][-v][-w WhereClause][-y Year]"
 
-WhereClause='project.name = `upenn-flywheel`'
+WhereClause='project.name = "upenn-flywheel"'
 
 function OutputControl {
     if [ -n "$opt_v" ]
