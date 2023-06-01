@@ -161,6 +161,10 @@ function downloadNonFwGcpIlabCharges {
     BscGcpProjectCostAllocations=https://docs.google.com/spreadsheets/d/e/2PACX-1vQo4_xTQmetGhNCH_sEo_B1KI7glRgRqizq1LthUo36g3tIZ9iO5-Ll07qk6-NFw1FjLQQ5yDkmtp1S/pub?output=csv
 
     BscGcpProjectCostAllocationsFile=$(mktemp /tmp/BscGcpProjectCostAllocations-XXXXXX)
+    #
+    # UPHS firewall blocks chead from accessing google sheets where the gcp cost allocation is maintained,
+    # so we go to bscsub to get the data.
+    #
     [ "$(hostname -s)" == "chead" ] && CmdPrefix="ssh holder@bscsub.pmacs.upenn.edu"
 
     ($CmdPrefix wget -q -O - "$BscGcpProjectCostAllocations" ; echo "") > "$BscGcpProjectCostAllocationsFile"
@@ -169,7 +173,8 @@ function downloadNonFwGcpIlabCharges {
 
     ServiceId=455000
     BscStorageFeePercent=0.25
-#curl -q -H "Authorization: Bearer $token"  "https://api.ilabsolutions.com/v1/cores/4822/services" | jq -r '.ilab_response.services[]|[.id,.name]|@csv'
+
+    PurchaseDate="${opt_y}${opt_m}01"
 
     bq load --autodetect --project_id="${Project}" --skip_leading_rows 1 --replace --source_format=CSV "$DB" "$BscGcpProjectCostAllocationsFile"
 
@@ -189,7 +194,7 @@ function downloadNonFwGcpIlabCharges {
           AS note,
         format("%8.2f", ROUND(TotalAllocatedCharges,2)) AS service_quantity,
         "" AS price,
-        "" AS purchased_on,
+        "'"$PurchaseDate"'" AS purchased_on,
         iLabServiceRequestNumber AS service_request_id,
         "" AS owner_email,
         "" AS pi_email_or_group_id,
