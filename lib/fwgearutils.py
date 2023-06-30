@@ -251,6 +251,7 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
         Output['projects'] = Projects
                 
     if (  type(r) == flywheel.models.job_list_entry.JobListEntry
+       or type(r) == flywheel.models.job_output.JobOutput
        or type(r) == flywheel.models.job.Job ):
        Output['detail'] = sloppyCopy(fw.get_job_detail(r.id), UTC=UTC)
        try:
@@ -262,7 +263,8 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
 
     if (   type(r) == flywheel.models.project.Project 
         or type(r) == flywheel.models.resolver_project_node.ResolverProjectNode 
-        or type(r) == flywheel.models.container_project_output.ContainerProjectOutput):
+#        or type(r) == flywheel.models.container_project_output.ContainerProjectOutput
+        ):
         if (Verbose):
             print("%s : r == project" % (CmdName), file=sys.stderr)
 
@@ -277,7 +279,8 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
         
     elif (   type(r) == flywheel.models.subject.Subject 
           or type(r) == flywheel.models.resolver_subject_node.ResolverSubjectNode 
-          or type(r) == flywheel.models.container_subject_output.ContainerSubjectOutput):
+#          or type(r) == flywheel.models.container_subject_output.SubjectOutput
+        ):
         if (Debug):
             print("r == subject", file=sys.stderr)
 
@@ -291,7 +294,8 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
 
     elif (   type(r) == flywheel.models.session.Session 
           or type(r) == flywheel.models.resolver_session_node.ResolverSessionNode 
-          or type(r) == flywheel.models.container_session_output.ContainerSessionOutput):
+#          or type(r) == flywheel.models.container_session_output.ContainerSessionOutput
+          ):
         if (Verbose):
             print("%s : r == session(%s)" % (CmdName, r.label), file=sys.stderr)
 
