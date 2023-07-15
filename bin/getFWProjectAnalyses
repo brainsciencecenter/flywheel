@@ -14,8 +14,10 @@ def listGearFiles(project):
 
     Analyses = []
 
-    for c in project.sessions():
+    for c in fw.get(project.id).sessions():
+        print("Look at session '{}'".format(c.label))
         for analysis in fw.get(c.id).analyses:
+            print("  Look at '{}' analysis '{}'".format(c.label,analysis.label))
             if (analysis.gear_info):
                 if (args.gear and analysis.gear_info.name != args.gear):
                     continue
@@ -100,11 +102,14 @@ if __name__ == '__main__':
                     print("%s : Cannot find project or analysis by '%s' : %s" % (CmdName, id, e.reason), file=sys.stderr)
                     sys.exit(e.status)
 
-        if (type(container) == flywheel.models.container_project_output.ContainerProjectOutput):
+        print("Container = ", container)
+        print("type(Container) = ", type(container))
+
+        if (isinstance(container, flywheel.models.container_session_output.ContainerSessionOutput)):
             # AcquisitionID eg: 5d01594ca550c600466fccf7
             project = fw.get(container.parents.project)
             Analyses = listGearFiles(project)
-        elif (type(container) == flywheel.models.resolver_project_node.ResolverProjectNode):
+        elif (isinstance(container,flywheel.models.project_output.ProjectOutput)):
             # group/project eg: dwolklab/NACC-SC
             project = container
             Analyses = listGearFiles(project)

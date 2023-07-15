@@ -74,21 +74,35 @@ if __name__ == '__main__':
     res = None
 
     if (args.acquisitions):
+        if (args.verbose):
+            print("%s : fw.acquisitions.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.acquisitions.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+
 #    if (args.analyses):
 #        print(fw.__dir__())
 #        res = fw.analyses.find(*args.findargs)
+
     if (args.jobs):
+        if (args.verbose):
+            print("%s : fw.jobs.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.jobs.iter_find(*args.findargs,limit=args.limit)
         # Need -gr to do job detail and profile
+
     if (args.gears):
+        if (args.verbose):
+            print("%s : fw.gears.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.gears.iter_find(*args.findargs,limit=args.limit)
+
     if (args.projects):
+        if (args.verbose):
+            print("%s : fw.projects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.projects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+
     if (args.subjects):
         if (args.verbose):
             print("%s : fw.subjects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs),ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.subjects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+
     if (args.sessions):
         if (args.verbose):
             print("%s : fw.sessions.find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
@@ -99,6 +113,8 @@ if __name__ == '__main__':
             res = [ fw.lookup(*args.findargs) ]
 
     if (args.devices):
+        if (args.verbose):
+            print("%{} : fw.get_all_devices()".format(CmdName), file=sys.stderr)
         res = fw.get_all_devices()
         Outputs = fwgearutils.sloppyCopy(res, recurse=True, UTC=(not args.localtime))
         RealScanners = pyjq.all('.[] | select(.name) | select(.name | match("SC3T|SC7T|HUP6"))', Outputs)
@@ -108,6 +124,10 @@ if __name__ == '__main__':
 
     if (args.do_get):
         res = [ fw.get(args.findargs[0]) ]
+
+# *** don't count the res or your use up the generator
+#    if (args.verbose):
+#        print("{} : len(res) = '{}'".format(CmdName, (sum(1 for dummy in res))), file=sys.stderr)
 
     #
     # Want to add analyses

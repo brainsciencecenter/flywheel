@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+
+import csv
+import datetime
+import flywheel
+import fwgearutils
+import json
+import os
+import re
+import sys
+import pyjq
+import pprint
+
+from tzlocal import get_localzone
+
+args={}
+fw = fwgearutils.getFW(args, Root=True)
+if (not fw):
+    print("{} : unable to initialize flywheel object".format(CmdName), file=sys.stderr)
+    sys.exit(1)
+
+# Session id for holder/Test3/subject1/fie
+session = fw.get("5d0b962da550c60048719b28")
+analyses = session.analyses
+
+# project id for holder/Test3
+project = fw.get("5ddbee0940116e005bb99a65")
+
+analyses = fw.get_analyses("holder/Test3","projects/5ddbee0940116e005bb99a65/all/analyses","flywheel.models.container_analysis_output.ContainerAnalysisOutput")
+for analysis in analyses:
+    print("analysis = '{}'".format(analysis.label))
+
+Acquisitions = session.acquisitions()
+
+for Acquisition in Acquisitions:
+    print("Acquisition = '{}'".format(Acquisition.label))
+    analyses = fw.get(Acquisition.id).analyses
+    for analysis in analyses:
+    	print("analysis = '{}'".format(analysis.label))

@@ -17,14 +17,26 @@ from tzlocal import get_localzone
 def printf(format, *args):
     sys.stderr.write(format % args)
 
+
+CmdName = os.path.basename(sys.argv[0])
+
+
 #
 # Get a list of all the pdf files in dwolklab/NACC-SC
 # fwsearch -r file  'group._id = dwolklab AND project.label = NACC-SC AND (file.name =~ ".*report.pdf.*")' | jq -r '.[].file.name'
+#
+# Here is a fun one -- download all the bids-fmriprep files in the epsteinlab
+# 
+# fwsearch -v -r file -m 1000 'group._id = epsteinlab and (file.name =~ "bids-fmriprep.*.zip")' | jq -r '.[].analysis._id' | fwget | jq -r '.[].files[] | select(.name | match("bids-fmriprep.*.zip")) | .file_id' | fwget -v -f --download --download-dir /tmp/epsteinlab/bids-fmriprep/
+#
+# first fwsearch finds all the bids-fmriprep files and because flywheel as of 4/20/2023 doesn't return the actual uid of the file, dig out the analysis uid that created the file
+# pass the analysis uids to fwget and pullout all the file uids that match bids-fmriprep and pass those to the second fwget to download into /tmp/epsteinlab/bids-fmriprep directory
 #
 
 
 ap = argparse.ArgumentParser()
 
+ap.add_argument('-a', '--all-data', default=False, action='store_true', help='set all_data structured query option to true')
 ap.add_argument('-r', '--return-type', default='session',  action='store', help='Structured Query Return Type')
 ap.add_argument('-m', '--max-to-return', default='10000',  action='store', help='Maximum number of entries to return')
 ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
@@ -45,8 +57,9 @@ Query = " AND ".join(args.terms)
 if (args.verbose):
     printf("fw.search({'return_type': '%s', 'structured_query': '%s'}, size='%s')\n", args.return_type, Query, args.max_to_return)
     
-Results = fw.search({'return_type': args.return_type, 'structured_query': Query}, size=args.max_to_return)
+Results = fw.search({'return_type': args.return_type, 'structured_query': Query, 'all_data': args.all_data}, size=args.max_to_return)
 
+#print(json.dumps(fwgearutils.recurse(fw, Results, GetAcquisitions=True, CmdName=CmdName, Get=False), indent=2))
 print(json.dumps(fwgearutils.sloppyCopy(Results), indent=2))
 
 sys.exit(0)
