@@ -323,7 +323,8 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
 
     elif (   type(r) == flywheel.models.acquisition.Acquisition 
           or type(r) == flywheel.models.resolver_acquisition_node.ResolverAcquisitionNode 
-          or type(r) == flywheel.models.container_acquisition_output.ContainerAcquisitionOutput):
+#          or type(r) == flywheel.models.acquisition_list_output.AcquisitionListOutput
+          ):
         if (Verbose):
             print("%s : r == acquisition : %s" % (CmdName, r.label), file=sys.stderr)
 
