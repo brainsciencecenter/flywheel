@@ -163,10 +163,10 @@ DECLARE TotalEstGcpComputeStaticNonGearCpuHours FLOAT64;
 DECLARE TotalEstGcpComputeStaticNonGearCosts FLOAT64;
 
 
-#CREATE TEMP FUNCTION zeroIfNull(Value FLOAT64) RETURNS FLOAT64 AS (
-#  IF (Value IS NOT NULL, Value, 0.0)
-#  )
-#  ;
+CREATE TEMP FUNCTION myZeroIfNull(Value FLOAT64) RETURNS FLOAT64 AS (
+  IF (Value IS NOT NULL, Value, 0.0)
+  )
+  ;
 
 CREATE TEMP FUNCTION fwCpuMsToCpuHours(CpuMs FLOAT64) RETURNS FLOAT64 AS (
       CpuMs / 1000.0 / 3600.0
@@ -414,20 +414,20 @@ INSERT
     SELECT
         *
 	, prorate(GcpGroupStorageCosts, GcpGroupStorageStandardGb) AS GcpGroupStorageCostPerStandardGb
-	, zeroIfNull(GcpGroupComputeCosts) + zeroIfNull(GcpGroupStorageCosts) + zeroIfNull(GcpGroupMiscCosts) AS GcpGroupCosts
+	, myZeroIfNull(GcpGroupComputeCosts) + myZeroIfNull(GcpGroupStorageCosts) + myZeroIfNull(GcpGroupMiscCosts) AS GcpGroupCosts
     FROM ( # A
         SELECT
             *
-	  , zeroIfNull(GcpGroupComputeDynamicCpuHours) + zeroIfNull(GcpGroupComputeStaticCpuHours) as GcpGroupComputeCpuHours
+	  , myZeroIfNull(GcpGroupComputeDynamicCpuHours) + myZeroIfNull(GcpGroupComputeStaticCpuHours) as GcpGroupComputeCpuHours
     	  , prorate(GcpGroupComputeDynamicCosts, GcpGroupComputeDynamicCpuHours) AS GcpComputeCostPerCpuHour
     	  , prorate(GcpGroupStorageStandardCosts, GcpGroupStorageStandardGb) AS GcpStorageStandarCostPerGbPerMonth
     	  , prorate(GcpGroupStorageColdlineCosts, GcpGroupStorageColdlineGb) AS GcpStorageColdlineCostPerGbPerMonth
     	  , prorate(GcpGroupStorageArchiveCosts, GcpGroupStorageArchiveGb) AS GcpStorageArchiveCostPerGbPerMonth
     	  , (
-    	      + zeroIfNull(GcpGroupStorageStandardCosts)
-    	      + zeroIfNull(GcpGroupStorageColdlineCosts)
-    	      + zeroIfNull(GcpGroupStorageArchiveCosts)
-    	      + zeroIfNull(GcpGroupStorageMiscCosts)
+    	      + myZeroIfNull(GcpGroupStorageStandardCosts)
+    	      + myZeroIfNull(GcpGroupStorageColdlineCosts)
+    	      + myZeroIfNull(GcpGroupStorageArchiveCosts)
+    	      + myZeroIfNull(GcpGroupStorageMiscCosts)
     	    ) AS GcpGroupStorageCosts
     
         FROM ( # B
@@ -532,7 +532,7 @@ INSERT
    		     , SkuDescription
    		     , UsageAmountInPricingUnits AS UsageAmount
    		     , UsagePricingUnit
-   		     , zeroIfNull(Costs) + zeroIfNull(Discounts) AS DiscountedCosts
+   		     , myZeroIfNull(Costs) + myZeroIfNull(Discounts) AS DiscountedCosts
    		     , Discounts
    		     , Promotions
    	      	 FROM
@@ -1339,32 +1339,32 @@ INSERT
 
     SELECT
             *
-	  ,   zeroIfNull(GcpAllocatedComputeDynamicCosts)
-	    + zeroIfNull(GcpAllocatedComputeStaticCosts) 
-	    + zeroIfNull(GcpAllocatedComputeUnlabeledCosts) AS GcpAllocatedComputeCosts
+	  ,   myZeroIfNull(GcpAllocatedComputeDynamicCosts)
+	    + myZeroIfNull(GcpAllocatedComputeStaticCosts) 
+	    + myZeroIfNull(GcpAllocatedComputeUnlabeledCosts) AS GcpAllocatedComputeCosts
 
-	  ,   zeroIfNull(GcpAllocatedComputeDynamicCosts)
-	    + zeroIfNull(GcpAllocatedComputeStaticCosts) 
-	    + zeroIfNull(GcpAllocatedComputeUnlabeledCosts)
-	    + zeroIfNull(GcpAllocatedStorageCosts)
-	    + zeroIfNull(GcpAllocatedMiscCosts) AS GcpAllocatedCosts
+	  ,   myZeroIfNull(GcpAllocatedComputeDynamicCosts)
+	    + myZeroIfNull(GcpAllocatedComputeStaticCosts) 
+	    + myZeroIfNull(GcpAllocatedComputeUnlabeledCosts)
+	    + myZeroIfNull(GcpAllocatedStorageCosts)
+	    + myZeroIfNull(GcpAllocatedMiscCosts) AS GcpAllocatedCosts
 
     FROM (
       SELECT
             *
 
-	  ,   zeroIfNull(GcpAllocatedStorageStandardCosts)
-	    + zeroIfNull(GcpAllocatedStorageColdlineCosts)
-	    + zeroIfNull(GcpAllocatedStorageArchiveCosts)
-	    + zeroIfNull(GcpAllocatedStorageMiscCosts) AS GcpAllocatedStorageCosts
+	  ,   myZeroIfNull(GcpAllocatedStorageStandardCosts)
+	    + myZeroIfNull(GcpAllocatedStorageColdlineCosts)
+	    + myZeroIfNull(GcpAllocatedStorageArchiveCosts)
+	    + myZeroIfNull(GcpAllocatedStorageMiscCosts) AS GcpAllocatedStorageCosts
 
 
-	  ,   zeroIfNull(GcpAllocatedComputeStaticGearCpuHours) 
-	    + zeroIfNull(GcpAllocatedComputeStaticNonGearCpuHours) AS GcpAllocatedComputeStaticCpuHours
+	  ,   myZeroIfNull(GcpAllocatedComputeStaticGearCpuHours) 
+	    + myZeroIfNull(GcpAllocatedComputeStaticNonGearCpuHours) AS GcpAllocatedComputeStaticCpuHours
 
 
-	  ,   zeroIfNull(GcpAllocatedComputeStaticGearCosts) 
-	    + zeroIfNull(GcpAllocatedComputeStaticNonGearCosts) AS GcpAllocatedComputeStaticCosts
+	  ,   myZeroIfNull(GcpAllocatedComputeStaticGearCosts) 
+	    + myZeroIfNull(GcpAllocatedComputeStaticNonGearCosts) AS GcpAllocatedComputeStaticCosts
 
       FROM (
           SELECT
@@ -1712,10 +1712,10 @@ FROM
 #
 #    SELECT
 #	  *
-#        , zeroIfNull(GcpAllocatedCharges) + zeroIfNull(BscProjectTotalCharges) AS ProjectTotalCharges
+#        , myZeroIfNull(GcpAllocatedCharges) + myZeroIfNull(BscProjectTotalCharges) AS ProjectTotalCharges
 #
 ##       	, IF ( FwGearRunCount > 0
-##	     , zeroIfNull(GcpAllocatedComputeCosts) / zeroIFNull(FwGearRunCount)
+##	     , myZeroIfNull(GcpAllocatedComputeCosts) / zeroIFNull(FwGearRunCount)
 ##	     , 0.0 ) AS GcpAllocatedAvgRunCost
 ##
 ##       	, IF ( FwGearRunCount > 0
@@ -1740,7 +1740,7 @@ FROM
 #    FROM (
 #        SELECT
 #            *
-#          , zeroIfNull(BscInitialAnalysisCharge) + zeroIfNull(BscStorageCharge) + zeroIfNull(BscProjectCharges) AS BscProjectTotalCharges
+#          , myZeroIfNull(BscInitialAnalysisCharge) + myZeroIfNull(BscStorageCharge) + myZeroIfNull(BscProjectCharges) AS BscProjectTotalCharges
 #        FROM (
 #            SELECT
 #        	          *
@@ -1769,11 +1769,11 @@ FROM
 #                     , GcpAllocatedComputeUnlabeledCosts
 #                     , GcpAllocatedMiscCosts
 #                     , GcpAllocatedComputeCosts
-#                     , zeroIfNull(GcpAllocatedStorageCosts) + zeroIfNull(GcpAllocatedMiscCosts) + zeroIfNull(GcpAllocatedComputeCosts) AS GcpAllocatedCharges
+#                     , myZeroIfNull(GcpAllocatedStorageCosts) + myZeroIfNull(GcpAllocatedMiscCosts) + myZeroIfNull(GcpAllocatedComputeCosts) AS GcpAllocatedCharges
 #    		 #
 #    		 # *** the dynamic cpu hours should be handled in the allocatecomputestoragemetrics table
 #    		 #
-#            	 , zeroIfNull(GcpAllocatedComputeDynamicCpuGearHours) + zeroIfNull(GcpAllocatedComputeDynamicCpuNonGearHours) AS GcpAllocatedComputeDynamicCpuHours
+#            	 , myZeroIfNull(GcpAllocatedComputeDynamicCpuGearHours) + myZeroIfNull(GcpAllocatedComputeDynamicCpuNonGearHours) AS GcpAllocatedComputeDynamicCpuHours
 #                     , GcpAllocatedComputeDynamicCpuGearHours
 #                     , GcpAllocatedComputeStaticCpuHours
 #                     , GcpAllocatedComputeDynamicCpuNonGearHours
@@ -1886,22 +1886,22 @@ INSERT
      `'"${Project}.${Dataset}"'.FwProjectAllocatedChargesV4`
     SELECT
           *
-        , zeroIfNull(GcpAllocatedCosts) + zeroIfNull(BscProjectTotalCharges) AS ProjectTotalCharges
+        , myZeroIfNull(GcpAllocatedCosts) + myZeroIfNull(BscProjectTotalCharges) AS ProjectTotalCharges
     FROM (
         SELECT
               *
-            , IF (   zeroIfNull(FwGearRunCount) = 0
+            , IF (   myZeroIfNull(FwGearRunCount) = 0
     	          OR FwGearName LIKE "%Bogus%" 
     	        , 0.0
-    	        , (zeroIfNull(GcpAllocatedComputeDynamicCosts) + zeroIfNull(GcpAllocatedComputeStaticGearCosts))  / FwGearRunCount
+    	        , (myZeroIfNull(GcpAllocatedComputeDynamicCosts) + myZeroIfNull(GcpAllocatedComputeStaticGearCosts))  / FwGearRunCount
     	      ) AS GcpAllocatedAvgRuntimeCosts
     
-            , IF (   zeroIfNull(FwGearRunCount) = 0
+            , IF (   myZeroIfNull(FwGearRunCount) = 0
     	            OR FwGearName LIKE "%Bogus%" 
     	            , 0.0 
-    	            , (zeroIfNull(GcpAllocatedComputeDynamicCpuHours) + zeroIfNull(GcpAllocatedComputeStaticGearCpuHours))  / FwGearRunCount
+    	            , (myZeroIfNull(GcpAllocatedComputeDynamicCpuHours) + myZeroIfNull(GcpAllocatedComputeStaticGearCpuHours))  / FwGearRunCount
     	        ) AS GcpAllocatedAvgRuntimeCpuHours
-            , zeroIfNull(BscInitialAnalysisCharge) + zeroIfNull(BscStorageCharge) + zeroIfNull(BscProjectCharges) AS BscProjectTotalCharges
+            , myZeroIfNull(BscInitialAnalysisCharge) + myZeroIfNull(BscStorageCharge) + myZeroIfNull(BscProjectCharges) AS BscProjectTotalCharges
         
         FROM (
             SELECT
