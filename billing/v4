@@ -163,10 +163,10 @@ DECLARE TotalEstGcpComputeStaticNonGearCpuHours FLOAT64;
 DECLARE TotalEstGcpComputeStaticNonGearCosts FLOAT64;
 
 
-CREATE TEMP FUNCTION zeroIfNull(Value FLOAT64) RETURNS FLOAT64 AS (
-  IF (Value IS NOT NULL, Value, 0.0)
-  )
-  ;
+#CREATE TEMP FUNCTION zeroIfNull(Value FLOAT64) RETURNS FLOAT64 AS (
+#  IF (Value IS NOT NULL, Value, 0.0)
+#  )
+#  ;
 
 CREATE TEMP FUNCTION fwCpuMsToCpuHours(CpuMs FLOAT64) RETURNS FLOAT64 AS (
       CpuMs / 1000.0 / 3600.0
