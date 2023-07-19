@@ -26,7 +26,8 @@ InvoiceMonth="{}{}".format(Year,Month)
 
 data = []
 
-UsageReport = fw.get_usage_report(year=Year,month=Month,csv='FALSE')
+#UsageReport = fw.get_usage_report(year=Year,month=Month,csv=False)
+UsageReport = fw.get_usage_report(year=Year,month=Month)
 
 if (len(UsageReport) > 0):
     for row in UsageReport:
