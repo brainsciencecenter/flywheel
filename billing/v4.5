@@ -863,12 +863,25 @@ CREATE TABLE IF NOT EXISTS
 
        , AllocatedGearComputeCosts		FLOAT64
        , AllocatedGearComputeCpuHours		FLOAT64
+
        , AllocatedGearComputeDynamicCpuHours	FLOAT64
        , AllocatedGearComputeDynamicCosts	FLOAT64
+
        , AllocatedGearComputeStaticCpuHours	FLOAT64
        , AllocatedGearComputeStaticCosts	FLOAT64
+
        , AllocatedGearComputeLabeledCosts	FLOAT64
        , AllocatedGearComputeUnLabeledCosts	FLOAT64
+
+       , AllocatedGcpStorageCosts		FLOAT64
+       , AllocatedGcpStorageStandardCosts	FLOAT64
+       , AllocatedGcpStorageStandardGb		FLOAT64
+       , AllocatedGcpStorageColdlineCosts	FLOAT64
+       , AllocatedGcpStorageColdlineGb		FLOAT64
+       , AllocatedGcpStorageArchiveCosts	FLOAT64
+       , AllocatedGcpStorageArchiveGb		FLOAT64
+
+       , AllocatedGcpMiscCosts			FLOAT64
 
        , GcpGroupComputeCosts			FLOAT64
        , GcpGroupComputeCpuHours		FLOAT64
@@ -879,12 +892,16 @@ CREATE TABLE IF NOT EXISTS
        , GcpGroupComputeLabeledCosts		FLOAT64
        , GcpGroupComputeUnLabeledCosts		FLOAT64
 
+       , GcpGroupStorageCosts			FLOAT64
+
        , FwGearRunCount				FLOAT64
        , FwGearDynamicCpuHours			FLOAT64
        , FwGearStaticCpuHours			FLOAT64
+       , FwProjectStorageActiveGb		FLOAT64
 
        , FwGearGroupTotalDynamicHours		FLOAT64
        , FwGearGroupTotalStaticHours		FLOAT64
+       , FwGearGroupTotalActiveGb		FLOAT64
        , FwGearGroupTotalProjectCount		FLOAT64
 
     );
@@ -944,8 +961,22 @@ INSERT
 
             , AllocateGcpMetrics(GcpGroupComputeStaticCpuHours,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeStaticCpuHours
             , AllocateGcpMetrics(GcpGroupComputeStaticCosts,FwGearStaticCpuHours,FwGroupTotalStaticCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeStaticCosts
-            , AllocateGcpMetrics(GcpGroupComputeLabeledCosts,FwGearStaticCpuHours,FwGroupTotalStaticCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeLabeledCosts
-            , AllocateGcpMetrics(GcpGroupComputeUnLabeledCosts,FwGearStaticCpuHours,FwGroupTotalStaticCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeUnnLabeledCosts
+
+            , AllocateGcpMetrics(GcpGroupComputeLabeledCosts,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeLabeledCosts
+            , AllocateGcpMetrics(GcpGroupComputeUnLabeledCosts,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeUnLabeledCosts
+
+            , AllocateGcpMetrics(GcpGroupStorageCosts,FwProjectStorageActiveGb,FwGroupTotalStorageActiveGb, FwGroupTotalProjectCount) AS AllocatedGcpStorageCosts
+
+            , AllocateGcpMetrics(GcpGroupStorageStandardCosts,FwProjectStorageActiveGb,FwGroupTotalStorageActiveGb, FwGroupTotalProjectCount) AS AllocatedGcpStorageStandardCosts
+            , AllocateGcpMetrics(GcpGroupStorageStandardGb,FwProjectStorageActiveGb,FwGroupTotalStorageActiveGb, FwGroupTotalProjectCount) AS AllocatedGcpStorageStandardGb
+
+            , AllocateGcpMetrics(GcpGroupStorageColdlineGb,FwProjectStorageActiveGb,FwGroupTotalStorageActiveGb, FwGroupTotalProjectCount) AS AllocatedGcpStorageColdlineCosts
+            , AllocateGcpMetrics(GcpGroupStorageColdlineCosts,FwProjectStorageActiveGb,FwGroupTotalStorageActiveGb, FwGroupTotalProjectCount) AS AllocatedGcpStorageColdlineGb
+
+            , AllocateGcpMetrics(GcpGroupStorageArchiveCosts,FwProjectStorageActiveGb,FwGroupTotalStorageActiveGb, FwGroupTotalProjectCount) AS AllocatedGcpStorageArchiveCosts
+            , AllocateGcpMetrics(GcpGroupStorageArchiveGb,FwProjectStorageActiveGb,FwGroupTotalStorageActiveGb, FwGroupTotalProjectCount) AS AllocatedGcpStorageArchiveGb
+
+            , AllocateGcpMetrics(GcpGroupMiscCosts,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGcpStorageMisc
 
 	    , GcpGroupComputeCosts
 	    , GcpGroupComputeCpuHours
@@ -955,13 +986,16 @@ INSERT
 	    , GcpGroupComputeStaticCosts
 	    , GcpGroupComputeLabeledCosts
 	    , GcpGroupComputeUnLabeledCosts
+	    , GcpGroupStorageCosts
 
 	    , FwGearRunCount
 	    , FwGearDynamicCpuHours
 	    , FwGearStaticCpuHours
+	    , FwProjectStorageActiveGb
 
 	    , FwGroupTotalDynamicCpuHours
 	    , FwGroupTotalStaticCpuHours
+	    , FwGroupTotalStorageActiveGb
 	    , FwGroupTotalProjectCount
 
 	FROM
@@ -975,10 +1009,11 @@ INSERT
 		, FwProject
 		, FwGearName
 		, FwGearCategory
-		, FwGearRunCount
 
+		, FwGearRunCount
 		, FwGearDynamicCpuHours
-		, FwGearstaticCpuHours
+		, FwGearStaticCpuHours
+		, FwProjectStorageActiveGb
 
              FROM
                `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4` t1
