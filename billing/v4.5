@@ -867,6 +867,8 @@ CREATE TABLE IF NOT EXISTS
        , AllocatedGearComputeDynamicCosts	FLOAT64
        , AllocatedGearComputeStaticCpuHours	FLOAT64
        , AllocatedGearComputeStaticCosts	FLOAT64
+       , AllocatedGearComputeLabeledCosts	FLOAT64
+       , AllocatedGearComputeUnLabeledCosts	FLOAT64
 
        , GcpGroupComputeCosts			FLOAT64
        , GcpGroupComputeCpuHours		FLOAT64
@@ -874,6 +876,8 @@ CREATE TABLE IF NOT EXISTS
        , GcpGroupComputeDynamicCosts		FLOAT64
        , GcpGroupComputeStaticCpuHours		FLOAT64
        , GcpGroupComputeStaticCosts		FLOAT64
+       , GcpGroupComputeLabeledCosts		FLOAT64
+       , GcpGroupComputeUnLabeledCosts		FLOAT64
 
        , FwGearRunCount				FLOAT64
        , FwGearDynamicCpuHours			FLOAT64
@@ -940,6 +944,8 @@ INSERT
 
             , AllocateGcpMetrics(GcpGroupComputeStaticCpuHours,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeStaticCpuHours
             , AllocateGcpMetrics(GcpGroupComputeStaticCosts,FwGearStaticCpuHours,FwGroupTotalStaticCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeStaticCosts
+            , AllocateGcpMetrics(GcpGroupComputeLabeledCosts,FwGearStaticCpuHours,FwGroupTotalStaticCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeLabeledCosts
+            , AllocateGcpMetrics(GcpGroupComputeUnLabeledCosts,FwGearStaticCpuHours,FwGroupTotalStaticCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeUnnLabeledCosts
 
 	    , GcpGroupComputeCosts
 	    , GcpGroupComputeCpuHours
@@ -947,6 +953,8 @@ INSERT
 	    , GcpGroupComputeDynamicCosts
 	    , GcpGroupComputeStaticCpuHours
 	    , GcpGroupComputeStaticCosts
+	    , GcpGroupComputeLabeledCosts
+	    , GcpGroupComputeUnLabeledCosts
 
 	    , FwGearRunCount
 	    , FwGearDynamicCpuHours
@@ -957,7 +965,7 @@ INSERT
 	    , FwGroupTotalProjectCount
 
 	FROM
-	    # TempGcpFwGroupMetricsV4` has all the groups so we can do a left join
+	    # TempGcpFwGroupMetricsV4` has all the groups so we can do a left join and not worry about missing a group
             `'"${Project}.${Dataset}"'.TempGcpFwGroupMetricsV4` t1
         LEFT JOIN (
             SELECT
