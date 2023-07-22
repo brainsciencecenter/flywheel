@@ -5,6 +5,7 @@ import flywheel
 import fwgearutils
 import json
 import os
+import pyjq
 import re
 import sys
 
@@ -73,6 +74,9 @@ def processId(args=None, id=None):
             else:
                 Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
 
+        if (type(Container) == flywheel.models.job_output.JobOutput):
+            Logs = fw.get_job_logs(id)
+            Output['log'] = list(map(lambda x: x.msg.replace("\n",""),Logs.logs))
         return(Output)
 
     else:
@@ -133,7 +137,9 @@ if __name__ == '__main__':
         if (args.verbose):
             print("id = '{}'".format(id), file=sys.stderr)
 
+        Output = {}
         Output = processId(args=args,id=id)
+
         if (Output):
             if (args.one_at_a_time):
                 print(json.dumps(Output, indent=2))
