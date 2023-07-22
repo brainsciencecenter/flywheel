@@ -1045,10 +1045,13 @@ CREATE TABLE IF NOT EXISTS
         FwProjectStorageGb			FLOAT64,
         FwProjectStorageActiveGb		FLOAT64,
         FwProjectStorageDeletedGb		FLOAT64,
+        FwProjectStorageSessionCount		FLOAT64,
 
         FwProjectGroupTotalStorageGb		FLOAT64,
         FwProjectGroupTotalStorageActiveGb	FLOAT64,
         FwProjectGroupTotalStorageDeletedGb	FLOAT64,
+
+        FwProjectGroupTotalStorageSessionCount	FLOAT64,
 
     );
 
@@ -1085,6 +1088,8 @@ INSERT
 	, SUM(IF (t2.FwProjectStorageGb IS NULL, 0.0, t2.FwProjectStorageGb)) AS FwProjectStorageGb
 	, SUM(IF (t2.FwProjectStorageActiveGb IS NULL, 0.0, t2.FwProjectStorageActiveGb)) AS FwProjectStorageActiveGb
 	, SUM(IF (t2.FwProjectStorageDeletedGb IS NULL, 0.0, t2.FwProjectStorageDeletedGb)) AS FwProjectStorageDeletedGb
+
+	, SUM(IF (t2.FwProjectStorageSessionCount IS NULL, 0.0, t2.FwProjectStorageSessionCount)) AS FwProjectStorageSessionCount
 
 	, SUM(IF (t2.FwProjectGroupTotalStorageGb IS NULL, 0.0, t2.FwProjectGroupTotalStorageGb)) AS FwProjectGroupTotalStorageGb
 	, SUM(IF (t2.FwProjectGroupTotalStorageActiveGb IS NULL, 0.0, t2.FwProjectGroupTotalStorageActiveGb)) AS FwProjectGroupTotalStorageActiveGb
@@ -1194,30 +1199,6 @@ INSERT
 
 ;
 
-
-#
-# This is just an output for the v4 script to check things.  Does not store anything
-SELECT
-     SUM(FwGearRunCount) AS FwGearRunCount
-   , SUM(FwInitialAnalysisCount) AS FwInitialAnalysisCount
-
-   #
-   # Summing the GroupTotal does not make sense.  You would be counting the group totals 
-   # for each gear in the group/project
-   #
-   , SUM(FwGearAnalysisCpuHours) AS FwGearAnalysisCpuHours
-   , SUM(FwGearUtilityCpuHours) AS FwGearUtilityCpuHours
-   , SUM(FwGearGenericCpuHours) AS FwGearGenericCpuHours
-
-   , SUM(FwProjectStorageGb) AS FwProjectStorageGb
-   , SUM(FwProjectStorageActiveGb) AS FwProjectStorageActiveGb
-   , SUM(FwProjectStorageDeletedGb) AS FwProjectStorageDeletedGb
-
-FROM
-  `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
-        WHERE
-            InvoiceMonth = @InvoiceMonth
-;
 
 SELECT TotalGcpStorageColdlineCosts ;
 SELECT TotalGcpStorageColdlineGb ;
