@@ -1034,7 +1034,31 @@ INSERT
 
      ;
 
+# To verify against TempGcpClassifiedCosts4V table sums
+SELECT 
+  ROUND(SUM(AllocatedGearComputeCosts),2) AS AllocatedGearComputeCosts
+  , ROUND(SUM(AllocatedGearComputeCpuHours),2) AS AllocatedGearComputeCpuHours
+  , ROUND(SUM(AllocatedGearComputeDynamicCpuHours),2) AS AllocatedGearComputeDynamicCpuHours
+  , ROUND(SUM(AllocatedGearComputeDynamicCosts),2) AS AllocatedGearComputeDynamicCosts
 
+  , ROUND(SUM(AllocatedGearComputeStaticCpuHours),2) AS AllocatedGearComputeStaticCpuHours
+  , ROUND(SUM(AllocatedGearComputeStaticCosts),2) AS AllocatedGearComputeStaticCosts
+
+  , ROUND(SUM(AllocatedGearComputeLabeledCosts),2) AS AllocatedGearComputeLabeledCosts
+  , ROUND(SUM(AllocatedGearComputeUnLabeledCosts),2) AS AllocatedGearComputeUnLabeledCosts
+  , ROUND(SUM(AllocatedGcpStorageCosts),2) AS AllocatedGcpStorageCosts
+  , ROUND(SUM(AllocatedGcpStorageStandardCosts),2) AS AllocatedGcpStorageStandardCosts
+  , ROUND(SUM(AllocatedGcpStorageStandardGb),2) AS AllocatedGcpStorageStandardGb
+  , ROUND(SUM(AllocatedGcpStorageColdlineCosts),2) AS AllocatedGcpStorageColdlineCosts
+  , ROUND(SUM(AllocatedGcpStorageColdlineGb),2) AS AllocatedGcpStorageColdlineGb
+  , ROUND(SUM(AllocatedGcpStorageArchiveCosts),2) AS AllocatedGcpStorageArchiveCosts
+  , ROUND(SUM(AllocatedGcpStorageArchiveGb),2) AS AllocatedGcpStorageArchiveGb
+
+
+  , ROUND(SUM(AllocatedGcpMiscCosts),2) AS AllocatedGcpMiscCosts
+
+
+ FROM `pennbrain-center.BillingAllocation.TempAllocatedGroupProjectGearsV4_5` 
 
 '
 
