@@ -860,19 +860,28 @@ CREATE TABLE IF NOT EXISTS
        , FwProject				STRING
        , FwGearName				STRING
        , FwGearCategory				STRING
-       , FwGearRunCount				FLOAT64
 
-       , FwGroupTotalProjectCount		FLOAT64
-
-       , FwGearDynamicCpuHours			FLOAT64
-       , FwGearGroupTotalDynamicHours		FLOAT64
-       , GcpGroupComputeDynamicCosts		FLOAT64
+       , AllocatedGearComputeCosts		FLOAT64
+       , AllocatedGearComputeCpuHours		FLOAT64
+       , AllocatedGearComputeDynamicCpuHours	FLOAT64
        , AllocatedGearComputeDynamicCosts	FLOAT64
-
-       , FwGearStaticCpuHours			FLOAT64
-       , FwGearGroupTotalStaticHours		FLOAT64
-       , GcpGroupComputeStaticCosts		FLOAT64
+       , AllocatedGearComputeStaticCpuHours	FLOAT64
        , AllocatedGearComputeStaticCosts	FLOAT64
+
+       , GcpGroupComputeCosts			FLOAT64
+       , GcpGroupComputeCpuHours		FLOAT64
+       , GcpGroupComputeDynamicCpuHours		FLOAT64
+       , GcpGroupComputeDynamicCosts		FLOAT64
+       , GcpGroupComputeStaticCpuHours		FLOAT64
+       , GcpGroupComputeStaticCosts		FLOAT64
+
+       , FwGearRunCount				FLOAT64
+       , FwGearDynamicCpuHours			FLOAT64
+       , FwGearStaticCpuHours			FLOAT64
+
+       , FwGearGroupTotalDynamicHours		FLOAT64
+       , FwGearGroupTotalStaticHours		FLOAT64
+       , FwGearGroupTotalProjectCount		FLOAT64
 
     );
 
@@ -894,13 +903,13 @@ DELETE FROM
 # 
 # dwolklab is easy, cnet a little harder,  13 harder
 
-CREATE TEMP FUNCTION AllocateGcpCosts(
+CREATE TEMP FUNCTION AllocateGcpMetrics (
        Cost     FLOAT64,
        x	FLOAT64,
        y	FLOAT64,  
        n	FLOAT64
  ) RETURNS FLOAT64 AS (
-   IF (n IS NULL OR n is 0.0,
+   IF (n IS NULL OR n = 0.0,
        Cost,		# There are no FwProjects to distribute the gcp costs across so all the costs go into a bogus project
        IF (y IS NULL OR y = 0.0,
 	   Cost / n,
@@ -922,19 +931,31 @@ INSERT
 	    , IF (FwProject IS NULL, "BogusGearProject", FwProject) AS FwProject
 	    , IF (FwGearName IS NULL, "BogusGearName", FwGearName) AS FwGearName
 	    , IF (FwGearCategory IS NULL, "BogusGearCategory", FwGearCategory) AS FwGearCategory
-	    , FwGearRunCount
 
+            , AllocateGcpMetrics(GcpGroupComputeCosts,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeCosts
+            , AllocateGcpMetrics(GcpGroupComputeCpuHours,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeCpuHours
+
+            , AllocateGcpMetrics(GcpGroupComputeDynamicCpuHours,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeDynamicCpuHours
+            , AllocateGcpMetrics(GcpGroupComputeDynamicCosts,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeDynamicCosts
+
+            , AllocateGcpMetrics(GcpGroupComputeStaticCpuHours,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeStaticCpuHours
+            , AllocateGcpMetrics(GcpGroupComputeStaticCosts,FwGearStaticCpuHours,FwGroupTotalStaticCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeStaticCosts
+
+	    , GcpGroupComputeCosts
+	    , GcpGroupComputeCpuHours
+	    , GcpGroupComputeDynamicCpuHours
+	    , GcpGroupComputeDynamicCosts
+	    , GcpGroupComputeStaticCpuHours
+	    , GcpGroupComputeStaticCosts
+
+	    , FwGearRunCount
+	    , FwGearDynamicCpuHours
+	    , FwGearStaticCpuHours
+
+	    , FwGroupTotalDynamicCpuHours
+	    , FwGroupTotalStaticCpuHours
 	    , FwGroupTotalProjectCount
 
-	    , FwGearDynamicCpuHours
-	    , FwGroupTotalDynamicCpuHours
-	    , GcpGroupComputeDynamicCosts
-            , AllocateGcpCosts(GcpGroupComputeDynamicCosts,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeDynamicCosts
-
-	    , FwGearStaticCpuHours
-	    , FwGroupTotalStaticCpuHours
-	    , GcpGroupComputeStaticCosts
-            , AllocateGcpCosts(GcpGroupComputeStaticCosts,FwGearStaticCpuHours,FwGroupTotalStaticCpuHours, FwGroupTotalProjectCount) AS AllocatedGearComputeStaticCosts
 	FROM
 	    # TempGcpFwGroupMetricsV4` has all the groups so we can do a left join
             `'"${Project}.${Dataset}"'.TempGcpFwGroupMetricsV4` t1
