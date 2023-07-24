@@ -152,6 +152,7 @@ DECLARE GcpFwStaticStorageStandardCosts FLOAT64;
 DECLARE GcpFwStaticStorageColdlineCosts FLOAT64;
 DECLARE GcpFwStaticStorageArchiveCosts FLOAT64;
 DECLARE TotalFwProjectStorageGb FLOAT64;
+DECLARE TotalFwProjectStorageActiveGb FLOAT64;
 
 DECLARE TotalGcpFwMiscLabeledCosts FLOAT64;
 DECLARE TotalGcpFwMiscUnlabeledCosts FLOAT64;
@@ -566,6 +567,17 @@ SET TotalFwProjectStorageGb = (
 )
 ;
 
+SET TotalFwProjectStorageActiveGb = (
+    SELECT
+        SUM(FwProjectStorageActiveGb)
+    FROM
+        `'"${Project}.${Dataset}"'.TempFwGroupProjectStorageMetricsV4`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+
+)
+;
+
 SET TotalGcpStorageStandardCosts = (
     SELECT
         SUM(GcpGroupStorageStandardCosts)
@@ -897,11 +909,16 @@ CREATE TABLE IF NOT EXISTS
        , FwGearRunCount				FLOAT64
        , FwGearDynamicCpuHours			FLOAT64
        , FwGearStaticCpuHours			FLOAT64
+       , FwProjectStorageGb			FLOAT64
        , FwProjectStorageActiveGb		FLOAT64
+       , FwProjectStorageDeletedGb		FLOAT64
 
-       , FwGearGroupTotalDynamicHours		FLOAT64
-       , FwGearGroupTotalStaticHours		FLOAT64
-       , FwGearGroupTotalActiveGb		FLOAT64
+       , FwGearGroupTotalDynamicCpuHours	FLOAT64
+       , FwGearGroupTotalStaticCpuHours		FLOAT64
+       , FwGearGroupTotalStorageGb		FLOAT64
+       , FwGearGroupTotalStoragActiveGb		FLOAT64
+       , FwGearGroupTotalStorageDeletedGb	FLOAT64
+
        , FwGearGroupTotalProjectCount		FLOAT64
 
     );
@@ -931,10 +948,10 @@ CREATE TEMP FUNCTION AllocateGcpMetrics (
        n	FLOAT64
  ) RETURNS FLOAT64 AS (
    IF (n IS NULL OR n = 0.0,
-       Cost,		# There are no FwProjects to distribute the gcp costs across so all the costs go into a bogus project
+       myZeroIfNull(Cost),		# There are no FwProjects to distribute the gcp costs across so all the costs go into a bogus project
        IF (y IS NULL OR y = 0.0,
-	   Cost / n,
-       	   Cost * prorate(x, y)
+	   myZeroIfNull(Cost) / n,
+       	   myZeroIfNull(Cost) * prorate(x, y)
        )
    )
 );
@@ -976,7 +993,8 @@ INSERT
             , AllocateGcpMetrics(GcpGroupStorageArchiveCosts,FwProjectStorageActiveGb,FwGroupTotalStorageActiveGb, FwGroupTotalProjectCount) AS AllocatedGcpStorageArchiveCosts
             , AllocateGcpMetrics(GcpGroupStorageArchiveGb,FwProjectStorageActiveGb,FwGroupTotalStorageActiveGb, FwGroupTotalProjectCount) AS AllocatedGcpStorageArchiveGb
 
-            , AllocateGcpMetrics(GcpGroupMiscCosts,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGcpStorageMisc
+
+            , AllocateGcpMetrics(GcpGroupMiscCosts,FwGearDynamicCpuHours,FwGroupTotalDynamicCpuHours, FwGroupTotalProjectCount) AS AllocatedGcpMiscCosts
 
 	    , GcpGroupComputeCosts
 	    , GcpGroupComputeCpuHours
@@ -986,16 +1004,22 @@ INSERT
 	    , GcpGroupComputeStaticCosts
 	    , GcpGroupComputeLabeledCosts
 	    , GcpGroupComputeUnLabeledCosts
+
 	    , GcpGroupStorageCosts
 
 	    , FwGearRunCount
 	    , FwGearDynamicCpuHours
 	    , FwGearStaticCpuHours
+	    , FwProjectStorageGb
 	    , FwProjectStorageActiveGb
+	    , FwProjectStorageDeletedGb
 
 	    , FwGroupTotalDynamicCpuHours
 	    , FwGroupTotalStaticCpuHours
+	    , FwGroupTotalStorageGb
 	    , FwGroupTotalStorageActiveGb
+	    , FwGroupTotalStorageDeletedGb
+
 	    , FwGroupTotalProjectCount
 
 	FROM
@@ -1013,10 +1037,12 @@ INSERT
 		, FwGearRunCount
 		, FwGearDynamicCpuHours
 		, FwGearStaticCpuHours
+		, FwProjectStorageGb
 		, FwProjectStorageActiveGb
+		, FwProjectStorageDeletedGb
 
              FROM
-               `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4` t1
+               `'"${Project}.${Dataset}"'.TempFwGroupProjectComputeStorageMetricsV4`
              WHERE
                 InvoiceMonth = @InvoiceMonth
 
@@ -1030,7 +1056,6 @@ INSERT
 	    t1.InvoiceMonth
             , t1.FwGroup
      ) ORDER BY InvoiceMonth, FwGroup, FwProject, FwGearName
-
 
      ;
 
@@ -1057,8 +1082,471 @@ SELECT
 
   , ROUND(SUM(AllocatedGcpMiscCosts),2) AS AllocatedGcpMiscCosts
 
+ FROM
+     `pennbrain-center.BillingAllocation.TempAllocatedGroupProjectGearsV4_5` 
+ WHERE
+     InvoiceMonth = @InvoiceMonth
+ ;
 
- FROM `pennbrain-center.BillingAllocation.TempAllocatedGroupProjectGearsV4_5` 
+DROP TABLE IF EXISTS
+        `'"${Project}.${Dataset}"'.TempTotalOverheadMetricsV4_5`
+    ;
+
+CREATE TABLE IF NOT EXISTS
+        `'"${Project}.${Dataset}"'.TempTotalOverheadMetricsV4_5`
+    (
+         InvoiceMonth				STRING
+
+       , AllocatedGearComputeCosts		FLOAT64
+       , AllocatedGearComputeCpuHours		FLOAT64
+
+       , AllocatedGearComputeDynamicCpuHours	FLOAT64
+       , AllocatedGearComputeDynamicCosts	FLOAT64
+
+       , AllocatedGearComputeStaticCpuHours	FLOAT64
+       , AllocatedGearComputeStaticCosts	FLOAT64
+
+       , AllocatedGearComputeLabeledCosts	FLOAT64
+       , AllocatedGearComputeUnLabeledCosts	FLOAT64
+
+       , AllocatedGcpStorageCosts		FLOAT64
+       , AllocatedGcpStorageStandardCosts	FLOAT64
+       , AllocatedGcpStorageStandardGb		FLOAT64
+       , AllocatedGcpStorageColdlineCosts	FLOAT64
+       , AllocatedGcpStorageColdlineGb		FLOAT64
+       , AllocatedGcpStorageArchiveCosts	FLOAT64
+       , AllocatedGcpStorageArchiveGb		FLOAT64
+
+       , AllocatedGcpMiscCosts			FLOAT64
+    );
+
+DELETE FROM 
+        `'"${Project}.${Dataset}"'.TempTotalOverheadMetricsV4_5`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+    ;
+
+INSERT
+    `'"${Project}.${Dataset}"'.TempTotalOverheadMetricsV4_5`
+    (
+        SELECT 
+            InvoiceMonth
+          , SUM(AllocatedGearComputeCosts) AS TotalOverheadComputeCosts
+          , SUM(AllocatedGearComputeCpuHours) AS TotalOverheadComputeCpuHours
+          , SUM(AllocatedGearComputeDynamicCpuHours) AS TotalOverheadComputeDynamicCpuHours
+          , SUM(AllocatedGearComputeDynamicCosts) AS TotalOverheadComputeDynamicCosts
+        
+          , SUM(AllocatedGearComputeStaticCpuHours) AS TotalOverheadComputeStaticCpuHours
+          , SUM(AllocatedGearComputeStaticCosts) AS TotalOverheadComputeStaticCosts
+        
+          , SUM(AllocatedGearComputeLabeledCosts) AS TotalOverheadComputeLabeledCosts
+          , SUM(AllocatedGearComputeUnLabeledCosts) AS TotalOverheadComputeUnLabeledCosts
+          , SUM(AllocatedGcpStorageCosts) AS TotalOverhedStorageCosts
+          , SUM(AllocatedGcpStorageStandardCosts) AS TotalOverheadStorageStandardCosts
+          , SUM(AllocatedGcpStorageStandardGb) AS TotalOverheadStandardGb
+          , SUM(AllocatedGcpStorageColdlineCosts) AS TotalOverheadStorageColdlineCosts
+          , SUM(AllocatedGcpStorageColdlineGb) AS TotalOverheadStorageColdlineGb
+          , SUM(AllocatedGcpStorageArchiveCosts) AS TotalOverheadStorageArchiveCosts
+          , SUM(AllocatedGcpStorageArchiveGb) AS TotalOverheadStorageArchiveGb
+        
+        
+          , SUM(AllocatedGcpMiscCosts) AS TotalOverheadMiscCosts
+        
+         FROM
+             `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsV4_5` 
+         WHERE
+             InvoiceMonth = @InvoiceMonth
+	     AND (
+	     	    FwGroup IS NULL 
+		 OR FwGroup = "flywheel-static"
+		 )
+	 GROUP BY
+	     InvoiceMonth
+    );
+
+SELECT 
+    ROUND(SUM(AllocatedGearComputeCosts),2) AS AllocatedGearComputeCosts
+  , ROUND(SUM(AllocatedGearComputeCpuHours),2) AS AllocatedGearComputeCpuHours
+  , ROUND(SUM(AllocatedGearComputeDynamicCpuHours),2) AS AllocatedGearComputeDynamicCpuHours
+  , ROUND(SUM(AllocatedGearComputeDynamicCosts),2) AS AllocatedGearComputeDynamicCosts
+
+  , ROUND(SUM(AllocatedGearComputeStaticCpuHours),2) AS AllocatedGearComputeStaticCpuHours
+  , ROUND(SUM(AllocatedGearComputeStaticCosts),2) AS AllocatedGearComputeStaticCosts
+
+  , ROUND(SUM(AllocatedGearComputeLabeledCosts),2) AS AllocatedGearComputeLabeledCosts
+  , ROUND(SUM(AllocatedGearComputeUnLabeledCosts),2) AS AllocatedGearComputeUnLabeledCosts
+  , ROUND(SUM(AllocatedGcpStorageCosts),2) AS AllocatedGcpStorageCosts
+  , ROUND(SUM(AllocatedGcpStorageStandardCosts),2) AS AllocatedGcpStorageStandardCosts
+  , ROUND(SUM(AllocatedGcpStorageStandardGb),2) AS AllocatedGcpStorageStandardGb
+  , ROUND(SUM(AllocatedGcpStorageColdlineCosts),2) AS AllocatedGcpStorageColdlineCosts
+  , ROUND(SUM(AllocatedGcpStorageColdlineGb),2) AS AllocatedGcpStorageColdlineGb
+  , ROUND(SUM(AllocatedGcpStorageArchiveCosts),2) AS AllocatedGcpStorageArchiveCosts
+  , ROUND(SUM(AllocatedGcpStorageArchiveGb),2) AS AllocatedGcpStorageArchiveGb
+
+  , ROUND(SUM(AllocatedGcpMiscCosts),2) AS AllocatedGcpMiscCosts
+
+         FROM
+             `'"${Project}.${Dataset}"'.TempTotalOverheadMetricsV4_5` 
+  ;
+
+
+# *** Delete after everything is working
+DROP TABLE IF EXISTS
+    `'"${Project}.${Dataset}"'.TempAllocatedOverheadMetricsV4_5`
+    ;
+
+CREATE TABLE IF NOT EXISTS
+        `'"${Project}.${Dataset}"'.TempAllocatedOverheadMetricsV4_5`
+    (
+         InvoiceMonth				STRING
+
+       , FwGroup				STRING
+    
+       , FwProject				STRING
+       , FwGearName				STRING
+       , FwGearCategory				STRING
+
+
+       , AllocatedGearComputeCosts		FLOAT64
+       , AllocatedGearComputeCpuHours		FLOAT64
+
+       , AllocatedGearComputeDynamicCpuHours	FLOAT64
+       , AllocatedGearComputeDynamicCosts	FLOAT64
+
+       , AllocatedGearComputeStaticCpuHours	FLOAT64
+       , AllocatedGearComputeStaticCosts	FLOAT64
+
+       , AllocatedGearComputeLabeledCosts	FLOAT64
+       , AllocatedGearComputeUnLabeledCosts	FLOAT64
+
+       , AllocatedGcpStorageCosts		FLOAT64
+       , AllocatedGcpStorageStandardCosts	FLOAT64
+       , AllocatedGcpStorageStandardGb		FLOAT64
+       , AllocatedGcpStorageColdlineCosts	FLOAT64
+
+       , AllocatedGcpStorageColdlineGb		FLOAT64
+       , AllocatedGcpStorageArchiveCosts	FLOAT64
+       , AllocatedGcpStorageArchiveGb		FLOAT64
+
+       , AllocatedGcpMiscCosts			FLOAT64
+    );
+
+DELETE FROM 
+    `'"${Project}.${Dataset}"'.TempAllocatedOverheadMetricsV4_5`
+WHERE
+    InvoiceMonth = @InvoiceMonth
+    ;
+
+INSERT
+    `'"${Project}.${Dataset}"'.TempAllocatedOverheadMetricsV4_5`
+    (
+
+	SELECT
+              t1.InvoiceMonth
+            , t1.FwGroup
+    
+	    , IF (FwProject IS NULL, "BogusGearProject", FwProject) AS FwProject
+	    , IF (FwGearName IS NULL, "BogusGearName", FwGearName) AS FwGearName
+	    , IF (FwGearCategory IS NULL, "BogusGearCategory", FwGearCategory) AS FwGearCategory
+
+            , AllocateGcpMetrics(t2.AllocatedGearComputeCosts,FwGearDynamicCpuHours,TotalFwGearDynamicCpuHours, FwGearGroupTotalProjectCount) AS AllocatedGearComputeCosts
+            , AllocateGcpMetrics(t2.AllocatedGearComputeCpuHours,FwGearDynamicCpuHours,TotalFwGearDynamicCpuHours, FwGearGroupTotalProjectCount) AS AllocatedGearComputeCpuHours
+
+            , AllocateGcpMetrics(t2.AllocatedGearComputeDynamicCpuHours,FwGearDynamicCpuHours,TotalFwGearDynamicCpuHours, FwGearGroupTotalProjectCount) AS AllocatedGearComputeDynamicCpuHours
+            , AllocateGcpMetrics(t2.AllocatedGearComputeDynamicCosts,FwGearDynamicCpuHours,TotalFwGearDynamicCpuHours, FwGearGroupTotalProjectCount) AS AllocatedGearComputeDynamicCosts
+
+            , AllocateGcpMetrics(t2.AllocatedGearComputeStaticCpuHours,FwGearDynamicCpuHours,TotalFwGearDynamicCpuHours, FwGearGroupTotalProjectCount) AS AllocatedGearComputeStaticCpuHours
+            , AllocateGcpMetrics(t2.AllocatedGearComputeStaticCosts,FwGearStaticCpuHours,TotalFwGearStaticCpuHours, FwGearGroupTotalProjectCount) AS AllocatedGearComputeStaticCosts
+
+            , AllocateGcpMetrics(t2.AllocatedGearComputeLabeledCosts,FwGearDynamicCpuHours,TotalFwGearDynamicCpuHours, FwGearGroupTotalProjectCount) AS AllocatedGearComputeLabeledCosts
+            , AllocateGcpMetrics(t2.AllocatedGearComputeUnLabeledCosts,FwGearDynamicCpuHours,TotalFwGearDynamicCpuHours, FwGearGroupTotalProjectCount) AS AllocatedGearComputeUnLabeledCosts
+
+            , AllocateGcpMetrics(t2.AllocatedGcpStorageCosts,FwProjectStorageActiveGb,TotalFwProjectStorageActiveGb, FwGearGroupTotalProjectCount) AS AllocatedGcpStorageCosts
+
+            , AllocateGcpMetrics(t2.AllocatedGcpStorageStandardCosts,FwProjectStorageActiveGb,TotalFwProjectStorageActiveGb, FwGearGroupTotalProjectCount) AS AllocatedGcpStorageStandardCosts
+            , AllocateGcpMetrics(t2.AllocatedGcpStorageStandardGb,FwProjectStorageActiveGb,TotalFwProjectStorageActiveGb, FwGearGroupTotalProjectCount) AS AllocatedGcpStorageStandardGb
+
+            , AllocateGcpMetrics(t2.AllocatedGcpStorageColdlineGb,FwProjectStorageActiveGb,TotalFwProjectStorageActiveGb, FwGearGroupTotalProjectCount) AS AllocatedGcpStorageColdlineCosts
+            , AllocateGcpMetrics(t2.AllocatedGcpStorageColdlineCosts,FwProjectStorageActiveGb,TotalFwProjectStorageActiveGb, FwGearGroupTotalProjectCount) AS AllocatedGcpStorageColdlineGb
+
+            , AllocateGcpMetrics(t2.AllocatedGcpStorageArchiveCosts,FwProjectStorageActiveGb,TotalFwProjectStorageActiveGb, FwGearGroupTotalProjectCount) AS AllocatedGcpStorageArchiveCosts
+            , AllocateGcpMetrics(t2.AllocatedGcpStorageArchiveGb,FwProjectStorageActiveGb,TotalFwProjectStorageActiveGb, FwGearGroupTotalProjectCount) AS AllocatedGcpStorageArchiveGb
+
+            , AllocateGcpMetrics(t2.AllocatedGcpMiscCosts,FwGearDynamicCpuHours,TotalFwGearDynamicCpuHours, FwGearGroupTotalProjectCount) AS AllocatedGcpMiscCosts
+
+	FROM
+            `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsV4_5` t1
+        LEFT JOIN (
+            SELECT
+		*
+            FROM
+               `'"${Project}.${Dataset}"'.TempTotalOverheadMetricsV4_5`
+            WHERE
+                InvoiceMonth = @InvoiceMonth
+
+        ) t2
+	ON
+	        t1.InvoiceMonth = t2.InvoiceMonth
+        WHERE
+               t1.InvoiceMonth = @InvoiceMonth
+	   AND t1.FwGroup IS NOT NULL
+	   AND t1.FwGroup != "flywheel-static"
+	ORDER BY
+	    t1.InvoiceMonth
+            , t1.FwGroup
+     ) ORDER BY InvoiceMonth, FwGroup, FwProject, FwGearName
+
+     ;
+
+SELECT 
+  ROUND(SUM(AllocatedGearComputeCosts),2) AS AllocatedGearComputeCosts
+  , ROUND(SUM(AllocatedGearComputeCpuHours),2) AS AllocatedGearComputeCpuHours
+  , ROUND(SUM(AllocatedGearComputeDynamicCpuHours),2) AS AllocatedGearComputeDynamicCpuHours
+  , ROUND(SUM(AllocatedGearComputeDynamicCosts),2) AS AllocatedGearComputeDynamicCosts
+
+  , ROUND(SUM(AllocatedGearComputeStaticCpuHours),2) AS AllocatedGearComputeStaticCpuHours
+  , ROUND(SUM(AllocatedGearComputeStaticCosts),2) AS AllocatedGearComputeStaticCosts
+
+  , ROUND(SUM(AllocatedGearComputeLabeledCosts),2) AS AllocatedGearComputeLabeledCosts
+  , ROUND(SUM(AllocatedGearComputeUnLabeledCosts),2) AS AllocatedGearComputeUnLabeledCosts
+  , ROUND(SUM(AllocatedGcpStorageCosts),2) AS AllocatedGcpStorageCosts
+  , ROUND(SUM(AllocatedGcpStorageStandardCosts),2) AS AllocatedGcpStorageStandardCosts
+  , ROUND(SUM(AllocatedGcpStorageStandardGb),2) AS AllocatedGcpStorageStandardGb
+  , ROUND(SUM(AllocatedGcpStorageColdlineCosts),2) AS AllocatedGcpStorageColdlineCosts
+  , ROUND(SUM(AllocatedGcpStorageColdlineGb),2) AS AllocatedGcpStorageColdlineGb
+  , ROUND(SUM(AllocatedGcpStorageArchiveCosts),2) AS AllocatedGcpStorageArchiveCosts
+  , ROUND(SUM(AllocatedGcpStorageArchiveGb),2) AS AllocatedGcpStorageArchiveGb
+
+  , ROUND(SUM(AllocatedGcpMiscCosts),2) AS AllocatedGcpMiscCosts
+
+         FROM
+             `'"${Project}.${Dataset}"'.TempAllocatedOverheadMetricsV4_5` 
+;
+
+DROP TABLE IF EXISTS
+    `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsOverheadV4_5`
+    ;
+
+CREATE TABLE IF NOT EXISTS
+    `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsOverheadV4_5`
+    (
+         InvoiceMonth				STRING
+       , FwGroup				STRING
+
+       , FwProject				STRING
+       , FwGearName				STRING
+       , FwGearCategory				STRING
+
+       , AllocatedGearComputeCosts		FLOAT64
+       , AllocatedGearComputeCpuHours		FLOAT64
+
+       , AllocatedGearComputeDynamicCpuHours	FLOAT64
+       , AllocatedGearComputeDynamicCosts	FLOAT64
+
+       , AllocatedGearComputeStaticCpuHours	FLOAT64
+       , AllocatedGearComputeStaticCosts	FLOAT64
+
+       , AllocatedGearComputeLabeledCosts	FLOAT64
+       , AllocatedGearComputeUnLabeledCosts	FLOAT64
+
+       , AllocatedGcpStorageCosts		FLOAT64
+       , AllocatedGcpStorageStandardCosts	FLOAT64
+       , AllocatedGcpStorageStandardGb		FLOAT64
+       , AllocatedGcpStorageColdlineCosts	FLOAT64
+       , AllocatedGcpStorageColdlineGb		FLOAT64
+       , AllocatedGcpStorageArchiveCosts	FLOAT64
+       , AllocatedGcpStorageArchiveGb		FLOAT64
+
+       , AllocatedGcpMiscCosts			FLOAT64
+
+       , GcpGroupComputeCosts			FLOAT64
+       , GcpGroupComputeCpuHours		FLOAT64
+       , GcpGroupComputeDynamicCpuHours		FLOAT64
+       , GcpGroupComputeDynamicCosts		FLOAT64
+       , GcpGroupComputeStaticCpuHours		FLOAT64
+       , GcpGroupComputeStaticCosts		FLOAT64
+       , GcpGroupComputeLabeledCosts		FLOAT64
+       , GcpGroupComputeUnLabeledCosts		FLOAT64
+
+       , GcpGroupStorageCosts			FLOAT64
+
+       , FwGearRunCount				FLOAT64
+       , FwGearDynamicCpuHours			FLOAT64
+       , FwGearStaticCpuHours			FLOAT64
+       , FwProjectStorageGb			FLOAT64
+       , FwProjectStorageActiveGb		FLOAT64
+       , FwProjectStorageDeleteGb		FLOAT64
+
+       , FwGearGroupTotalDynamicCpuHours	FLOAT64
+       , FwGearGroupTotalStaticCpuHours		FLOAT64
+       , FwGearGroupTotalStorageGb		FLOAT64
+       , FwGearGroupTotalProjectCount		FLOAT64
+
+    );
+
+
+DELETE FROM 
+    `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsOverheadV4_5`
+WHERE
+    InvoiceMonth = @InvoiceMonth
+    ;
+
+INSERT
+    `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsOverheadV4_5`
+    (
+
+	SELECT
+              t1.InvoiceMonth
+            , t1.FwGroup
+    
+	    , IF (t1.FwProject IS NULL, "BogusGearProject", t1.FwProject) AS FwProject
+	    , IF (t1.FwGearName IS NULL, "BogusGearName", t1.FwGearName) AS FwGearName
+	    , IF (t1.FwGearCategory IS NULL, "BogusGearCategory", t1.FwGearCategory) AS FwGearCategory
+
+            , t1.AllocatedGearComputeCosts + t2.AllocatedGearComputeCosts AS AllocatedGearComputeCosts
+            , t1.AllocatedGearComputeCpuHours + t2.AllocatedGearComputeCpuHours AS AllocatedGearComputeCpuHours
+
+            , t1.AllocatedGearComputeDynamicCpuHours + t2.AllocatedGearComputeDynamicCpuHours AS AllocatedGearComputeDynamicCpuHours
+            , t1.AllocatedGearComputeDynamicCosts + t2.AllocatedGearComputeDynamicCosts AS AllocatedGearComputeDynamicCosts
+
+            , t1.AllocatedGearComputeStaticCpuHours + t2.AllocatedGearComputeStaticCpuHours AS AllocatedGearComputeStaticCpuHours
+            , t1.AllocatedGearComputeStaticCosts + t2.AllocatedGearComputeStaticCosts AS AllocatedGearComputeStaticCosts
+
+            , t1.AllocatedGearComputeLabeledCosts + t2.AllocatedGearComputeLabeledCosts AS AllocatedGearComputeLabeledCosts
+            , t1.AllocatedGearComputeUnLabeledCosts + t2.AllocatedGearComputeUnLabeledCosts AS AllocatedGearComputeUnLabeledCosts
+
+            , t1.AllocatedGcpStorageCosts + t2.AllocatedGcpStorageCosts AS AllocatedGcpStorageCosts
+
+            , t1.AllocatedGcpStorageStandardCosts + t2.AllocatedGcpStorageStandardCosts AS AllocatedGcpStorageStandardCosts
+            , t1.AllocatedGcpStorageStandardGb + t2.AllocatedGcpStorageStandardGb AS AllocatedGcpStorageStandardGb
+
+            , t1.AllocatedGcpStorageColdlineCosts + t2.AllocatedGcpStorageColdlineCosts AS AllocatedGcpStorageColdlineCosts
+            , t1.AllocatedGcpStorageColdlineGb + t2.AllocatedGcpStorageColdlineGb AS AllocatedGcpStorageColdlineGb
+
+            , t1.AllocatedGcpStorageArchiveCosts + t2.AllocatedGcpStorageArchiveCosts AS AllocatedGcpStorageArchiveCosts
+            , t1.AllocatedGcpStorageArchiveGb + t2.AllocatedGcpStorageArchiveGb AS AllocatedGcpStorageArchiveGb
+
+            , t1.AllocatedGcpMiscCosts + t2.AllocatedGcpMiscCosts AS AllocatedGcpMiscCosts
+
+	    , t1.GcpGroupComputeCosts
+	    , t1.GcpGroupComputeCpuHours
+	    , t1.GcpGroupComputeDynamicCpuHours
+	    , t1.GcpGroupComputeDynamicCosts
+	    , t1.GcpGroupComputeStaticCpuHours
+	    , t1.GcpGroupComputeStaticCosts
+	    , t1.GcpGroupComputeLabeledCosts
+	    , t1.GcpGroupComputeUnLabeledCosts
+
+	    , t1.GcpGroupStorageCosts
+
+	    , t1.FwGearRunCount
+	    , t1.FwGearDynamicCpuHours
+	    , t1.FwGearStaticCpuHours
+	    , t1.FwProjectStorageGb
+	    , t1.FwProjectStorageActiveGb
+	    , t1.FwProjectStorageDeletedGb
+
+	    , t1.FwGearGroupTotalDynamicCpuHours
+	    , t1.FwGearGroupTotalStaticCpuHours
+	    , t1.FwGearGroupTotalStorageGb
+	    , t1.FwGearGroupTotalProjectCount
+
+	FROM
+            `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsV4_5` t1
+        LEFT JOIN (
+            SELECT
+		*
+            FROM
+               `'"${Project}.${Dataset}"'.TempAllocatedOverheadMetricsV4_5`
+            WHERE
+                InvoiceMonth = @InvoiceMonth
+		AND FwGroup IS NOT NULL
+		AND FwGroup != "flywheel-static"
+
+        ) t2
+	ON
+	        t1.InvoiceMonth = t2.InvoiceMonth
+            AND t1.FwGroup = t2.FwGroup
+	    AND t1.FwProject = t2.FwProject
+	    AND t1.FwGearName = t2.FwGearName
+#	    AND t1.FwGearCategory = t2.FwGearCategory
+        WHERE
+               t1.InvoiceMonth = @InvoiceMonth
+	   AND t1.FwGroup IS NOT NULL
+	   AND t1.FwGroup != "flywheel-static"
+	ORDER BY
+	    t1.InvoiceMonth
+            , t1.FwGroup
+	    , t1.FwProject
+	    , t1.FwGearName
+	    
+     ) ORDER BY InvoiceMonth, FwGroup, FwProject, FwGearName
+
+     ;
+
+SELECT 
+    FwGroup
+         FROM
+             `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsOverheadV4_5` 
+         WHERE
+             InvoiceMonth = @InvoiceMonth
+
+GROUP BY
+      FwGroup
+ORDER BY 
+      FWGroup
+    ;
+
+SELECT
+      ROUND(SUM(AllocatedGcpStorageArchiveCosts),2) AS AllocatedGcpStorageArchiveCosts
+    , ROUND(SUM(AllocatedGcpStorageArchiveGb),2) AS AllocatedGcpStorageArchiveGb
+FROM
+    `'"${Project}.${Dataset}"'.TempAllocatedOverheadMetricsV4_5`
+    ;
+
+SELECT
+      ROUND(SUM(AllocatedGcpStorageArchiveCosts),2) AS AllocatedGcpStorageArchiveCosts
+    , ROUND(SUM(AllocatedGcpStorageArchiveGb),2) AS AllocatedGcpStorageArchiveGb
+FROM
+    `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsV4_5`
+WHERE
+             InvoiceMonth = @InvoiceMonth
+		AND FwGroup IS NOT NULL
+		AND FwGroup != "flywheel-static"
+    ;
+
+
+SELECT 
+
+  ROUND(SUM(AllocatedGearComputeCosts),2) AS AllocatedGearComputeCosts
+  , ROUND(SUM(AllocatedGearComputeCpuHours),2) AS AllocatedGearComputeCpuHours
+  , ROUND(SUM(AllocatedGearComputeDynamicCpuHours),2) AS AllocatedGearComputeDynamicCpuHours
+  , ROUND(SUM(AllocatedGearComputeDynamicCosts),2) AS AllocatedGearComputeDynamicCosts
+
+  , ROUND(SUM(AllocatedGearComputeStaticCpuHours),2) AS AllocatedGearComputeStaticCpuHours
+  , ROUND(SUM(AllocatedGearComputeStaticCosts),2) AS AllocatedGearComputeStaticCosts
+
+  , ROUND(SUM(AllocatedGearComputeLabeledCosts),2) AS AllocatedGearComputeLabeledCosts
+  , ROUND(SUM(AllocatedGearComputeUnLabeledCosts),2) AS AllocatedGearComputeUnLabeledCosts
+  , ROUND(SUM(AllocatedGcpStorageCosts),2) AS AllocatedGcpStorageCosts
+  , ROUND(SUM(AllocatedGcpStorageStandardCosts),2) AS AllocatedGcpStorageStandardCosts
+  , ROUND(SUM(AllocatedGcpStorageStandardGb),2) AS AllocatedGcpStorageStandardGb
+  , ROUND(SUM(AllocatedGcpStorageColdlineCosts),2) AS AllocatedGcpStorageColdlineCosts
+  , ROUND(SUM(AllocatedGcpStorageColdlineGb),2) AS AllocatedGcpStorageColdlineGb
+  , ROUND(SUM(AllocatedGcpStorageArchiveCosts),2) AS AllocatedGcpStorageArchiveCosts
+  , ROUND(SUM(AllocatedGcpStorageArchiveGb),2) AS AllocatedGcpStorageArchiveGb
+
+
+  , ROUND(SUM(AllocatedGcpMiscCosts),2) AS AllocatedGcpMiscCosts
+
+        
+         FROM
+             `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsOverheadV4_5` 
+         WHERE
+             InvoiceMonth = @InvoiceMonth
+	 GROUP BY
+	     InvoiceMonth
+
 
 '
 
