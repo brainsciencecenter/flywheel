@@ -1831,28 +1831,37 @@ CREATE TABLE IF NOT EXISTS
         , FwProject					STRING					
         , FwGearName					STRING					
         , FwGearCategory				STRING					
+
         , FwGearRunCount				FLOAT64					
         , FwInitialAnalysisCount			FLOAT64					
+
         , FwProjectStorageGb				FLOAT64					
+
         , GcpAllocatedStorageCosts			FLOAT64					
         , GcpAllocatedStorageStandardGb			FLOAT64					
         , GcpAllocatedComputeCosts			FLOAT64					
+
         , GcpAllocatedComputeDynamicCosts		FLOAT64					
         , GcpAllocatedComputeDynamicCpuHours		FLOAT64					
         , GcpAllocatedComputeStaticCosts		FLOAT64					
         , GcpAllocatedComputeStaticCpuHours		FLOAT64					
+
         , GcpAllocatedComputeStaticGearCosts		FLOAT64					
         , GcpAllocatedComputeStaticGearCpuHours		FLOAT64					
         , GcpAllocatedComputeStaticNonGearCosts		FLOAT64					
         , GcpAllocatedComputeStaticNonGearCpuHours	FLOAT64					
+
         , GcpAllocatedComputeUnlabeledCosts		FLOAT64					
         , GcpAllocatedMiscCosts				FLOAT64					
         , GcpAllocatedCosts				FLOAT64					
+
         , BscInitialAnalysisCharge			FLOAT64					
+
         , BscProjectCharges				FLOAT64					
         , BscStorageCharge				FLOAT64					
         , GcpAllocatedAvgRuntimeCosts			FLOAT64					
         , GcpAllocatedAvgRuntimeCpuHours		FLOAT64					
+
         , BscProjectTotalCharges			FLOAT64
         , ProjectTotalCharges 				FLOAT64
 );
@@ -1910,6 +1919,7 @@ INSERT
     	            , SUM(GcpAllocatedComputeDynamicCpuHours) AS GcpAllocatedComputeDynamicCpuHours
     	            , SUM(GcpAllocatedComputeStaticCosts) AS GcpAllocatedComputeStaticCosts
     	            , SUM(GcpAllocatedComputeStaticCpuHours) AS GcpAllocatedComputeStaticCpuHours
+
     	            , SUM(GcpAllocatedComputeStaticGearCosts) AS GcpAllocatedComputeStaticGearCosts
     	            , SUM(GcpAllocatedComputeStaticGearCpuHours) AS GcpAllocatedComputeStaticGearCpuHours
     	            , SUM(GcpAllocatedComputeStaticNonGearCosts) AS GcpAllocatedComputeStaticNonGearCosts

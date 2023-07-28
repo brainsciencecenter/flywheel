@@ -157,7 +157,10 @@ function downloadFwIlabChargesV4 {
 }
 
 function downloadNonFwGcpIlabCharges {
-
+    #
+    # Edit link: https://docs.google.com/spreadsheets/d/1aNXqOV7WYSzVKrm-4Vhz54USyi0Ns9Prd4QsCVSf92A/edit#gid=0
+    #		 Owned by holder@pennbrain.upenn.edu
+    #
     BscGcpProjectCostAllocations=https://docs.google.com/spreadsheets/d/e/2PACX-1vQo4_xTQmetGhNCH_sEo_B1KI7glRgRqizq1LthUo36g3tIZ9iO5-Ll07qk6-NFw1FjLQQ5yDkmtp1S/pub?output=csv
 
     BscGcpProjectCostAllocationsFile=$(mktemp /tmp/BscGcpProjectCostAllocations-XXXXXX)
@@ -176,7 +179,44 @@ function downloadNonFwGcpIlabCharges {
 
     PurchaseDate="${opt_y}${opt_m}01"
 
-    bq load --autodetect --project_id="${Project}" --skip_leading_rows 1 --replace --source_format=CSV "$DB" "$BscGcpProjectCostAllocationsFile"
+    ($CmdPrefix wget -q -O - "$BscGcpProjectCostAllocations" ; echo "") > "$BscGcpProjectCostAllocationsFile"
+
+    if [ ! -s "$BscGcpProjectCostAllocationsFile" ]
+    then
+	echo "$CmdName : Zero size Bsc GCP Project Allocation file '$BscGcpProjectCostAllocationsFile'" 1>&2
+	exit 1
+    fi
+    
+    bq load --autodetect --project_id="${Project}" --skip_leading_rows 1 --replace --source_format=CSV "$DB" "$BscGcpProjectCostAllocationsFile" 2> /dev/null
+
+    ProblemProjects="$(bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    
+    SELECT 
+    	     GcpProjectName
+	   , TotalProjectAllocationPercent
+    FROM (
+    	 SELECT
+    	       GcpProjectName
+	     , SUM(AllocationPercent) AS TotalProjectAllocationPercent
+         FROM
+	     `'"${Project}.${Dataset}."'BscGcpProjectCostAllocations`
+         GROUP BY
+    	    GcpProjectName
+
+    )
+    WHERE
+        TotalProjectAllocationPercent != 1.0
+    ORDER BY
+    	GcpProjectName
+	
+    '  2> /dev/null)"
+    if [ -n "$ProblemProjects" ]
+    then
+	echo "${CmdName} : GcpProject allocations" 1>&2
+        echo "$ProblemProjects" | column -t -s, 1>&2
+	exit 2
+    fi
+
 
     bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
     

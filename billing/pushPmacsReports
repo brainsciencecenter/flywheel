@@ -1,9 +1,52 @@
 #!/bin/bash
 
+CmdName=$(basename "$0")
+
 Rhost=bscsub.pmacs.upenn.edu
-RDir=/project/bsc/Billing/Reports
+RReportDir=/project/bsc/Billing/Reports
 RILabChargesDir=/project/bsc/Billing/iLabCharges
 RCalculateCmd=/project/bsc/Billing/bin/calculateBscStorageCharges
+
+function findReportFile {
+    local File="$1"
+    local Date="$2"
+    local YearMonth="$3"
+    local NestYearMonth="$4"
+
+    Dirs=( ~/Work/flywheel/GCPBilling/${YearMonth} ~/Downloads )
+    for d in "${Dirs[@]}"
+    do
+	FileName=$(realpath "${d}/${Date}-${File}")
+	[ -e "$FileName" ] && break
+
+	FileName=$(realpath "${d}/${File}")
+	[ -e "$FileName" ] && break
+    done
+
+    if [ -n "$FileName" ] && [ -e "$FileName" ]
+    then
+	
+	ReportDate=$(dos2unix < "$FileName" | head -n 1 | awk '{print $NF}' )
+	if ( [[ "$ReportDate" > "$Date" ]] || [[ "$ReportDate" -eq "$Date" ]] ) && ( [[ "$ReportDate" < "$NextYearMonth" ]] || [[ "$ReportDate" -eq "$NextYearMonth" ]] )
+	then
+	    echo "$FileName"
+	    return
+	else
+            echo "$report date outside specified Date Range $Date - $ReportDate - $NextYearMonth" 1>&2
+	fi
+    fi
+}
+
+function ssh2bscsub {
+    local RCmd=( "$@" )
+
+    local Cmd=( cat )
+
+    [ "$(hostname -s)" == "fritz" ] && Cmd=( ssh vpn-uphs ssh chead ssh bscsub "${RCmd[@]}" )
+    [ "$(hostname -s)" == "chead" ] && Cmd=( ssh bscsub "${RCmd[@]}" )
+
+    echo "${Cmd[@]}"
+}
 
 # *** should be able to change report locations, both local and remote
 # *** should be able to do a quiet mode
@@ -30,16 +73,40 @@ shift $(($OPTIND - 1))
 
 Date="${Year}-${Month}-${Day}"
 YearMonth="${Year}-${Month}"
+NextYearMonth=$(date -d "${Date} + month" +"%Y-%m-01")
 
-RILabChargesFile="${RILabChargesDir}/${Date}-IlabBscPmacsClusterCharges.csv"
-LILabChargesDir="$(realpath ~/Work/flywheel/GCPBilling/${YearMonth})"
-LILabChargesFile="${LILabChargesDir}/${YearMonth}-IlabBscPmacsClusterCharges"
+RHost=$(ssh2bscsub hostname -s | bash)
+if [ "$RHost" != "bscsub1" ]
+then
+    echo "${CmdName} : Can not get to bscsub1" 1>&2
+    exit 2
+fi
 
-[ -d $LILabChargesDir ] || echo mkdir "$LILabChargesDir"
 
-for Report in userreport.txt projectreport.txt
-do
-	echo scp "/tmp/${Report}" "${Rhost}:${RDir}/${Date}-${Report}"
-done
+LPmacsUserReportFile=$(findReportFile userreport.txt "$Date" "$YearMonth" "$NextYearMonth")
+if [ -z "$LPmacsUserReportFile" ]
+then
+    echo "${CmdName} : Missing UserReportFile" 1>&2
+    exit
+fi
+RPmacsUserReportFile="${RReportDir}/${Date}-userreport.txt"
+echo "cat $LPmacsUserReportFile | $(ssh2bscsub tee $RPmacsUserReportFile)"
+   
+LPmacsProjectReportFile=$(findReportFile projectreport.txt "$Date" "$YearMonth" "$NextYearMonth")
+if [ -z "$LPmacsProjectReportFile" ]
+then
+    echo "${CmdName} : Missing ProjectReportFile" 1>&2
+    exit
+fi
+RPmacsProjectReportFile="${RReportDir}/${Date}-projectreport.txt"
+echo "cat $LPmacsProjectReportFile | $(ssh2bscsub tee $RPmacsProjectReportFile)"
 
-echo "ssh "$Rhost" '. ~/environment 2> /dev/null; BSUB_QUIET= bsub -q bsc_interactive -I -tty ${RCalculateCmd} | tee $RILabChargesFile' | tee '${LILabChargesFile}'"
+LPmacsGpfsReportFile=$(findReportFile projectGpfsreport.txt "$Date" "$YearMonth" "$NextYearMonth")
+if [ -n "$LPmacsGpfsReportFile" ]
+then
+    RPmacsGpfsReportFile="${RReportDir}/${Date}-projectGpfsreport.txt"
+    echo "cat $LPmacsGpfsReportFile | $(ssh2bscsub tee $RPmacsGpfsReportFile)"
+
+fi
+
+

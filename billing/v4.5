@@ -1,11 +1,17 @@
 #!/bin/bash
 
 #
-# 2 input tables - FwUsageReport and FwJobsReport, containing the storage and job information for each
-# invoice month
+# Load up the GCP costs
+# Load the flywheel compute (group/project/gear) and storage metrics (group/project)
+# Join the flywheel compute and storage metrics (group/project/gear)
+# Group the flywheel metrics into a group level table
+# Join the GCP costs and the flywheel group table
+# allocate the group level costs/hours back across the group/project/gear rows
+# pull out the null and flywheel-static groups into a total overhead table.
+# allocate the overhead metrics over the group/project/gear rows
+# calculate bsc charges
 #
-# TempGcpFwClassifiedCosts
-#     All the charges from the current invoice month classified along
+
 #     This table contains all the classifications we need from Gcp.
 #
 # Costs are what google charges us
@@ -907,6 +913,8 @@ CREATE TABLE IF NOT EXISTS
        , GcpGroupStorageCosts			FLOAT64
 
        , FwGearRunCount				FLOAT64
+       , FwInitialAnalysisCount			FLOAT64
+
        , FwGearDynamicCpuHours			FLOAT64
        , FwGearStaticCpuHours			FLOAT64
        , FwProjectStorageGb			FLOAT64
@@ -1008,6 +1016,8 @@ INSERT
 	    , GcpGroupStorageCosts
 
 	    , FwGearRunCount
+	    , FwInitialAnalysisCount
+
 	    , FwGearDynamicCpuHours
 	    , FwGearStaticCpuHours
 	    , FwProjectStorageGb
@@ -1035,6 +1045,8 @@ INSERT
 		, FwGearCategory
 
 		, FwGearRunCount
+		, FwInitialAnalysisCount
+
 		, FwGearDynamicCpuHours
 		, FwGearStaticCpuHours
 		, FwProjectStorageGb
@@ -1350,6 +1362,7 @@ CREATE TABLE IF NOT EXISTS
        , AllocatedGearComputeUnLabeledCosts	FLOAT64
 
        , AllocatedGcpStorageCosts		FLOAT64
+
        , AllocatedGcpStorageStandardCosts	FLOAT64
        , AllocatedGcpStorageStandardGb		FLOAT64
        , AllocatedGcpStorageColdlineCosts	FLOAT64
@@ -1360,6 +1373,7 @@ CREATE TABLE IF NOT EXISTS
        , AllocatedGcpMiscCosts			FLOAT64
 
        , GcpGroupComputeCosts			FLOAT64
+
        , GcpGroupComputeCpuHours		FLOAT64
        , GcpGroupComputeDynamicCpuHours		FLOAT64
        , GcpGroupComputeDynamicCosts		FLOAT64
@@ -1371,6 +1385,8 @@ CREATE TABLE IF NOT EXISTS
        , GcpGroupStorageCosts			FLOAT64
 
        , FwGearRunCount				FLOAT64
+       , FwInitialAnalysisCount			FLOAT64
+
        , FwGearDynamicCpuHours			FLOAT64
        , FwGearStaticCpuHours			FLOAT64
        , FwProjectStorageGb			FLOAT64
@@ -1429,6 +1445,7 @@ INSERT
             , t1.AllocatedGcpMiscCosts + t2.AllocatedGcpMiscCosts AS AllocatedGcpMiscCosts
 
 	    , t1.GcpGroupComputeCosts
+
 	    , t1.GcpGroupComputeCpuHours
 	    , t1.GcpGroupComputeDynamicCpuHours
 	    , t1.GcpGroupComputeDynamicCosts
@@ -1440,6 +1457,8 @@ INSERT
 	    , t1.GcpGroupStorageCosts
 
 	    , t1.FwGearRunCount
+	    , t1.FwInitialAnalysisCount
+
 	    , t1.FwGearDynamicCpuHours
 	    , t1.FwGearStaticCpuHours
 	    , t1.FwProjectStorageGb
@@ -1546,6 +1565,135 @@ SELECT
              InvoiceMonth = @InvoiceMonth
 	 GROUP BY
 	     InvoiceMonth
+    ;
+
+DELETE FROM 
+       `'"${Project}.${Dataset}.FwProjectAllocatedChargesV4"'`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
+     `'"${Project}.${Dataset}"'.FwProjectAllocatedChargesV4`
+    SELECT
+          *
+        , GcpAllocatedCosts + BscProjectTotalCharges AS ProjectTotalCharges
+    FROM ( #1
+        SELECT
+              *
+	      # *** these probably shoul be done before the overhead is allocated
+            , IF (   FwGearRunCount = 0
+    	          OR FwGearName LIKE "%Bogus%" 
+    	        , 0.0
+    	        , AllocatedGearComputeDynamicCosts / FwGearRunCount
+    	      ) AS GcpAllocatedAvgRuntimeCosts
+    
+            , IF (   FwGearRunCount = 0
+    	            OR FwGearName LIKE "%Bogus%" 
+    	            , 0.0 
+    	            , AllocatedGearComputeDynamicCpuHours / FwGearRunCount
+    	        ) AS GcpAllocatedAvgRuntimeCpuHours
+            , BscInitialAnalysisCharge + BscStorageCharge + BscProjectCharges AS BscProjectTotalCharges
+        
+        FROM ( #2
+            SELECT
+                  *
+         	, calculateBscInitialAnalysisCharge(BscInitialAnalysisCount) AS BscInitialAnalysisCharge
+         	, calculateBscProjectCharge(AllocatedGcpStorageStandardGb, AllocatedGcpStorageCosts) AS BscProjectCharges
+         	, calculateBscStorageCharge(AllocatedGcpStorageCosts) AS BscStorageCharge
+
+
+		FROM ( #3
+    SELECT
+          InvoiceMonth
+        , FwGroup
+        , FwProject
+        , FwGearName
+        , FwGearCategory
+
+        , myZeroIfNull(FwGearRunCount) AS FwGearRunCount
+        , myZeroIfNull(FwInitialAnalysisCount)	AS BscInitialAnalysisCount
+        , myZeroIfNull(FwProjectStorageGb) AS FwProjectStorageGb
+
+        , myZeroIfNull(AllocatedGcpStorageCosts) AS AllocatedGcpStorageCosts
+        , myZeroIfNull(AllocatedGcpStorageStandardGb) AS AllocatedGcpStorageStandardGb
+
+	, myZeroIfNull(AllocatedGearComputeCosts) AS AllocatedGearComputeCosts
+        , myZeroIfNull(AllocatedGearComputeDynamicCosts) AS AllocatedGearComputeDynamicCosts
+        , myZeroIfNull(AllocatedGearComputeDynamicCpuHours) AS AllocatedGearComputeDynamicCpuHours
+        , myZeroIfNull(AllocatedGearComputeStaticCosts) AS AllocatedGearComputeStaticCosts
+        , myZeroIfNull(AllocatedGearComputeStaticCpuHours) AS AllocatedGearComputeStaticCpuHours
+
+        , myZeroIfNull(AllocatedGearComputeStaticCosts)	AS AllocatedGearComputeStaticGearCosts
+        , myZeroIfNull(AllocatedGearComputeStaticCpuHours) AS AllocatedGearComputeStaticGearCpuHours
+        , myZeroIfNull(NULL) AS AllocatedGearComputeStaticNonGearCosts
+        , myZeroIfNull(NULL) AS AllocatedGearComputeStaticNonGearCpuHours
+
+#        , myZeroIfNull(AllocatedComputeLabeledCosts) AS AllocatedComputeLabeledCosts
+        , myZeroIfNull(AllocatedGearComputeUnLabeledCosts) AS AllocatedComputeUnlabeledCosts
+
+        , myZeroIfNull(AllocatedGcpMiscCosts) AS AllocatedGcpMiscCosts
+
+        , myZeroIfNull(AllocatedGearComputeCosts) 
+	  + myZeroIfNull(AllocatedGcpStorageCosts)
+	  + myZeroIfNull(AllocatedGcpMiscCosts) AS GcpAllocatedCosts
+
+
+    FROM
+             `'"${Project}.${Dataset}"'.TempAllocatedGroupProjectGearsOverheadV4_5` 
+         WHERE
+             InvoiceMonth = @InvoiceMonth
+
+	)
+       )
+       )
+
+    ;
+
+SELECT 
+
+    ROUND(SUM(GcpAllocatedComputeCosts),2) AS AllocatedGearComputeCosts
+#  , ROUND(SUM(GcpAllocatedComputeCpuHours),2) AS AllocatedGearComputeCpuHours
+
+  , ROUND(SUM(GcpAllocatedComputeDynamicCpuHours),2) AS AllocatedGearComputeDynamicCpuHours
+  , ROUND(SUM(GcpAllocatedComputeDynamicCosts),2) AS AllocatedGearComputeDynamicCosts
+
+  , ROUND(SUM(GcpAllocatedComputeStaticCpuHours),2) AS AllocatedGearComputeStaticCpuHours
+  , ROUND(SUM(GcpAllocatedComputeStaticCosts),2) AS AllocatedGearComputeStaticCosts
+
+#  , ROUND(SUM(GcpAllocatedComputeLabeledCosts),2) AS AllocatedGearComputeLabeledCosts
+  , ROUND(SUM(GcpAllocatedComputeUnlabeledCosts),2) AS AllocatedGearComputeUnLabeledCosts
+
+  , ROUND(SUM(GcpAllocatedStorageCosts),2) AS AllocatedGcpStorageCosts
+
+#  , ROUND(SUM(GcpAllocatedStorageStandardCosts),2) AS AllocatedGcpStorageStandardCosts
+  , ROUND(SUM(GcpAllocatedStorageStandardGb),2) AS AllocatedGcpStorageStandardGb
+#  , ROUND(SUM(GcpAllocatedStorageColdlineCosts),2) AS AllocatedGcpStorageColdlineCosts
+#  , ROUND(SUM(GcpAllocatedStorageColdlineGb),2) AS AllocatedGcpStorageColdlineGb
+#  , ROUND(SUM(GcpAllocatedStorageArchiveCosts),2) AS AllocatedGcpStorageArchiveCosts
+#  , ROUND(SUM(GcpAllocatedStorageArchiveGb),2) AS AllocatedGcpStorageArchiveGb
+
+
+  , ROUND(SUM(GcpAllocatedMiscCosts),2) AS AllocatedGcpMiscCosts
+
+        , ROUND(SUM(BscInitialAnalysisCharge)) AS BscInitialAnalysisCharge
+
+        , ROUND(SUM(BscProjectCharges)) AS BscProjectCharges
+        , ROUND(SUM(BscStorageCharge)) AS BscStorageCharge
+        , ROUND(SUM(GcpAllocatedAvgRuntimeCosts)) AS GcpAllocatedAvgRuntimeCosts
+        , ROUND(SUM(GcpAllocatedAvgRuntimeCpuHours)) AS GcpAllocatedAvgRuntimeCpuHours
+
+        , ROUND(SUM(BscProjectTotalCharges)) AS BscProjectTotalCharges
+        , ROUND(SUM(ProjectTotalCharges)) AS ProjectTotalCharges
+        
+         FROM
+	      `'"${Project}.${Dataset}"'.FwProjectAllocatedChargesV4`
+         WHERE
+             InvoiceMonth = @InvoiceMonth
+	 GROUP BY
+	     InvoiceMonth
+
+    ;
 
 
 '
