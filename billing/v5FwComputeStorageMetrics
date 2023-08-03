@@ -1,0 +1,153 @@
+
+. v${Version:=5}ArgHandler
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+'"$(< v5TempFunctions)"'
+
+#
+# 3  `'"${Project}.${Dataset}"'.v5FwComputeStorageMetrics`
+#
+#    Gcp charges us for 106TB of Standard storage, flwheel can account for 79 of them
+#
+#    The Bogus gear name column is inserted so the join in the next table does not wind up duplicating all the storage
+#    metrics across each gear  Solves a lot of problems
+#
+#
+
+#
+# v5FwComputeStorageMetrics
+#
+DROP TABLE IF EXISTS
+        `'"${Project}.${Dataset}"'.v5FwComputeStorageMetrics`
+    ;
+
+CREATE TABLE IF NOT EXISTS
+        `'"${Project}.${Dataset}"'.v5FwComputeStorageMetrics`
+    
+    (
+          InvoiceMonth					STRING
+        , FwGroup					STRING
+        , FwProject					STRING
+        , FwGearName					STRING
+        , FwGearCategory				STRING
+
+        , FwGearRunCount				INTEGER
+        , FwInitialAnalysisCount			INTEGER
+        , FwProjectStorageSessionCount			INTEGER
+
+        , FwGearAnalysisCpuHours			FLOAT64
+        , FwGearUtilityCpuHours				FLOAT64
+        , FwGearGenericCpuHours				FLOAT64
+        , FwGearDynamicCpuHours				FLOAT64
+        , FwGearStaticCpuHours				FLOAT64
+
+        , FwProjectStorageGb				FLOAT64
+        , FwProjectStorageActiveGb			FLOAT64
+        , FwProjectStorageDeletedGb			FLOAT64
+
+    );
+
+
+DELETE FROM 
+        `'"${Project}.${Dataset}"'.v5FwComputeStorageMetrics`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
+        `'"${Project}.${Dataset}"'.v5FwComputeStorageMetrics`
+    SELECT
+          IF (t1.InvoiceMonth IS NULL, t2.InvoiceMonth, t1.InvoiceMonth) AS InvoiceMonth
+	, IF (t1.FwGroup IS NULL, t2.FwGroup, t1.FwGroup) AS FwGroup
+	, IF (t1.FwProject IS NULL, t2.FwProject, t1.FwProject) AS FwProject
+	, IF (t1.FwGearName IS NULL, t2.FwGearName, t1.FwGearName) AS FwGearName
+	, IF (t1.FwGearCategory IS NULL, t2.FwGearCategory, t1.FwGearName) AS FwGearCategory
+
+	, CAST(myZeroIfNull(t1.FwGearRunCount) AS INTEGER) AS FwGearRunCount
+	, CAST(myZeroIfNull(t1.FwInitialAnalysisCount) AS INTEGER) AS FwInitialAnalysisCount
+	, CAST(myZeroIfNull(t2.FwProjectStorageSessionCount) AS INTEGER) AS FwProjectStorageSessionCount
+
+	, myZeroIfNull(t1.FwGearAnalysisCpuHours) AS FwGearAnalysisCpuHours
+	, myZeroIfNull(t1.FwGearUtilityCpuHours) AS FwGearUtilityCpuHours
+	, myZeroIfNull(t1.FwGearGenericCpuHours) AS FwGearGenericCpuHours
+	, myZeroIfNull(t1.FwGearDynamicCpuHours) AS FwGearDynamicCpuHours
+	, myZeroIfNull(t1.FwGearStaticCpuHours) AS FwGearStaticCpuHours
+
+	, myZeroIfNull(t2.FwProjectStorageGb) AS FwProjectStorageGb
+	, myZeroIfNull(t2.FwProjectStorageActiveGb) AS FwProjectStorageActiveGb
+	, myZeroIfNull(t2.FwProjectStorageDeletedGb) AS FwProjectStorageDeletedGb
+
+    FROM (
+         SELECT
+	     *
+	 FROM
+             `'"${Project}.${Dataset}"'.v5FwComputeMetrics`
+         WHERE
+     
+         InvoiceMonth = @InvoiceMonth
+
+    ) t1
+    FULL OUTER JOIN (
+    	 # Storage is allocated by all flywheel totals - not by group totals
+	 SELECT
+              InvoiceMonth
+            , FwGroup
+            , FwProject
+	    , "BogusStorageGear" AS FwGearName
+	    , "Bogus" AS FwGearCategory
+	    , FwProjectStorageSessionCount
+            , FwProjectStorageGb
+            , FwProjectStorageActiveGb
+            , FwProjectStorageDeletedGb
+        FROM
+            `'"${Project}.${Dataset}"'.v5FwStorageMetrics`  
+        WHERE
+            InvoiceMonth = @InvoiceMonth
+    ) t2
+
+    ON
+	    t1.InvoiceMonth = t2.InvoiceMonth
+	AND t1.FwGroup = t2.FwGroup
+	AND t1.FwProject = t2.FwProject
+	AND t1.FwGearName = t2.FwGearName
+
+    ORDER BY
+          InvoiceMonth
+	, FwGroup
+	, FwProject
+	, FwGearName
+        , FwGearCategory
+
+    ;
+
+' | OutputControl $opt_v
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+SELECT
+          InvoiceMonth
+
+        , ROUND(SUM(FwGearRunCount),2) AS FwGearRunCount
+        , ROUND(SUM(FwInitialAnalysisCount),2) AS FwInitialAnalysisCount
+        , ROUND(SUM(FwProjectStorageSessionCount),2) AS FwProjectStorageSessionCount
+
+        , ROUND(SUM(FwGearAnalysisCpuHours),2) AS FwGearAnalysisCpuHours
+        , ROUND(SUM(FwGearUtilityCpuHours),2) AS FwGearUtilityCpuHours
+        , ROUND(SUM(FwGearGenericCpuHours),2) AS FwGearGenericCpuHours
+        , ROUND(SUM(FwGearDynamicCpuHours),2) AS FwGearDynamicCpuHours
+        , ROUND(SUM(FwGearStaticCpuHours),2) AS FwGearStaticCpuHours
+
+        , ROUND(SUM(FwProjectStorageGb),2) AS FwProjectStorageGb
+        , ROUND(SUM(FwProjectStorageActiveGb),2) AS FwProjectStorageActiveGb
+        , ROUND(SUM(FwProjectStorageDeletedGb),2) AS FwProjectStorageDeletedGb
+
+FROM
+        `'"${Project}.${Dataset}"'.v5FwComputeStorageMetrics`
+WHERE
+        InvoiceMonth = @InvoiceMonth
+GROUP BY
+      InvoiceMonth
+    ;
+
+' | OutputControl column

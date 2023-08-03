@@ -1,0 +1,252 @@
+#!/bin/bash
+
+. v${Version:=5}ArgHandler
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+'"$(< v5TempFunctions)"'
+
+#
+# 1 GcpClassifiedMetricsV5
+# 
+#   Classify billing metrics from Gcp
+#
+DROP TABLE IF EXISTS
+       `'"${Project}.${Dataset}"'.v5GcpClassifiedMetrics`
+    ;
+
+CREATE TABLE IF NOT EXISTS
+       `'"${Project}.${Dataset}"'.v5GcpClassifiedMetrics`
+    (
+	  InvoiceMonth				STRING
+	, FwGroup				STRING
+
+	, GcpGroupComputeCosts			FLOAT64
+	, GcpGroupComputeCpuHours		FLOAT64
+	, GcpGroupComputeDynamicCpuHours	FLOAT64
+	, GcpGroupComputeDynamicCosts		FLOAT64
+	, GcpGroupComputeStaticCpuHours		FLOAT64
+	, GcpGroupComputeStaticCosts		FLOAT64
+	, GcpGroupComputeLabeledCosts		FLOAT64
+	, GcpGroupComputeUnlabeledCosts		FLOAT64
+
+	, GcpGroupStorageStandardCosts		FLOAT64
+	, GcpGroupStorageStandardGb		FLOAT64
+	, GcpGroupStorageColdlineCosts		FLOAT64
+	, GcpGroupStorageColdlineGb		FLOAT64
+	, GcpGroupStorageArchiveCosts		FLOAT64
+	, GcpGroupStorageArchiveGb		FLOAT64
+	, GcpGroupStorageMiscCosts		FLOAT64
+
+	, GcpGroupMiscCosts			FLOAT64
+	, GcpGroupMiscStaticCosts		FLOAT64
+	, GcpGroupMiscDynamicCosts		FLOAT64
+	, GcpGroupMiscUnlabeledCosts		FLOAT64
+	, GcpGroupMiscLabeledCosts		FLOAT64
+
+	, GcpGroupStorageCosts			FLOAT64
+	, GcpGroupCosts				FLOAT64
+    );
+
+DELETE FROM
+       `'"${Project}.${Dataset}"'.v5GcpClassifiedMetrics`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
+       `'"${Project}.${Dataset}"'.v5GcpClassifiedMetrics`
+    SELECT
+	  *
+	  , (   GcpGroupComputeCosts
+	      + GcpGroupStorageCosts
+	      + GcpGroupMiscCosts
+	    ) AS GcpGroupCosts
+     FROM (
+
+    SELECT
+            *
+    	  , (
+    	        myZeroIfNull(GcpGroupStorageStandardCosts)
+    	      + myZeroIfNull(GcpGroupStorageColdlineCosts)
+    	      + myZeroIfNull(GcpGroupStorageArchiveCosts)
+    	      + myZeroIfNull(GcpGroupStorageMiscCosts)
+    	    ) AS GcpGroupStorageCosts
+
+     FROM (
+            SELECT
+        	  InvoiceMonth
+        	, FwGroup
+        
+        	#
+        	# Compute
+        	#   Core Hours Used
+        	#
+        	, SUM(IF (isComputeCost(ServiceDescription,SkuDescription),
+                       DiscountedCosts,
+        	       0.0)) AS GcpGroupComputeCosts
+        
+        	, SUM(IF (   isComputeDynamicCpuHours(ServiceDescription,SkuDescription, FwGroup)
+		  	  OR isComputeStaticCpuHours(ServiceDescription,SkuDescription, FwGroup)
+                       , UsageAmount
+        	       , 0.0)) AS GcpGroupComputeCpuHours
+        
+                , SUM(IF (isComputeDynamicCpuHours(ServiceDescription,SkuDescription, FwGroup)
+                       , UsageAmount
+                       , 0.0)) AS GcpGroupComputeDynamicCpuHours
+        
+                , SUM(IF (isComputeDynamicCost(ServiceDescription,FwGroup),
+                       DiscountedCosts,
+        	       0.0)) AS GcpGroupComputeDynamicCosts
+        
+                , SUM(IF (isComputeStaticCpuHours(ServiceDescription,SkuDescription, FwGroup),
+                       UsageAmount,
+                       0.0)) AS GcpGroupComputeStaticCpuHours
+        
+                , SUM(IF (isComputeStaticCost(ServiceDescription,FwGroup),
+                       DiscountedCosts,
+        	       0.0)) AS GcpGroupComputeStaticCosts
+        
+                , SUM(IF (isComputeLabeledCost(ServiceDescription,FwGroup),
+                       DiscountedCosts,
+        	       0.0)) AS GcpGroupComputeLabeledCosts
+        
+                , SUM(IF (isComputeUnlabeledCost(ServiceDescription,FwGroup),
+                       DiscountedCosts,
+        	       0.0)) AS GcpGroupComputeUnlabeledCosts
+        
+                #
+                # As of 2022-08-15 all storage is under flywheel static and none is grouped.
+                #
+                , SUM(IF (isStorageStandardCost(ServiceDescription,SkuDescription),
+                    DiscountedCosts,
+                    0.0)) AS GcpGroupStorageStandardCosts
+           
+                , SUM(IF (isStorageStandardCost(ServiceDescription,SkuDescription),
+                    UsageAmount,
+                    0.0)) AS GcpGroupStorageStandardGb
+           
+                , SUM(IF (isStorageColdlineCost(ServiceDescription,SkuDescription),
+                    DiscountedCosts,
+                    0.0)) AS GcpGroupStorageColdlineCosts
+           
+                , SUM(IF (isStorageColdlineCost(ServiceDescription,SkuDescription),
+                    UsageAmount,
+                    0.0)) AS GcpGroupStorageColdlineGb
+           
+                , SUM(IF (isStorageArchiveCost(ServiceDescription,SkuDescription),
+                    DiscountedCosts,
+                    0.0)) AS GcpGroupStorageArchiveCosts
+           
+                , SUM(IF (isStorageArchiveCost(ServiceDescription,SkuDescription),
+                    UsageAmount,
+                    0.0)) AS GcpGroupStorageArchiveGb
+           
+                , SUM(IF (isStorageMiscCost(ServiceDescription,SkuDescription),
+                    DiscountedCosts,
+                    0.0)) AS GcpGroupStorageMiscCosts
+           
+                #
+                # Misc Costs
+                #
+                , SUM(IF (isMiscCost(ServiceDescription,SkuDescription),
+                    DiscountedCosts,
+                    0.0)) AS GcpGroupMiscCosts
+   
+                ,  SUM(IF (isMiscStaticCosts(ServiceDescription,FwGroup),
+                    DiscountedCosts,
+   	      	    0.0)) AS GcpGroupMiscStaticCosts
+   
+                ,  SUM(IF (isMiscDynamicCosts(ServiceDescription,FwGroup),
+                    DiscountedCosts,
+   	      	    0.0)) AS GcpGroupMiscDynamicCosts
+   
+   	        , SUM(IF (isMiscUnlabeledCosts(ServiceDescription,FwGroup),
+                    DiscountedCosts,
+   	            0.0)) AS GcpGroupMiscUnlabeledCosts
+   
+   	        , SUM(IF (isMiscLabeledCosts(ServiceDescription,FwGroup),
+                    DiscountedCosts,
+   		    0.0)) AS GcpGroupMiscLabeledCosts
+   
+             FROM (
+   	         SELECT
+   	               InvoiceMonth
+   		     , FlywheelGroupName AS FwGroup
+   		     , GcpProjectName
+   		     , ServiceDescription
+   		     , SkuDescription
+   		     , UsageAmountInPricingUnits AS UsageAmount
+   		     , UsagePricingUnit
+   		     , myZeroIfNull(Costs) + myZeroIfNull(Discounts) AS DiscountedCosts
+   		     , Discounts
+   		     , Promotions
+   	      	 FROM
+                     `pennbrain-center.BillingAllocation.FlywheelCosts`
+   
+                 WHERE
+		     InvoiceMonth = @InvoiceMonth
+
+           
+   	     )
+           
+             GROUP BY
+                   InvoiceMonth
+                 , FwGroup
+           
+             ORDER BY
+                   InvoiceMonth
+                 , FwGroup
+   )
+   )
+   ORDER BY
+         InvoiceMonth
+       , FwGroup
+   ;
+' | OutputControl $opt_v
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+SELECT
+	  InvoiceMonth
+
+	, ROUND(SUM(GcpGroupComputeCosts),2) AS GcpGroupComputeCosts
+	, ROUND(SUM(GcpGroupComputeCpuHours),2) AS GcpGroupComputeCpuHours
+
+	, ROUND(SUM(GcpGroupComputeDynamicCosts),2) AS GcpGroupComputeDynamicCpuCosts
+	, ROUND(SUM(GcpGroupComputeDynamicCpuHours),2) AS GcpGroupComputeDynamicCpuHours
+
+	, ROUND(SUM(GcpGroupComputeStaticCpuHours),2) AS GcpGroupComputeStaticCpuHours
+	, ROUND(SUM(GcpGroupComputeStaticCosts),2) AS GcpGroupComputeStaticCosts
+
+	, ROUND(SUM(GcpGroupComputeLabeledCosts),2) AS GcpGroupComputeLabeledCosts
+	, ROUND(SUM(GcpGroupComputeUnlabeledCosts),2) AS GcpGroupComputeUnlabeledCosts
+
+	, ROUND(SUM(GcpGroupStorageStandardCosts),2) AS GcpGroupStorageStandardCosts
+	, ROUND(SUM(GcpGroupStorageStandardGb),2) AS GcpGroupStorageStandardGb
+
+	, ROUND(SUM(GcpGroupStorageColdlineCosts),2) AS GcpGroupStorageColdlineCosts
+	, ROUND(SUM(GcpGroupStorageColdlineGb),2) AS GcpGroupStorageColdlineGb
+
+	, ROUND(SUM(GcpGroupStorageArchiveCosts),2) AS GcpGroupStorageArchiveCosts
+	, ROUND(SUM(GcpGroupStorageArchiveGb),2) AS GcpGroupStorageArchiveGb
+
+	, ROUND(SUM(GcpGroupStorageMiscCosts),2) AS GcpGroupStorageMiscCosts
+	, ROUND(SUM(GcpGroupMiscCosts),2) AS GcpGroupMiscCosts
+
+	, ROUND(SUM(GcpGroupMiscStaticCosts),2) AS GcpGroupMiscStaticCosts
+	, ROUND(SUM(GcpGroupMiscDynamicCosts),2) AS GcpGroupMiscDynamicCosts
+
+	, ROUND(SUM(GcpGroupMiscUnlabeledCosts),2) AS GcpGroupMiscUnlabeledCosts
+	, ROUND(SUM(GcpGroupMiscLabeledCosts),2) AS GcpGroupMiscLabeledCosts
+
+	, ROUND(SUM(GcpGroupStorageCosts),2) AS GcpGroupStorageCosts
+	, ROUND(SUM(GcpGroupCosts),2) AS GcpGroupCosts
+FROM
+       `'"${Project}.${Dataset}"'.v5GcpClassifiedMetrics`
+GROUP BY
+      InvoiceMonth
+
+    ;
+
+' | OutputControl column

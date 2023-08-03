@@ -1,0 +1,271 @@
+
+. v${Version:=5}ArgHandler
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+'"$(< v5TempFunctions)"'
+
+#
+# 3  `'"${Project}.${Dataset}"'.v5FwGroupComputeStorageMetrics`
+#
+#    Gcp charges us for 106TB of Standard storage, flwheel can account for 79 of them
+#
+#    The Bogus gear name column is inserted so the join in the next table does not wind up duplicating all the storage
+#    metrics across each gear  Solves a lot of problems
+#
+#
+
+#
+# v5GcpFwComputeStorageMetrics
+#
+DROP TABLE IF EXISTS
+        `'"${Project}.${Dataset}"'.v5GcpFwGroupComputeStorageMetrics`
+   ;
+
+CREATE TABLE IF NOT EXISTS
+        `'"${Project}.${Dataset}"'.v5GcpFwGroupComputeStorageMetrics`
+
+    (
+          InvoiceMonth				STRING
+        , FwGroup				STRING
+
+        , FwGroupGearRunCount			INTEGER
+        , FwGroupInitialAnalysisCount		INTEGER
+        , FwGroupStorageSessionCount		INTEGER
+	, FwGroupProjectCount			INTEGER
+
+        , FwGroupAnalysisCpuHours		FLOAT64
+        , FwGroupUtilityCpuHours		FLOAT64
+        , FwGroupGenericCpuHours		FLOAT64
+        , FwGroupDynamicCpuHours		FLOAT64
+        , FwGroupStaticCpuHours			FLOAT64
+
+        , FwGroupStorageGb			FLOAT64
+        , FwGroupStorageActiveGb		FLOAT64
+        , FwGroupStorageDeletedGb		FLOAT64
+
+	, GcpGroupComputeCosts			FLOAT64
+	, GcpGroupComputeCpuHours		FLOAT64
+
+	, GcpGroupComputeDynamicCpuHours	FLOAT64
+	, GcpGroupComputeDynamicCosts		FLOAT64
+	, GcpGroupComputeStaticCpuHours		FLOAT64
+	, GcpGroupComputeStaticCosts		FLOAT64
+	, GcpGroupComputeLabeledCosts		FLOAT64
+	, GcpGroupComputeUnlabeledCosts		FLOAT64
+
+	, GcpGroupStorageStandardCosts		FLOAT64
+	, GcpGroupStorageStandardGb		FLOAT64
+	, GcpGroupStorageColdlineCosts		FLOAT64
+	, GcpGroupStorageColdlineGb		FLOAT64
+	, GcpGroupStorageArchiveCosts		FLOAT64
+	, GcpGroupStorageArchiveGb		FLOAT64
+	, GcpGroupStorageMiscCosts		FLOAT64
+
+	, GcpGroupMiscCosts			FLOAT64
+	, GcpGroupMiscStaticCosts		FLOAT64
+	, GcpGroupMiscDynamicCosts		FLOAT64
+	, GcpGroupMiscUnlabeledCosts		FLOAT64
+	, GcpGroupMiscLabeledCosts		FLOAT64
+
+	, GcpGroupStorageCosts			FLOAT64
+	, GcpGroupCosts				FLOAT64
+    );
+
+
+DELETE FROM 
+        `'"${Project}.${Dataset}"'.v5GcpFwGroupComputeStorageMetrics`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
+        `'"${Project}.${Dataset}"'.v5GcpFwGroupComputeStorageMetrics`
+    SELECT
+          IF (t1.InvoiceMonth IS NULL, t2.InvoiceMonth, t1.InvoiceMonth) AS InvoiceMonth
+	, IF (t1.FwGroup IS NULL, t2.FwGroup, t1.FwGroup) AS FwGroup
+
+	, SUM(CAST(myZeroIfNull(t1.FwGroupGearRunCount) AS INTEGER)) AS FwGroupGearRunCount
+	, SUM(CAST(myZeroIfNull(t1.FwGroupInitialAnalysisCount) AS INTEGER)) AS FwGroupInitialAnalysisCount
+	, SUM(CAST(myZeroIfNull(t1.FwGroupStorageSessionCount) AS INTEGER)) AS FwGroupStorageSessionCount
+	, SUM(FwGroupProjectCount) AS FwGroupProjectCount
+
+	, SUM(myZeroIfNull(t1.FwGroupAnalysisCpuHours)) AS FwGroupAnalysisCpuHours
+	, SUM(myZeroIfNull(t1.FwGroupUtilityCpuHours)) AS FwGroupUtilityCpuHours
+	, SUM(myZeroIfNull(t1.FwGroupGenericCpuHours)) AS FwGroupGenericCpuHours
+	, SUM(myZeroIfNull(t1.FwGroupDynamicCpuHours)) AS FwGroupDynamicCpuHours
+	, SUM(myZeroIfNull(t1.FwGroupStaticCpuHours)) AS FwGroupStaticCpuHours
+
+	, SUM(myZeroIfNull(t1.FwGroupStorageGb)) AS FwGroupStorageGb
+	, SUM(myZeroIfNull(t1.FwGroupStorageActiveGb)) AS FwGroupStorageActiveGb
+	, SUM(myZeroIfNull(t1.FwGroupStorageDeletedGb)) AS FwGroupStorageDeletedGb
+
+	, SUM(myZeroIfNull(GcpGroupComputeCosts)) AS GcpGroupComputeCosts
+	, SUM(myZeroIfNull(GcpGroupComputeCpuHours)) AS GcpGroupComputeCpuHours
+	, SUM(myZeroIfNull(GcpGroupComputeDynamicCpuHours)) AS GcpGroupComputeDynamicCpuHours
+	, SUM(myZeroIfNull(GcpGroupComputeDynamicCosts)) AS GcpGroupComputeDynamicCosts
+	, SUM(myZeroIfNull(GcpGroupComputeStaticCpuHours)) AS GcpGroupComputeStaticCpuHours
+	, SUM(myZeroIfNull(GcpGroupComputeStaticCosts)) AS GcpGroupComputeStaticCosts
+	, SUM(myZeroIfNull(GcpGroupComputeLabeledCosts)) AS GcpGroupComputeLabeledCosts
+	, SUM(myZeroIfNull(GcpGroupComputeUnlabeledCosts)) AS GcpGroupComputeUnlabeledCosts
+
+	, SUM(myZeroIfNull(GcpGroupStorageStandardCosts)) AS GcpGroupStorageStandardCosts
+	, SUM(myZeroIfNull(GcpGroupStorageStandardGb)) AS GcpGroupStorageStandardGb
+	, SUM(myZeroIfNull(GcpGroupStorageColdlineCosts)) AS GcpGroupStorageColdlineCosts
+	, SUM(myZeroIfNull(GcpGroupStorageColdlineGb)) AS GcpGroupStorageColdlineGb
+	, SUM(myZeroIfNull(GcpGroupStorageArchiveCosts)) AS GcpGroupStorageArchiveCosts
+	, SUM(myZeroIfNull(GcpGroupStorageArchiveGb)) AS GcpGroupStorageArchiveGb
+	, SUM(myZeroIfNull(GcpGroupStorageMiscCosts)) AS GcpGroupStorageMiscCosts
+
+	, SUM(myZeroIfNull(GcpGroupMiscCosts)) AS GcpGroupMiscCosts
+	, SUM(myZeroIfNull(GcpGroupMiscStaticCosts)) AS GcpGroupMiscStaticCosts
+	, SUM(myZeroIfNull(GcpGroupMiscDynamicCosts)) AS GcpGroupMiscDynamicCosts
+	, SUM(myZeroIfNull(GcpGroupMiscUnlabeledCosts)) AS GcpGroupMiscUnlabeledCosts
+	, SUM(myZeroIfNull(GcpGroupMiscLabeledCosts)) AS GcpGroupMiscLabeledCosts
+
+	, SUM(myZeroIfNull(GcpGroupStorageCosts)) AS GcpGroupStorageCosts
+	, SUM(myZeroIfNull(GcpGroupCosts)) AS GcpGroupCosts
+
+    FROM (
+        SELECT 
+          InvoiceMonth
+        , FwGroup
+
+	, SUM(CAST(myZeroIfNull(FwGearRunCount) AS INTEGER)) AS FwGroupGearRunCount
+	, SUM(CAST(myZeroIfNull(FwInitialAnalysisCount) AS INTEGER)) AS FwGroupInitialAnalysisCount
+	, SUM(CAST(myZeroIfNull(FwProjectStorageSessionCount) AS INTEGER)) AS FwGroupStorageSessionCount
+	, COUNT(FwProject) AS FwGroupProjectCount
+
+	, SUM(myZeroIfNull(FwGearAnalysisCpuHours)) AS FwGroupAnalysisCpuHours
+	, SUM(myZeroIfNull(FwGearUtilityCpuHours)) AS FwGroupUtilityCpuHours
+	, SUM(myZeroIfNull(FwGearGenericCpuHours)) AS FwGroupGenericCpuHours
+	, SUM(myZeroIfNull(FwGearDynamicCpuHours)) AS FwGroupDynamicCpuHours
+	, SUM(myZeroIfNull(FwGearStaticCpuHours)) AS FwGroupStaticCpuHours
+
+	, SUM(myZeroIfNull(FwProjectStorageGb)) AS FwGroupStorageGb
+	, SUM(myZeroIfNull(FwProjectStorageActiveGb)) AS FwGroupStorageActiveGb
+	, SUM(myZeroIfNull(FwProjectStorageDeletedGb)) AS FwGroupStorageDeletedGb
+
+	FROM
+            `'"${Project}.${Dataset}"'.v5FwComputeStorageMetrics`
+        WHERE
+            InvoiceMonth = @InvoiceMonth
+	GROUP BY
+	      InvoiceMonth
+	    , FwGroup
+
+    ) t1
+    FULL OUTER JOIN (
+    	 # Storage is allocated by all flywheel totals - not by group totals
+
+        SELECT 
+	  InvoiceMonth
+	, FwGroup
+
+	, GcpGroupComputeCosts
+	, GcpGroupComputeCpuHours
+
+	, GcpGroupComputeDynamicCpuHours
+	, GcpGroupComputeDynamicCosts
+	, GcpGroupComputeStaticCpuHours
+	, GcpGroupComputeStaticCosts
+	, GcpGroupComputeLabeledCosts
+	, GcpGroupComputeUnlabeledCosts
+
+	, GcpGroupStorageStandardCosts
+	, GcpGroupStorageStandardGb
+	, GcpGroupStorageColdlineCosts
+	, GcpGroupStorageColdlineGb
+	, GcpGroupStorageArchiveCosts
+	, GcpGroupStorageArchiveGb
+	, GcpGroupStorageMiscCosts
+
+	, GcpGroupMiscCosts
+
+	, GcpGroupMiscStaticCosts
+	, GcpGroupMiscDynamicCosts
+	, GcpGroupMiscUnlabeledCosts
+	, GcpGroupMiscLabeledCosts
+
+	, GcpGroupStorageCosts
+	, GcpGroupCosts
+        FROM 
+            `'"${Project}.${Dataset}"'.v5GcpClassifiedMetrics` 
+        WHERE
+            InvoiceMonth = @InvoiceMonth
+    ) t2
+    
+    ON
+	    t1.InvoiceMonth = t2.InvoiceMonth
+	AND t1.FwGroup = t2.FwGroup
+
+    GROUP BY
+          InvoiceMonth
+        , FwGroup
+
+    ORDER BY
+          InvoiceMonth
+	, FwGroup
+
+;
+
+' | OutputControl $opt_v
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+   SELECT
+          InvoiceMonth
+
+	, SUM(FwGroupGearRunCount) AS FwGroupGearRunCount
+	, SUM(FwGroupInitialAnalysisCount) AS FwGroupInitialAnalysisCount
+	, SUM(FwGroupStorageSessionCount) AS FwGroupStorageSessionCount
+	, SUM(FwGroupProjectCount) AS FwGroupProjectCount
+
+	, ROUND(SUM(FwGroupAnalysisCpuHours),2) AS FwGroupAnalysisCpuHours
+	, ROUND(SUM(FwGroupUtilityCpuHours),2) AS FwGroupUtilityCpuHours
+	, ROUND(SUM(FwGroupGenericCpuHours),2) AS FwGroupGenericCpuHours
+	, ROUND(SUM(FwGroupDynamicCpuHours),2) AS FwGroupDynamicCpuHours
+	, ROUND(SUM(FwGroupStaticCpuHours),2) AS FwGroupStaticCpuHours
+
+	, ROUND(SUM(FwGroupStorageGb),2) AS FwGroupStorageGb
+	, ROUND(SUM(FwGroupStorageActiveGb),2) AS FwGroupStorageActiveGb
+	, ROUND(SUM(FwGroupStorageDeletedGb),2) AS FwGroupStorageDeletedGb
+
+	, ROUND(SUM(GcpGroupComputeCosts),2) AS GcpGroupComputeCosts
+	, ROUND(SUM(GcpGroupComputeCpuHours),2) AS GcpGroupComputeCpuHours
+
+	, ROUND(SUM(GcpGroupComputeDynamicCosts),2) AS GcpGroupComputeDynamicCosts
+	, ROUND(SUM(GcpGroupComputeDynamicCpuHours),2) AS GcpGroupComputeDynamicCpuHours
+	, ROUND(SUM(GcpGroupComputeStaticCosts),2) AS GcpGroupComputeStaticCosts
+	, ROUND(SUM(GcpGroupComputeStaticCpuHours),2) AS GcpGroupComputeStaticCpuHours
+	, ROUND(SUM(GcpGroupComputeLabeledCosts),2) AS GcpGroupComputeLabeledCosts
+	, ROUND(SUM(GcpGroupComputeUnlabeledCosts),2) AS GcpGroupComputeUnlabeledCosts
+
+	, ROUND(SUM(GcpGroupStorageStandardCosts),2) AS GcpGroupStorageStandardCosts
+	, ROUND(SUM(GcpGroupStorageStandardGb),2) AS GcpGroupStorageStandardGb
+	, ROUND(SUM(GcpGroupStorageColdlineCosts),2) AS GcpGroupStorageColdlineCosts
+	, ROUND(SUM(GcpGroupStorageColdlineGb),2) AS GcpGroupStorageColdlineGb
+	, ROUND(SUM(GcpGroupStorageArchiveCosts),2) AS GcpGroupStorageArchiveCosts
+	, ROUND(SUM(GcpGroupStorageArchiveGb),2) AS GcpGroupStorageArchiveGb
+	, ROUND(SUM(GcpGroupStorageMiscCosts),2) AS GcpGroupStorageMiscCosts
+
+	, ROUND(SUM(GcpGroupMiscCosts),2) AS GcpGroupMiscCosts
+	, ROUND(SUM(GcpGroupMiscStaticCosts),2) AS GcpGroupMiscStaticCosts
+	, ROUND(SUM(GcpGroupMiscDynamicCosts),2) AS GcpGroupMiscDynamicCosts
+	, ROUND(SUM(GcpGroupMiscUnlabeledCosts),2) AS GcpGroupMiscUnlabeledCosts
+	, ROUND(SUM(GcpGroupMiscLabeledCosts),2) AS GcpGroupMiscLabeledCosts
+
+	, ROUND(SUM(GcpGroupStorageCosts),2) AS GcpGroupStorageCosts
+	, ROUND(SUM(GcpGroupCosts),2) AS GcpGroupCosts
+
+
+FROM
+        `'"${Project}.${Dataset}"'.v5GcpFwGroupComputeStorageMetrics`
+WHERE
+        InvoiceMonth = @InvoiceMonth
+GROUP BY
+    InvoiceMonth
+
+;
+
+' | OutputControl column

@@ -1,0 +1,102 @@
+#!/bin/bash
+
+. v${Version:=5}ArgHandler
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+'"$(< v5TempFunctions)"'
+
+DROP TABLE IF EXISTS
+       `'"${Project}.${Dataset}"'.v5FwStorageMetrics` 
+    ;
+
+CREATE TABLE IF NOT EXISTS
+       `'"${Project}.${Dataset}"'.v5FwStorageMetrics` 
+    (
+	  InvoiceMonth			STRING,
+	, FwGroup			STRING,
+	, FwProject			STRING,
+
+	, FwProjectStorageSessionCount	INTEGER,
+
+	, FwProjectStorageGb		FLOAT64,
+	, FwProjectStorageDeletedGb	FLOAT64,
+	, FwProjectStorageActiveGb	FLOAT64,
+    );
+
+DELETE
+       `'"${Project}.${Dataset}"'.v5FwStorageMetrics` 
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
+       `'"${Project}.${Dataset}"'.v5FwStorageMetrics` 
+    SELECT
+          InvoiceMonth
+        , FwGroup
+        , FwProject
+
+	, SUM(FwProjectStorageSessionCount) AS FwProjectStorageSessionCount
+
+	, SUM(FwProjectStorageGb) AS FwProjectStorageGb
+	, SUM(FwProjectStorageDeletedGb) AS FwProjectStorageDeletedGb
+	, SUM(FwProjectStorageActiveGb) AS FwProjectStorageActiveGb
+    FROM (
+        SELECT
+            CAST(invoice_month AS STRING) AS InvoiceMonth
+          , REPLACE(`group`,"_","-") AS FwGroup
+          , project_label AS FwProject
+	  , SUM(session_count) AS FwProjectStorageSessionCount
+          , SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0) AS FwProjectStorageGb
+          , IF (deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectStorageDeletedGb
+          , IF (NOT deleted, SUM(total_storage_byte_day / days / 1024.0 / 1024.0 / 1024.0), 0.0) AS FwProjectStorageActiveGb
+        FROM
+          `pennbrain-center.BillingAllocation.FwUsageReport`
+
+        WHERE
+          CAST(invoice_month AS STRING) = @InvoiceMonth
+          AND project_label IS NOT NULL
+
+        GROUP BY
+            InvoiceMonth,
+            FwGroup,
+            FwProject,
+	    deleted
+
+        ORDER BY
+            InvoiceMonth,
+            FwGroup,
+            FwProject
+    )
+    GROUP BY
+            InvoiceMonth,
+            FwGroup,
+            FwProject
+    ORDER BY
+            InvoiceMonth,
+            FwGroup,
+            FwProject
+
+    ;
+
+' | OutputControl $opt_v
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+SELECT
+           InvoiceMonth
+	, ROUND(SUM(FwProjectStorageSessionCount),2) AS FwProjectStorageSessionCount
+	, ROUND(SUM(FwProjectStorageGb),2) AS FwProjectStorageGb
+	, ROUND(SUM(FwProjectStorageActiveGb),2) AS FwProjectStorageActiveGb
+	, ROUND(SUM(FwProjectStorageDeletedGb),2) AS FwProjectStorageDeletedGb
+
+FROM
+         `'"${Project}.${Dataset}"'.v5FwStorageMetrics`
+GROUP BY
+         InvoiceMonth
+    ;
+
+
+' | OutputControl column
+

@@ -1,0 +1,259 @@
+#!/bin/bash
+
+. v${Version:=5}ArgHandler
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+'"$(< v5TempFunctions)"'
+
+#
+# 5 `'"${Project}.${Dataset}"'.TempGcpFwAllocatedGroupProjectGearMetricsCostsV4`
+#
+#   This is where all group only metrics and costs get allocated to the gear level
+#
+DROP TABLE IF EXISTS
+        `'"${Project}.${Dataset}"'.v5AllocatedGcpFwGroupProjectGears`
+    ;
+
+CREATE TABLE IF NOT EXISTS
+        `'"${Project}.${Dataset}"'.v5AllocatedGcpFwGroupProjectGears`
+    (
+          InvoiceMonth					STRING
+        , FwGroup					STRING
+
+        , FwProject					STRING
+        , FwGearName					STRING
+        , FwGearCategory				STRING
+
+        , FwGearRunCount				INTEGER
+        , FwInitialAnalysisCount			INTEGER
+        , FwProjectStorageSessionCount			INTEGER
+
+	, FwGroupProjectCount				INTEGER
+
+        , FwGearAnalysisCpuHours			FLOAT64
+        , FwGearUtilityCpuHours				FLOAT64
+        , FwGearGenericCpuHours				FLOAT64
+        , FwGearDynamicCpuHours				FLOAT64
+        , FwGearStaticCpuHours				FLOAT64
+
+	#
+	# All FwStorage metrics are collected by project and
+	# are allocated in the BogusStorageGear
+	# 
+        , AllocatedFwGearStorageGb			FLOAT64
+        , AllocatedFwGearStorageActiveGb		FLOAT64
+        , AllocatedFwGearStorageDeletedGb		FLOAT64
+
+	, AllocatedGcpGearComputeCosts			FLOAT64
+	, AllocatedGcpGearComputeCpuHours		FLOAT64
+
+	, AllocatedGcpGearComputeDynamicCosts		FLOAT64
+	, AllocatedGcpGearComputeDynamicCpuHours       	FLOAT64
+
+	, AllocatedGcpGearComputeStaticCosts		FLOAT64
+	, AllocatedGcpGearComputeStaticCpuHours		FLOAT64
+
+	, AllocatedGcpGearComputeLabeledCosts		FLOAT64
+	, AllocatedGcpGearComputeUnlabeledCosts		FLOAT64
+
+	#
+	# All GCP storage is gathered under the flywheel-static gcp tag
+	# So the storage columns are zero except for flywheel-static
+	#
+	, AllocatedGcpGearStorageCosts			FLOAT64
+
+	, AllocatedGcpGearStorageStandardCosts		FLOAT64
+	, AllocatedGcpGearStorageStandardGb		FLOAT64
+	, AllocatedGcpGearStorageColdlineCosts		FLOAT64
+	, AllocatedGcpGearStorageColdlineGb		FLOAT64
+	, AllocatedGcpGearStorageArchiveCosts		FLOAT64
+	, AllocatedGcpGearStorageArchiveGb		FLOAT64
+	, AllocatedGcpGearStorageMiscCosts		FLOAT64
+
+	, AllocatedGcpGearMiscCosts			FLOAT64
+
+	, AllocatedGcpGearMiscStaticCosts		FLOAT64
+	, AllocatedGcpGearMiscDynamicCosts		FLOAT64
+	, AllocatedGcpGearMiscLabeledCosts		FLOAT64
+	, AllocatedGcpGearMiscUnlabeledCosts		FLOAT64
+
+	, AllocatedGcpGearCosts				FLOAT64
+
+    );
+
+DELETE FROM 
+       `'"${Project}.${Dataset}.v5AllocatedGcpFwGroupProjectGears"'`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+#
+# Joining three tables:
+#   FwComputeStorageMetrics
+#   GcpFwGroupComputestorageMetrics
+#   GcpFwTotalComputeStorageMetrics
+# to get all the gears level metrics and the group and total metrics on single rows
+# so they can be allocated across gears
+#
+
+INSERT
+
+  `'"${Project}.${Dataset}"'.v5AllocatedGcpFwGroupProjectGears`
+
+  (
+      SELECT
+	      t2.InvoiceMonth
+
+	      #
+	      # t1.FwGroup is used since v5GcpFwGroupTotalComputeStorageMetrics has
+	      # all the FwGroups while v5FwComputeStorageMetrics might not.
+	      #
+            , t2.FwGroup
+    
+	    , IF (FwProject IS NULL, "BogusGearProject", FwProject) AS FwProject
+	    , IF (FwGearName IS NULL, "BogusGearName", FwGearName) AS FwGearName
+	    , IF (FwGearCategory IS NULL, "BogusGearCategory", FwGearCategory) AS FwGearCategory
+
+	    , CAST(myZeroIfNull(FwGearRunCount) AS INTEGER) AS FwGearRunCount
+	    , CAST(myZeroIfNull(FwInitialAnalysisCount) AS INTEGER) AS FwInitialAnalysisCount
+	    , CAST(myZeroIfNull(FwProjectStorageSessionCount) AS INTEGER) AS FwProjectStorageSessionCount
+	    , CAST(myZeroIfNull(FwTotalProjectCount) AS INTEGER) AS FwGroupProjectCount
+
+            , FwGearAnalysisCpuHours
+            , FwGearUtilityCpuHours
+            , FwGearGenericCpuHours
+            , FwGearDynamicCpuHours
+            , FwGearStaticCpuHours
+
+	    , FwProjectStorageGb AS AllocatedFwProjectStorageGb
+	    , FwProjectStorageActiveGb AS AllocatedFwProjectStorageActiveGb
+	    , FwProjectStorageDeletedGb AS AllocatedFwProjectStorageDeletedGb
+
+            , AllocateGcpMetrics(GcpGroupComputeCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGearComputeCosts
+            , AllocateGcpMetrics(GcpGroupComputeCpuHours,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGearComputeCpuHours
+
+            , AllocateGcpMetrics(GcpGroupComputeDynamicCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGearComputeDynamicCosts
+            , AllocateGcpMetrics(GcpGroupComputeDynamicCpuHours,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGearComputeDynamicCpuHours
+
+            , AllocateGcpMetrics(GcpGroupComputeStaticCosts,FwGearStaticCpuHours,FwGroupStaticCpuHours, FwGroupProjectCount) AS AllocatedGearComputeStaticCosts
+            , AllocateGcpMetrics(GcpGroupComputeStaticCpuHours,FwGearStaticCpuHours,FwGroupStaticCpuHours, FwGroupProjectCount) AS AllocatedGearComputeStaticCpuHours
+
+            , AllocateGcpMetrics(GcpGroupComputeLabeledCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGearComputeLabeledCosts
+            , AllocateGcpMetrics(GcpGroupComputeUnLabeledCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGearComputeUnLabeledCosts
+
+            , AllocateGcpMetrics(GcpGroupStorageCosts,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageCosts
+
+            , AllocateGcpMetrics(GcpGroupStorageStandardCosts,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageStandardCosts
+            , AllocateGcpMetrics(GcpGroupStorageStandardGb,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageStandardGb
+
+            , AllocateGcpMetrics(GcpGroupStorageColdlineGb,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageColdlineCosts
+            , AllocateGcpMetrics(GcpGroupStorageColdlineCosts,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageColdlineGb
+
+            , AllocateGcpMetrics(GcpGroupStorageArchiveCosts,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageArchiveCosts
+            , AllocateGcpMetrics(GcpGroupStorageArchiveGb,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageArchiveGb
+            , AllocateGcpMetrics(GcpGroupStorageMiscCosts,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageMiscCosts
+
+            , AllocateGcpMetrics(GcpGroupMiscCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGcpMiscCosts
+
+            , AllocateGcpMetrics(GcpGroupMiscStaticCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGcpMiscStaticCosts
+            , AllocateGcpMetrics(GcpGroupMiscDynamicCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGcpMiscDynamicCosts
+            , AllocateGcpMetrics(GcpGroupMiscLabeledCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGcpMiscLabeledCosts
+            , AllocateGcpMetrics(GcpGroupMiscUnlabeledCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGcpMiscUnlabeledCosts
+
+            , AllocateGcpMetrics(GcpGroupCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGcpCosts
+
+     FROM (
+
+	SELECT
+	   *
+	FROM 
+            `'"${Project}.${Dataset}"'.v5FwComputeStorageMetrics`
+	WHERE
+	    InvoiceMonth = @InvoiceMonth
+	) t1
+	
+	FULL JOIN (
+	     SELECT
+		*
+	     FROM
+                `'"${Project}.${Dataset}"'.v5GcpFwGroupTotalComputeStorageMetrics`
+	     WHERE
+		InvoiceMonth = @InvoiceMonth
+	) t2
+
+	ON
+	        t1.InvoiceMonth = t2.InvoiceMonth
+	    AND t1.FwGroup = t2.FwGroup
+        WHERE
+	    #
+	    # Wrong result happen if you v5FwComputeStorageMetrics.InvoiceMonth
+            t2.InvoiceMonth = @InvoiceMonth
+     ) 
+     ;
+
+
+' | OutputControl $opt_v
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+SELECT
+	
+          InvoiceMonth
+
+        , SUM(FwGearRunCount) AS FwGearRunCount
+        , SUM(FwInitialAnalysisCount) AS FwInitialAnalysisCount
+        , SUM(FwProjectStorageSessionCount) AS FwProjectStorageSessionCount
+	#
+	# Cannot sum FwGroupProjectCount as that would sum the group project count for every project.
+	#
+	, COUNT(FwProject) AS FwGroupProjectCount
+
+        , ROUND(SUM(FwGearAnalysisCpuHours), 2) AS FwGearAnalysisCpuHours
+        , ROUND(SUM(FwGearUtilityCpuHours), 2) AS FwGearUtilityCpuHours
+        , ROUND(SUM(FwGearGenericCpuHours), 2) AS FwGearGenericCpuHours
+        , ROUND(SUM(FwGearDynamicCpuHours), 2) AS FwGearDynamicCpuHours
+        , ROUND(SUM(FwGearStaticCpuHours), 2) AS FwGearStaticCpuHours
+
+        , ROUND(SUM(AllocatedFwGearStorageGb), 2) AS AllocatedFwGearStorageGb
+        , ROUND(SUM(AllocatedFwGearStorageActiveGb), 2) AS AllocatedFwGearStorageActiveGb
+        , ROUND(SUM(AllocatedFwGearStorageDeletedGb), 2) AS AllocatedFwGearStorageDeletedGb
+
+	, ROUND(SUM(AllocatedGcpGearComputeCosts), 2) AS AllocatedGcpGearComputeCosts
+	, ROUND(SUM(AllocatedGcpGearComputeCpuHours), 2) AS AllocatedGcpGearComputeCpuHours
+
+	, ROUND(SUM(AllocatedGcpGearComputeDynamicCosts), 2) AS AllocatedGcpGearComputeDynamicCosts
+	, ROUND(SUM(AllocatedGcpGearComputeDynamicCpuHours), 2) AS AllocatedGcpGearComputeDynamicCpuHours
+
+	, ROUND(SUM(AllocatedGcpGearComputeStaticCosts), 2) AS AllocatedGcpGearComputeStaticCosts
+	, ROUND(SUM(AllocatedGcpGearComputeStaticCpuHours), 2) AS AllocatedGcpGearComputeStaticCpuHours
+
+	, ROUND(SUM(AllocatedGcpGearComputeLabeledCosts), 2) AS AllocatedGcpGearComputeLabeledCosts
+	, ROUND(SUM(AllocatedGcpGearComputeUnlabeledCosts), 2) AS AllocatedGcpGearComputeUnlabeledCosts
+
+	, ROUND(SUM(AllocatedGcpGearStorageCosts), 2) AS AllocatedGcpGearStorageCosts
+
+	, ROUND(SUM(AllocatedGcpGearStorageStandardCosts), 2) AS AllocatedGcpGearStorageStandardCosts
+	, ROUND(SUM(AllocatedGcpGearStorageStandardGb), 2) AS AllocatedGcpGearStorageStandardGb
+	, ROUND(SUM(AllocatedGcpGearStorageColdlineCosts), 2) AS AllocatedGcpGearStorageColdlineCosts
+	, ROUND(SUM(AllocatedGcpGearStorageColdlineGb), 2) AS AllocatedGcppGearStorageColdlineGb
+	, ROUND(SUM(AllocatedGcpGearStorageArchiveCosts), 2) AS AllocatedGcpGearStorageArchiveCosts
+	, ROUND(SUM(AllocatedGcpGearStorageArchiveGb), 2) AS AllocatedGcpGearStorageArchiveGb
+	, ROUND(SUM(AllocatedGcpGearStorageMiscCosts), 2) AS AllocatedGcpGearStorageMiscCosts
+
+	, ROUND(SUM(AllocatedGcpGearMiscCosts), 2) AS AllocatedGcpGearMiscCosts
+
+	, ROUND(SUM(AllocatedGcpGearMiscStaticCosts), 2) AS AllocatedGcpGearMiscStaticCosts
+	, ROUND(SUM(AllocatedGcpGearMiscDynamicCosts), 2) AS AllocatedGcpGearMiscDynamicCosts
+	, ROUND(SUM(AllocatedGcpGearMiscLabeledCosts), 2) AS AllocatedGcpGearMiscLabeledCosts
+	, ROUND(SUM(AllocatedGcpGearMiscUnlabeledCosts), 2) AS AllocatedGcpGearMiscUnlabeledCosts
+
+	, ROUND(SUM(AllocatedGcpGearCosts), 2) AS AllocatedGcpGearCosts
+FROM
+	`'"${Project}.${Dataset}"'.v5AllocatedGcpFwGroupProjectGears`
+WHERE
+	InvoiceMonth = @InvoiceMonth
+GROUP BY
+      InvoiceMonth
+
+' | OutputControl column

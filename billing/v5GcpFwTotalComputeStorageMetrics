@@ -1,0 +1,195 @@
+
+. v${Version:=5}ArgHandler
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+'"$(< v5TempFunctions)"'
+
+#
+# 3  `'"${Project}.${Dataset}"'.v5FwTotalComputeStorageMetrics`
+#
+#    Gcp charges us for 106TB of Standard storage, flwheel can account for 79 of them
+#
+#    The Bogus gear name column is inserted so the join in the next table does not wind up duplicating all the storage
+#    metrics across each gear  Solves a lot of problems
+#
+#
+
+#
+# v5GcpFwTotalComputeStorageMetrics
+#
+DROP TABLE IF EXISTS
+        `'"${Project}.${Dataset}"'.v5GcpFwTotalComputeStorageMetrics`
+   ;
+
+CREATE TABLE IF NOT EXISTS
+        `'"${Project}.${Dataset}"'.v5GcpFwTotalComputeStorageMetrics`
+
+    (
+          InvoiceMonth				STRING
+
+        , FwTotalGearRunCount			INTEGER
+        , FwTotalInitialAnalysisCount		INTEGER
+        , FwTotalStorageSessionCount		INTEGER
+        , FwTotalProjectCount			INTEGER
+
+        , FwTotalAnalysisCpuHours		FLOAT64
+        , FwTotalUtilityCpuHours		FLOAT64
+        , FwTotalGenericCpuHours		FLOAT64
+        , FwTotalDynamicCpuHours		FLOAT64
+        , FwTotalStaticCpuHours			FLOAT64
+
+        , FwTotalStorageGb			FLOAT64
+        , FwTotalStorageActiveGb		FLOAT64
+        , FwTotalStorageDeletedGb		FLOAT64
+
+	, GcpTotalComputeCosts			FLOAT64
+	, GcpTotalComputeCpuHours		FLOAT64
+	, GcpTotalComputeDynamicCpuHours	FLOAT64
+	, GcpTotalComputeDynamicCosts		FLOAT64
+	, GcpTotalComputeStaticCpuHours		FLOAT64
+	, GcpTotalComputeStaticCosts		FLOAT64
+	, GcpTotalComputeLabeledCosts		FLOAT64
+	, GcpTotalComputeUnlabeledCosts		FLOAT64
+
+	, GcpTotalStorageStandardCosts		FLOAT64
+	, GcpTotalStorageStandardGb		FLOAT64
+	, GcpTotalStorageColdlineCosts		FLOAT64
+	, GcpTotalStorageColdlineGb		FLOAT64
+	, GcpTotalStorageArchiveCosts		FLOAT64
+	, GcpTotalStorageArchiveGb		FLOAT64
+	, GcpTotalStorageMiscCosts		FLOAT64
+
+	, GcpTotalMiscCosts			FLOAT64
+	, GcpTotalMiscStaticCosts		FLOAT64
+	, GcpTotalMiscDynamicCosts		FLOAT64
+	, GcpTotalMiscUnlabeledCosts		FLOAT64
+	, GcpTotalMiscLabeledCosts		FLOAT64
+
+	, GcpTotalStorageCosts			FLOAT64
+	, GcpTotalCosts				FLOAT64
+    );
+
+
+DELETE FROM 
+        `'"${Project}.${Dataset}"'.v5GcpFwTotalComputeStorageMetrics`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT
+        `'"${Project}.${Dataset}"'.v5GcpFwTotalComputeStorageMetrics`
+    SELECT
+          InvoiceMonth
+
+	, SUM(FwGroupGearRunCount) AS FwTotalGearRunCount
+	, SUM(FwGroupInitialAnalysisCount) AS FwTotalInitialAnalysisCount
+	, SUM(FwGroupStorageSessionCount) AS FwTotalStorageSessionCount
+	, SUM(FwGroupProjectCount) AS FwGroupTotalProjectCount
+
+	, SUM(FwGroupAnalysisCpuHours) AS FwTotalAnalysisCpuHours
+	, SUM(FwGroupUtilityCpuHours) AS FwTotalUtilityCpuHours
+	, SUM(FwGroupGenericCpuHours) AS FwTotalGenericCpuHours
+	, SUM(FwGroupDynamicCpuHours) AS FwTotalDynamicCpuHours
+	, SUM(FwGroupStaticCpuHours) AS FwTotalStaticCpuHours
+
+	, SUM(FwGroupStorageGb) AS FwTotalStorageGb
+	, SUM(FwGroupStorageActiveGb) AS FwTotalStorageActiveGb
+	, SUM(FwGroupStorageDeletedGb) AS FwTotalStorageDeletedGb
+
+	, SUM(GcpGroupComputeCosts) AS GcpTotalComputeCosts
+	, SUM(GcpGroupComputeCpuHours) AS GcpTotalComputeCpuHours
+
+	, SUM(GcpGroupComputeDynamicCpuHours) AS GcpTotalComputeDynamicCpuHours
+	, SUM(GcpGroupComputeDynamicCosts) AS GcpTotalComputeDynamicCosts
+	, SUM(GcpGroupComputeStaticCpuHours) AS GcpTotalComputeStaticCpuHours
+	, SUM(GcpGroupComputeStaticCosts) AS GcpTotalComputeStaticCosts
+	, SUM(GcpGroupComputeLabeledCosts) AS GcpTotalComputeLabeledCosts
+	, SUM(GcpGroupComputeUnlabeledCosts) AS GcpTotalComputeUnlabeledCosts
+
+	, SUM(GcpGroupStorageStandardCosts) AS GcpTotalStorageStandardCosts
+	, SUM(GcpGroupStorageStandardGb) AS GcpTotalStorageStandardGb
+	, SUM(GcpGroupStorageColdlineCosts) AS GcpTotalStorageColdlineCosts
+	, SUM(GcpGroupStorageColdlineGb) AS GcpTotalStorageColdlineGb
+	, SUM(GcpGroupStorageArchiveCosts) AS GcpTotalStorageArchiveCosts
+	, SUM(GcpGroupStorageArchiveGb) AS GcpTotalStorageArchiveGb
+	, SUM(GcpGroupStorageMiscCosts) AS GcpTotalStorageMiscCosts
+
+	, SUM(GcpGroupMiscCosts) AS GcpTotalMiscCosts
+	, SUM(GcpGroupMiscStaticCosts) AS GcpTotalMiscStaticCosts
+	, SUM(GcpGroupMiscDynamicCosts) AS GcpTotalMiscDynamicCosts
+	, SUM(GcpGroupMiscUnlabeledCosts) AS GcpTotalMiscUnlabeledCosts
+	, SUM(GcpGroupMiscLabeledCosts) AS GcpTotalMiscLabeledCosts
+
+	, SUM(GcpGroupStorageCosts) AS GcpTotalStorageCosts
+	, SUM(GcpGroupCosts) AS GcpTotalCosts
+
+    FROM 
+        `'"${Project}.${Dataset}"'.v5GcpFwGroupComputeStorageMetrics`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+    GROUP BY
+	InvoiceMonth
+
+    ORDER BY
+          InvoiceMonth
+
+;
+
+' | OutputControl $opt_v
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+   SELECT
+          InvoiceMonth
+
+	, FwTotalGearRunCount AS FwTotalGearRunCount
+	, FwTotalInitialAnalysisCount AS FwTotalInitialAnalysisCount
+	, FwTotalStorageSessionCount AS FwTotalStorageSessionCount
+	, FwTotalProjectCount AS FwTotalProjectCount
+
+	, ROUND(FwTotalAnalysisCpuHours,2) AS FwTotalAnalysisCpuHours
+	, ROUND(FwTotalUtilityCpuHours,2) AS FwTotalUtilityCpuHours
+	, ROUND(FwTotalGenericCpuHours,2) AS FwTotalGenericCpuHours
+	, ROUND(FwTotalDynamicCpuHours,2) AS FwTotalDynamicCpuHours
+	, ROUND(FwTotalStaticCpuHours,2) AS FwTotalStaticCpuHours
+
+	, ROUND(FwTotalStorageGb,2) AS FwTotalStorageGb
+	, ROUND(FwTotalStorageActiveGb,2) AS FwTotalStorageActiveGb
+	, ROUND(FwTotalStorageDeletedGb,2) AS FwTotalStorageDeletedGb
+
+	, ROUND(GcpTotalComputeCosts,2) AS GcpTotalComputeCosts
+	, ROUND(GcpTotalComputeCpuHours,2) AS GcpTotalComputeCpuHours
+	, ROUND(GcpTotalComputeDynamicCosts,2) AS GcpTotalComputeDynamicCosts
+	, ROUND(GcpTotalComputeDynamicCpuHours,2) AS GcpTotalComputeDynamicCpuHours
+	, ROUND(GcpTotalComputeStaticCosts,2) AS GcpTotalComputeStaticCosts
+	, ROUND(GcpTotalComputeStaticCpuHours,2) AS GcpTotalComputeStaticCpuHours
+	, ROUND(GcpTotalComputeLabeledCosts,2) AS GcpTotalComputeLabeledCosts
+	, ROUND(GcpTotalComputeUnlabeledCosts,2) AS GcpTotalComputeUnlabeledCosts
+
+	, ROUND(GcpTotalStorageStandardCosts,2) AS GcpTotalStorageStandardCosts
+	, ROUND(GcpTotalStorageStandardGb,2) AS GcpTotalStorageStandardGb
+	, ROUND(GcpTotalStorageColdlineCosts,2) AS GcpTotalStorageColdlineCosts
+	, ROUND(GcpTotalStorageColdlineGb,2) AS GcpTotalStorageColdlineGb
+	, ROUND(GcpTotalStorageArchiveCosts,2) AS GcpTotalStorageArchiveCosts
+	, ROUND(GcpTotalStorageArchiveGb,2) AS GcpTotalStorageArchiveGb
+	, ROUND(GcpTotalStorageMiscCosts,2) AS GcpTotalStorageMiscCosts
+
+	, ROUND(GcpTotalMiscCosts,2) AS GcpTotalMiscCosts
+	, ROUND(GcpTotalMiscStaticCosts,2) AS GcpTotalMiscStaticCosts
+	, ROUND(GcpTotalMiscDynamicCosts,2) AS GcpTotalMiscDynamicCosts
+	, ROUND(GcpTotalMiscLabeledCosts,2) AS GcpTotalMiscLabeledCosts
+	, ROUND(GcpTotalMiscUnlabeledCosts,2) AS GcpTotalMiscUnlabeledCosts
+
+	, ROUND(GcpTotalStorageCosts,2) AS GcpTotalStorageCosts
+	, ROUND(GcpTotalCosts,2) AS GcpTotalCosts
+
+
+FROM
+        `'"${Project}.${Dataset}"'.v5GcpFwTotalComputeStorageMetrics`
+WHERE
+        InvoiceMonth = @InvoiceMonth
+
+;
+
+' | OutputControl column

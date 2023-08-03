@@ -1,0 +1,216 @@
+CREATE TEMP FUNCTION fwCpuMsToCpuHours(CpuMs FLOAT64) RETURNS FLOAT64 AS (
+      CpuMs / 1000.0 / 3600.0
+    );
+
+CREATE TEMP FUNCTION myZeroIfNull(Value FLOAT64) RETURNS FLOAT64 AS (
+  IF (Value IS NOT NULL, Value, 0.0)
+  )
+  ;
+
+CREATE TEMP FUNCTION isComputeCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+      IF (ServiceDescription = "Compute Engine", TRUE, FALSE)
+    );
+
+CREATE TEMP FUNCTION isComputeDynamicCost(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+    IF (    ServiceDescription = "Compute Engine"
+        AND FwGroup IS NOT NULL
+        AND FwGroup != "flywheel-static"
+      , TRUE
+      , FALSE)
+    );
+
+CREATE TEMP FUNCTION isComputeStaticCost(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+    IF (    ServiceDescription = "Compute Engine"
+        AND FwGroup IS NOT NULL
+        AND FwGroup = "flywheel-static"
+      , TRUE 
+      , FALSE)
+    );
+
+CREATE TEMP FUNCTION isComputeLabeledCost(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (    ServiceDescription = "Compute Engine"
+      AND FwGroup IS NOT NULL
+      , TRUE
+      , FALSE)
+  );
+
+CREATE TEMP FUNCTION isComputeUnlabeledCost(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (    ServiceDescription = "Compute Engine"
+        AND FwGroup IS NULL
+      , TRUE
+      , FALSE)
+  );
+
+CREATE TEMP FUNCTION isComputeDynamicCpuHours(ServiceDescription STRING, SkuDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     ServiceDescription = "Compute Engine"
+       AND SkuDescription LIKE "%Instance Core%"
+       AND FwGroup IS NOT NULL
+       AND FwGroup != "flywheel-static"
+    ,
+    TRUE,
+    FALSE)
+  );
+
+CREATE TEMP FUNCTION isComputeStaticCpuHours(ServiceDescription STRING, SkuDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     ServiceDescription = "Compute Engine"
+       AND SkuDescription LIKE "%Instance Core%"
+       AND FwGroup IS NOT NULL
+       AND FwGroup = "flywheel-static"
+    ,
+    TRUE,
+    FALSE)
+  );
+
+CREATE TEMP FUNCTION isSsdPdCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription = "Compute Engine"
+       AND
+	   SkuDescription = "SSD backed PD Capacity"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isAnalysisGear(GearCategory STRING) RETURNS BOOLEAN AS (
+  IF (GearCategory = "analysis", TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isGroupComputeNode(ComputeNode STRING) RETURNS BOOLEAN AS (
+  IF (regexp_contains(ComputeNode,"^compute[^-][^-]*-"), TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isUtilityGear(GearCategory STRING) RETURNS BOOLEAN AS (
+  IF (isAnalysisGear(GearCategory),FALSE,TRUE)
+  );
+
+
+CREATE TEMP FUNCTION isStorageStandardCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription = "Cloud Storage"
+       AND
+	   SkuDescription LIKE "Standard Storage%"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isStorageColdlineCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription = "Cloud Storage"
+       AND
+	   SkuDescription LIKE "Coldline Storage%"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isStorageArchiveCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription = "Cloud Storage"
+       AND
+	   SkuDescription LIKE "Archive Storage%"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isStorageMiscCost(ServiceDescription STRING, SkuDescription STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription = "Cloud Storage"
+       AND SkuDescription NOT LIKE "Standard Storage%"
+       AND SkuDescription NOT LIKE "Coldline Storage%"
+       AND SkuDescription NOT LIKE "Archive Storage%"
+
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isMiscLabeledCosts(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription != "Compute Engine"
+       AND ServiceDescription != "Cloud Storage"
+       AND FwGroup IS NOT NULL
+       AND FwGroup != "flywheel-static"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isMiscUnlabeledCosts(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription != "Compute Engine"
+       AND ServiceDescription != "Cloud Storage"
+       AND FwGroup IS NULL
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isMiscStaticCosts(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription != "Compute Engine"
+       AND ServiceDescription != "Cloud Storage"
+       AND FwGroup = "flywheel-static"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isMiscDynamicCosts(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription != "Compute Engine"
+       AND ServiceDescription != "Cloud Storage"
+       AND FwGroup IS NOT NULL
+       AND FwGroup != "flywheel-static"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION isMiscCost(ServiceDescription STRING, FwGroup STRING) RETURNS BOOLEAN AS (
+  IF (     
+           ServiceDescription NOT LIKE "Compute Engine%"
+       AND ServiceDescription NOT LIKE "Cloud Storage"
+  , TRUE, FALSE)
+  );
+
+CREATE TEMP FUNCTION OneTeraByte() RETURNS FLOAT64 AS (1024.0); # in Gibibytes
+
+CREATE TEMP FUNCTION isTbOrMore(StorageUsage FLOAT64) RETURNS BOOL AS (
+       IF ((StorageUsage > OneTeraByte()),
+       	  TRUE,
+	  FALSE
+       )
+);
+
+CREATE TEMP FUNCTION BscStorageOverheadRate() RETURNS FLOAT64 AS (0.25);
+CREATE TEMP FUNCTION BscInitialAnalysisRate() RETURNS FLOAT64 AS (25);
+CREATE TEMP FUNCTION BscSmallProjectCharge() RETURNS FLOAT64 AS (8.33);
+CREATE TEMP FUNCTION BscLargeProjectCharge() RETURNS FLOAT64 AS (20.66);
+CREATE TEMP FUNCTION OneCent() RETURNS FLOAT64 AS (0.01);
+
+CREATE TEMP FUNCTION calculateBscStorageCharge(StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+	  StorageCharge * BscStorageOverheadRate()
+);
+
+CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOAT64) RETURNS FLOAT64 AS (
+       InitialAnalysisCount * BscInitialAnalysisRate()
+);
+
+
+CREATE TEMP FUNCTION calculateBscProjectCharge(StorageStandardUsage FLOAT64, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+        IF (round(StorageCharge,2) >= OneCent(),
+	        IF (isTbOrMore(StorageStandardUsage),
+		      BscLargeProjectCharge(),
+		      BscSmallProjectCharge()
+		),
+		0.0
+       )
+);
+
+CREATE TEMP FUNCTION prorate(x FLOAT64, y FLOAT64) RETURNS FLOAT64 AS (
+       IF (y IS NULL OR y = 0.0, 0.0, x / y)
+);
+
+CREATE TEMP FUNCTION estGcpCpuHoursFromFwCpuHours( FwCpuHours FLOAT64, TotalGcpComputeDynamicCpuHours FLOAT64, TotalFwGearDynamicCpuHours FLOAT64  ) RETURNS FLOAT64 AS (
+      FwCpuHours * prorate(TotalGcpComputeDynamicCpuHours, TotalFwGearDynamicCpuHours)
+);
+
+CREATE TEMP FUNCTION AllocateGcpMetrics (
+       Cost     FLOAT64,
+       x	FLOAT64,
+       y	FLOAT64,  
+       n	FLOAT64
+ ) RETURNS FLOAT64 AS (
+   IF (n IS NULL OR n = 0.0,
+       myZeroIfNull(Cost),		# There are no FwProjects to distribute the gcp costs across so all the costs go into a bogus project
+       IF (y IS NULL OR y = 0.0,
+	   myZeroIfNull(Cost) / n,
+       	   myZeroIfNull(Cost) * prorate(x, y)
+       )
+   )
+);
+

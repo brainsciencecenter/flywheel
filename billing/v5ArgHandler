@@ -1,0 +1,45 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+syntax="${CmdName} [-d Dataset][-p Project][-v] {-m Month} {-y Year}"
+
+Version=5
+
+function OutputControl {
+    local Style="$1"
+    
+    if [ "$Style" == "column" ]
+    then
+	column -t -s ,
+    elif [ -n "$opt_v" ] || [ "$Style" == "Verbose" ]
+    then
+	cat
+    else
+	cat > /dev/null
+    fi
+}
+
+while getopts d:m:p:vy: arg
+do
+	case "$arg" in
+		d|m|p|v|y)
+			eval "opt_${arg}=${OPTARG:=1}"
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -z "$opt_y" ] || [ -z "$opt_m" ]
+then
+	echo "$syntax" 1>&2
+	exit 1
+fi
+
+Dataset=BillingAllocation
+
+[ -n "$opt_d" ] && Dataset="$opt_d"
+
+Project=pennbrain-center
+[ -n "$opt_p" ] && Project="$opt_p"
