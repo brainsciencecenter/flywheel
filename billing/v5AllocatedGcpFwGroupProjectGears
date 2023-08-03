@@ -163,14 +163,14 @@ INSERT
 
             , AllocateGcpMetrics(GcpGroupCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGcpCosts
 
-     FROM (
+        FROM (
 
-	SELECT
-	   *
-	FROM 
-            `'"${Project}.${Dataset}"'.v5FwComputeStorageMetrics`
-	WHERE
-	    InvoiceMonth = @InvoiceMonth
+	    SELECT
+	        *
+	    FROM 
+                `'"${Project}.${Dataset}"'.v5FwComputeStorageMetrics`
+	    WHERE
+	        InvoiceMonth = @InvoiceMonth
 	) t1
 	
 	FULL JOIN (
@@ -179,7 +179,7 @@ INSERT
 	     FROM
                 `'"${Project}.${Dataset}"'.v5GcpFwGroupTotalComputeStorageMetrics`
 	     WHERE
-		InvoiceMonth = @InvoiceMonth
+		    InvoiceMonth = @InvoiceMonth
 	) t2
 
 	ON
@@ -187,9 +187,10 @@ INSERT
 	    AND t1.FwGroup = t2.FwGroup
         WHERE
 	    #
-	    # Wrong result happen if you v5FwComputeStorageMetrics.InvoiceMonth
-            t2.InvoiceMonth = @InvoiceMonth
-     ) 
+	    # Wrong result happen if you use v5FwComputeStorageMetrics.InvoiceMonth
+                t2.InvoiceMonth = @InvoiceMonth
+     )
+
      ;
 
 
@@ -249,6 +250,7 @@ SELECT
 	, ROUND(SUM(AllocatedGcpGearMiscUnlabeledCosts), 2) AS AllocatedGcpGearMiscUnlabeledCosts
 
 	, ROUND(SUM(AllocatedGcpGearCosts), 2) AS AllocatedGcpGearCosts
+
 FROM
 	`'"${Project}.${Dataset}"'.v5AllocatedGcpFwGroupProjectGears`
 WHERE

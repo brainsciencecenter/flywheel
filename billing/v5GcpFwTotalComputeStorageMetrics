@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS
 
 	, GcpTotalStorageCosts			FLOAT64
 	, GcpTotalCosts				FLOAT64
+
     );
 
 

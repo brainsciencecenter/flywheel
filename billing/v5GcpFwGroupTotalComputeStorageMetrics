@@ -111,11 +111,11 @@ CREATE TABLE IF NOT EXISTS
 	, GcpTotalStorageCosts			FLOAT64
 	, GcpTotalCosts				FLOAT64
 
-	, estGcpTotalStaticGearCpuHours		FLOAT64
-	, estGcpTotalStaticGearCost		FLOAT64
+#	, EstGcpTotalStaticGearCpuHours		FLOAT64
+#	, EstGcpTotalStaticGearCost		FLOAT64
 
-	, estGcpTotalOverheadCpuHours		FLOAT64
-	, estGcpTotalOverheadCost		FLOAT64
+#	, EstGcpTotalOverheadCpuHours		FLOAT64
+#	, EstGcpTotalOverheadCost		FLOAT64
 );
 
 
@@ -128,17 +128,17 @@ DELETE FROM
 INSERT
         `'"${Project}.${Dataset}"'.v5GcpFwGroupTotalComputeStorageMetrics`
     SELECT
-	  *
-        , GcpTotalComputeStaticCosts * (estGcpTotalStaticGearCpuHours / GcpTotalComputeStaticCpuHours) AS estGcpTotalStaticGearCosts
-
-	, (GcpTotalComputeStaticCpuHours - estGcpTotalStaticGearCpuHours) AS estGcpTotalOverheadCpuHours
-	, GcpTotalComputeStaticCosts * (GcpTotalComputeStaticCpuHours - estGcpTotalStaticGearCpuHours) / GcpTotalComputeStaticCpuHours AS estGcpTotalOverheadCosts
-    FROM (
-    SELECT
-           *	
-         , FwTotalStaticCpuHours * prorate(GcpTotalComputeDynamicCpuHours, FwTotalDynamicCpuHours) AS estGcpTotalStaticGearCpuHours
-    FROM (
-    SELECT
+#	  *
+#        , GcpTotalComputeStaticCosts * (EstGcpTotalStaticGearCpuHours / GcpTotalComputeStaticCpuHours) AS EstGcpTotalStaticGearCosts
+#
+#	, (GcpTotalComputeStaticCpuHours - EstGcpTotalStaticGearCpuHours) AS EstGcpTotalOverheadCpuHours
+#	, GcpTotalComputeStaticCosts * (GcpTotalComputeStaticCpuHours - EstGcpTotalStaticGearCpuHours) / GcpTotalComputeStaticCpuHours AS EstGcpTotalOverheadCosts
+#    FROM (
+#    SELECT
+#           *	
+#         , FwTotalStaticCpuHours * prorate(GcpTotalComputeDynamicCpuHours, FwTotalDynamicCpuHours) AS EstGcpTotalStaticGearCpuHours
+#    FROM (
+#    SELECT
           t1.InvoiceMonth
         , FwGroup
 
@@ -236,8 +236,8 @@ INSERT
     ) t2
     ON
 	    t1.InvoiceMonth = t2.InvoiceMonth
-    )
-    )
+#    )
+#    )
 ;
 
 ' | OutputControl $opt_v
@@ -288,11 +288,11 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
 	, ROUND(SUM(GcpGroupStorageCosts),2) AS GcpGroupStorageCosts
 	, ROUND(SUM(GcpGroupCosts),2) AS GcpGroupCosts
 
-	, ROUND(estGcpTotalStaticGearCpuHours, 2) AS estGcpTotalStaticGearCpuHours
-	, ROUND(estGcpTotalStaticGearCost, 2) AS estGcpTotalStaticGearCost
-
-	, ROUND(estGcpTotalOverheadCpuHours, 2) AS estGcpTotalOverheadCpuHours
-	, ROUND(estGcpTotalOverheadCost, 2) AS estGcpTotalOverheadCost
+#	, ROUND(EstGcpTotalStaticGearCpuHours, 2) AS EstGcpTotalStaticGearCpuHours
+#	, ROUND(EstGcpTotalStaticGearCost, 2) AS EstGcpTotalStaticGearCost
+#
+#	, ROUND(EstGcpTotalOverheadCpuHours, 2) AS EstGcpTotalOverheadCpuHours
+#	, ROUND(EstGcpTotalOverheadCost, 2) AS EstGcpTotalOverheadCost
 
 FROM
         `'"${Project}.${Dataset}"'.v5GcpFwGroupTotalComputeStorageMetrics`
@@ -300,10 +300,10 @@ WHERE
         InvoiceMonth = @InvoiceMonth
 GROUP BY
       InvoiceMonth
-    , estGcpTotalStaticGearCpuHours    
-    , estGcpTotalStaticGearCost
-    , estGcpTotalOverheadCpuHours
-    , estGcpTotalOverheadCost
+#    , EstGcpTotalStaticGearCpuHours    
+#    , EstGcpTotalStaticGearCost
+#    , EstGcpTotalOverheadCpuHours
+#    , EstGcpTotalOverheadCost
 ;
 
 ' | OutputControl column
