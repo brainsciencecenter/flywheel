@@ -2,18 +2,20 @@
 
 . v${Version:=5}ArgHandler
 
+if [ -n "$opt_f" ]
+then
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    DROP TABLE IF EXISTS
+         `'"${Project}.${Dataset}.v5FwComputeMetrics"'`
+    ;
+    '
+fi
+
+
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
 
 '"$(< v5TempFunctions)"'
 
-#
-# 2   `'"${Project}.${Dataset}"'.v5FwComputeMetrics`
-#
-#	Sorts gear hours into utility and analysis hours
-#	Sum everything else up into fwgroup/project/gear bins
-DROP TABLE IF EXISTS
-         `'"${Project}.${Dataset}"'.v5FwComputeMetrics`
-    ;
 CREATE TABLE IF NOT EXISTS
          `'"${Project}.${Dataset}"'.v5FwComputeMetrics`
      (

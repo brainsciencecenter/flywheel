@@ -1,26 +1,19 @@
+#!/bin/bash
 
 . v${Version:=5}ArgHandler
 
+if [ -n "$opt_f" ]
+then
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    DROP TABLE IF EXISTS
+        `'"${Project}.${Dataset}"'.v5GcpFwGroupComputeStorageMetrics`
+    ;
+    '
+fi
+    
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
 
 '"$(< v5TempFunctions)"'
-
-#
-# 3  `'"${Project}.${Dataset}"'.v5FwGroupComputeStorageMetrics`
-#
-#    Gcp charges us for 106TB of Standard storage, flwheel can account for 79 of them
-#
-#    The Bogus gear name column is inserted so the join in the next table does not wind up duplicating all the storage
-#    metrics across each gear  Solves a lot of problems
-#
-#
-
-#
-# v5GcpFwComputeStorageMetrics
-#
-DROP TABLE IF EXISTS
-        `'"${Project}.${Dataset}"'.v5GcpFwGroupComputeStorageMetrics`
-   ;
 
 CREATE TABLE IF NOT EXISTS
         `'"${Project}.${Dataset}"'.v5GcpFwGroupComputeStorageMetrics`

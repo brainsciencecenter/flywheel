@@ -180,7 +180,6 @@ CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOA
        InitialAnalysisCount * BscInitialAnalysisRate()
 );
 
-
 CREATE TEMP FUNCTION calculateBscProjectCharge(StorageStandardUsage FLOAT64, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
         IF (round(StorageCharge,2) >= OneCent(),
 	        IF (isTbOrMore(StorageStandardUsage),
@@ -189,6 +188,10 @@ CREATE TEMP FUNCTION calculateBscProjectCharge(StorageStandardUsage FLOAT64, Sto
 		),
 		0.0
        )
+);
+
+CREATE TEMP FUNCTION calculateGcpStorageStandardCharge(StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+	  StorageCharge
 );
 
 CREATE TEMP FUNCTION prorate(x FLOAT64, y FLOAT64) RETURNS FLOAT64 AS (

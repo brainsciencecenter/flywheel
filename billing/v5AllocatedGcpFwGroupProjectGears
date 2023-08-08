@@ -2,25 +2,25 @@
 
 . v${Version:=5}ArgHandler
 
+if [ -n "$opt_f" ]
+then
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    DROP TABLE IF EXISTS
+        `'"${Project}.${Dataset}"'.v5AllocatedGcpFwGroupProjectGears`
+    ;
+    '
+fi
+
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
 
 '"$(< v5TempFunctions)"'
-
-#
-# 5 `'"${Project}.${Dataset}"'.TempGcpFwAllocatedGroupProjectGearMetricsCostsV4`
-#
-#   This is where all group only metrics and costs get allocated to the gear level
-#
-DROP TABLE IF EXISTS
-        `'"${Project}.${Dataset}"'.v5AllocatedGcpFwGroupProjectGears`
-    ;
 
 CREATE TABLE IF NOT EXISTS
         `'"${Project}.${Dataset}"'.v5AllocatedGcpFwGroupProjectGears`
     (
           InvoiceMonth					STRING
-        , FwGroup					STRING
 
+        , FwGroup					STRING
         , FwProject					STRING
         , FwGearName					STRING
         , FwGearCategory				STRING
@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS
         , FwGearRunCount				INTEGER
         , FwInitialAnalysisCount			INTEGER
         , FwProjectStorageSessionCount			INTEGER
-
 	, FwGroupProjectCount				INTEGER
 
         , FwGearAnalysisCpuHours			FLOAT64
@@ -36,6 +35,14 @@ CREATE TABLE IF NOT EXISTS
         , FwGearGenericCpuHours				FLOAT64
         , FwGearDynamicCpuHours				FLOAT64
         , FwGearStaticCpuHours				FLOAT64
+
+	  #
+	  # Needed for StaticGear and Overhead allocation
+	  #
+	, FwProjectStorageActiveGb			FLOAT64
+	, FwGroupDynamicCpuHours			FLOAT64
+	, FwGroupStaticCpuHours				FLOAT64
+	, FwGroupStorageActiveGb			FLOAT64
 
 	#
 	# All FwStorage metrics are collected by project and
@@ -61,14 +68,13 @@ CREATE TABLE IF NOT EXISTS
 	# All GCP storage is gathered under the flywheel-static gcp tag
 	# So the storage columns are zero except for flywheel-static
 	#
-	, AllocatedGcpGearStorageCosts			FLOAT64
-
 	, AllocatedGcpGearStorageStandardCosts		FLOAT64
 	, AllocatedGcpGearStorageStandardGb		FLOAT64
 	, AllocatedGcpGearStorageColdlineCosts		FLOAT64
 	, AllocatedGcpGearStorageColdlineGb		FLOAT64
 	, AllocatedGcpGearStorageArchiveCosts		FLOAT64
 	, AllocatedGcpGearStorageArchiveGb		FLOAT64
+
 	, AllocatedGcpGearStorageMiscCosts		FLOAT64
 
 	, AllocatedGcpGearMiscCosts			FLOAT64
@@ -126,6 +132,11 @@ INSERT
             , FwGearDynamicCpuHours
             , FwGearStaticCpuHours
 
+	    , FwProjectStorageActiveGb
+            , FwGroupDynamicCpuHours
+            , FwGroupStaticCpuHours
+            , FwGroupStorageActiveGb
+
 	    , FwProjectStorageGb AS AllocatedFwProjectStorageGb
 	    , FwProjectStorageActiveGb AS AllocatedFwProjectStorageActiveGb
 	    , FwProjectStorageDeletedGb AS AllocatedFwProjectStorageDeletedGb
@@ -141,8 +152,6 @@ INSERT
 
             , AllocateGcpMetrics(GcpGroupComputeLabeledCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGearComputeLabeledCosts
             , AllocateGcpMetrics(GcpGroupComputeUnLabeledCosts,FwGearDynamicCpuHours,FwGroupDynamicCpuHours, FwGroupProjectCount) AS AllocatedGearComputeUnLabeledCosts
-
-            , AllocateGcpMetrics(GcpGroupStorageCosts,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageCosts
 
             , AllocateGcpMetrics(GcpGroupStorageStandardCosts,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageStandardCosts
             , AllocateGcpMetrics(GcpGroupStorageStandardGb,FwProjectStorageActiveGb,FwGroupStorageActiveGb, FwGroupProjectCount) AS AllocatedGcpStorageStandardGb
@@ -231,8 +240,6 @@ SELECT
 
 	, ROUND(SUM(AllocatedGcpGearComputeLabeledCosts), 2) AS AllocatedGcpGearComputeLabeledCosts
 	, ROUND(SUM(AllocatedGcpGearComputeUnlabeledCosts), 2) AS AllocatedGcpGearComputeUnlabeledCosts
-
-	, ROUND(SUM(AllocatedGcpGearStorageCosts), 2) AS AllocatedGcpGearStorageCosts
 
 	, ROUND(SUM(AllocatedGcpGearStorageStandardCosts), 2) AS AllocatedGcpGearStorageStandardCosts
 	, ROUND(SUM(AllocatedGcpGearStorageStandardGb), 2) AS AllocatedGcpGearStorageStandardGb

@@ -1,6 +1,107 @@
 #!/bin/bash
 
+function v5DownloadFwIlabCharges {
+    local Database=v5BscFwCharges
+    local ServiceId=472933
+
+
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    '"$(< v${Version:=5}TempFunctions)"'
+
+    #
+    # The TempProjectInfo has the current service request numbers from all the flywheel projects
+    # Do an inner join to grab all the charges that match the group/projects and format into 
+    # ilab compatiable csv file.
+    #
+    # *** service id should come from a config file
+    #
+    SELECT 
+        "'"$ServiceId"'" AS service_id,
+        note,
+        format("%8.2f",round(ProjectTotalCharges,2)) AS service_quantity,
+        "" AS price,
+        format("%s01", InvoiceMonth) AS purchased_on,
+        iLabServiceRequestNumber as service_request_id,
+        "" AS owner_email,
+        "" AS pi_email_or_group_id,
+        "" AS payment_number
+    FROM (
+        SELECT 
+	    *
+	FROM (
+	    SELECT
+                 REPLACE(`Group`,"_","-") AS FwGroup
+	        , Project AS FwProject
+	        , iLabServiceRequestNumber
+	    FROM
+	     `'"${Project}.${Dataset}.TempProjectInfo"'` 
+        ) ProjectInfo
+        INNER JOIN (
+    
+            SELECT 
+                  InvoiceMonth
+                , FwGroup
+                , FwProject
+                , format("%s/%s Analysis Gears %.2f Storage Charge %.2f Storage Usage(Gb) %.2f Bsc Storage %.2f Bsc Initial Analysis %.2f Bsc Project %.2f"
+                        , FwGroup 
+                        , IF (FwProject is NULL, "Deleted", FwProject)
+                        , ProjectComputeCosts
+                        , ProjectStorageCosts
+                        , ProjectStorageUsage
+                        , BscStorageCharge
+                        , BscInitialAnalysisCharge
+                        , BscProjectCharges
+                    ) AS `note`
+                , FwInitialAnalysisCount
+                , ProjectComputeCosts
+                , ProjectStorageCosts
+                , ProjectStorageUsage
+                , BscStorageCharge
+                , BscProjectCharges
+                , ProjectTotalCharges
+    
+             FROM (
+	     SELECT
+		  InvoiceMonth
+		, FwGroup
+		, FwProject
+                , SUM(FwInitialAnalysisCount) AS FwInitialAnalysisCount
+                , SUM(myZeroIfNull(ProjectComputeCosts)) AS ProjectComputeCosts
+                , SUM(ProjectStorageCosts) AS ProjectStorageCosts
+                , SUM(ProjectStorageUsage) AS ProjectStorageUsage
+		, SUM(BscInitialAnalysisCharge) AS BscInitialAnalysisCharge
+                , SUM(BscProjectStorageCharge) AS BscStorageCharge
+                , SUM(BscProjectCharge) AS BscProjectCharges
+                , SUM(ProjectBscGcpCosts) AS ProjectTotalCharges
+              FROM `'"${Project}.${Dataset}.${Database}"'` 
+              WHERE InvoiceMonth = "'"${Year}${Month}"'" 
+	      GROUP BY
+	          InvoiceMonth
+		, FwGroup
+		, FwProject
+	      ORDER BY
+	          InvoiceMonth
+		, FwGroup
+		, FwProject
+
+	   )
+        ) ProjectCosts
+        ON 
+                ProjectInfo.FwGroup = ProjectCosts.FwGroup
+            AND
+                ProjectInfo.FwProject = ProjectCosts.FwProject 
+        WHERE 
+                REGEXP_CONTAINS(iLabServiceRequestNumber,"^([0-9]+)$")
+                AND round(ProjectTotalCharges,2) >= 0.01
+    )
+    ORDER BY service_quantity desc
+    '
+}
+
 function downloadFwIlabCharges {
+    local Database=v5BscFwCharges
+    local ServiceId=472933
+
     bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
     
     #
@@ -11,11 +112,11 @@ function downloadFwIlabCharges {
     # *** service id should come from a config file
     #
     SELECT 
-        "472933" AS service_id,
+        "'"${ServiceId}"'" AS service_id,
         note,
-        format("%8.2f",round(TotalProjectCharges,2)) AS service_quantity,
+        FORMAT("%8.2f",round(TotalProjectCharges,2)) AS service_quantity,
         "" AS price,
-        format("%s01", InvoiceMonth) AS purchased_on,
+        FORMAT("%s01", InvoiceMonth) AS purchased_on,
         iLabServiceRequestNumber as service_request_id,
         "" AS owner_email,
         "" AS pi_email_or_group_id,
@@ -48,18 +149,21 @@ function downloadFwIlabCharges {
                 BscProjectStorageCharge,
                 BscProjectCharge,
                 (ProjectBscCharges+ProjectGcpCosts) AS TotalProjectCharges
-              FROM `'"${Project}.${Dataset}."'FwProjectBilling` 
-              WHERE InvoiceMonth = "'"${Year}${Month}"'" 
+              FROM
+	          `'"${Project}.${Dataset}.${Database}"'` 
+              WHERE
+	          InvoiceMonth = "'"${Year}${Month}"'" 
         ) ProjectCosts
         ON 
-                ProjectInfo.`Group` = ProjectCosts.`Group`
+                ProjectInfo.FwGroup = ProjectCosts.FwGroup
             AND
                 ProjectInfo.project = ProjectCosts.project 
         WHERE 
                 REGEXP_CONTAINS(iLabServiceRequestNumber,"^([0-9]+)$")
                 AND round(TotalProjectCharges,2) >= 0.01
     )
-    ORDER BY service_quantity desc
+    ORDER BY
+        service_quantity desc
     '
 }
 
@@ -357,12 +461,12 @@ function downloadFwMriIlabCharges {
     ' | sed '1,/^[	 ]*service_quantity/d'
 }
 
-syntax="${CmdName} [-4][-d Dataset][-p Project][-f][-g][-M][-n][-v] {-m Month} {-y Year}"
+syntax="${CmdName} [-4|-5][-d Dataset][-p Project][-f][-g][-M][-n][-v] {-m Month} {-y Year}"
 
-while getopts 4d:fgMm:p:vy: arg
+while getopts 45d:fgMm:p:vy: arg
 do
 	case "$arg" in 
-		4|d|f|g|M|m|n|p|v|y)
+		4|5|d|f|g|M|m|n|p|v|y)
 			eval "opt_${arg}=${OPTARG:=1}"
 			;;
 	esac
@@ -406,7 +510,10 @@ then
 	Schema=$(head -n 1 "$ProjectInfoFile" | sed 's/"//g; s/,/:string,/g; s/$/:string/')
 	bq load --project_id pennbrain-center  --autodetect --replace --source_format=CSV "${Dataset}.TempProjectInfo" "$ProjectInfoFile" "$Schema"
 
-	if [ -n "$opt_4" ]
+	if [ -n "$opt_5" ]
+	then
+	    v5DownloadFwIlabCharges
+	elif [ -n "$opt_4" ]
 	then
 	    downloadFwIlabChargesV4
 	else

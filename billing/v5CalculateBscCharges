@@ -1,0 +1,191 @@
+#!/bin/bash
+
+. v${Version:=5}ArgHandler
+
+Database=v${Verision:=5}BscFwCharges
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+'"$(< v${Version:=5}TempFunctions)"'
+
+#
+DROP TABLE IF EXISTS
+         `'"${Project}.${Dataset}.${Database}"'`
+    ;
+CREATE TABLE IF NOT EXISTS
+         `'"${Project}.${Dataset}.${Database}"'`
+     (
+	InvoiceMonth			STRING,
+	FwGroup				STRING,	
+	FwProject			STRING,	
+
+	IsTbOrMore			BOOLEAN,	
+	FwInitialAnalysisCount		INTEGER,	
+
+	ProjectComputeCosts		FLOAT64,	
+	ProjectComputeCpuHours		FLOAT64,	
+
+	ProjectStorageCosts		FLOAT64,
+	ProjectStorageUsage		FLOAT64,	
+
+	ProjectMiscCosts		FLOAT64,	
+	ProjectUnlabeledCosts		FLOAT64,
+
+	BscInitialAnalysisCharge	FLOAT64,	
+	BscProjectCharge		FLOAT64,	
+	BscProjectStorageCharge		FLOAT64,	
+
+	ProjectBscCharges		FLOAT64,	
+	ProjectGcpCosts			FLOAT64,
+
+	ProjectBscGcpCosts		FLOAT64,	
+
+     );
+
+DELETE FROM
+         `'"${Project}.${Dataset}.${Database}"'`
+    WHERE
+        InvoiceMonth = @InvoiceMonth
+;
+
+INSERT 
+       `'"${Project}.${Dataset}.${Database}"'`
+
+    SELECT
+          InvoiceMonth
+	, FwGroup
+	, FwProject
+
+	, IsTbOrMore
+	, FwInitialAnalysisCount
+
+	, ProjectComputeCosts		# *** Are we charging them for only analysis gears or for all computation?
+	, ProjectComputeCpuHours
+
+	, ProjectStorageCosts
+	, ProjectStorageUsage
+
+	, ProjectMiscCosts
+	, ProjectUnLabeledCosts
+
+	, BscInitialAnalysisCharge
+	, BscProjectCharge
+	, BscProjectStorageCharge
+
+    	, (
+	      BscProjectStorageCharge
+	    + BscProjectCharge 
+	    + BscInitialAnalysisCharge
+	  ) AS ProjectBscCharges
+        , (
+	      ProjectComputeCosts
+	    + ProjectStorageCosts
+	    + ProjectMiscCosts
+	    + ProjectUnlabeledCosts
+	  ) AS ProjectGcpCosts
+
+        , (ProjectComputeCosts + ProjectStorageCosts + ProjectMiscCosts +
+            BscProjectStorageCharge + BscProjectCharge + BscInitialAnalysisCharge) AS ProjectBscGcpCosts
+
+    FROM (
+        SELECT
+	     *
+    	    , isTbOrMore(ProjectStorageUsage) AS IsTbOrMore
+	    , calculateBscInitialAnalysisCharge(FwInitialAnalysisCount) AS BscInitialAnalysisCharge
+	    , calculateBscStorageCharge(ProjectStorageCosts) AS BscProjectStorageCharge
+	    , calculateBscProjectCharge(ProjectStorageUsage,ProjectStorageCosts) AS BscProjectCharge
+
+	FROM (
+            SELECT
+                  InvoiceMonth
+                , FwGroup
+                , FwProject
+    
+    	    , SUM(FwInitialAnalysisCount) AS FwInitialAnalysisCount
+    
+    	    , SUM(  
+	            myZeroIfNull(AllocatedGcpGearComputeDynamicCosts)
+	          + myZeroIfNull(AllocatedStaticSiteComputeCosts)
+              ) AS ProjectComputeCosts
+
+    	    , SUM(
+	           myZeroIfNull(AllocatedGcpGearComputeCpuHours)
+		 + myZeroIfNull(AllocatedStaticSiteComputeCpuHours)
+	      ) AS ProjectComputeCpuHours
+    
+	    , SUM(
+#	            myZeroIfNull(AllocatedGcpGearStorageStandardCosts)
+		  + myZeroIfNull(AllocatedStaticSiteStorageStandardCosts)
+	      ) AS ProjectStorageCosts
+	    , SUM(
+	           myZeroIfNull(AllocatedGcpGearStorageStandardGb)
+		 + myZeroIfNull(AllocatedStaticSiteStorageStandardGb)
+	      ) AS ProjectStorageUsage
+
+    	    , SUM(
+	           myZeroIfNull(AllocatedGcpGearMiscCosts)
+		 + myZeroIfNull(AllocatedStaticSiteMiscCosts)
+	       ) AS ProjectMiscCosts
+    
+		#
+		# This is separated from ProjectComputeCosts for verification
+		# across table generation
+		# *** It really should be part of the ProjectMisc Costs 
+	    , SUM(myZeroIfNull(AllocatedStaticSiteComputeUnlabeledCosts)) AS ProjectUnlabeledCosts
+
+            FROM
+                `'"${Project}.${Dataset}.v5AllocatedStaticGearSiteOverhead"'` 
+    
+            GROUP BY
+                InvoiceMonth
+                , FwGroup
+                , FwProject
+        )
+    )
+    ORDER BY
+            InvoiceMonth,
+            FwGroup,
+            FwProject
+;
+
+' | OutputControl $opt_v
+
+bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+
+SELECT
+	  InvoiceMonth
+
+
+	, ROUND(SUM(FwInitialAnalysisCount),2) AS FwInitialAnalysisCount
+
+	, ROUND(SUM(ProjectComputeCosts),2) AS ProjectComputeCosts
+	, ROUND(SUM(ProjectComputeCpuHours),2) AS ProjectComputeCpuHours
+
+	, ROUND(SUM(ProjectStorageCosts),2) AS ProjectStorageCosts
+	, ROUND(SUM(ProjectStorageUsage),2) AS ProjectStorageUsage
+
+	, ROUND(SUM(ProjectMiscCosts),2) AS ProjectMiscCosts
+	, ROUND(SUM(ProjectUnlabeledCosts),2) AS ProjectUnlabeledCosts
+
+	, ROUND(SUM(BscInitialAnalysisCharge),2) AS BscInitialAnalysisCharge
+	, ROUND(SUM(BscProjectCharge),2) AS BscProjectCharge
+	, ROUND(SUM(BscProjectStorageCharge),2) AS BscProjectStorageCharge
+
+	, ROUND(SUM(ProjectBscCharges),2) AS ProjectBscCharges
+	, ROUND(SUM(ProjectGcpCosts),2) AS ProjectGcpCosts
+
+	, ROUND(SUM(ProjectBscGcpCosts),2) AS ProjectBscGcpCosts
+
+
+FROM
+         `'"${Project}.${Dataset}.${Database}"'`
+WHERE
+        InvoiceMonth = @InvoiceMonth
+
+GROUP BY
+         InvoiceMonth
+    ;
+
+
+' | OutputControl column
+
