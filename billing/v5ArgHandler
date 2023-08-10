@@ -5,6 +5,7 @@ CmdName=$(basename "$0")
 syntax="${CmdName} [-d Dataset][-f][-p Project][-s][-u][-v] {-m Month} {-y Year}"
 
 Version=5
+v5TempFunctions=$(which v5TempFunctions)
 
 function OutputControl {
     local Style="$1"

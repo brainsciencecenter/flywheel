@@ -13,7 +13,7 @@ fi
 	
 bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
 
-'"$(< v5TempFunctions)"'
+'"$(< ${v5TempFunctions})"'
 
 CREATE TABLE IF NOT EXISTS
         `'"${Project}.${Dataset}"'.v5GcpFwTotalComputeStorageMetrics`

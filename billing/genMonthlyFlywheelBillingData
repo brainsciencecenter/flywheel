@@ -95,7 +95,7 @@ FwSessionReportFile="${WorkDir}/${Year}-${Month}-FwSessionReport.csv"
 sys uploadSessionReport $KeepFile "${Args[@]}" "$FwSessionReportFile"
 
 #sys createTempTables "${Args[@]}" 
-sys v4 "${Args[@]}" 
+sys v5 "${Args[@]}" 
 #sys allocateProjectCosts "${Args[@]}" 
 #sys allocateProjectGearCosts "${Args[@]}" 
 
