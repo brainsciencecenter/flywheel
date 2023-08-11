@@ -36,7 +36,10 @@ def getContainer(args=None, id=None):
             else:
                 Container = fw.get_role(id)
         else:
-            Container = fw.get(id)
+            try:
+                Container = fw.get(id)
+            except(flywheel.rest.ApiException) as e:
+                Container = fw.lookup(id)
 
     except (OSError, Exception) as e:
         print("e",e, file=sys.stderr)
@@ -75,8 +78,9 @@ def processId(args=None, id=None):
                 Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
 
         if (type(Container) == flywheel.models.job_output.JobOutput):
-            Logs = fw.get_job_logs(id)
-            Output['log'] = list(map(lambda x: x.msg.replace("\n",""),Logs.logs))
+            if (args.log):
+                Logs = fw.get_job_logs(id)
+                Output['log'] = list(map(lambda x: x.msg.replace("\n",""),Logs.logs))
         return(Output)
 
     else:
@@ -101,6 +105,7 @@ if __name__ == '__main__':
     ap.add_argument('-g', '--gear', default=False,  action='store_true', help='get list of gears, get all gears if none specified')
     ap.add_argument('-G', '--do-get', default=False,  action='store_true', help='do a get on the object')
     ap.add_argument('-j', '--job', default=False,  action='store_true', help='get job by id')
+    ap.add_argument('-L', '--log',  action='store_true', default=False, help='print the job log')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-R', '--role', default=False,  action='store_true', help='get role, or all roles if none specified')
