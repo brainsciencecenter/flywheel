@@ -44,6 +44,8 @@ def getContainer(args=None, id=None):
     except (OSError, Exception) as e:
         print("e",e, file=sys.stderr)
         return(None)
+
+    Container = Container.reload()
     
     return(Container)
 
