@@ -1,0 +1,74 @@
+#!/usr/bin/python3
+
+import argparse
+import flywheel
+import fwgearutils
+import json
+import os
+import pyjq
+import re
+import sys
+
+def getContainer(args=None, id=None):
+    try:
+        Container = fw.get(id)
+    except(flywheel.rest.ApiException) as e:
+        Container = fw.lookup(id)
+
+    Container = Container.reload()
+    
+    return(Container)
+
+if __name__ == '__main__':
+
+    import argparse
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+
+    ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
+    ap.add_argument('-p', '--container-path',  action='store', default=False, help='group/project|ContainerUid')
+    ap.add_argument('-t', '--tags',  action='store', default=False, help='comma separated list of tags to add to the files')
+    ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
+
+    ap.add_argument('files', nargs='*', type=str, default=None, help='Files to upload')
+
+    args = ap.parse_args()
+
+    fw = fwgearutils.getFW(args, Root=True)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    print(args.tags)
+    if (args.tags):
+        FileTags = args.tags.split(',')
+        print("Tags = '{}'".format(FileTags))
+
+    for file in args.files:
+
+        if (args.verbose):
+            print("file = '{}'".format(file), file=sys.stderr)
+
+        Container = getContainer(args,args.container_path)
+
+        PriorFileUids = set(map(lambda f: f.file_id, Container.files))
+        print(PriorFileUids)
+
+        if (args.verbose):
+            print("Container id = {}".format(Container.id), file=sys.stderr)
+
+        Container.upload_file(file)
+        Container = Container.reload()
+        NewFileUids = set(map(lambda f: f.file_id, Container.files))
+        print(NewFileUids)
+        UploadedFileUid = list(NewFileUids - PriorFileUids)[0]
+        print(UploadedFileUid)
+        if (args.tags):
+            
+            File = fw.get_file(UploadedFileUid)
+            
+            File.add_tags(FileTags)
+            File = File.reload()
+            print("File tags = '{}'".format(File.tags))
