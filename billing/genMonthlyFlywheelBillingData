@@ -99,7 +99,7 @@ sys v5 "${Args[@]}"
 #sys allocateProjectCosts "${Args[@]}" 
 #sys allocateProjectGearCosts "${Args[@]}" 
 
-sys downloadILabCharges -4 -f "${Args[@]}" > "${Year}-${Month}-iLabFlywheelCharges.csv"
-sys downloadILabCharges -g "${Args[@]}" > "${Year}-${Month}-iLabNonFwGcpILabCharges.csv"
-sys downloadILabCharges -M "${Args[@]}" > "${Year}-${Month}-iLabFlywheelMriCharges.csv"
+sys downloadILabCharges -5 -f "${Args[@]}" > "${Year}-${Month}-iLabFlywheelCharges.csv"
+sys downloadILabCharges -5 -g "${Args[@]}" > "${Year}-${Month}-iLabNonFwGcpILabCharges.csv"
+sys downloadILabCharges -5 -M "${Args[@]}" > "${Year}-${Month}-iLabFlywheelMriCharges.csv"
   

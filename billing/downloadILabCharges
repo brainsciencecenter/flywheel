@@ -1,12 +1,16 @@
 #!/bin/bash
 
+v5TempFunctions=$(which v5TempFunctions)
+
+
 function v5DownloadFwIlabCharges {
     local Database=v5BscFwCharges
     local ServiceId=472933
 
 
     bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
-    '"$(< v${Version:=5}TempFunctions)"'
+    '"$(< ${v5TempFunctions})"'
+
 
     #
     # The TempProjectInfo has the current service request numbers from all the flywheel projects
@@ -507,6 +511,7 @@ then
 	ProjectInfoFile=$(mktemp /tmp/ProjectInfo-XXXXX.csv)
 	fwProjectInfoCrud -p '.ProjectFunding' | jq -r -f "${FlywheelUtilsDir}/lib/ProjectInfo2CSV.jq" | sed 's/\.name/Name/; s/\.email/Email/' > "$ProjectInfoFile"
 
+	# *** TempProjectInfo should probably be moved to a v5 database
 	Schema=$(head -n 1 "$ProjectInfoFile" | sed 's/"//g; s/,/:string,/g; s/$/:string/')
 	bq load --project_id pennbrain-center  --autodetect --replace --source_format=CSV "${Dataset}.TempProjectInfo" "$ProjectInfoFile" "$Schema"
 

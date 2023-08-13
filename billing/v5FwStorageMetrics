@@ -99,6 +99,9 @@ SELECT
 
 FROM
          `'"${Project}.${Dataset}"'.v5FwStorageMetrics`
+WHERE
+        InvoiceMonth = @InvoiceMonth
+
 GROUP BY
          InvoiceMonth
     ;

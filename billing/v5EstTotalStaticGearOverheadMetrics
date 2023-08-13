@@ -215,6 +215,8 @@ SELECT
 
   FROM
              `'"${Project}.${Dataset}"'.v5EstTotalStaticGearOverheadMetrics` 
+   WHERE
+	    InvoiceMonth = @InvoiceMonth
 
   ;
 

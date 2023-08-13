@@ -166,5 +166,5 @@ v5EstTotalStaticGearOverheadMetrics "${CommonArgs[@]}"
 
 v5AllocatedStaticGearSiteOverhead "${CommonArgs[@]}"
 
-
+v5CalculateBscCharges "${CommonArgs[@]}"
 

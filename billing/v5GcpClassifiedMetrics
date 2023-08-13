@@ -246,6 +246,9 @@ SELECT
 	, ROUND(SUM(GcpGroupCosts),2) AS GcpGroupCosts
 FROM
        `'"${Project}.${Dataset}"'.v5GcpClassifiedMetrics`
+WHERE
+     InvoiceMonth = @InvoiceMonth
+
 GROUP BY
       InvoiceMonth
 
