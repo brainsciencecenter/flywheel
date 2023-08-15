@@ -167,24 +167,36 @@ CREATE TEMP FUNCTION isTbOrMore(StorageUsage FLOAT64) RETURNS BOOL AS (
 );
 
 CREATE TEMP FUNCTION BscStorageOverheadRate() RETURNS FLOAT64 AS (0.25);
-CREATE TEMP FUNCTION BscInitialAnalysisRate() RETURNS FLOAT64 AS (25);
-CREATE TEMP FUNCTION BscSmallProjectCharge() RETURNS FLOAT64 AS (8.33);
-CREATE TEMP FUNCTION BscLargeProjectCharge() RETURNS FLOAT64 AS (20.66);
+
+CREATE TEMP FUNCTION BscInitialAnalysisRate(InvoiceMonth STRING) RETURNS FLOAT64 AS (
+       	    (if(InvoiceMonth < "202307", 25.0, 0.00) )
+       )
+       ;
+CREATE TEMP FUNCTION BscSmallProjectCharge(InvoiceMonth STRING) RETURNS FLOAT64 AS (
+       	    (if(InvoiceMonth < "202307", 100, 200) )/12
+       )
+       ;
+
+CREATE TEMP FUNCTION BscLargeProjectCharge(InvoiceMonth STRING) RETURNS FLOAT64 AS (
+       	    (if(InvoiceMonth < "202307", 200, 400) )/12
+       )
+       ;
+
 CREATE TEMP FUNCTION OneCent() RETURNS FLOAT64 AS (0.01);
 
 CREATE TEMP FUNCTION calculateBscStorageCharge(StorageCharge FLOAT64) RETURNS FLOAT64 AS (
 	  StorageCharge * BscStorageOverheadRate()
 );
 
-CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOAT64) RETURNS FLOAT64 AS (
-       InitialAnalysisCount * BscInitialAnalysisRate()
+CREATE TEMP FUNCTION calculateBscInitialAnalysisCharge(InitialAnalysisCount FLOAT64, InvoiceMonth STRING) RETURNS FLOAT64 AS (
+       InitialAnalysisCount * BscInitialAnalysisRate(InvoiceMonth)
 );
 
-CREATE TEMP FUNCTION calculateBscProjectCharge(StorageStandardUsage FLOAT64, StorageCharge FLOAT64) RETURNS FLOAT64 AS (
+CREATE TEMP FUNCTION calculateBscProjectCharge(StorageStandardUsage FLOAT64, StorageCharge FLOAT64, InvoiceMonth STRING) RETURNS FLOAT64 AS (
         IF (round(StorageCharge,2) >= OneCent(),
 	        IF (isTbOrMore(StorageStandardUsage),
-		      BscLargeProjectCharge(),
-		      BscSmallProjectCharge()
+		      BscLargeProjectCharge(InvoiceMonth),
+		      BscSmallProjectCharge(InvoiceMonth)
 		),
 		0.0
        )

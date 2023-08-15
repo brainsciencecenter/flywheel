@@ -91,9 +91,9 @@ INSERT
         SELECT
 	     *
     	    , isTbOrMore(ProjectStorageUsage) AS IsTbOrMore
-	    , calculateBscInitialAnalysisCharge(FwInitialAnalysisCount) AS BscInitialAnalysisCharge
+	    , calculateBscInitialAnalysisCharge(FwInitialAnalysisCount,@InvoiceMonth) AS BscInitialAnalysisCharge
 	    , calculateBscStorageCharge(ProjectStorageCosts) AS BscProjectStorageCharge
-	    , calculateBscProjectCharge(ProjectStorageUsage,ProjectStorageCosts) AS BscProjectCharge
+	    , calculateBscProjectCharge(ProjectStorageUsage,ProjectStorageCosts,@InvoiceMonth) AS BscProjectCharge
 
 	FROM (
             SELECT
