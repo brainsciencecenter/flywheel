@@ -77,11 +77,18 @@ INSERT
 	    + BscProjectCharge 
 	    + BscInitialAnalysisCharge
 	  ) AS ProjectBscCharges
+
+	  # Total GcpCosts =  GcpGroupComputeCosts 
+	  # 	  	    + GcpGroupStorageStandardCost
+	  #		    + GcpGroupStorageColdlineCost (which is 0)
+	  # 	  	    + GcpGroupStorageArchiveCost
+	  #		    + GcpGroupStorageMiscCosts
+	  #		    + GcpGroupMiscCosts
+
         , (
 	      ProjectComputeCosts
 	    + ProjectStorageCosts
 	    + ProjectMiscCosts
-	    + ProjectUnlabeledCosts
 	  ) AS ProjectGcpCosts
 
         , (ProjectComputeCosts + ProjectStorageCosts + ProjectMiscCosts +
@@ -90,7 +97,7 @@ INSERT
     FROM (
         SELECT
 	     *
-    	    , isTbOrMore(ProjectStorageUsage) AS IsTbOrMore
+    	    , IF (isTbOrMore(ProjectStorageUsage), TRUE, FALSE) AS IsTbOrMore
 	    , calculateBscInitialAnalysisCharge(FwInitialAnalysisCount,@InvoiceMonth) AS BscInitialAnalysisCharge
 	    , calculateBscStorageCharge(ProjectStorageCosts) AS BscProjectStorageCharge
 	    , calculateBscProjectCharge(ProjectStorageUsage,ProjectStorageCosts,@InvoiceMonth) AS BscProjectCharge
@@ -114,8 +121,15 @@ INSERT
 	      ) AS ProjectComputeCpuHours
     
 	    , SUM(
-#	            myZeroIfNull(AllocatedGcpGearStorageStandardCosts)
+	            myZeroIfNull(AllocatedGcpGearStorageStandardCosts)
 		  + myZeroIfNull(AllocatedStaticSiteStorageStandardCosts)
+	          + myZeroIfNull(AllocatedGcpGearStorageColdlineCosts)
+		  + myZeroIfNull(AllocatedStaticSiteStorageColdlineCosts)
+		  # *** Do we want to charge for archiveal costs?
+	          + myZeroIfNull(AllocatedGcpGearStorageArchiveCosts)
+		  + myZeroIfNull(AllocatedStaticSiteStorageArchiveCosts)
+	          + myZeroIfNull(AllocatedGcpGearStorageMiscCosts)
+		  + myZeroIfNull(AllocatedStaticSiteStorageMiscCosts)
 	      ) AS ProjectStorageCosts
 	    , SUM(
 	           myZeroIfNull(AllocatedGcpGearStorageStandardGb)
@@ -134,7 +148,9 @@ INSERT
 	    , SUM(myZeroIfNull(AllocatedStaticSiteComputeUnlabeledCosts)) AS ProjectUnlabeledCosts
 
             FROM
-                `'"${Project}.${Dataset}.v5AllocatedStaticGearSiteOverhead"'` 
+                `'"${Project}.${Dataset}.v5AllocatedStaticGearSiteOverhead"'`
+	    WHERE
+		InvoiceMonth = @InvoiceMonth
     
             GROUP BY
                 InvoiceMonth
