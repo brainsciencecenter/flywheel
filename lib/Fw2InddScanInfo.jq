@@ -4,6 +4,7 @@
 import "Id2ProjectLabels" as $ProjectId2Labels;
 import "Id2SubjectLabels" as $SubjectId2Labels;
 import "Id2SessionLabels" as $SessionId2Labels;
+import "Id2SessionNotes" as $SessionId2Notes;
 import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 import "Id2SessionTags" as $SessionId2Tags;
 
@@ -15,6 +16,7 @@ import "Id2SessionTags" as $SessionId2Tags;
     | $ProjectId2Labels::ProjectId2Labels[][.parents.project] as $ProjectLabel 
     | $SubjectId2Labels::SubjectId2Labels[][.parents.subject] as $SubjectLabel 
     | $SessionId2Labels::SessionId2Labels[][.parents.session] as $SessionLabel 
+    | $SessionId2Notes::SessionId2Notes[][.parents.session] as $SessionNotes
     | $SessionId2Timestamps::SessionId2Timestamps[][.parents.session] as $SessionTimeStamp
     | $SessionId2Tags::SessionId2Tags[][$SessionId] as $SessionTags
 
@@ -49,6 +51,7 @@ import "Id2SessionTags" as $SessionId2Tags;
 	    $SessionId,
 	    $SessionLabel,
 	    $SessionTags,
+	    ($SessionNotes | sub("\\n"; " "; "gm")),
 	    $ProjectId,
 	    $AcquisitionLabel,
 	    $AcquisitionType,

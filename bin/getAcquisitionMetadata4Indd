@@ -63,7 +63,8 @@ fi
 
 for gp in "${GroupProjects[@]}"
 do
-	echo "'$gp'"
+
+    echo "'$gp'"
 
 	[ -d "$gp" ] || mkdir -p "$gp"
 
