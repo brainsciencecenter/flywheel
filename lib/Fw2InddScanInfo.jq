@@ -51,7 +51,7 @@ import "Id2SessionTags" as $SessionId2Tags;
 	    $SessionId,
 	    $SessionLabel,
 	    $SessionTags,
-	    ($SessionNotes | sub("\\n"; " "; "gm")),
+	    (if $SessionNotes then ($SessionNotes | sub("\\n"; " "; "gm")) else "" end),
 	    $ProjectId,
 	    $AcquisitionLabel,
 	    $AcquisitionType,
