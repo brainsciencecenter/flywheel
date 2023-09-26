@@ -173,7 +173,7 @@ CREATE TEMP FUNCTION BscInitialAnalysisRate(InvoiceMonth STRING) RETURNS FLOAT64
        )
        ;
 CREATE TEMP FUNCTION BscSmallProjectCharge(InvoiceMonth STRING) RETURNS FLOAT64 AS (
-       	    (if(InvoiceMonth < "202307", 100, 200) )/12
+       	    (if(InvoiceMonth < "202307", 100, 200) /12)
        )
        ;
 
