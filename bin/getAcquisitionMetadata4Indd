@@ -14,7 +14,7 @@
 
 CmdName=$(basename "$0")
 
-syntax="${CmdName} [-a][-n][-Q][-v] [[group/project] [findargs]"
+syntax="${CmdName} [-a][-f][-n][-Q][-v] [[group/project] [findargs]"
 GroupProjects=()
 
 function sys {
@@ -31,10 +31,10 @@ function getProjectId {
     echo "$ProjectId"
 }
 
-while getopts anQv arg
+while getopts afnQv arg
 do
     case "$arg" in
-	a|n|Q|v)
+	a|f|n|Q|v)
 	    eval "opt_${arg}=${OPTARG:=1}"
 	    ;;
     esac
@@ -42,6 +42,7 @@ done
 
 shift $(($OPTIND - 1))
 
+[ -n "$opt_f" ] && opt_f=-f
 [ -n "$opt_n" ] && opt_n=-n
 [ -n "$opt_v" ] && opt_v=-v
 
@@ -71,7 +72,7 @@ do
 
 	CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
 
-	sys time syncAcqData2Indd $opt_n $opt_v $opt_Q -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
+	sys time syncAcqData2Indd $opt_f $opt_n $opt_v $opt_Q -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
 
 	ProjectId=$(getProjectId "$gp")
 	InddRegEx=$(fwget -1 "$ProjectId" | jq -r '.info.labels.INDDRegEx|select(. != null)')
