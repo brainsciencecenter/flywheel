@@ -57,6 +57,14 @@ done
 
 shift $(($OPTIND - 1))
 
+if echo "$0" | grep -q /
+then
+    CmdPath=$(realpath "$0")
+else
+    CmdPath=$(which "$0")
+fi
+FwDir=$(dirname $(dirname "$CmdPath"))
+
 if [ -z "$1" ]
 then
     if [ -z "$opt_a" ]
@@ -142,6 +150,8 @@ else
 
 	grep '>' "$AcquisitionIdsDiffOutputFile" | sed 's/> //' > "$AcquisitionIdsToGetFile"
 	grep '<' "$AcquisitionIdsDiffOutputFile" | sed 's/< //' > "$AcquisitionIdsToDeleteFile"
+
+	jq -r -L "$TmpDir" -f "${FwDir}/lib/FindAcqWithExpiredParentLabels.jq" "$CachedAcquisitionJsonFile" >> "$AcquisitionIdsToDeleteFile"
     else
 	sort -u "$ActiveAcquisitionIdsFile" > "$AcquisitionIdsToGetFile"
 	cat /dev/null > "$AcquisitionIdsToDeleteFile"
@@ -168,7 +178,7 @@ if [ -e "$CachedAcquisitionJsonFile" ]
 then
     # output the current Cached Acquisition Json file without the Acquisitions to delete
     # You get json of { "": "True" } if there isn't any id to delete which is fine
-    AcquisitionIdsToDeleteJson=$(sed 's/^.*$/"&"/' "$AcquisitionIdsToDeleteFile" | jq -n '[inputs|{(.): "True"}] | add')
+    AcquisitionIdsToDeleteJson=$(sed 's/^.*$/"&"/' "$AcquisitionIdsToDeleteFile" | jq -n '[inputs|{(.): true}] | add')
     jq --argjson IdsToDelete "${AcquisitionIdsToDeleteJson}" 'select(._id|in($IdsToDelete)|not)' "$CachedAcquisitionJsonFile" >> "$UpdatedAcquisitionsJsonFile"
 fi
 	
