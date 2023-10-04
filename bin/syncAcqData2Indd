@@ -253,6 +253,11 @@ then
 	CmdArgs+=( -c "$opt_c" )
 fi
 
+if [ -n "$opt_v" ]
+then
+	CmdArgs+=( -v "$opt_v" )
+fi
+
 if [ -n "$opt_f" -o -z "$opt_Q" ]
 then
     sys syncAcquisitionJsonFiles -f "${CmdArgs[@]}" -d "$TmpDir" -pi "${Group}/${Project}" "$@"
