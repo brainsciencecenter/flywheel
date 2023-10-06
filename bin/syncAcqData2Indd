@@ -255,7 +255,7 @@ fi
 
 if [ -n "$opt_v" ]
 then
-	CmdArgs+=( -v "$opt_v" )
+	CmdArgs+=( -v )
 fi
 
 if [ -n "$opt_f" -o -z "$opt_Q" ]
@@ -266,7 +266,7 @@ fi
 if [ -n "$opt_a" ]
 then
    echo "$FieldsAll"
-   sys fwget -1 "$opt_a" | jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt"
+   sys fwget -1 "$opt_a" | sys jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt"
 else
    rm -f "${TmpDir}/${Project}_MRI.csv" "${TmpDir}/${Project}_PET.csv" "${TmpDir}/${Project}_Bids.csv"
    jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --arg DicomExt "$DicomExt" --arg NiftiExt "$NifitExt" "$opt_c" | tee >((echo "$FieldsAll" ; grep ',"NoBid",' | grep -E ".($DicomExt)|($NiftiExt)" | grep ',"MR",')  | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"NoBid",' | grep -E ".($DicomExt)|($NiftiExt)" | grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv") >((echo "$FieldsAll" ; grep ',"Bids",' | grep ".${NiftiExt}" | sort -u ) | csvcut -c "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv")  > /dev/null

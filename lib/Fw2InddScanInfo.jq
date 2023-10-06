@@ -26,9 +26,8 @@ import "Id2SessionTags" as $SessionId2Tags;
 
     # Only select the first .dicom.zip
     | .files
-    | [([.[] | select(.name|match("."+$DicomExt+"$"))]|first) , ([.[] | select(.name|match("."+$NiftiExt+"$"))]|first)]|map(select(.))
-    | .[]
-    | select(.name | match("(("+$DicomExt+")|("+$NiftiExt+"))$"))
+#    | [([.[] | select(.name|match("."+$DicomExt+"$"))]|first) , ([.[] | select(.name|match("."+$NiftiExt+"$"))]|first)]|map(select(.))
+    | [.[] | select((.name | match("(("+$DicomExt+")|("+$NiftiExt+"))$")))] | first
 
 
 
