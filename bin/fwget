@@ -10,8 +10,11 @@ import re
 import sys
 
 def getContainer(args=None, id=None):
+    Reload = True
+
     try:
         if (args.device):
+            Reload = False
             if (id == "all"):
                 Container = fw.get_all_devices()
             else:
@@ -21,6 +24,7 @@ def getContainer(args=None, id=None):
         elif (args.gear):
             if (id == "all"):
                 Container = fw.get_all_gears()
+                Reload = False
             else:
                 Container = fw.get_gear(id)
         elif (args.job):
@@ -28,11 +32,13 @@ def getContainer(args=None, id=None):
         elif (args.user):
             if (id == "all"):
                 Container = fw.get_all_users()
+                Reload = False
             else:
                 Container = fw.get_user(id)
         elif (args.role):
             if (id == "all"):
                 Container = fw.get_all_roles()
+                Reload = False
             else:
                 Container = fw.get_role(id)
         else:
@@ -45,7 +51,8 @@ def getContainer(args=None, id=None):
         print("e",e, file=sys.stderr)
         return(None)
 
-    Container = Container.reload()
+    if (Reload):
+        Container = Container.reload()
     
     return(Container)
 
