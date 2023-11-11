@@ -32,6 +32,8 @@ CmdName = os.path.basename(sys.argv[0])
 # first fwsearch finds all the bids-fmriprep files and because flywheel as of 4/20/2023 doesn't return the actual uid of the file, dig out the analysis uid that created the file
 # pass the analysis uids to fwget and pullout all the file uids that match bids-fmriprep and pass those to the second fwget to download into /tmp/epsteinlab/bids-fmriprep directory
 #
+# -r analysis 'analysis.created > 2023-11-01'
+#
 
 
 ap = argparse.ArgumentParser()
