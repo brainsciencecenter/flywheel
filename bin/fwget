@@ -19,6 +19,9 @@ def getContainer(args=None, id=None):
                 Container = fw.get_all_devices()
             else:
                 Container = fw.get_device(id)
+        elif (args.session_analyses):
+            Reload = False
+            Container = fw.get_session_analyses(id)
         elif (args.file):
             Container = fw.get_file(id)
         elif (args.gear):
@@ -105,6 +108,7 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
 
     ap.add_argument('-1', '--one-at-a-time', default=False,  action='store_true', help='Print info one at a time')
+    ap.add_argument('-A', '--session-analyses', default=False,  action='store_true', help='get session analyses by uid')
     ap.add_argument('-a', '--acquisitions', default=False,  action='store_true', help='include acquisitions')
     ap.add_argument('-D', '--debug', default=False,  action='store_true', help='debug')
     ap.add_argument('-d', '--device', default=False,  action='store_true', help='get device info|all to get all devices')
