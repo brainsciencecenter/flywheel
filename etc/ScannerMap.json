@@ -13,5 +13,6 @@
 
     "5cab7e0ff546b6002af04a5c": "TRC3T",
 
-    "623211a341bb7a9b31718907": "FWDicomReceiver"
+    "623211a341bb7a9b31718907": "FWDicomReceiver",
+    "64dde0c133ebe58cd9367747": "PigiDicomReceiver"
 }
