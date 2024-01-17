@@ -84,7 +84,8 @@ def processId(args=None, id=None):
 
         else:
             if (args.recurse):
-                print("{} : Ready to recurse".format(CmdName), file=sys.stderr)
+                if (args.verbose):
+                    print("{} : Ready to recurse".format(CmdName), file=sys.stderr)
                 Output = fwgearutils.recurse(fw,Container, CmdName=CmdName, Get=args.do_get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
             else:
                 Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
