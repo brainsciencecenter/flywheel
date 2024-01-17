@@ -293,7 +293,7 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
         Output['sessions'] = Sessions
 
     elif (   type(r) == flywheel.models.session.Session 
-#          or type(r) == flywheel.models.resolver_session_node.ResolverSessionNode 
+#          or type(r) == flywheel.models.resolver_sebssion_node.ResolverSessionNode 
 #          or type(r) == flywheel.models.container_session_output.ContainerSessionOutput
           ):
         if (Verbose):
@@ -322,7 +322,7 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
         Output['acquisitions'] = Acquisitions
 
     elif (   type(r) == flywheel.models.acquisition.Acquisition 
-          or type(r) == flywheel.models.resolver_acquisition_node.ResolverAcquisitionNode 
+#          or type(r) == flywheel.models.resolver_acquisition_node.ResolverAcquisitionNode 
 #          or type(r) == flywheel.models.acquisition_list_output.AcquisitionListOutput
           ):
         if (Verbose):
