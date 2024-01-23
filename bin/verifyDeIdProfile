@@ -1,0 +1,28 @@
+#!/bin/bash
+
+Group=dwolklab
+Project=NACC-SC
+
+DeIdProfileYaml=/home/holder/flywheel/bin/deid_profile.yaml
+PiiCheckerJqFile=/home/holder/flywheel/lib/PIIChecker.jq
+
+GroupProjectAcquisitionsJsonFile=dwolklab-NACC-SC-CachedFwAcquisitions.json
+CachedId2LabelsDir=/home/holder/Work/CfN/dwolklab/NACC-SC
+
+function sys {
+	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	 [ -n "$opt_z" ] || "$@"
+}
+
+while getopts 'nv' arg
+do
+	case "$arg" in
+	     n|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+sys jq -r -L "${CachedId2LabelsDir}" --argjson DeIdProfileNullFields "$(yq -o json < $DeIdProfileYaml | jq -r ' [.dicom.fields | .[] | select( .["replace-with"] == "") | { (.name) : true }] | add' )" -f "${PiiCheckerJqFile}" "$GroupProjectAcquisitionsJsonFile"
