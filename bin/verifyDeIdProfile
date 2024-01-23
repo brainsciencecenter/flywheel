@@ -1,23 +1,19 @@
 #!/bin/bash
 
-Group=dwolklab
-Project=NACC-SC
-
-DeIdProfileYaml=/home/holder/flywheel/bin/deid_profile.yaml
-PiiCheckerJqFile=/home/holder/flywheel/lib/PIIChecker.jq
-
-GroupProjectAcquisitionsJsonFile=dwolklab-NACC-SC-CachedFwAcquisitions.json
-CachedId2LabelsDir=/home/holder/Work/CfN/dwolklab/NACC-SC
+CmdName=$(basename "$0")
+Syntax="${CmdName} {-d DeIdProfileYamlFile}[-g GroupLabel][-i Id2LabelDir][-P PIICheckerJqFile][-p ProjectLabel] GroupProjectAcquisitionsJsonFile [...]"
 
 function sys {
 	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
 	 [ -n "$opt_z" ] || "$@"
 }
 
-while getopts 'nv' arg
+FlywheelDir=$(dirname $(dirname $(which "$0")))
+
+while getopts 'd:g:i:nP:p:v' arg
 do
 	case "$arg" in
-	     n|v)
+	     d|g|i|n|P|p|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -25,4 +21,69 @@ done
 
 shift $(($OPTIND - 1))
 
-sys jq -r -L "${CachedId2LabelsDir}" --argjson DeIdProfileNullFields "$(yq -o json < $DeIdProfileYaml | jq -r ' [.dicom.fields | .[] | select( .["replace-with"] == "") | { (.name) : true }] | add' )" -f "${PiiCheckerJqFile}" "$GroupProjectAcquisitionsJsonFile"
+if [ -n "$opt_g" ]
+then
+	Group="$opt_g"
+else
+	echo "${CmdName} : Missing required -g group argument" 1>&2
+	echo "$Syntax" 1>&2
+	exit 1
+fi
+
+if [ -n "$opt_p" ]
+then
+	Project="$opt_p"
+else
+	echo "${CmdName} : Missing required -p Project argument" 1>&2
+	echo "$Syntax" 1>&2
+	exit 2
+fi
+
+if [ -n "$opt_P" ]
+then
+	PIICheckJqFile="$opt_P"
+else
+	PiiCheckerJqFile="${FlywheelDir}/lib/PIIChecker.jq"
+fi
+
+
+
+if [ -n "$opt_d" ]
+then
+	if [ ! -r "$opt_d" ]
+	then
+		echo "${CmdName} : Cannot read '${opt_d}'" 1>&2
+		exit 5
+	fi
+	
+	DeIdProfileYaml="$(< \"$opt_d\")"
+else
+	FlywheelGroupProjectDeIdFile="${Group}/${Project}/files/deid_profile.yaml"
+	DeIdProfileYaml=$(fw download --quiet -o -- "$FlywheelGroupProjectDeIdFile" 2>/dev/null )
+	if [ "$?" != 0 ]
+	then
+		echo "${CmdName} : Could not download '$FlywheelGroupProjectDeIdFile'" 1>&2
+		exit 3
+	fi
+fi
+
+if [ -n "$opt_i" ]
+then
+	Id2LabelsDir="$opt_i"
+else
+	Id2LabelsDir="${Group}/${Project}"
+fi
+
+if [ ! -e "$Id2LabelsDir" ] && [ ! -e "${Id2LabelsDir}/Id2ProjectLabels.json" ]
+then
+	echo "${CmdName} : Cannot find 'Id2ProjectLabels.json' in '$Id2LabelsDir'" 1>&2
+	exit 4
+fi
+
+DeIdProfileNullFields="$( echo "$DeIdProfileYaml" | yq -o json | jq -r ' [.dicom.fields | .[] | select( .["replace-with"] == "") | { (.name) : true }] | add' )"
+
+
+for i in "$@"
+do
+	sys jq -r -L "${Id2LabelsDir}" --argjson DeIdProfileNullFields "$DeIdProfileNullFields" -f "${PiiCheckerJqFile}" "$i"
+done
