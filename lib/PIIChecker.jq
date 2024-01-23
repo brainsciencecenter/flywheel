@@ -48,7 +48,7 @@ import "Id2SessionTags" as $SessionId2Tags;
 	    if .DeidentificationMethod then .DeidentificationMethod else "NoDeidentificationProfile" end,
 
 	    (to_entries 
-	      	  | map(if ((.key) | in($PennBscDeIdProfileNullFieldsJson)) and .value != null and .value != "" then .key else empty end) 
+	      	  | map(if ((.key) | in($DeIdProfileNullFields)) and .value != null and .value != "" then .key else empty end) 
 		  | if length > 0 then ("PiiFields:" + (sort | join(":"))) else "Clean" end
             )
 
