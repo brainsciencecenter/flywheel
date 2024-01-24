@@ -273,7 +273,7 @@ then
 else
    rm -f "${TmpDir}/${Project}_MRI.csv" "${TmpDir}/${Project}_PET.csv" "${TmpDir}/${Project}_Bids.csv"
    jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids false --arg DicomExt "$DicomExt" --arg NiftiExt "$NifitExt" "$opt_c" | tee "${TmpDir}/${Project}.csv" | tee >((echo "$FieldsAll" ; grep ',"NoBid",' | grep ',"MR",')  | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"NoBid",' | grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv") > /dev/null
-   jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NifitExt" "$opt_c" |  >((echo "$FieldsAll" ; grep ',"Bids",' | sort -u ) | csvcut -c "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv")  > /dev/null   
+   jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NifitExt" "$opt_c" | tee >((echo "$FieldsAll" ; grep ',"Bids",' | sort -u ) | csvcut -c "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv")  > /dev/null
 fi
 
 if [ "$DeleteTmpDir" == True ]

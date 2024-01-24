@@ -22,12 +22,18 @@ import "Id2SessionTags" as $SessionId2Tags;
 
     | ._id as $AcquisitionId
     | .label as $AcquisitionLabel
+
+    | (if .info.PICSL_sMRI_biomarkers.ICV then .info.PICSL_sMRI_biomarkers.ICV else "None" end) as $Icv
+    | (if .info.PICSL_sMRI_biomarkers.LeftHippocampusVolume then .info.PICSL_sMRI_biomarkers.LeftHippocampusVolume else "None" end) as $LeftHippocampusVolume
+    | (if .info.PICSL_sMRI_biomarkers.RightHippocampusVolume then .info.PICSL_sMRI_biomarkers.RightHippocampusVolume else "None" end) as $RightHippocampusVolume
+
+
     | (if (.timestamp) then .timestamp else .created end) as $TimeStamp
 
     # Only select the first .dicom.zip
     | .files
 #    | [([.[] | select(.name|match("."+$DicomExt+"$"))]|first) , ([.[] | select(.name|match("."+$NiftiExt+"$"))]|first)]|map(select(.))
-    | [.[] | select((.name | match("(("+$DicomExt+")|("+$NiftiExt+"))$")))] | first
+    | [.[] | if $Bids then select(.info.BIDS) else select((.name | match("(("+$DicomExt+")|("+$NiftiExt+"))$"))) end] | first
 
 
 
@@ -69,6 +75,10 @@ import "Id2SessionTags" as $SessionId2Tags;
 	    .SliceThickness,
 	    .PixelSpacing[0],
 	    .PixelSpacing[1],
+
+	    $Icv,
+	    $LeftHippocampusVolume,
+	    $RightHippocampusVolume,
 
 	    $AcquisitionFileName,
 
