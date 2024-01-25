@@ -3,6 +3,10 @@
 CmdName=$(basename "$0")
 Syntax="${CmdName} {-d DeIdProfileYamlFile}[-g GroupLabel][-i Id2LabelDir][-P PIICheckerJqFile][-p ProjectLabel] GroupProjectAcquisitionsJsonFile [...]"
 
+#
+# Example:
+# verifyDeIdProfile -v -g dwolklab -p NACC-SC  dwolklab-NACC-SC-CachedFwAcquisitions.json 
+# where cwd has dwolklab-NACC-SC-CachedFwAcquisitions.json  and dwolklab/NACC-SC has the Id2Label files
 function sys {
 	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
 	 [ -n "$opt_z" ] || "$@"

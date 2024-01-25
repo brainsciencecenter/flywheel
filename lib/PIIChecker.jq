@@ -8,6 +8,8 @@ import "Id2SessionNotes" as $SessionId2Notes;
 import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 import "Id2SessionTags" as $SessionId2Tags;
 
+      (["ProjectLabel","ProjectId","SubjectLabel","SubjectId","SessionLabel","SessionId","AcquisitionLabel","AcquisitionId","FileName","FileId","FileSize","DeIdProfile","PiiStatus"]|@csv),
+
       .parents.group as $GroupLabel 
     | .parents.project as $ProjectId
     | .parents.subject as $SubjectId
