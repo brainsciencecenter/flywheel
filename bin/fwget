@@ -71,6 +71,10 @@ def processId(args=None, id=None):
             print("type(fw.get(\"{}\")) = '{}'".format(id,type(Container)), file=sys.stderr)
 
         if (args.download):
+            if (not hasattr(Container, 'download')):
+                print("{} : Container = '{}', type = '{}' has no download method".format(CmdName, id, type(Container)), file=sys.stderr)
+                return(None)
+
             if (hasattr(Container, 'label')):
                 FileName = Container.label
             elif (hasattr(Container, 'name')):
@@ -94,6 +98,10 @@ def processId(args=None, id=None):
             if (args.log):
                 Logs = fw.get_job_logs(id)
                 Output['log'] = list(map(lambda x: x.msg.replace("\n",""),Logs.logs))
+
+        if (type(Container) == flywheel.models.collection_output.CollectionOutput):
+            Output['session_count'] = len(list(Container.sessions()))
+            Output['sessions'] = fwgearutils.sloppyCopy(Container.sessions())
         return(Output)
 
     else:
