@@ -5,6 +5,8 @@
 # Numeric strings must be _Double_Quoted_ to be correctly interpeted as strings -- otherwise comparing strings vs numbers.
 # 
 # fwfind -j 'gear_info.name=dcm2niix,state=failed,created>2021-04-24,created<2021-04-30' for all failed jobs
+# fwfind -1 -r -j  'parents.acquisition=65b2ad5ecaec881b39f9a7b7' | jq -r .gear_info.name will print the names of all gears
+#   which used 65b2ad5ecaec881b39f9a7b7 for the acquisition input. Don't know what happens if the gear uses two acquisistions
 #
 
 import argparse
