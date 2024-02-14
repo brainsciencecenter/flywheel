@@ -11,7 +11,7 @@ done
 
 shift $(($OPTIND - 1))
 
-AllUsers=$(fwget -u | jq -r '.[][] | select(.disabled != true) | ._id' | grep -P '@(pennbrain.)?upenn.edu' | sort -u)
+AllUsers=$(fwget -u all | jq -r '.[][] | select(.disabled != true) | ._id' | grep -P '@(pennbrain.)?upenn.edu' | sort -u)
 UnknownUsers=$(fw-groupcrud get -mi unknown | tail -n +3 | cut -f 2 -d : | grep -P '@(pennbrain.)?upenn.edu' | sort -u)
 UsersToAdd=$(diff <(echo "$AllUsers") <(echo "$UnknownUsers") | grep '<' | sed 's/< //')
 
