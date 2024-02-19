@@ -32,16 +32,28 @@ if __name__ == '__main__':
             Container = fw.get(path)
         except (OSError, Exception) as e:
             try:
-                Container = fw.lookup(path)
+                Container = fw.get_file(path)
             except (OSError, Exception) as e:
-                print("%s : fw.get and fw.lookup failed for '%s' : e = %s" %(CmdName, path, e), file=sys.stderr)
-                sys.exit(1)
+                try:
+                    Container = fw.lookup(path)
+                except (OSError, Exception) as e:
+                    print("%s : fw.get and fw.lookup failed for '%s' : e = %s" %(CmdName, path, e), file=sys.stderr)
+                    sys.exit(1)
 
         if (args.verbose):
-            print("%s : removing '%s'" % (CmdName, Container.label), file=sys.stderr)
+            if (type(Container) == flywheel.models.file_output.FileOutput):
+                print("%s : removing '%s'" % (CmdName, Container.name), file=sys.stderr)
+            else:
+                print("%s : removing '%s'" % (CmdName, Container.label), file=sys.stderr)
             
         if (not args.no_op):
             try:
-                fw.delete_container(Container._id)
+                if (type(Container) == flywheel.models.file_output.FileOutput):
+                    fw.delete_file(Container.file_id)
+                else:
+                    fw.delete_container(Container._id)
             except (OSError, Exception) as e:
-                print("%s : deleting '%s'(%s) failed %s" % (CmdName, Container.label, Container._id, e), file=sys.stderr)
+                if (type(Container) == flywheel.models.file_output.FileOutput):
+                    print("%s : deleting '%s'(%s) failed %s" % (CmdName, Container.name, Container._id, e), file=sys.stderr)
+                else:
+                    print("%s : deleting '%s'(%s) failed %s" % (CmdName, Container.label, Container._id, e), file=sys.stderr)
