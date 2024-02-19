@@ -43,6 +43,7 @@ ap.add_argument('-A', '--acquisitions', default=False, action='store_true', help
 ap.add_argument('-z', '--zip-info', default=False, action='store_true', help='dig out zip info')
 ap.add_argument('-l', '--localtime', default=False, action='store_true', help='show results in localtime')
 ap.add_argument('-d', '--debug', default=False, action='store_true', help='debug')
+ap.add_argument('-f', '--fix-file', default=False, action='store_true', help='Get file acquisition info and file id')
 
 ap.add_argument('-r', '--return-type', default='session',  action='store', help='Structured Query Return Type')
 ap.add_argument('-g', '--do_get', default=False,  action='store_true', help='run gets() in recursion')
@@ -68,11 +69,29 @@ if (args.verbose):
     
 Results = fw.search({'return_type': args.return_type, 'structured_query': Query, 'all_data': args.all_data}, size=args.max_to_return)
 
-#print(json.dumps(fwgearutils.recurse(fw, Results, GetAcquisitions=True, CmdName=CmdName, Get=False), indent=2))
+Acquisitions = {}
+
 if (args.recurse):
-    print(json.dumps(fwgearutils.recurse(fw,Results, CmdName=CmdName, Get=args.do_get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info), indent=2))
+    OutputJson = fwgearutils.recurse(fw,Results, CmdName=CmdName, Get=args.do_get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
 else:
-    print(json.dumps(fwgearutils.sloppyCopy(Results), indent=2))
+    OutputJson = fwgearutils.sloppyCopy(Results)
+
+if (args.fix_file):
+    for r in OutputJson:
+        if (args.verbose):
+            print("parent.type = '{}', parent._id = '{}', file.name = '{}'".format(r['parent']['type'],r['parent']['_id'],r['file']['name']),file=sys.stderr)
+        
+        if (not (r['parent']['_id'] in Acquisitions)):
+            Acquisitions[r['parent']['_id']] = fw.get(r['parent']['_id'])
+
+            
+        Acquisition = Acquisitions[r['parent']['_id']]
+        File = Acquisition.get_file(r['file']['name'])
+
+        r['acquisition'] = fwgearutils.sloppyCopy(Acquisition)
+        r['file']["file_id"] = File.file_id
+
+print(json.dumps(OutputJson, indent=2))
 
 sys.exit(0)
 
