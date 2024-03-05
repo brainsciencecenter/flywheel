@@ -13,7 +13,7 @@ import time
 from datetime import datetime
 
 
-def runGear(gear, inputs, dest, tags=None):
+def runGear(gear, inputs, dest, config={}, tags=None):
    """Submits a job with specified gear and inputs.
     
    Args:
@@ -26,27 +26,41 @@ def runGear(gear, inputs, dest, tags=None):
 
    Examples:
 
-        fwRunUtilityGear  -g dcm2niix -i dcm2niix_input dwolklab/NACC/1234/1234-3T/files/foo.dicom
-        fwRunUtilityGear  -g dicom-mr-classifier -i dicom dwolklab/NACC/1234/1234-3T/files/foo.dicom
-        fwRunUtilityGear  -g dicom-mr-classifier -i dicom <InputFileUuid> [ ... ]
+        fwRunGear  -g dcm2niix -i dcm2niix_input dwolklab/NACC/1234/1234-3T/files/foo.dicom
+        fwRunGear  -g dicom-mr-classifier -i dicom dwolklab/NACC/1234/1234-3T/files/foo.dicom
+        fwRunGear  -g dicom-mr-classifier -i dicom <InputFileUuid> [ ... ]
+        fwRunGear  -g ashs -c '{ "ASHS_Atlases": "ASHS-HarP", "QaPlacement": "Acquisition", "ProjectName": "" }' -i dicom
+'-i dicom/T1 <InputFileUuid> [ ... ]
         
    """
 
-   now = datetime.now()
-   analysis_label = (
-        f'{gear.gear.name} {now.strftime("%m-%d-%Y %H:%M:%S")} SDK launched'
-    )
-
    try:
         # Run the gear on the inputs provided, stored output in dest constainer and returns job ID
-        gear_job_id = gear.run(
+
+       if (gear.category == "analysis"):
+          now = datetime.now()
+          analysis_label = (
+             f'{gear.gear.name} {now.strftime("%m-%d-%Y %H:%M:%S")} SDK launched'
+          )
+
+          gear_job_id = gear.run(
            analysis_label=analysis_label,
-           config={},
+           config=config,
            inputs=inputs,
            tags=tags,
            destination=dest)
-        logging.debug('Submitted job %s', gear_job_id)
-        return gear_job_id
+          logging.debug('Submitted job %s', gear_job_id)
+          return gear_job_id
+
+       else:
+          gear_job_id = gear.run(
+           config=config,
+           inputs=inputs,
+           tags=tags,
+           destination=dest)
+          logging.debug('Submitted job %s', gear_job_id)
+          return gear_job_id
+
    except flywheel.rest.ApiException:
         logging.exception('An exception was raised when attempting to submit a job for %s', file_obj.name)
 
@@ -59,11 +73,13 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-d', '--debug', default=False,  action='store_true', help='debug')
+    ap.add_argument('-c', '--config', action='store', default='{}', help='config json string. Defaults to "{}"')
     ap.add_argument('-g', '--gear-name', required=True, action='store', help='gear name')
     ap.add_argument('-l', '--show-log', default=False, action='store_true', help='Dump log at the end of the job')
     ap.add_argument('-i', '--input-key', required=True,  action='store', help='gear input key')
-    ap.add_argument('-t', '--tags', required=True,  action='store', help='comma separated gear tags')
-    ap.add_argument('-v', '--version', action='store', help='gear version to run')
+    ap.add_argument('-t', '--tags', required=False, default=None, action='store', help='comma separated gear tags')
+    ap.add_argument('-V', '--version', action='store', help='gear version to run')
+    ap.add_argument('-v', '--verbose', action='store', help='verbose')
     ap.add_argument('-w', '--wait', default=False,  action='store_true', help='wait for job completion')
 
     ap.add_argument('acqfilepaths', nargs='*', type=str, action='store', help='acquisition filename paths')
@@ -101,20 +117,32 @@ if __name__ == '__main__':
    # *** it is possible to specify the Acquisition instead of the acquisisition file and file_obj is a
    # list of file objects -- not what we want.
    # the path parsing should be more robust.
-#          print("file_obj = '{}'".format(file_obj), file=sys.stderr)
+          if (args.verbose):
+             print("file_obj = '{}'".format(file_obj), file=sys.stderr)
           
        if (gear.category == "analysis"):
           dest = fw.get(file_obj.parents.session)
        else:
           dest = fw.get(file_obj.parents.acquisition)
        
-#       print("dest = '{}'".format(dest), file=sys.stderr)
+       if (args.verbose):
+          print("dest = '{}'".format(dest), file=sys.stderr)
 
-       tags = args.tags.split(",")
-       print("tags = '{}'\n".format(tags))
-       job_id = runGear(gear,{InputKey: file_obj}, dest, tags)
+       if (args.tags and arg.tags.len > 0):
+          tags = args.tags.split(",")
+          print("tags = '{}'\n".format(tags))
+       else:
+          tags = None
 
-       print("job_id = '{}'".format(job_id), file=sys.stderr)
+       Config=json.loads(args.config)
+
+       if (args.debug):
+          print("Config = '{}'".format(Config), file=sys.stderr)
+
+       job_id = runGear(gear,{InputKey: file_obj}, dest, config=Config, tags=tags)
+
+       if (args.debug):
+          print("job_id = '{}'".format(job_id), file=sys.stderr)
 
        if args.wait:
           count = 1
