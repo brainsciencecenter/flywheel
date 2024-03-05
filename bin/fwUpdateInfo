@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+
+import argparse
+import csv
+import datetime
+import flywheel
+import fwgearutils
+import fileinput
+import json
+import os
+import re
+import sys
+import pyjq
+import pprint
+
+from tzlocal import get_localzone
+
+#
+# Syntax:
+#   fwUpdateInfo {-p ContainerDictionaryPath} {-j [+|=]json} {ContainerPath|ContainerUid}
+# Initialize container info["PICSL_sMRI_biomarkers"]
+#   fwUpdateInfo {-p .PICSL_sMRI_biomarkers -j '{"ICV": 28, "LeftHippocampusVolume": 29, "RightHippocampusVolume": 30}' 65e5f5df87f4dda8fc85dff0
+#
+#
+
+if __name__ == '__main__':
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+
+    ap.add_argument('-f', '--force', action='store_true', help='force overwriting existing info')
+    ap.add_argument('-j', '--json', action='store', help='json to set or add to info.')
+    ap.add_argument('-n', '--noop', action='store_true', help='do not actually do anything.')
+    ap.add_argument('-p', '--path', default='.', action='store', help='Use "jq" path to assign new json to')
+    ap.add_argument('-v', '--verbose', action='store_true', help='show what is being done')
+    ap.add_argument('container', nargs="+", default=[], help='flywheel container path or container uuid')
+
+    args = ap.parse_args()
+
+    Assignment = '+='
+
+    fw = fwgearutils.getFW(args, Root=True)
+    if (not fw):
+        print("{} : unable to initialize flywheel object".format(CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    for container in args.container:
+        res = fw.get(container)
+        if (res.info):
+           FwContainerInfo = res.info
+
+           NewJson = args.json
+
+           Match = re.search('^ *(?P<Assignment>([+=]))? *(?P<RestOfExp>(.*))$', NewJson)
+           if (Match):
+               if (Match.group('Assignment')):
+                   Assignment = Match.group('Assignment')
+               NewJson = Match.group('RestOfExp')
+               
+           JqString = "{} {} {}".format(args.path,Assignment, NewJson)
+           print("JqString = '{}'".format(JqString))
+           FwNewInfo = pyjq.first(JqString,FwContainerInfo)
+        else:
+           FwCNewInfo = NewDict
+
+        res.update_info(FwNewInfo)
+        res = res.reload()
+
+        FwContainerInfo = res.info    
+        print(" = ",json.dumps(FwContainerInfo,indent=2))
+
+
+#    print(json.dumps(fwgearutils.sloppyCopy(res), indent=2))
