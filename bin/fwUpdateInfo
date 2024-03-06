@@ -45,24 +45,35 @@ if __name__ == '__main__':
         print("{} : unable to initialize flywheel object".format(CmdName), file=sys.stderr)
         sys.exit(1)
 
+    NewJson = args.json
+
+    Match = re.search('^ *(?P<Assignment>[+=]+)? *(?P<RestOfExp>(.*))$', NewJson)
+    if (Match and Match.group('Assignment')):
+        Assignment = Match.group('Assignment')
+        NewJson = Match.group('RestOfExp')
+               
     for container in args.container:
         res = fw.get(container)
         if (res.info):
-           FwContainerInfo = res.info
+            if (args.force):
+                FwContainerInfo = res.info
 
-           NewJson = args.json
+                JqString = "{} {} {}".format(args.path,Assignment, NewJson)
+                print("JqString = '{}'".format(JqString))
+                FwNewInfo = pyjq.first(JqString,FwContainerInfo)
 
-           Match = re.search('^ *(?P<Assignment>([+=]))? *(?P<RestOfExp>(.*))$', NewJson)
-           if (Match):
-               if (Match.group('Assignment')):
-                   Assignment = Match.group('Assignment')
-               NewJson = Match.group('RestOfExp')
-               
-           JqString = "{} {} {}".format(args.path,Assignment, NewJson)
-           print("JqString = '{}'".format(JqString))
-           FwNewInfo = pyjq.first(JqString,FwContainerInfo)
+            else:
+                print("{} : {}.info exists.  Use -f to overwrite.".format(CmdName,container), file=sys.stderr)
+                sys.exit(1)
+
         else:
-           FwCNewInfo = NewDict
+            FwContainerInfo = res.info
+
+            JqString = "{} {} {}".format(args.path,Assignment, NewJson)
+            print("JqString = '{}'".format(JqString))
+            FwNewInfo = pyjq.first(JqString,FwContainerInfo)
+
+        print("FwNewInfo = '{}'".format(FwNewInfo))
 
         res.update_info(FwNewInfo)
         res = res.reload()
