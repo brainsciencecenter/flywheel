@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
         DiffList = list(NewFileUids - PriorFileUids)
         if (len(DiffList) > 0):
-            UploadedFileUid = list(NewFileUids - PriorFileUids)
+            UploadedFileUid = DiffList[0]
 
             if (args.debug):
                 print(UploadedFileUid, file=sys.stderr)
