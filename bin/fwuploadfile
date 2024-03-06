@@ -27,6 +27,7 @@ if __name__ == '__main__':
 
     ap = argparse.ArgumentParser()
 
+    ap.add_argument('-d', '--debug',  action='store_true', default=False, help='debug option')
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-p', '--container-path',  action='store', default=False, help='group/project|ContainerUid')
     ap.add_argument('-t', '--tags',  action='store', default=False, help='comma separated list of tags to add to the files')
@@ -41,10 +42,14 @@ if __name__ == '__main__':
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
 
-    print(args.tags)
+    if (args.verbose):
+        print(args.tags, file=sys.stderr)
+
     if (args.tags):
         FileTags = args.tags.split(',')
-        print("Tags = '{}'".format(FileTags))
+
+        if (args.debug):
+            print("Tags = '{}'".format(FileTags), file=sys.stderr)
 
     for file in args.files:
 
@@ -54,7 +59,8 @@ if __name__ == '__main__':
         Container = getContainer(args,args.container_path)
 
         PriorFileUids = set(map(lambda f: f.file_id, Container.files))
-        print(PriorFileUids)
+        if (args.debug):
+            print(PriorFileUids)
 
         if (args.verbose):
             print("Container id = {}".format(Container.id), file=sys.stderr)
@@ -62,13 +68,25 @@ if __name__ == '__main__':
         Container.upload_file(file)
         Container = Container.reload()
         NewFileUids = set(map(lambda f: f.file_id, Container.files))
-        print(NewFileUids)
-        UploadedFileUid = list(NewFileUids - PriorFileUids)[0]
-        print(UploadedFileUid)
-        if (args.tags):
+
+        if (args.debug):
+            print(NewFileUids, file=sys.stderr)
+
+        DiffList = list(NewFileUids - PriorFileUids)
+        if (len(DiffList) > 0):
+            UploadedFileUid = list(NewFileUids - PriorFileUids)
+
+            if (args.debug):
+                print(UploadedFileUid, file=sys.stderr)
+
+            if (args.tags):
             
-            File = fw.get_file(UploadedFileUid)
+                File = fw.get_file(UploadedFileUid)
             
-            File.add_tags(FileTags)
-            File = File.reload()
-            print("File tags = '{}'".format(File.tags))
+                File.add_tags(FileTags)
+                File = File.reload()
+
+                if (args.debug):
+                    print("File tags = '{}'".format(File.tags), file=sys.stderr)
+        else:
+            print("{} : File '{}' already uploaded".format(CmdName,file), file=sys.stderr)
