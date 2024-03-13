@@ -96,7 +96,10 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # *** should check if the gear isn't found
-    gear = fw.lookup('gears/{}'.format(args.gear_name))
+    if (args.version):
+       gear = fw.lookup('gears/{}/{}'.format(args.gear_name,args.version))
+    else:
+       gear = fw.lookup('gears/{}'.format(args.gear_name))
 
     for fn in args.acqfilepaths:
 #       print("'{}'".format(fn))
