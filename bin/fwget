@@ -162,7 +162,7 @@ if __name__ == '__main__':
         id = i.rstrip('\n')
 
         if (args.verbose):
-            print("id = '{}'".format(id), file=sys.stderr)
+            print("{}: '{}'".format(CmdName,id), file=sys.stderr)
 
         Output = {}
         Output = processId(args=args,id=id)

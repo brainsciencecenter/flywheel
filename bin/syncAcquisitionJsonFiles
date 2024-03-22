@@ -50,7 +50,7 @@ while getopts a:c:d:filmnpv arg
 do
 	case "$arg" in
 	     a|c|d|f|i|l|m|n|p|v)
-		eval "opt_${arg}='${OPTARG:=1}'"
+		eval "opt_${arg}='${OPTARG:=-${arg}}'"
 		;;
 	esac
 done
@@ -233,14 +233,14 @@ if [ -s "$AcquisitionIdsToGetFile" ]
 then
     if [ -n "$opt_v" ]
     then
-	echo "${CmdName} : fwget -1 < ${AcquisitionIdsToGetFile}" 1>&2
+	echo "${CmdName} : fwget -1 $opt_v < ${AcquisitionIdsToGetFile}" 1>&2
 
     fi
 
     # the extra jq at the end formats numbers ala jq so 1.0 => 1 and then there is no differences between
     # files before and after deleting acquisitions
 
-    fwget -1 $TimeZone < "$AcquisitionIdsToGetFile" | jq . >> "$UpdatedAcquisitionsJsonFile"
+    sys fwget -1 ${opt_v} $TimeZone < "$AcquisitionIdsToGetFile" | jq . >> "$UpdatedAcquisitionsJsonFile"
 fi
 
 if [ -n "$opt_i" ]
