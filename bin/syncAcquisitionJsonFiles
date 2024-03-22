@@ -118,6 +118,52 @@ else
     CachedAcquisitionJsonFile="${TmpDir}/CachedFwGetAcquisitions.json"
 fi
 
+
+#
+# The final conversion of the cached json file to csv requires
+# Id2Project, Id2Subject and Id2Session labeles. So we need to make sure we
+# know they are in the right path
+# 
+Id2ProjectLabelsJson="${TmpDir}/Id2ProjectLabels.json"
+if [ -n "$opt_f" -o ! -e "$Id2ProjectLabelsJson" ]
+then
+    fwsearch -r project 'group._id == "'"$Group"'"' | jq -r '[ .[].project | { (._id): .label } ] | add ' > "$Id2ProjectLabelsJson"
+fi
+
+ProjectId=$(jq -r 'to_entries[] | select(.value == "'"$Project"'") | .key' "$Id2ProjectLabelsJson")
+
+Id2SubjectLabelsJson="${TmpDir}/Id2SubjectLabels.json"
+if [ -n "$opt_f" -o ! -e "$Id2SubjectLabelsJson" ]
+then
+    #fwsearch doesn't return the subject uid
+	fwfind -s group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SubjectLabelsJson"
+fi
+
+Id2SessionLabelsJson="${TmpDir}/Id2SessionLabels.json"
+if [ -n "$opt_f" -o ! -e "$Id2SessionLabelsJson" ]
+then
+    #fwsearch doesn't return the session uid
+	fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SessionLabelsJson"
+fi
+
+Id2SessionTimeStampsJson="${TmpDir}/Id2SessionTimeStamps.json"
+if [ -n "$opt_f" -o ! -e "$Id2SessionTimeStampsJson" ]
+then
+	fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .timestamp}] | add ' > "$Id2SessionTimeStampsJson"
+fi
+
+Id2SessionNotesJson="${TmpDir}/Id2SessionNotes.json"
+if [ -n "$opt_f" -o ! -e "$Id2SessionNotesJson" ]
+then
+    fwsearch -r session 'group._id = '"\"$Group\"" 'session.notes.text =~ ".+"' | jq -r '.[].session._id'  | fwget -1 | jq  ' {"id": ._id, "notes": .notes[].text}'  | jq -s 'map({(.id): .notes}) | add' > "$Id2SessionNotesJson"
+fi
+
+Id2SessionTagsJson="${TmpDir}/Id2SessionTags.json"
+if [ -n "$opt_f" -o ! -e "$Id2SessionTagsJson" ]
+then
+	fwfind -g -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): (.tags|join(":"))}] | add ' > "$Id2SessionTagsJson"
+fi
+
 if [ -n "$opt_a" ]
 then
     AcquisitionIdsToGet=$(echo "$opt_a" | sed 's/,/ /g')
@@ -130,7 +176,7 @@ else
     ActiveAcquisitionIdsFile="${TmpDir}/ActiveAcquisitionIds"
     if [ -n "$opt_f" ] || [ ! -e "$ActiveAcquisitionIdsFile" ]
     then
-	fwfind -a -1 group="$Group" parents.project="$ProjectId" "$@" | jq -r '._id' | sort -u > "$ActiveAcquisitionIdsFile"
+	fwfind -a -1 group="$Group" parents.project="$ProjectId" "$@" | jq -r '[._id, .modified]|@csv' | sort -u > "$ActiveAcquisitionIdsFile"
     fi
 
     ActiveAcquisitionIdsCount=$(wc -l "$ActiveAcquisitionIdsFile" | awk '{print $1}')
@@ -146,14 +192,15 @@ else
     then
 
 	AcquisitionIdsDiffOutputFile="${TmpDir}/AcquisitionIdsDiffOutput"
-	diff <(jq -r '._id' "$CachedAcquisitionJsonFile" | sort -u) <(sort -u "$ActiveAcquisitionIdsFile") > "$AcquisitionIdsDiffOutputFile"
+	diff <(jq -r '[._id, .modified]|@csv' "$CachedAcquisitionJsonFile" | sort -u) <(sort -u "$ActiveAcquisitionIdsFile") > "$AcquisitionIdsDiffOutputFile"
 
-	grep '>' "$AcquisitionIdsDiffOutputFile" | sed 's/> //' > "$AcquisitionIdsToGetFile"
-	grep '<' "$AcquisitionIdsDiffOutputFile" | sed 's/< //' > "$AcquisitionIdsToDeleteFile"
+	grep '>' "$AcquisitionIdsDiffOutputFile" | sed 's/> //; s/,.*$//; s/"//g' > "$AcquisitionIdsToGetFile"
+	grep '<' "$AcquisitionIdsDiffOutputFile" | sed 's/< //; s/,.*$//; s/"//g' > "$AcquisitionIdsToDeleteFile"
 
+	[ -f "${FwDir}/lib/FindAcqWithExpiredParentLabels.jq" ] || touch "${FwDir}/lib/FindAcqWithExpiredParentLabels.jq"
 	jq -r -L "$TmpDir" -f "${FwDir}/lib/FindAcqWithExpiredParentLabels.jq" "$CachedAcquisitionJsonFile" >> "$AcquisitionIdsToDeleteFile"
     else
-	sort -u "$ActiveAcquisitionIdsFile" > "$AcquisitionIdsToGetFile"
+	sort -u "$ActiveAcquisitionIdsFile" | cut -f 1 -d , | sed 's/"//g' > "$AcquisitionIdsToGetFile"
 	cat /dev/null > "$AcquisitionIdsToDeleteFile"
     fi
     
@@ -182,7 +229,7 @@ then
     jq --argjson IdsToDelete "${AcquisitionIdsToDeleteJson}" 'select(._id|in($IdsToDelete)|not)' "$CachedAcquisitionJsonFile" >> "$UpdatedAcquisitionsJsonFile"
 fi
 	
-if [ -s"$AcquisitionIdsToGetFile" ]
+if [ -s "$AcquisitionIdsToGetFile" ]
 then
     if [ -n "$opt_v" ]
     then

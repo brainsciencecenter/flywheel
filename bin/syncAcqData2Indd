@@ -203,49 +203,6 @@ else
     FindArgs="$@"
 fi
 
-#
-# The final conversion of the cached json file to csv requires
-# Id2Project, Id2Subject and Id2Session labeles. So we need to make sure we
-# know they are in the right path
-# 
-Id2ProjectLabelsJson="${TmpDir}/Id2ProjectLabels.json"
-if [ -n "$opt_f" -o ! -e "$Id2ProjectLabelsJson" ]
-then
-	fwfind -p group="$Group" | jq '[.[]| {(._id): .label}] | add ' > "$Id2ProjectLabelsJson"
-fi
-
-ProjectId=$(jq -r 'to_entries[] | select(.value == "'"$Project"'") | .key' "$Id2ProjectLabelsJson")
-
-Id2SubjectLabelsJson="${TmpDir}/Id2SubjectLabels.json"
-if [ -n "$opt_f" -o ! -e "$Id2SubjectLabelsJson" ]
-then
-	fwfind -s group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SubjectLabelsJson"
-fi
-
-Id2SessionLabelsJson="${TmpDir}/Id2SessionLabels.json"
-if [ -n "$opt_f" -o ! -e "$Id2SessionLabelsJson" ]
-then
-	fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SessionLabelsJson"
-fi
-
-Id2SessionTimeStampsJson="${TmpDir}/Id2SessionTimeStamps.json"
-if [ -n "$opt_f" -o ! -e "$Id2SessionTimeStampsJson" ]
-then
-	fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .timestamp}] | add ' > "$Id2SessionTimeStampsJson"
-fi
-
-Id2SessionNotesJson="${TmpDir}/Id2SessionNotes.json"
-if [ -n "$opt_f" -o ! -e "$Id2SessionNotesJson" ]
-then
-    fwsearch -r session 'group._id = '"\"$Group\"" 'session.notes.text =~ ".+"' | jq -r '.[].session._id'  | fwget -1 | jq  ' {"id": ._id, "notes": .notes[].text}'  | jq -s 'map({(.id): .notes}) | add' > "$Id2SessionNotesJson"
-fi
-
-Id2SessionTagsJson="${TmpDir}/Id2SessionTags.json"
-if [ -n "$opt_f" -o ! -e "$Id2SessionTagsJson" ]
-then
-	fwfind -g -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): (.tags|join(":"))}] | add ' > "$Id2SessionTagsJson"
-fi
-
 # *** update the json file
 # Do we have a cached json file?
 # update in place 
