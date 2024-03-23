@@ -77,6 +77,7 @@ if __name__ == '__main__':
     ap.add_argument('-g', '--gear-name', required=True, action='store', help='gear name')
     ap.add_argument('-l', '--show-log', default=False, action='store_true', help='Dump log at the end of the job')
     ap.add_argument('-i', '--input-key', required=True,  action='store', help='gear input key')
+    ap.add_argument('-o', '--output-file-info', default=False,  action='store_true', help='print output file ids')
     ap.add_argument('-t', '--tags', required=False, default=None, action='store', help='comma separated gear tags')
     ap.add_argument('-V', '--version', action='store', help='gear version to run')
     ap.add_argument('-v', '--verbose', action='store', help='verbose')
@@ -156,7 +157,11 @@ if __name__ == '__main__':
              if (args.debug):
                 print("{} : {} Job {} status {}".format(CmdName, count, job_id, job_info.state), file=sys.stderr)
              if (job_info.state == 'complete' or job_info.state == "failed"):
+
                 if (args.show_log):
                    print(fw.get_job_logs(job_id), file=sys.stderr)
+
+                if (job_info.state == 'complete' and args.output_file_info):
+                   print(*pyjq.all('.outputs[] | [ .name, .file_id ] | @csv', fwgearutils.sloppyCopy(job_info)), sep="\n")
+
                 break
-      
