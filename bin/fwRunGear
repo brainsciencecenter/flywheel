@@ -147,15 +147,15 @@ if __name__ == '__main__':
        if (args.debug):
           print("job_id = '{}'".format(job_id), file=sys.stderr)
 
-       if args.wait:
-          count = 1
+       if (args.wait):
+          count = 0
           while True:
              count = count + 1
-             time.sleep(1)
+             time.sleep(5)
              job_info = fw.get_job(job_id)
              if (args.debug):
                 print("{} : {} Job {} status {}".format(CmdName, count, job_id, job_info.state), file=sys.stderr)
-             if (job_info.state == 'running' or job_info.state == "failed"):
+             if (job_info.state == 'complete' or job_info.state == "failed"):
                 if (args.show_log):
                    print(fw.get_job_logs(job_id), file=sys.stderr)
                 break
