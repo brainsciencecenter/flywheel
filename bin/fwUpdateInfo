@@ -2,7 +2,6 @@
 
 import argparse
 import csv
-import datetime
 import flywheel
 import fwgearutils
 import fileinput
@@ -13,6 +12,7 @@ import sys
 import pyjq
 import pprint
 
+from datetime import datetime
 from tzlocal import get_localzone
 
 #
@@ -52,6 +52,8 @@ if __name__ == '__main__':
         Assignment = Match.group('Assignment')
         NewJson = Match.group('RestOfExp')
                
+    ds = datetime.now()
+
     for container in args.container:
         res = fw.get(container)
         if (res.info):
@@ -76,6 +78,7 @@ if __name__ == '__main__':
         print("FwNewInfo = '{}'".format(FwNewInfo))
 
         res.update_info(FwNewInfo)
+        res.update({ 'timestamp': ds } )
         res = res.reload()
 
         FwContainerInfo = res.info    

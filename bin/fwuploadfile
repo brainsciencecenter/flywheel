@@ -9,6 +9,8 @@ import pyjq
 import re
 import sys
 
+from datetime import datetime
+
 def getContainer(args=None, id=None):
     try:
         Container = fw.get(id)
@@ -51,6 +53,8 @@ if __name__ == '__main__':
         if (args.debug):
             print("Tags = '{}'".format(FileTags), file=sys.stderr)
 
+    ds = datetime.now()
+
     for file in args.files:
 
         if (args.verbose):
@@ -66,6 +70,7 @@ if __name__ == '__main__':
             print("Container id = {}".format(Container.id), file=sys.stderr)
 
         Container.upload_file(file)
+        Container.update({ 'timestamp': ds })
         Container = Container.reload()
         NewFileUids = set(map(lambda f: f.file_id, Container.files))
 
