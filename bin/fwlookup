@@ -22,7 +22,7 @@ if __name__ == '__main__':
     ap.add_argument('-l', '--localtime',  action='store_true', help='print times in local timezone instead of UTC')
     ap.add_argument('-p', '--progress-bar', default=False,  action='store_true', help='generate progress info on stderr')
     ap.add_argument('-r', '--root', default=True,  action='store_true', help='enable manager mode')
-    ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
+    ap.add_argument('-v', '--verbose',  action='store_true', help='verbose')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
     ap.add_argument('-R', '--recurse', default=True,  action='store_true', help='Recurse')
     ap.add_argument('id', nargs=1, type=str, default=None, help='group/project|ProjectID')
@@ -36,11 +36,15 @@ if __name__ == '__main__':
         sys.exit(1)
 
     try:
+        if (args.debug):
+            print("{} : fw.lookup({})".format(CmdName,args.id[0]), file=sys.stderr)
+
         Container = fw.lookup(args.id[0])
 
         Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
         
         print(json.dumps(Output, indent=2))
+
     except (flywheel.rest.ApiException) as e:
         print(json.dumps(fwgearutils.sloppyCopy(fw.get(args.id[0]), args.recurse)))
 

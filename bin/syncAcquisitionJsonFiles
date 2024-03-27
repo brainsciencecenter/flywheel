@@ -127,7 +127,7 @@ fi
 Id2ProjectLabelsJson="${TmpDir}/Id2ProjectLabels.json"
 if [ -n "$opt_f" -o ! -e "$Id2ProjectLabelsJson" ]
 then
-    fwsearch -r project 'group._id == "'"$Group"'"' | jq -r '[ .[].project | { (._id): .label } ] | add ' > "$Id2ProjectLabelsJson"
+    fwlookup "$Group" | jq -r '[ .[].projects[] | { (._id): .label } ] | add' > "$Id2ProjectLabelsJson"
 fi
 
 ProjectId=$(jq -r 'to_entries[] | select(.value == "'"$Project"'") | .key' "$Id2ProjectLabelsJson")
@@ -176,7 +176,7 @@ else
     ActiveAcquisitionIdsFile="${TmpDir}/ActiveAcquisitionIds"
     if [ -n "$opt_f" ] || [ ! -e "$ActiveAcquisitionIdsFile" ]
     then
-	fwfind -a -1 group="$Group" parents.project="$ProjectId" "$@" | jq -r '[._id, .modified]|@csv' | sort -u > "$ActiveAcquisitionIdsFile"
+	fwfind -a -1 group="$Group" parents.project="$ProjectId" "$@" | jq -r '[._id, .timestamp]|@csv' | sort -u > "$ActiveAcquisitionIdsFile"
     fi
 
     ActiveAcquisitionIdsCount=$(wc -l "$ActiveAcquisitionIdsFile" | awk '{print $1}')
@@ -192,7 +192,7 @@ else
     then
 
 	AcquisitionIdsDiffOutputFile="${TmpDir}/AcquisitionIdsDiffOutput"
-	diff <(jq -r '[._id, .modified]|@csv' "$CachedAcquisitionJsonFile" | sort -u) <(sort -u "$ActiveAcquisitionIdsFile") > "$AcquisitionIdsDiffOutputFile"
+	diff <(jq -r '[._id, .timestamp]|@csv' "$CachedAcquisitionJsonFile" | sort -u) <(sort -u "$ActiveAcquisitionIdsFile") > "$AcquisitionIdsDiffOutputFile"
 
 	grep '>' "$AcquisitionIdsDiffOutputFile" | sed 's/> //; s/,.*$//; s/"//g' > "$AcquisitionIdsToGetFile"
 	grep '<' "$AcquisitionIdsDiffOutputFile" | sed 's/< //; s/,.*$//; s/"//g' > "$AcquisitionIdsToDeleteFile"

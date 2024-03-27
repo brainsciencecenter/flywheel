@@ -236,19 +236,19 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
 
     Output = sloppyCopy(r, UTC=UTC)
 
-#    if (type(r) == flywheel.models.resolver_group_node.ResolverGroupNode):
-#        if (Verbose):
-#            print("%s : r == Group %s" % (CmdName,r._id), file=sys.stderr)
-#
-#        Projects = []
-#        for p in r.projects():
-#            if (Verbose):
-#                print("%s : %s/%s" % (CmdName, r._id, p.label), file=sys.stderr)
-#
-#            Project = recurse(fw, p, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
-#            Projects.append(sloppyCopy(Project, UTC=UTC))
-#
-#        Output['projects'] = Projects
+    if (type(r) == flywheel.models.group_output.GroupOutput):
+        if (Verbose):
+            print("%s : r == Group %s" % (CmdName,r._id), file=sys.stderr)
+
+        Projects = []
+        for p in r.projects():
+            if (Verbose):
+                print("%s : %s/%s" % (CmdName, r._id, p.label), file=sys.stderr)
+
+            Project = recurse(fw, p, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
+            Projects.append(sloppyCopy(Project, UTC=UTC))
+
+        Output['projects'] = Projects
                 
     if (  type(r) == flywheel.models.job_list_entry.JobListEntry
        or type(r) == flywheel.models.job_output.JobOutput
