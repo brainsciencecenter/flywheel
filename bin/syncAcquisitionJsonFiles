@@ -155,7 +155,8 @@ fi
 Id2SessionNotesJson="${TmpDir}/Id2SessionNotes.json"
 if [ -n "$opt_f" -o ! -e "$Id2SessionNotesJson" ]
 then
-    fwsearch -r session 'group._id = '"\"$Group\"" 'session.notes.text =~ ".+"' | jq -r '.[].session._id'  | fwget -1 | jq  ' {"id": ._id, "notes": .notes[].text}'  | jq -s 'map({(.id): .notes}) | add' > "$Id2SessionNotesJson"
+    fwfind -1 -S "group=${Group}" "parents.project=${ProjectId}" 'notes.text>""' | jq -r '._id' | fwget -1 | jq  ' {"id": ._id, "notes": .notes[].text}'  | jq -s 'map({(.id): .notes}) | add' > "$Id2SessionNotesJson"
+#    fwsearch -r session 'group._id = '"\"$Group\"" 'session.notes.text =~ ".+"' | jq -r '.[].session._id'  | fwget -1 | jq  ' {"id": ._id, "notes": .notes[].text}'  | jq -s 'map({(.id): .notes}) | add' > "$Id2SessionNotesJson"
 fi
 
 Id2SessionTagsJson="${TmpDir}/Id2SessionTags.json"
