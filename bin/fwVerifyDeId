@@ -1,0 +1,43 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-n][-v][-c CachedFwAcquisitionJsonFile][-l Label2IdDir][-d DeIdProfileNullFieldsJsonFile] {Group/Project}"
+
+FwUtilsBaseDir=$(dirname $(dirname $(realpath "$0")))
+if [ ! -e "${FwUtilsBaseDir}/bin/fwget" ]
+then
+	FwUtilsBaseDir=$(dirname $(dirname $(which fwget)))
+fi
+
+while getopts nvc:l:d: arg
+do
+	case "$arg" in 
+		c|d|l|n|v)
+			eval "opt_${arg}='${OPTARG:=1}'"
+			;;
+	esac
+done
+
+shift $(( "$OPTIND" - 1 ))
+
+for GroupProject in "$@"
+do
+	Group=$(echo "$GroupProject" | cut -f 1 -d /)
+	Project=$(echo "$GroupProject" | cut -f 2 -d /)
+
+	PiiCheckerJqFile=${FwUtilsBaseDir}/lib/PiiChecker.jq
+
+	DeIdProfileNullFieldsJsonFile=DeIdProfile.json
+
+	Label2IdDir="$GroupProject"
+	[ -n "$opt_l" ] && Label2IdDir="$opt_l"
+
+	CachedFwAcquisitionJsonFile="${Group}-${Project}-CachedFwAcquisitions.json"
+	[ -n "$opt_c" ] && CachedFwAcquisitionJsonFile="$opt_c"
+
+	jq -r -n --argjson Header true --argjson DeIdProfileNullFields "$(cat $DeIdProfileNullFieldsJsonFile)" -f "$PiiCheckerJqFile" -L "$Label2IdDir" /dev/null
+
+	jq -r --argjson Header false --argjson DeIdProfileNullFields "$(cat $DeIdProfileNullFieldsJsonFile)" -f "$PiiCheckerJqFile" -L "$Label2IdDir" "$CachedFwAcquisitionJsonFile"
+
+done
+
