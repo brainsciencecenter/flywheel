@@ -44,6 +44,9 @@ def getContainer(args=None, id=None):
                 Reload = False
             else:
                 Container = fw.get_role(id)
+        elif (args.site_settings):
+            Container = fw.get_site_settings()
+            Reload = False
         else:
             try:
                 Container = fw.get(id)
@@ -132,6 +135,7 @@ if __name__ == '__main__':
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-R', '--role', default=False,  action='store_true', help='get role, or all roles if none specified')
     ap.add_argument('-r', '--recurse', default=False,  action='store_true', help='recurse')
+    ap.add_argument('-s', '--site-settings', default=False,  action='store_true', help='get site settings')
     ap.add_argument('-t', '--type', default=False,  action='store_true', help='show container type')
     ap.add_argument('-u', '--user', default=False,  action='store_true', help='all user info')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
