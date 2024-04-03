@@ -34,9 +34,6 @@ do
 	    SiteDeIdProfileJson=$(fwget -1 -s all | jq -r '[ .deid_profile.dicom.fields[] | select(.name != "DeidentificationMethod") | { (.name): true } ] | add')
 	fi
 
-	echo "$SiteDeIdProfileJson"
-	exit
-
 	Label2IdDir="$GroupProject"
 	[ -n "$opt_l" ] && Label2IdDir="$opt_l"
 
