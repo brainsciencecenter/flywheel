@@ -27,7 +27,15 @@ do
 
 	PiiCheckerJqFile=${FwUtilsBaseDir}/lib/PiiChecker.jq
 
-	DeIdProfileNullFieldsJsonFile=DeIdProfile.json
+	if [ -n "$opt_d" ]
+	then
+	    SiteDeIdProfileJson=$(cat "$opt_d")
+	else
+	    SiteDeIdProfileJson=$(fwget -1 -s all | jq -r '[ .deid_profile.dicom.fields[] | select(.name != "DeidentificationMethod") | { (.name): true } ] | add')
+	fi
+
+	echo "$SiteDeIdProfileJson"
+	exit
 
 	Label2IdDir="$GroupProject"
 	[ -n "$opt_l" ] && Label2IdDir="$opt_l"
@@ -35,9 +43,9 @@ do
 	CachedFwAcquisitionJsonFile="${Group}-${Project}-CachedFwAcquisitions.json"
 	[ -n "$opt_c" ] && CachedFwAcquisitionJsonFile="$opt_c"
 
-	jq -r -n --argjson Header true --argjson DeIdProfileNullFields "$(cat $DeIdProfileNullFieldsJsonFile)" -f "$PiiCheckerJqFile" -L "$Label2IdDir" /dev/null
+	jq -r -n --argjson Header true --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$Label2IdDir" /dev/null
 
-	jq -r --argjson Header false --argjson DeIdProfileNullFields "$(cat $DeIdProfileNullFieldsJsonFile)" -f "$PiiCheckerJqFile" -L "$Label2IdDir" "$CachedFwAcquisitionJsonFile"
+	jq -r --argjson Header false --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$Label2IdDir" "$CachedFwAcquisitionJsonFile"
 
 done
 
