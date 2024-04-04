@@ -9,6 +9,12 @@ then
 	FwUtilsBaseDir=$(dirname $(dirname $(which fwget)))
 fi
 
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
+
 while getopts nvc:l:d: arg
 do
 	case "$arg" in 
@@ -35,7 +41,17 @@ do
 	fi
 
 	Label2IdDir="$GroupProject"
-	[ -n "$opt_l" ] && Label2IdDir="$opt_l"
+	if [ -n "$opt_l" ] 
+	then
+	    Label2IdDir="$opt_l"
+	else
+	    if [ ! -e "$LabelDir" ]
+	    then
+		LabelDir=$(mktemp -d /tmp/Label2IdDir-XXXXXX)
+	    fi
+	fi
+
+	sys fwMakeId2LabelJsonFiles -t "$LabelDir" "${Group}/${Project}"
 
 	CachedFwAcquisitionJsonFile="${Group}-${Project}-CachedFwAcquisitions.json"
 	[ -n "$opt_c" ] && CachedFwAcquisitionJsonFile="$opt_c"
