@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-n][-v][-c CachedFwAcquisitionJsonFile][-l Label2IdDir][-d DeIdProfileNullFieldsJsonFile] {Group/Project}"
+Syntax="${CmdName} [-n][-v][-c CachedFwAcquisitionJsonFile][-t TmpDir][-d DeIdProfileNullFieldsJsonFile] {Group/Project}"
 
 FwUtilsBaseDir=$(dirname $(dirname $(realpath "$0")))
 if [ ! -e "${FwUtilsBaseDir}/bin/fwget" ]
@@ -15,10 +15,10 @@ function sys {
 }
 
 
-while getopts nvc:l:d: arg
+while getopts nvc:t:d: arg
 do
 	case "$arg" in 
-		c|d|l|n|v)
+		c|d|n|t|v)
 			eval "opt_${arg}='${OPTARG:=1}'"
 			;;
 	esac
@@ -40,25 +40,26 @@ do
 	    SiteDeIdProfileJson=$(fwget -1 -s all | jq -r '[ .deid_profile.dicom.fields[] | select(.name != "DeidentificationMethod") | { (.name): true } ] | add')
 	fi
 
-	Label2IdDir="$GroupProject"
-	if [ -n "$opt_l" ] 
+	TmpDir="$GroupProject"
+	if [ -n "$opt_t" ] 
 	then
-	    Label2IdDir="$opt_l"
+	    TmpDir="$opt_t"
 	else
-	    if [ ! -e "$LabelDir" ]
+	    if [ ! -e "$TmpDir" ]
 	    then
-		LabelDir=$(mktemp -d /tmp/Label2IdDir-XXXXXX)
+		TmpDir=$(mktemp -d "${TMPDIR:-/tmp}/fwVerifyDeIdDir-XXXXXX")
 	    fi
 	fi
 
-	sys fwMakeId2LabelJsonFiles -t "$LabelDir" "${Group}/${Project}"
-
 	CachedFwAcquisitionJsonFile="${Group}-${Project}-CachedFwAcquisitions.json"
+	[ -e "$CachedFwAcquisitionJsonFile" ] || CachedFwAcquisitionJsonFile="${TmpDir}/${CachedFwAcquisitionJsonFile}"
 	[ -n "$opt_c" ] && CachedFwAcquisitionJsonFile="$opt_c"
 
-	jq -r -n --argjson Header true --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$Label2IdDir" /dev/null
+	sys syncAcquisitionJsonFiles -f -d "$TmpDir" -c "$CachedFwAcquisitionJsonFile" -pi "${GroupProject}"
 
-	jq -r --argjson Header false --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$Label2IdDir" "$CachedFwAcquisitionJsonFile"
+	sys jq -r -n --argjson Header true --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$TmpDir" /dev/null
+
+	sys jq -r --argjson Header false --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$TmpDir" "$CachedFwAcquisitionJsonFile"
 
 done
 
