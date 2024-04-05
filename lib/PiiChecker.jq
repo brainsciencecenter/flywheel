@@ -67,10 +67,28 @@ else
 		  "NoFileDeidentificationProfile"
 		end,
     
-               (to_entries 
-                      | map(if ((.key) | in($DeIdProfileNullFields)) and .value != null and .value != "" then .key else empty end) 
-                      | if length > 0 then ("PiiFileInfoFields:" + (sort | join(":"))) else "FileInfoClean" end
-               )
+
+#
+# Deal with the wonky metadata field in flywheel acquisitions
+#
+		(to_entries
+		  | map(
+		         if (.key | in($DeIdProfileNullFields)) then
+			     if (.value) then
+			          if (.value != $DeIdProfileNullFields[.key]) then
+				      .key
+				  else
+				      empty
+         			  end
+		 	     else
+			          empty
+		             end
+	                 else
+			     empty
+		         end
+		    )
+                  | if (length > 0) then ("PiiFileInfoFields:" + (sort | join(":"))) else "FileInfoClean" end
+		)
             ] +
             [
                if ($Metadata) then
@@ -85,11 +103,30 @@ else
 			"NoMetadataDeidentificationProfile"
 		      end,
 
-	               (   to_entries 
-	      	         | map(if ((.key) | in($DeIdProfileNullFields)) and .value != null and .value != "" then .key else empty end) 
-		         | length as $Length
-		         | if (length > 0) then ("PiiMetadataFields:" + (sort | join(":"))) else "MetadataClean", $Length end
-                       )
+#	               (   to_entries 
+#	      	         | map(if ((.key) | in($DeIdProfileNullFields)) and .value != null and .value != "" then .key else empty end) 
+#		         | length as $Length
+#		         | if (length > 0) then ("PiiMetadataFields:" + (sort | join(":"))) else "MetadataClean", $Length end
+#                      )
+		(to_entries
+		  | map(
+		         if (.key | in($DeIdProfileNullFields)) then
+			     if (.value) then
+			          if (.value != $DeIdProfileNullFields[.key]) then
+				      .key
+				  else
+				      empty
+         			  end
+		 	     else
+			          empty
+		             end
+	                 else
+			     empty
+		         end
+		    )
+                  | if (length > 0) then ("PiiMetadataFields:" + (sort | join(":"))) else "MetadataClean" end
+		)
+
 
                   else
                       "MetadataNull",

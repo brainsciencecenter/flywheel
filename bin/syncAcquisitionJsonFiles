@@ -118,7 +118,12 @@ else
     CachedAcquisitionJsonFile="${TmpDir}/CachedFwGetAcquisitions.json"
 fi
 
-sys fwMakeId2LabelJsonFiles -t "$TmpDir" "${Group}/${Project}"
+#
+# Pass -f through to fwMakeId2LabelJsonFiles.  Do not quote opt_f in this case so not having -f does not
+# pass an empty string on
+#
+[ -n "$opt_f" ] && opt_f=-f
+sys fwMakeId2LabelJsonFiles $opt_f -t "$TmpDir" "${Group}/${Project}"
 
 if [ -n "$opt_a" ]
 then

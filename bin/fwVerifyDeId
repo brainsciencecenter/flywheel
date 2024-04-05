@@ -57,11 +57,11 @@ do
 
 	sys syncAcquisitionJsonFiles -f -d "$TmpDir" -c "$CachedFwAcquisitionJsonFile" -pi "${GroupProject}"
 
-	sys jq -r -n --argjson Header true --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$TmpDir" /dev/null
+	jq -r -n --argjson Header true --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$TmpDir" /dev/null
 
-	sys jq -r --argjson Header false --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$TmpDir" "$CachedFwAcquisitionJsonFile"
+	jq -r --argjson Header false --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$TmpDir" "$CachedFwAcquisitionJsonFile"
 
-	[ -n "$opt_v" ] && [ -z "$opt_t" ] && echo "${CmdDir} : TmpDir = '${TmpDir}'" 1>&2
+	[ -n "$opt_v" ] && [ -z "$opt_t" ] && echo "${CmdName} : TmpDir = '${TmpDir}'" 1>&2
 
 done
 
