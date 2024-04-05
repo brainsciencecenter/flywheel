@@ -14,7 +14,13 @@ if $Header then
 #
 else
 #
-      .parents.group as $GroupLabel 
+#
+# Strip out the DeidentificationMethod field
+# We're reporting the deid profile name independently from the PiiFields
+#
+      ($DeIdProfileNullFields | to_entries | [ .[] | select(.key != "DeidentificationMethod") ] | from_entries ) as $DeIdProfileNullFields 
+
+    | .parents.group as $GroupLabel 
     | .parents.project as $ProjectId
     | .parents.subject as $SubjectId
     | .parents.session as $SessionId

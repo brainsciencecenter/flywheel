@@ -61,5 +61,7 @@ do
 
 	sys jq -r --argjson Header false --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$TmpDir" "$CachedFwAcquisitionJsonFile"
 
+	[ -n "$opt_v" ] && [ -z "$opt_t" ] && echo "${CmdDir} : TmpDir = '${TmpDir}'" 1>&2
+
 done
 
