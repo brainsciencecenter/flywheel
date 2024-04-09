@@ -333,7 +333,8 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
 
         try:
             for f in r.files:
-                File = sloppyCopy(f, UTC=UTC)
+                File = sloppyCopy(f, UTC=UTC
+)
                 if (re.search('\.zip$', f.name)):
                     if (f.size > 0):
                         try:
