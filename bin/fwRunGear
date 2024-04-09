@@ -43,8 +43,9 @@ def runGear(gear, inputs, dest, config={}, tags=None):
           )
 
           if (args.verbose):
+             print("inputs = '{}'".format(inputs),file=sys.stderr)
              print("{} : gear.run(analysis_label={},config={},tags={},inputs={},destination={})".format(
-                CmdName,analysis_label,config,tags,inputs['file_id'],dest['id']), file=sys.stderr),
+                CmdName,analysis_label,config,tags,inputs,dest['_id']), file=sys.stderr),
 
           if (not args.noop):
              gear_job_id = gear.run(
