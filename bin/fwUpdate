@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+
+import argparse
+import csv
+import datetime
+import flywheel
+import fwgearutils
+import json
+import os
+import re
+import sys
+import pyjq
+import pprint
+
+from datetime import datetime
+from tzlocal import get_localzone
+
+
+if __name__ == '__main__':
+    
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+
+    ap.add_argument('-f', '--update-fields', default=None,  action='store', help='update filed info')
+    ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
+    ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
+
+    ap.add_argument('id', nargs='*', type=str, default=None, help='group/project|ProjectID|uuid')
+
+    args = ap.parse_args()
+
+    fw = fwgearutils.getFW(args, Root=True)
+    if (not fw):
+        print("{} : unable to initialize flywheel object".format(CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    if (not args.update_fields):
+        print("{} : Missing -f update.fields".format(CmdName), file=sys.stderr)
+        sys.exit(2)
+        
+    UpdateFieldsCsvReader = csv.reader([args.update_fields],delimiter=',')
+    UpdateFields = list(UpdateFieldsCsvReader)[0]
+
+    UpdateFieldsDict = dict(map(lambda x: re.split("\s*=\s*", x, 1), UpdateFields))
+
+    IdGenerator = sys.stdin
+    if (len(args.id) > 0):
+        IdGenerator = args.id
+
+    for i in IdGenerator:
+        id = i.rstrip('\n')
+
+        if (args.verbose):
+            print("i = '{}'".format(id))
+
+        try:
+            Container = fw.get(id)
+        except (flywheel.rest.ApiException) as e:
+            if (args.verbose):
+                print("{} : no container found for '{}'".format(CmdName, id), file=sys.stderr)
+
+            continue
+                
+        Container.update(**UpdateFieldsDict)
+        NewContainer = Container.reload()
+
