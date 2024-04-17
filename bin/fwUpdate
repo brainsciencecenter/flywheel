@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 
+#
+# If the user is updating, they should have to do something to ensure they know what they are updating
+# If they choose a pool, then go ahead and update, but if they get without specifying a pool, they need the force option
+# Otherwise, it is really easy to update something you didn't mean to because all the Id numbers look the same.
+# 
+
 import argparse
 import csv
 import datetime
@@ -15,16 +21,29 @@ import pprint
 from datetime import datetime
 from tzlocal import get_localzone
 
-
 if __name__ == '__main__':
     
     CmdName = os.path.basename(sys.argv[0])
 
     ap = argparse.ArgumentParser()
 
-    ap.add_argument('-f', '--update-fields', default=None,  action='store', help='update filed info')
+    ap.add_argument('--update-fields', default=None,  action='store', help='update field info')
+
+    ap.add_argument('-A', '--session-analyses', default=False,  action='store_true', help='get session analyses by uid')
+    ap.add_argument('-D', '--debug', default=False,  action='store_true', help='debug')
+    ap.add_argument('-d', '--device', default=False,  action='store_true', help='get device info|all to get all devices')
+    ap.add_argument('-f', '--file', default=False,  action='store_true', help='get_file()')
+    ap.add_argument('-g', '--gear', default=False,  action='store_true', help='get list of gears, get all gears if none specified')
+
+    ap.add_argument('-j', '--job', default=False,  action='store_true', help='get job by id')
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
+    ap.add_argument('-R', '--role', default=False,  action='store_true', help='get role, or all roles if none specified')
+    ap.add_argument('-r', '--recurse', default=False,  action='store_true', help='recurse')
+    ap.add_argument('-s', '--site-settings', default=False,  action='store_true', help='get site settings')
+
+    ap.add_argument('-u', '--user', default=False,  action='store_true', help='all user info')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
+    ap.add_argument('-z', '--zip-info', default=False,  action='store_true', help='zip-info')
 
     ap.add_argument('id', nargs='*', type=str, default=None, help='group/project|ProjectID|uuid')
 
@@ -35,33 +54,66 @@ if __name__ == '__main__':
         print("{} : unable to initialize flywheel object".format(CmdName), file=sys.stderr)
         sys.exit(1)
 
-    if (not args.update_fields):
-        print("{} : Missing -f update.fields".format(CmdName), file=sys.stderr)
-        sys.exit(2)
-        
-    UpdateFieldsCsvReader = csv.reader([args.update_fields],delimiter=',')
-    UpdateFields = list(UpdateFieldsCsvReader)[0]
+    UpdateFieldsDict = None    
+    if (args.update_fields):
+        UpdateFieldsCsvReader = csv.reader([args.update_fields],delimiter=',')
+        UpdateFields = list(UpdateFieldsCsvReader)[0]
 
-    UpdateFieldsDict = dict(map(lambda x: re.split("\s*=\s*", x, 1), UpdateFields))
+        UpdateFieldsDict = dict(map(lambda x: re.split("\s*=\s*", x, 1), UpdateFields))
 
-    IdGenerator = sys.stdin
+    IdIterator = sys.stdin
     if (len(args.id) > 0):
-        IdGenerator = args.id
+        IdIterator = args.id
 
-    for i in IdGenerator:
+    for i in IdIterator:
         id = i.rstrip('\n')
 
         if (args.verbose):
-            print("i = '{}'".format(id))
+            print("id = '{}'".format(id))
 
+        getFunction = None
+        getAllFunction = None
+        if (args.session_analyses):
+            getFunction = fw.get_session_analyses
+        elif (args.device):
+            getAllFunction = fw.get_all_devices
+            getFunction = fw.get_device
+        elif (args.file):
+            getFunction = fw.get_file
+        elif (args.gear):
+            getAllFunction = fw.get_all_gears
+            getFunction = fw.get_gear
+        elif (args.job):
+            getFunction = fw.get_job
+        elif (args.role):
+            getAllFunction = fw.get_all_roles
+            getFunction = fw.get_role
+        elif (args.site_settings):
+            getFunction = fw.get_site_settings
+        elif (args.user):
+            getAllFunction = fw.get_all_users
+            getFunction = fw.get_user
+        else:
+            getFunction = fw.get
+
+        Container = None
         try:
-            Container = fw.get(id)
+            if (id == "all"):
+                Container = getAllFunction()
+            else:
+                Container = getFunction(id)
+            
         except (flywheel.rest.ApiException) as e:
-            if (args.verbose):
-                print("{} : no container found for '{}'".format(CmdName, id), file=sys.stderr)
-
+            print("{}: failed '{}'".format(CmdName,id), file=sys.stderr)
             continue
-                
-        Container.update(**UpdateFieldsDict)
-        NewContainer = Container.reload()
+
+        if (args.verbose):
+            print("container = '{}'".format(Container))
+
+        if (Container and UpdateFieldsDict):
+
+            Container.update(**UpdateFieldsDict)
+            if (args.verbose):
+                NewContainer = Container.reload()
+                print(NewContainer)
 
