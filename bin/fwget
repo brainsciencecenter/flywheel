@@ -30,6 +30,12 @@ def getContainer(args=None, id=None):
                 Reload = False
             else:
                 Container = fw.get_gear(id)
+        elif (args.collection):
+            if (id == "all"):
+                Container = fw.get_all_collectoin()
+                Reload = False
+            else:
+                Container = fw.get_collection(id)
         elif (args.job):
             Container = fw.get_job(id)
         elif (args.user):
@@ -105,6 +111,7 @@ def processId(args=None, id=None):
         if (type(Container) == flywheel.models.collection_output.CollectionOutput):
             Output['session_count'] = len(list(Container.sessions()))
             Output['sessions'] = fwgearutils.sloppyCopy(Container.sessions())
+
         return(Output)
 
     else:
@@ -122,6 +129,7 @@ if __name__ == '__main__':
     ap.add_argument('-1', '--one-at-a-time', default=False,  action='store_true', help='Print info one at a time')
     ap.add_argument('-A', '--session-analyses', default=False,  action='store_true', help='get session analyses by uid')
     ap.add_argument('-a', '--acquisitions', default=False,  action='store_true', help='include acquisitions')
+    ap.add_argument('-c', '--collection', default=False,  action='store_true', help='collections')
     ap.add_argument('-D', '--debug', default=False,  action='store_true', help='debug')
     ap.add_argument('-d', '--device', default=False,  action='store_true', help='get device info|all to get all devices')
     ap.add_argument('--download', default=False,  action='store_true', help='download instead of print')
