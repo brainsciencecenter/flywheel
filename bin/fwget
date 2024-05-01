@@ -32,7 +32,7 @@ def getContainer(args=None, id=None):
                 Container = fw.get_gear(id)
         elif (args.collection):
             if (id == "all"):
-                Container = fw.get_all_collectoin()
+                Container = fw.get_all_collections()
                 Reload = False
             else:
                 Container = fw.get_collection(id)
