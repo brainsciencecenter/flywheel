@@ -83,9 +83,12 @@ do
 	
 done
 
+#
+# Flywheel groups have to begin with lower case letter.  Collections is upper case
+#
 if [ -n "$opt_a" ]
 then
-    (head -q -n 1 */*/*MRI.csv | sort -u; tail -q -n +2 */*/*MRI.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_mri.csv
-    (head -q -n 1 */*/*PET.csv | sort -u; tail -q -n +2 */*/*PET.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_pet.csv
-    (head -q -n 1 */*/*Bids.csv | sort -u; tail -q -n +2 */*/*Bids.csv | sort -u) > fw_bids.csv
+    (head -q -n 1 [a-z]*/*/*MRI.csv | sort -u; tail -q -n +2 [a-z]*/*/*MRI.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_mri.csv
+    (head -q -n 1 [a-z]*/*/*PET.csv | sort -u; tail -q -n +2 [a-z]*/*/*PET.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_pet.csv
+    (head -q -n 1 [a-z]*/*/*Bids.csv | sort -u; tail -q -n +2 [a-z]*/*/*Bids.csv | sort -u) > fw_bids.csv
 fi
