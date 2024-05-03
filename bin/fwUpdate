@@ -111,6 +111,7 @@ if __name__ == '__main__':
             print("container = '{}'".format(Container))
 
         if (Container and UpdateFieldsDict):
+            print("UpdateFieldsDict = '{}'".format(UpdateFieldsDict), file=sys.stderr)
 
             Container.update(**UpdateFieldsDict)
             if (args.verbose):
