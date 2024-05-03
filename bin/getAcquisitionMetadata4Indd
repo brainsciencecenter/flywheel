@@ -27,7 +27,13 @@ function getProjectId {
     local Group=$(echo "$1" | cut -f 1 -d /)
     local Project=$(echo "$1" | cut -f 2 -d /)
 
-    ProjectId=$(fwfind -1 -p group="$Group" | jq -r 'select(.label | match("'"$Project"'")) | ._id')
+    if [ "$Group" == "Collections" ]
+    then
+	ProjectId=$(fwget -1 -c all | jq -r '.[] | select(.label == "'"$Project"'") | ._id')
+    else
+	ProjectId=$(fwfind -1 -p group="$Group" | jq -r 'select(.label=="'"$Project"'")|._id' )
+    fi
+
     echo "$ProjectId"
 }
 

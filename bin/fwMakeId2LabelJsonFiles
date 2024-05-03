@@ -47,7 +47,12 @@ fi
 Id2ProjectLabelsJson="${TmpDir}/Id2ProjectLabels.json"
 if [ -n "$opt_f" -o ! -e "$Id2ProjectLabelsJson" ]
 then
-    sys fwlookup $ProgressBar "$Group" | jq -r '[ .[].projects[] | { (._id): .label } ] | add' > "$Id2ProjectLabelsJson"
+    if [ "$Group" == "Collections" ]
+    then
+	sys fwget -1 -c all  | jq -r '[ .[]|{ (._id): .label} ] | add' > "$Id2ProjectLabelsJson"
+    else
+	sys fwlookup $ProgressBar "$Group" | jq -r '[ .[].projects[] | { (._id): .label } ] | add' > "$Id2ProjectLabelsJson"
+    fi
 fi
 
 ProjectId=$(jq -r 'to_entries[] | select(.value == "'"$Project"'") | .key' "$Id2ProjectLabelsJson")
@@ -55,34 +60,49 @@ ProjectId=$(jq -r 'to_entries[] | select(.value == "'"$Project"'") | .key' "$Id2
 Id2SubjectLabelsJson="${TmpDir}/Id2SubjectLabels.json"
 if [ -n "$opt_f" -o ! -e "$Id2SubjectLabelsJson" ]
 then
-    #fwsearch doesn't return the subject uid
-    sys fwfind -s group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SubjectLabelsJson"
+    if [ "$Group" == "Collections" ]
+    then
+	sys fwget -1 -c "$ProjectId" | jq -r '.sessions[].subject._id' | sort -u | fwget -1 | jq --slurp -r '[ .[] | { (._id): .label } ] | add ' > "$Id2SubjectLabelsJson"
+    else
+	#fwsearch doesn't return the subject uid
+	sys fwfind -s group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SubjectLabelsJson"
+    fi
 fi
 
 Id2SessionLabelsJson="${TmpDir}/Id2SessionLabels.json"
 if [ -n "$opt_f" -o ! -e "$Id2SessionLabelsJson" ]
 then
-    #fwsearch doesn't return the session uid
-    sys	fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SessionLabelsJson"
+    if [ "$Group" == "Collections" ]
+    then
+	sys fwget -1 -c "$ProjectId" | jq -r '.sessions[]._id' | sort -u | fwget -1 | jq --slurp -r '[ .[] | { (._id): .label } ] | add ' > "$Id2SessionLabelsJson"
+    else
+	#fwsearch doesn't return the session uid
+	sys fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SessionLabelsJson"
+    fi
+fi
+
+CachedSessionJsonFile="${TmpDir}/CachedSessionJsonFile.json"
+if [ -n "$opt_f" -o ! -e "$CachedSessionJsonFile" ]
+then
+    sys jq -r 'keys[]' "$Id2SessionLabelsJson" | fwget -1 | jq -r --slurp '.' > "$CachedSessionJsonFile"
 fi
 
 Id2SessionTimeStampsJson="${TmpDir}/Id2SessionTimeStamps.json"
 if [ -n "$opt_f" -o ! -e "$Id2SessionTimeStampsJson" ]
 then
-    sys	fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .timestamp}] | add ' > "$Id2SessionTimeStampsJson"
+    jq -r '[ .[] | { (._id): .timestamp } ] | add ' "$CachedSessionJsonFile" > "$Id2SessionTimeStampsJson"
 fi
 
 Id2SessionNotesJson="${TmpDir}/Id2SessionNotes.json"
 if [ -n "$opt_f" -o ! -e "$Id2SessionNotesJson" ]
 then
-    sys fwfind -1 -S "group=${Group}" "parents.project=${ProjectId}" 'notes.text>""' | jq -r '._id' | fwget -1 | jq  ' {"id": ._id, "notes": .notes[].text}'  | jq -s 'map({(.id): .notes}) | add' > "$Id2SessionNotesJson"
-#    fwsearch -r session 'group._id = '"\"$Group\"" 'session.notes.text =~ ".+"' | jq -r '.[].session._id'  | fwget -1 | jq  ' {"id": ._id, "notes": .notes[].text}'  | jq -s 'map({(.id): .notes}) | add' > "$Id2SessionNotesJson"
+	jq '[ .[] | select( (.notes | length) > 0) | { (._id): (.notes | map(.text) | join("\n")) } ] | add' "$CachedSessionJsonFile" > "$Id2SessionNotesJson"
 fi
 
 Id2SessionTagsJson="${TmpDir}/Id2SessionTags.json"
 if [ -n "$opt_f" -o ! -e "$Id2SessionTagsJson" ]
 then
-    sys fwfind -g -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): (.tags|join(":"))}] | add ' > "$Id2SessionTagsJson"
+    sys jq '[.[]| {(._id): (.tags|join(":"))}] | add ' "$CachedSessionJsonFile" > "$Id2SessionTagsJson"
 fi
 
 if [ -z "$opt_m" ] && [ "$DeleteTmpDir" == True ]
