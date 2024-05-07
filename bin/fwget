@@ -35,6 +35,7 @@ def getContainer(args=None, id=None):
                 Container = fw.get_all_collections()
                 Reload = False
             else:
+                # fw.get_collections(id) seems to be the same as fw.get(id)
                 Container = fw.get_collection(id)
         elif (args.job):
             Container = fw.get_job(id)
