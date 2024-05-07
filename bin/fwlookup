@@ -39,7 +39,10 @@ if __name__ == '__main__':
         if (args.debug):
             print("{} : fw.lookup({})".format(CmdName,args.id[0]), file=sys.stderr)
 
-        Container = fw.lookup(args.id[0])
+        if (args.id[0] == "Collections"):
+            Container = fw.get_all_collections()
+        else:
+            Container = fw.lookup(args.id[0])
 
         Output.append(fwgearutils.recurse(fw, Container, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info))
         
