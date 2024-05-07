@@ -32,6 +32,7 @@ if __name__ == '__main__':
     ap.add_argument('-d', '--debug',  action='store_true', default=False, help='debug option')
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-p', '--container-path',  action='store', default=False, help='group/project|ContainerUid')
+    ap.add_argument('-q', '--quiet',  action='store_true', default=False, help='quiet')
     ap.add_argument('-t', '--tags',  action='store', default=False, help='comma separated list of tags to add to the files')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
 
@@ -62,36 +63,31 @@ if __name__ == '__main__':
 
         Container = getContainer(args,args.container_path)
 
-        PriorFileUids = set(map(lambda f: f.file_id, Container.files))
-        if (args.debug):
-            print(PriorFileUids)
-
         if (args.verbose):
             print("Container id = {}".format(Container.id), file=sys.stderr)
 
-        Container.upload_file(file)
+        res = Container.upload_file(file)
         Container.update({ 'timestamp': ds })
         Container = Container.reload()
-        NewFileUids = set(map(lambda f: f.file_id, Container.files))
 
+        try:
+            UploadedFileUid = res[0].file_id
+        except(AttributeError) as e:
+            UploadedFileUid = res[0].id
+
+        if (args.verbose):
+            print("Uploaded file Id = '{}'".format(UploadedFileUid), file=sys.stderr)
+            
         if (args.debug):
-            print(NewFileUids, file=sys.stderr)
+            print(UploadedFileUid, file=sys.stderr)
 
-        DiffList = list(NewFileUids - PriorFileUids)
-        if (len(DiffList) > 0):
-            UploadedFileUid = DiffList[0]
+        # *** should be a way to add/sub/set tags
+        if (args.tags):
+            File = fw.get_file(UploadedFileUid)
+            
+            File.add_tags(FileTags)
+            File = File.reload()
 
             if (args.debug):
-                print(UploadedFileUid, file=sys.stderr)
+                print("File tags = '{}'".format(File.tags), file=sys.stderr)
 
-            if (args.tags):
-            
-                File = fw.get_file(UploadedFileUid)
-            
-                File.add_tags(FileTags)
-                File = File.reload()
-
-                if (args.debug):
-                    print("File tags = '{}'".format(File.tags), file=sys.stderr)
-        else:
-            print("{} : File '{}' already uploaded".format(CmdName,file), file=sys.stderr)
