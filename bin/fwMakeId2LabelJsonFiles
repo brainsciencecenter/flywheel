@@ -44,6 +44,12 @@ fi
 
 [ -n "$opt_p" ] && ProgressBar=-p
 
+#
+# *** May want to reorder the searches
+# An item in a colleciton can be from multiple groups/projects, so may want to
+# collect a list of all the group/projects in the found sessions and look up those.
+#
+
 Id2ProjectLabelsJson="${TmpDir}/Id2ProjectLabels.json"
 if [ -n "$opt_f" -o ! -e "$Id2ProjectLabelsJson" ]
 then
