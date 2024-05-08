@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+import argparse
+import flywheel
+import fwgearutils
+import json
+import os
+import pyjq
+import re
+import sys
+
+if __name__ == '__main__':
+
+    import argparse
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    ParentOrder = [ 'acquisition', 'session', 'subject', 'project' ]
+    
+    ap = argparse.ArgumentParser()
+
+    ap.add_argument('--download', default=False,  action='store_true', help='download instead of print')
+    ap.add_argument('--download-dir', default='.',  action='store', help='directory to download to.  defaults to .')
+    ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
+    ap.add_argument('-t', '--tags',  action='store', default=False, help='comma separated list of tags to add to the files')
+    ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
+
+    ap.add_argument('id', nargs='*', type=str, default=None, help='group/project|ProjectID|uuid')
+
+    args = ap.parse_args()
+
+    FileTags = args.tags.split(',')
+
+    fw = fwgearutils.getFW(args, Root=True)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    ds = datetime.now()
+    for id in args.id:
+        try:
+            Container = fw.get(id)
+        except(flywheel.rest.ApiException) as e:
+            Container = fw.get_file(id)
+
+        if (args.tags):
+            Container.add_tags(FileTags)
+            Container = Container.reload()
+
+            # Want to update the timestamp on the parent so the new tags are visable
+            for ParentType in ParentOrder:
+                if (hasattr(Container.parents, ParentType)):
+                    ParentId = eval("Container.parents.{}".format(ParentType))
+                    Parent = fw.get(ParentId)
+
+                    if (args.verbose):
+                        print("Parent = '{}'".format(Parent.label))
+
+                    Parent.update({ 'timestamp': ds })
+
+                    break
+
+        if (args.verbose):
+            print("Container tags = '{}'".format(Container.tags), file=sys.stderr)
+
+    
