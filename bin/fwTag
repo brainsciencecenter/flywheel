@@ -23,17 +23,26 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
 
     ap.add_argument('--download', default=False,  action='store_true', help='download instead of print')
-    ap.add_argument('--download-dir', default='.',  action='store', help='directory to download to.  defaults to .')
+    ap.add_argument('--download-dir', default='.',  action='store', help='directory to download to.  defaults to add')
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
-    ap.add_argument('-t', '--tags',  action='store', default=False, help='comma separated list of tags to add to the files')
+    ap.add_argument('-t', '--tags',  action='store', default=False, help='[+|-|=]comma separated list of tags to add to the files')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
 
     ap.add_argument('id', nargs='*', type=str, default=None, help='group/project|ProjectID|uuid')
 
     args = ap.parse_args()
 
-    FileTags = args.tags.split(',')
+    TagOp = '+'
+    NewTags = None
+    if (args.tags):
+        m = re.search('^(?P<TagOp>\+|\-|=)?(?P<Tags>(.)+)$',args.tags)
+        if (m):
+            if (m.group('TagOp')):
+                TagOp = m.group('TagOp')
 
+            if (m.group('Tags')):
+                NewTags = m.group('Tags').split(',')
+        
     fw = fwgearutils.getFW(args, Root=True)
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
@@ -46,8 +55,21 @@ if __name__ == '__main__':
         except(flywheel.rest.ApiException) as e:
             Container = fw.get_file(id)
 
-        if (args.tags):
-            Container.add_tags(FileTags)
+        if (NewTags):
+            if (TagOp == '+'):
+                Container.add_tags(NewTags)
+
+            elif (TagOp == '-'):
+                for Tag in NewTags:
+                    Container.delete_tag(Tag)
+
+            elif (TagOp == '='):
+                CurrentTags = set(Container.tags)
+                for Tag in CurrentTags:
+                    Container.delete_tag(Tag)
+                
+                Container.add_tags(NewTags)
+
             Container = Container.reload()
 
             # Want to update the timestamp on the parent so the new tags are visable
@@ -63,7 +85,6 @@ if __name__ == '__main__':
 
                     break
 
-        if (args.verbose):
-            print("Container tags = '{}'".format(Container.tags), file=sys.stderr)
+        print("{}".format(Container.tags), file=sys.stderr)
 
     
