@@ -1,0 +1,166 @@
+#!/bin/bash
+
+#
+# ***
+# This script assumes all fields in the deid profile are to be blanked and ignores the replace-with value in the deid profile
+#
+
+CmdName=$(basename "$0")
+Syntax="${CmdName} {-d deidProfilep} [-c][-m][-o OutputFile] [-n][-v][-t TmpDir] DicomFile"
+
+function sys {
+	[ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	[ -n "$opt_n" ] || "$@"
+}
+
+function toArgs {
+	local Prefix="$1"
+	local Postfix="$2"
+	local i
+
+	shift 2
+	for i in "$@"
+	do
+		echo "${Prefix}${i}${Postfix}"
+	done
+}
+
+function fixModArgs {
+	local i
+
+	for i in "$@"
+	do
+		if echo "$i" | grep -q 'SequenceDelimitationItem$'
+		then
+			continue
+		fi
+
+		if echo "$i" | grep -q 'Sequence$'
+		then
+			echo "-e ${i} -i ${i}"
+		else
+			echo "-ma ${i}="
+		fi
+	done
+}
+
+while getopts cd:mo:t:nv arg
+do
+	case "$arg" in
+		c|d|m|n|o|t|v)
+			eval "opt_${arg}='${OPTARG:=1}'"
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ -z "$1" ]
+then
+	echo "${CmdName} : Missing dicom file" 1>&2
+	echo "$Syntax" 1>&2
+	exit 1
+fi
+
+File=$(realpath "$1")
+
+[ -n "$TMPDIR" ] && TmpDir=$(realpath "$TMPDIR")
+[ -n "$opt_t" ] &&  TmpDir=$(realpath "$opt_t")
+
+if [ -n "$TmpDir" ]
+then
+	LeaveTmpDir=true
+else
+	LeaveTmpDir=false
+	TmpDir=$(sys mktemp -d '/tmp/fwDeIdDicom-XXXXXXX')
+fi
+
+if [ -z "$opt_d" ]
+then
+        echo "${CmdName} : Missing deid profile" 1>&2
+        echo "$Syntax" 1>&2
+        exit 2
+fi
+
+
+DeIdProfileJsonFile="$opt_d"
+if ! jq . "$DeIdProfileJsonFile" 2> /dev/null
+then
+	DeIdProfileYamlFile="$DeIdProfileJsonFile"
+	DeIdProfileJsonFile=$(mktemp "${TmpDir}/${CmdName}-DeIdProfile-XXXXXXXX.json")
+	yq -o json < "$DeIdProfileYamlFile" > "$DeIdProfileJsonFile"
+fi
+
+DeprecatedDicomFieldNameRegEx="InsurancePlanIdentification|MedicalRecordLocator|OtherPatientIDs|PhysicianApprovingInterpretation|ReasonForStudy"
+
+if file "$File" | grep -q "Zip archive data"
+then
+	Zipped=True
+	sys unzip -qq -o "$File" -d "$TmpDir"
+	FirstDicomFile=$(unzip -l "$File" | grep -P '^ *\d+' | grep -v '/$' | head -n 1 | awk '{ for (i = 4; i<=NF; ++i) { printf("%s ", $i) }} END {print ""}' | sed 's/ *$//')
+	DicomFile="${TmpDir}/${FirstDicomFile}"
+	DicomBaseDir=$(dirname "$FirstDicomFile")
+	DicomDir=$(dirname "$DicomFile")
+else
+	Zipped=False
+	if [ -z "$opt_o" ] || [ "$opt_o" = "$File" ]
+	then
+		DicomFile="$File"
+		DicomDir=$(dirname "$File")
+	else
+		sys cp "$File" "$opt_o"
+
+		DicomFile="$opt_o"
+		DicomDir=$(dirname "$opt_o")
+	fi
+fi
+
+DeIdFieldNames=( $(sys jq -r '.dicom.fields[].name' "$DeIdProfileJsonFile" | grep -v -E "$DeprecatedDicomFieldNameRegEx") )
+rm "$DeIdProfileJsonFile"
+
+DcmDumpArgs=( $(toArgs '--search ' '' "${DeIdFieldNames[@]}") )
+
+DeIdFieldNames=( $(dcmdump -L -s "${DcmDumpArgs[@]}" "$DicomFile" | awk '{print $NF}' ) )
+DcModifyArgs=( $(fixModArgs "${DeIdFieldNames[@]}") )
+# sys on this is too ugly
+if [ -n "$opt_m" ]
+then
+	if [ "$Zipped" = "True" ]
+	then
+		dcmodify --no-backup "${DcModifyArgs[@]}" "$DicomDir"/*
+	else
+		dcmodify --no-backup "${DcModifyArgs[@]}" "$DicomFile"
+	fi
+fi
+
+if [ -n "$opt_c" ]
+then
+	if [ "$Zipped" = "True" ]
+	then
+		DicomThing="$DicomDir"
+	else
+		DicomThing="$DicomFile"
+	fi
+
+	PossiblePii=$(dcmdump -r --scan-directories -L "${DcmDumpArgs[@]}" "$DicomThing" | grep --text  '.' | grep -v '\[Penn_BSC_profile_v3.0\]' | grep -v --text '\(no value available\)' | grep -v '\(Sequence with explicit length #=0\)' | grep -v '\(SequenceDelimitationItem for re-encod.\)' | awk '{print $NF}' | sort -u )
+
+	if [ -n "$PossiblePii" ]
+	then
+		echo -n "${CmdName} : Possible Pii in '$File' " 1>&2
+		echo $(echo "$PossiblePii") | sed 's/  */:/g' 1>&2
+		exit 3
+	fi
+fi
+
+if [ -n "$opt_m" ] && [ "$Zipped" = "True" ] && [ -n "$DicomBaseDir" ]
+then
+	(
+		cd "$TmpDir"
+		if [ -n "$opt_o" ]
+		then
+			sys zip -qq -r - "$DicomBaseDir" > "$opt_o"
+		else
+			sys zip -qq -r - "$DicomBaseDir" 
+		fi
+	)
+fi
