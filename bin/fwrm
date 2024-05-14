@@ -40,15 +40,19 @@ if __name__ == '__main__':
                     print("%s : fw.get and fw.lookup failed for '%s' : e = %s" %(CmdName, path, e), file=sys.stderr)
                     sys.exit(1)
 
-        if (args.verbose):
-            if (type(Container) == flywheel.models.file_output.FileOutput):
+        if (args.verbose or args.no_op):
+            print("type(Container) = '{}'".format(type(Container), file=sys.stderr))
+
+            if (   type(Container) == flywheel.models.file_output.FileOutput
+                or type(Container) == flywheel.models.file_entry.FileEntry):
                 print("%s : removing '%s'" % (CmdName, Container.name), file=sys.stderr)
             else:
                 print("%s : removing '%s'" % (CmdName, Container.label), file=sys.stderr)
             
         if (not args.no_op):
             try:
-                if (type(Container) == flywheel.models.file_output.FileOutput):
+                if (   type(Container) == flywheel.models.file_output.FileOutput
+                    or type(Container) == flywheel.models.file_entry.FileEntry):
                     fw.delete_file(Container.file_id)
                 else:
                     fw.delete_container(Container._id)
