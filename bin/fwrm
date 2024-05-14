@@ -41,7 +41,6 @@ if __name__ == '__main__':
                     sys.exit(1)
 
         if (args.verbose or args.no_op):
-            print("type(Container) = '{}'".format(type(Container), file=sys.stderr))
 
             if (   type(Container) == flywheel.models.file_output.FileOutput
                 or type(Container) == flywheel.models.file_entry.FileEntry):
