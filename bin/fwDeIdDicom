@@ -66,6 +66,7 @@ File=$(realpath "$1")
 
 [ -n "$TMPDIR" ] && TmpDir=$(realpath "$TMPDIR")
 [ -n "$opt_t" ] &&  TmpDir=$(realpath "$opt_t")
+[ -n "$opt_o" ] && OutputFile=$(realpath "$opt_o")
 
 if [ -n "$TmpDir" ]
 then
@@ -84,7 +85,7 @@ fi
 
 
 DeIdProfileJsonFile="$opt_d"
-if ! jq . "$DeIdProfileJsonFile" 2> /dev/null
+if ! jq . "$DeIdProfileJsonFile" > /dev/null 2>&1
 then
 	DeIdProfileYamlFile="$DeIdProfileJsonFile"
 	DeIdProfileJsonFile=$(mktemp "${TmpDir}/${CmdName}-DeIdProfile-XXXXXXXX.json")
@@ -103,20 +104,20 @@ then
 	DicomDir=$(dirname "$DicomFile")
 else
 	Zipped=False
-	if [ -z "$opt_o" ] || [ "$opt_o" = "$File" ]
+	if [ -z "$OutputFile" ] || [ "$OutputFile" = "$(realpath '${File}')" ]
 	then
 		DicomFile="$File"
 		DicomDir=$(dirname "$File")
 	else
-		sys cp "$File" "$opt_o"
+		sys cp "$File" "$OutputFile"
 
-		DicomFile="$opt_o"
-		DicomDir=$(dirname "$opt_o")
+		DicomFile="$OutputFile"
+		DicomDir=$(dirname "$OutputFile")
 	fi
 fi
 
 DeIdFieldNames=( $(sys jq -r '.dicom.fields[].name' "$DeIdProfileJsonFile" | grep -v -E "$DeprecatedDicomFieldNameRegEx") )
-rm "$DeIdProfileJsonFile"
+(echo "$DeIdProfileJsonFile" | grep -q "^${TmpDir}") &&  rm "$DeIdProfileJsonFile"
 
 DcmDumpArgs=( $(toArgs '--search ' '' "${DeIdFieldNames[@]}") )
 
@@ -142,7 +143,7 @@ then
 		DicomThing="$DicomFile"
 	fi
 
-	PossiblePii=$(dcmdump -r --scan-directories -L "${DcmDumpArgs[@]}" "$DicomThing" | grep --text  '.' | grep -v '\[Penn_BSC_profile_v3.0\]' | grep -v --text '\(no value available\)' | grep -v '\(Sequence with explicit length #=0\)' | grep -v '\(SequenceDelimitationItem for re-encod.\)' | awk '{print $NF}' | sort -u )
+	PossiblePii=$(dcmdump -r --scan-directories -L "${DcmDumpArgs[@]}" "$DicomThing" | grep --text  '.' | grep -v --text '\[Penn_BSC_profile_v3.0\]' | grep -v --text '\(no value available\)' | grep -v --text '\(Sequence with explicit length #=0\)' | grep -v --text '\(SequenceDelimitationItem for re-encod.\)' | awk '{print $NF}' | sort -u )
 
 	if [ -n "$PossiblePii" ]
 	then
@@ -156,9 +157,9 @@ if [ -n "$opt_m" ] && [ "$Zipped" = "True" ] && [ -n "$DicomBaseDir" ]
 then
 	(
 		cd "$TmpDir"
-		if [ -n "$opt_o" ]
+		if [ -n "$OutputFile" ]
 		then
-			sys zip -qq -r - "$DicomBaseDir" > "$opt_o"
+			sys zip -qq -r - "$DicomBaseDir" > "$OutputFile"
 		else
 			sys zip -qq -r - "$DicomBaseDir" 
 		fi
