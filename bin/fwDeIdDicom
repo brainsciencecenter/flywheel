@@ -6,28 +6,31 @@
 #
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} {-d deidProfilep} [-c][-m][-o OutputFile] [-n][-v][-t TmpDir] DicomFile"
+Syntax="${CmdName} {-d deidProfilep} [-c][-D][-m][-o OutputFile] [-n][-v][-t TmpDir] DicomFile"
 
 function sys {
 	[ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
 	[ -n "$opt_n" ] || "$@"
 }
 
+RetiredDicomFieldNames=(
+	InsurancePlanIdentification
+	MedicalRecordLocator
+	OtherPatientIDs
+	PhysicianApprovingInterpretation
+	ReasonForStudy
+)
+
+RetiredDicomFieldNameRegExp=$(echo "${RetiredDicomFieldNames[@]}" | sed 's/ /|/g')
+RetiredDicomFieldTags=( $(echo "${RetiredDicomFieldNames[@]}" | sed 's/^/RETIRED_/; s/ /\nRETIRED_/g') )
+
 function toArgs {
 	local Prefix="$1"
 	local Postfix="$2"
+
 	local i
 
 	shift 2
-	for i in "$@"
-	do
-		echo "${Prefix}${i}${Postfix}"
-	done
-}
-
-function fixModArgs {
-	local i
-
 	for i in "$@"
 	do
 		if echo "$i" | grep -q 'SequenceDelimitationItem$'
@@ -35,19 +38,28 @@ function fixModArgs {
 			continue
 		fi
 
-		if echo "$i" | grep -q 'Sequence$'
-		then
-			echo "-e ${i} -i ${i}"
-		else
-			echo "-ma ${i}="
-		fi
+		echo "${Prefix}${i}${Postfix}"
 	done
 }
 
-while getopts cd:mo:t:nv arg
+function fixRetiredAddArgs {
+	local i
+
+	for i in "$@"
+	do
+		if echo "$i" | grep -q -E "^($RetiredDicomFieldNameRegExp)$"
+		then
+			i=$(echo "$i" | sed 's/^/RETIRED_/')
+		fi
+
+		echo "${Prefix}${i}${Postfix}"
+	done
+}
+
+while getopts cDd:mo:t:nv arg
 do
 	case "$arg" in
-		c|d|m|n|o|t|v)
+		c|D|d|m|n|o|t|v)
 			eval "opt_${arg}='${OPTARG:=1}'"
 			;;
 	esac
@@ -92,7 +104,8 @@ then
 	yq -o json < "$DeIdProfileYamlFile" > "$DeIdProfileJsonFile"
 fi
 
-DeprecatedDicomFieldNameRegEx="InsurancePlanIdentification|MedicalRecordLocator|OtherPatientIDs|PhysicianApprovingInterpretation|ReasonForStudy"
+#
+# *** Need to correctly handle the deid method which doesn'nt get set to blank
 
 if file "$File" | grep -q "Zip archive data"
 then
@@ -116,21 +129,38 @@ else
 	fi
 fi
 
-DeIdFieldNames=( $(sys jq -r '.dicom.fields[].name' "$DeIdProfileJsonFile" | grep -v -E "$DeprecatedDicomFieldNameRegEx") )
+#
+# Get a list of the tags in the dicom which should not be there, and delete them
+# Add in every tag from the deid profile
+#
+DeIdFieldRegExp=$(echo $(jq -r '.dicom.fields[].name' "$DeIdProfileJsonFile") | sed 's/ /|/g')
+DeIdFieldNames=( $( (sys jq -r '.dicom.fields[].name' "$DeIdProfileJsonFile" | grep -v -E "^($RetiredDicomFieldNameRegExp)$" ; echo "${RetiredDicomFieldTags[@]}" ) | sort -u ) )
+[ -n "$opt_D" ] && echo "DeIdFieldRegExp = ${DeIdFieldRegExp[@]}" 1>&2
+[ -n "$opt_D" ] && echo "DeIdFieldNames = ${DeIdFieldNames[@]}" 1>&2
+
 (echo "$DeIdProfileJsonFile" | grep -q "^${TmpDir}") &&  rm "$DeIdProfileJsonFile"
 
-DcmDumpArgs=( $(toArgs '--search ' '' "${DeIdFieldNames[@]}") )
+#DcmDumpArgs=( $(toArgs '--search ' '' "${DeIdFieldNames[@]}") )
+#DeleteFields=( $(dcmdump -L -s -q -dc "${DcmDumpArgs[@]}" "$DicomFile" | awk '{print $1}' ) )
+DeleteFields=( $(dcmdump -q -dc "$DicomFile" | grep --text -E  "(${DeIdFieldRegExp})$" | awk '{print $1}' ) )
+[ -n "$opt_D" ] && echo "DeleteFields = ${DeleteFields[@]}" 1>&2
 
-DeIdFieldNames=( $(dcmdump -L -s "${DcmDumpArgs[@]}" "$DicomFile" | awk '{print $NF}' ) )
-DcModifyArgs=( $(fixModArgs "${DeIdFieldNames[@]}") )
+[ -n "$DeleteFields" ] && DeleteArgs=( $(toArgs '-ea ' '' "${DeleteFields[@]}") )
+[ -n "$opt_D" ] && echo "DeleteArgs = ${DeleteArgs[@]}" 1>&2
+
+AddArgs=( $(toArgs '-i ' '=' "${DeIdFieldNames[@]}" ) )
+[ -n "$opt_D" ] && echo "AddArgs = ${AddArgs[@]}" 1>&2
+
 # sys on this is too ugly
 if [ -n "$opt_m" ]
 then
 	if [ "$Zipped" = "True" ]
 	then
-		dcmodify --no-backup "${DcModifyArgs[@]}" "$DicomDir"/*
+		[ -n "$DeleteArgs" ] && dcmodify --no-backup "${DeleteArgs[@]}" "$DicomDir"/*
+		[ -n "$AddArgs" ] && dcmodify --no-backup "${AddArgs[@]}" -i "DeidentificationMethod=Penn_BSC_profile_v3.0"  "$DicomDir"/*
 	else
-		dcmodify --no-backup "${DcModifyArgs[@]}" "$DicomFile"
+		dcmodify --no-backup "${DeleteArgs[@]}" "$DicomFile"
+		dcmodify --no-backup "${AddArgs[@]}" "$DicomFile"
 	fi
 fi
 
@@ -143,7 +173,8 @@ then
 		DicomThing="$DicomFile"
 	fi
 
-	PossiblePii=$(dcmdump -r --scan-directories -L "${DcmDumpArgs[@]}" "$DicomThing" | grep --text  '.' | grep -v --text '\[Penn_BSC_profile_v3.0\]' | grep -v --text '\(no value available\)' | grep -v --text '\(Sequence with explicit length #=0\)' | grep -v --text '\(SequenceDelimitationItem for re-encod.\)' | awk '{print $NF}' | sort -u )
+	#PossiblePii=$(dcmdump -r --scan-directories -L "${DcmDumpArgs[@]}" "$DicomThing" | grep --text  '.' | grep -v --text '\[Penn_BSC_profile_v3.0\]' | grep -v --text '\(no value available\)' | grep -v --text '\(Sequence with explicit length #=0\)' | grep -v --text '\(SequenceDelimitationItem for re-encod.\)' | awk '{print $NF}' | sort -u )
+	PossiblePii=$(dcmdump -r --scan-directories -L "$DicomThing" | grep --text -E "(${DeIdFieldRegExp})$" | sort -u |  grep -v --text '\[Penn_BSC_profile_v3.0\]' | grep -v --text '\(no value available\)' | grep -v --text '\(Sequence with explicit length #=0\)' | grep -v --text '\(SequenceDelimitationItem for re-encod.\)' | awk '{print $NF}' )
 
 	if [ -n "$PossiblePii" ]
 	then
