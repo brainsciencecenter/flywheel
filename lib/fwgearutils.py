@@ -162,14 +162,14 @@ def sloppyCopy(d, recurse=True, UTC=True, regex=None, to=None):
 
     from tzlocal import get_localzone
 
-    # print("sloppyCopy: ", d, file=sys.stderr)
+#    print("sloppyCopy d(type {}) is serializable".format(type(d)), file=sys.stderr)
+
     try:
-        json.dumps(d)
-        #print("sloppyCopy d is serializable", file=sys.stderr)
+        Output = json.dumps(d)
         if (regex):
-           d = re.sub(regex,to,d)
-           
-        return(d)
+           Output = re.sub(regex,to,d)
+
+        return(Output)
 
     except (TypeError, OverflowError) as e:
        if (hasattr(d,'keys')):
@@ -194,6 +194,9 @@ def sloppyCopy(d, recurse=True, UTC=True, regex=None, to=None):
             if (regex):
                nd = re.sub(regex,to,nd)
 
+            if (type(d) == flywheel.models.file_output.FileOutput and d.zip_member_count > 0):
+               nd['zip_info'] = sloppyCopy(d.get_zip_info())
+
             return(nd)
 
        if (type(d) is list):
@@ -214,9 +217,6 @@ def sloppyCopy(d, recurse=True, UTC=True, regex=None, to=None):
              return(d.strftime("%Y-%m-%dT%H:%M:%S%z"))
           else:
              return(d.astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
-
-
-
 
 def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UTC=True, Verbose=False, ZipInfo=False ):
 
@@ -327,41 +327,6 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
           ):
         if (Verbose):
             print("%s : r == acquisition : %s" % (CmdName, r.label), file=sys.stderr)
-
-    if (ZipInfo):
-        Files = []
-
-        try:
-            for f in r.files:
-                File = sloppyCopy(f, UTC=UTC
-)
-                if (re.search('\.zip$', f.name)):
-                    if (f.size > 0):
-                        try:
-                            File['zip_info'] = sloppyCopy(r.get_file_zip_info(f.name), UTC=UTC)
-                            File['zip_member_count'] = len(File['zip_info']['members'])
-
-                            if (Verbose):
-                                print("%s : '%s/files/%s' %d" % (CmdName, r.label, f.name, File['zip_member_count']), file=sys.stderr)
-
-                        except (flywheel.rest.ApiException) as e:
-                            print("%s : %s(%s).get_file_zip_info failed on '%s' : %s - %s\n" % (CmdName, r.label, r.id, f.name, e.status, e.reason), file=sys.stderr)
-                            continue
-                    else:
-                        print("%s : Size of '%s(%s)/%s' is 0 : Skipping\n" % (CmdName, r.label, r.id, f.name), file=sys.stderr)
-                        continue
-                else:
-                    if (Verbose):
-                        print("%s : '%s/files/%s'" % (CmdName, r.label, f.name), file=sys.stderr)
-
-                Files.append(File)
-
-        except (AttributeError) as e:
-            # no files attribute
-            True
-
-        if (len(Files) > 0):
-            Output['files'] = Files
 
     return(Output)
 
