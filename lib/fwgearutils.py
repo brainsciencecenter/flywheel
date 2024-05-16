@@ -195,7 +195,7 @@ def sloppyCopy(d, recurse=True, UTC=True, regex=None, to=None):
                nd = re.sub(regex,to,nd)
 
             if (type(d) == flywheel.models.file_output.FileOutput and d.zip_member_count > 0):
-               nd['zip_info'] = sloppyCopy(d.get_zip_info())
+                  nd['zip_info'] = sloppyCopy(d.get_zip_info())
 
             return(nd)
 
