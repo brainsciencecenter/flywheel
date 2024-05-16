@@ -61,7 +61,8 @@ def getContainer(args=None, id=None):
                 Container = fw.lookup(id)
 
     except (OSError, Exception) as e:
-        print("e",e, file=sys.stderr)
+        if (not args.quiet):
+            print("e",e, file=sys.stderr)
         return(None)
 
     if (Reload):
@@ -116,7 +117,8 @@ def processId(args=None, id=None):
         return(Output)
 
     else:
-        print("{}: No container for {} found".format(CmdName,id), file=sys.stderr)
+        if (not args.quiet):
+            print("{}: No container for {} found".format(CmdName,id), file=sys.stderr)
         return(None)
 
 if __name__ == '__main__':
@@ -142,6 +144,7 @@ if __name__ == '__main__':
     ap.add_argument('-L', '--log',  action='store_true', default=False, help='print the job log')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
+    ap.add_argument('-q', '--quiet',  action='store_true', default=False, help='quiet mode')
     ap.add_argument('-R', '--role', default=False,  action='store_true', help='get role, or all roles if none specified')
     ap.add_argument('-r', '--recurse', default=False,  action='store_true', help='recurse')
     ap.add_argument('-s', '--site-settings', default=False,  action='store_true', help='get site settings')
