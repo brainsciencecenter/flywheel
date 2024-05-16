@@ -89,7 +89,7 @@ if __name__ == '__main__':
     ap.add_argument('-d', '--debug', default=False,  action='store_true', help='debug')
     ap.add_argument('-c', '--config', action='store', default='{}', help='config json string. Defaults to "{}"')
     ap.add_argument('-g', '--gear-name', required=True, action='store', help='gear name')
-    ap.add_argument('-L', '--label', required=True, action='store', help='Job Label')
+    ap.add_argument('-L', '--label', action='store', help='Job Label')
     ap.add_argument('-l', '--show-log', default=False, action='store_true', help='Dump log at the end of the job')
     ap.add_argument('-n', '--noop', default=False, action='store_true', help='do not actually submit the job')
     ap.add_argument('-i', '--input-key', required=True,  action='store', help='gear input key')
@@ -148,9 +148,9 @@ if __name__ == '__main__':
        if (args.debug):
           print("dest = '{}'".format(dest), file=sys.stderr)
 
-       if (args.tags and arg.tags.len > 0):
+       if (args.tags and len(args.tags) > 0):
           tags = args.tags.split(",")
-          print("tags = '{}'\n".format(tags))
+
        else:
           tags = None
 
