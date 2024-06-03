@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# AllCachedParentIds	- All parent (non-group) ids from the updated cached json file
+# AllCachedParentIds	- All parent (non-group) and Collection ids from the updated cached json file
 # Id2Labels.json	- Current Id2Labels file before updating
-# Id2LabelsCommon.json	- All the Id2Labels which have a uid in previous file and in the CurrentParentIds
+# Id2LabelsCommon.json	- All the Id2Labels which have a uid in previous file and in the CurrentParentIds file
 # Id2LabelsNew.json	- Id2Labels which do not exist in the previous Id2Labels.json file
-# Id2LabelsUpdated	- Combinded Id2LabelsCommon.json and Id2LabelsNew.json
+# Id2LabelsUpdated	- Combined Id2LabelsCommon.json and Id2LabelsNew.json
 
 
 CmdName=$(basename "$0")
@@ -15,34 +15,54 @@ function sys {
     [ -n "$opt_n" ] || "$@"
 }
 
+while getopts i:nt:uv arg
+do
+    case "$arg" in
+	i|n|t|u|v)
+	    eval "opt_${arg}='${OPTARG:=1}'"
+	    ;;
+    esac
+done
+
+shift $(( $OPTIND - 1 ))
 
 TmpDir="/tmp"
+[ -n "$opt_t" ] && TmpDir="$opt_t"
 
-AllCachedParentIds="${TmpDir}/AllCachedParentIds"
 
 Id2LabelsJsonFile="${TmpDir}/Id2Labels.json"
+[ -n "$opt_i" ] && Id2LabelsJsonFile="$opt_i"
+
 Id2LabelsCommonJsonFile="${TmpDir}/Id2LabelsCommon.json"
 Id2LabelsNewJsonFile="${TmpDir}/Id2LabelsNew.json"
 Id2LabelsUpdatedJsonFile="${TmpDir}/Id2LabelsUpdated.json"
 
+AllCachedParentIds="${TmpDir}/AllCachedParentIds"
 
-CachedJsonFile="Collections-ABCD2_WashU_20240430-CachedFwAcquisitions.json"
+if [ -n "$1" ]
+then
+    CachedJsonFile="$1"
+else
+    echo "${CmdName} : Missing Cached Json File" 1>&2
+    echo "$Syntax" 1>&2
+    exit 1
+fi
 
-opt_v=1
-opt_u=
-
-# need the quotes around the parent ids
-jq '[(.parents | to_entries[] | select(.key == "group" | not) | .value)] + .collections | .[] ' "$CachedJsonFile" | sort -u > "$AllCachedParentIds"
+#
+# don't use jq -r here.
+# need the quotes around the parent ids to be valid json
+#
+sys jq '[(.parents | to_entries[] | select(.key == "group" | not) | .value)] + .collections | .[] ' "$CachedJsonFile" | sort -u > "$AllCachedParentIds"
 
 [ -e "$Id2LabelsJsonFile" ] || sys echo '{}' > "$Id2LabelsJsonFile"
 
-jq -r --slurpfile existing "$Id2LabelsJsonFile" 'select(.|in($existing[])) | { (.): $existing[][.]}' "$AllCachedParentIds" | jq -r --slurp '[ . | add ][]' > "$Id2LabelsCommonJsonFile"
+sys jq -r --slurpfile existing "$Id2LabelsJsonFile" 'select(.|in($existing[])) | { (.): $existing[][.]}' "$AllCachedParentIds" | jq -r --slurp '[ . | add ][]' > "$Id2LabelsCommonJsonFile"
 
-jq -r --slurpfile existing "$Id2LabelsJsonFile" 'select(.|in($existing[]) | not)' "$AllCachedParentIds" | fwget -1 -v | tee /tmp/json | jq -r '{(._id): .label}' | jq -r --slurp '[ add ][]' > "$Id2LabelsNewJsonFile"
+sys jq -r --slurpfile existing "$Id2LabelsJsonFile" 'select(.|in($existing[]) | not)' "$AllCachedParentIds" | fwget -1 -v | tee /tmp/json | jq -r '{(._id): .label}' | jq -r --slurp '[ add ][]' > "$Id2LabelsNewJsonFile"
 
-jq  -r --slurpfile new "$Id2LabelsNewJsonFile"  '$new[] + .' "$Id2LabelsCommonJsonFile" > "$Id2LabelsUpdatedJsonFile"
+sys jq  -r --slurpfile new "$Id2LabelsNewJsonFile"  '$new[] + .' "$Id2LabelsCommonJsonFile" > "$Id2LabelsUpdatedJsonFile"
 
-if [ -n "$opt_u" ] && [ $(jq . "$Id2LabelsUpdatedJsonFile" | wc -l) -gt 1 ]
+if [ -n "$opt_u" ] && [ $(jq . "$Id2LabelsNewJsonFile" | wc -l) -gt 1 ] && [ $(jq . "$Id2LabelsUpdatedJsonFile" | wc -l) -gt 1 ]
 then
     sys mv "$Id2LabelsUpdatedJsonFile" "$Id2LabelsJsonFile"
 fi
