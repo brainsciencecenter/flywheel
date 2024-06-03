@@ -62,7 +62,7 @@ sys jq -r --slurpfile existing "$Id2LabelsJsonFile" 'select(.|in($existing[]) | 
 
 sys jq  -r --slurpfile new "$Id2LabelsNewJsonFile"  '$new[] + .' "$Id2LabelsCommonJsonFile" > "$Id2LabelsUpdatedJsonFile"
 
-if [ -n "$opt_u" ] && [ $(jq . "$Id2LabelsNewJsonFile" | wc -l) -gt 1 ] && [ $(jq . "$Id2LabelsUpdatedJsonFile" | wc -l) -gt 1 ]
+if [ -n "$opt_u" ] && [ $(jq . "$Id2LabelsUpdatedJsonFile" | wc -l) -gt 1 ]
 then
     sys mv "$Id2LabelsUpdatedJsonFile" "$Id2LabelsJsonFile"
 fi
