@@ -143,6 +143,7 @@ if __name__ == '__main__':
     ap.add_argument('-j', '--job', default=False,  action='store_true', help='get job by id')
     ap.add_argument('-L', '--log',  action='store_true', default=False, help='print the job log')
     ap.add_argument('-l', '--localtime',  action='store_true', default=False, help='print times in local timezone instead of UTC')
+    ap.add_argument('-N', '--number',  action='store', help='number of fwgets')
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-q', '--quiet',  action='store_true', default=False, help='quiet mode')
     ap.add_argument('-R', '--role', default=False,  action='store_true', help='get role, or all roles if none specified')
@@ -174,11 +175,17 @@ if __name__ == '__main__':
     if (len(args.id) > 0):
         IdGenerator = args.id
 
+    n=1
     for i in IdGenerator:
         id = i.rstrip('\n')
 
         if (args.verbose):
-            print("{}: '{}'".format(CmdName,id), file=sys.stderr)
+            if (args.number):
+                print("{}: {}/{} '{}'".format(CmdName,n,args.number,id), file=sys.stderr)
+            else:
+                print("{}: '{}'".format(CmdName,id), file=sys.stderr)
+
+        n = n + 1
 
         Output = {}
         Output = processId(args=args,id=id)
