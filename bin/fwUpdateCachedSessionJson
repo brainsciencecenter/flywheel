@@ -1,0 +1,100 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-c CachedAcquisitionJsonFile][-f][-m][-n][-u][-v][-p][-t TmpDir] {Group/Project}"
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
+while getopts c:fmnpt:uv arg
+do
+	case "$arg" in
+	     c|f|m|n|p|t|u|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+		
+shift $(("${OPTIND}" - 1))
+
+GroupProject="$1"
+
+Group=$(echo "$GroupProject" | cut -f 1 -d /)
+Project=$(echo "$GroupProject" | cut -f 2 -d /)
+if (echo "$GroupProject" | grep -q /) && [ -n "$Group" ] && [ -n "$Project" ]
+then
+    true
+else
+	echo "${CmdName} : Missing or malformed Group/Project '$GroupProject'" 1>&2
+	echo "${Syntax}" 1>&2
+	exit 1
+fi
+
+if [ -z "$opt_c" ]
+then
+    echo "${CmdName} : Missing required Cached Acquisition Json File" 1>&2
+    echo "$Syntax" 1>&2
+    exit 1
+fi
+
+DeleteTmpDir=False
+if [ -n "$opt_t" ]
+then
+    TmpDir="$opt_t"
+else
+    TmpDir=$(mktemp -d "${TMPDIR:-/tmp}/FwId2LabelsDir-XXXXXXX")
+    [ -z "$opt_m" ] && DeleteTmpDir=True
+fi
+
+[ -e "$TmpDir" ] || sys mkdir -p "$TmpDir"
+
+[ -n "$opt_p" ] && ProgressBar=-p
+
+[ -n "$opt_v" ] && opt_v=-v
+
+AcquisitionsCachedJsonFile="$opt_c"
+SessionId2TimestampsActiveJsonFile="${TmpDir}/SessionId2TimestampsActive.json"
+SessionId2TimestampsActiveCsvFile="${TmpDir}/SessionId2TimestampsActive.csv"
+SessionIdTimestampsCommonCsvFile="${TmpDir}/SessionsIdTimestampsCommon.csv"
+SessionIdsToGet="${TmpDir}/SessionIdsToGet"
+SessionsCachedJsonFile="${TmpDir}/SessionsCached.json"
+SessionsCommonJsonFile="${TmpDir}/SessionsCommon.json"
+SessionsNewJsonFile="${TmpDir}/SessionsNew.json"
+SessionsUpdatedJsonFile="${TmpDir}/SessionsUpdate.json"
+
+#
+# *** How to get the project id for collections?
+#
+ProjectId=$(jq -r '.parents.project' "$AcquisitionsCachedJsonFile" | sort -u)
+
+fwfind -S -1 group=cfn project="$ProjectId" | jq -r '{ (._id): .modified }' | jq -r --slurp ' . | add ' > "$SessionId2TimestampsActiveJsonFile"
+
+if [ -e "$SessionsCachedJsonFile" ]
+then
+    sys jq -r --slurpfile SessionId2Timestamps "$SessionId2TimestampsActiveJsonFile" 'select( (._id | in($SessionId2Timestamps[])) and (.modified == $SessionId2Timestamps[][._id]) )' "$SessionsCachedJsonFile" > "$SessionsCommonJsonFile"
+    sys jq -r '[ ._id, .modified ] | @csv' "$SessionsCommonJsonFile" | sort -u > "$SessionIdTimestampsCommonCsvFile"
+    sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
+    sys diff "$SessionIdTimestampsCommonCsvFile" "$SessionId2TimestampsActiveCsvFile" | grep '> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep . > "$SessionIdsToGet"
+else
+    sys cat /dev/null > "$SessionsCommonJsonFile"
+    sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
+    sys csvcut -c 1 "$SessionId2TimestampsActiveCsvFile" > "$SessionIdsToGet"
+fi
+
+NSessionIdsToGet=$(wc -l < "$SessionIdsToGet")
+if [ "$NSessionIdsToGet" -gt 0 ]
+then
+    sys fwget -v -N "$NSessionIdsToGet" -1 < "$SessionIdsToGet" > "$SessionsNewJsonFile"
+else
+    cat /dev/null > "$SessionsNewJsonFile"
+fi
+
+sys cat "$SessionsCommonJsonFile" "$SessionsNewJsonFile" > "$SessionsUpdatedJsonFile"
+
+if [ -n "$opt_u" ] && [ $(jq . "$SessionsUpdatedJsonFile" | wc -l) -gt 1 ]
+then
+    sys mv "$SessionsUpdatedJsonFile" "$SessionsCachedJsonFile"
+fi
+
