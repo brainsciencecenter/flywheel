@@ -1,17 +1,17 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-c CachedAcquisitionJsonFile][-f][-m][-n][-u][-v][-p][-t TmpDir] {Group/Project}"
+Syntax="${CmdName} [-c CachedAcquisitionJsonFile][-f][-m][-n][-u][-v][-t TmpDir] {Group/Project}"
 
 function sys {
     [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
     [ -n "$opt_n" ] || "$@"
 }
 
-while getopts c:fmnpt:uv arg
+while getopts c:fmnt:uv arg
 do
 	case "$arg" in
-	     c|f|m|n|p|t|u|v)
+	     c|f|m|n|t|u|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -50,11 +50,10 @@ fi
 
 [ -e "$TmpDir" ] || sys mkdir -p "$TmpDir"
 
-[ -n "$opt_p" ] && ProgressBar=-p
-
 [ -n "$opt_v" ] && opt_v=-v
 
 AcquisitionsCachedJsonFile="$opt_c"
+
 SessionId2TimestampsActiveJsonFile="${TmpDir}/SessionId2TimestampsActive.json"
 SessionId2TimestampsActiveCsvFile="${TmpDir}/SessionId2TimestampsActive.csv"
 SessionIdTimestampsCommonCsvFile="${TmpDir}/SessionsIdTimestampsCommon.csv"
@@ -79,6 +78,7 @@ then
     sys diff "$SessionIdTimestampsCommonCsvFile" "$SessionId2TimestampsActiveCsvFile" | grep '> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep . > "$SessionIdsToGet"
 else
     sys cat /dev/null > "$SessionsCommonJsonFile"
+    sys cat /dev/null > "$SessionIdTimestampsCommonCsvFile"
     sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
     sys csvcut -c 1 "$SessionId2TimestampsActiveCsvFile" > "$SessionIdsToGet"
 fi
