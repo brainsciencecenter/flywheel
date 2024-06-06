@@ -5,9 +5,9 @@ import "Id2Labels" as $Id2Labels;
 #import "Id2ProjectLabels" as $ProjectId2Labels;
 #import "Id2SubjectLabels" as $SubjectId2Labels;
 #import "Id2SessionLabels" as $SessionId2Labels;
-import "Id2SessionNotes" as $SessionId2Notes;
-import "Id2SessionTimeStamps" as $SessionId2Timestamps;
-import "Id2SessionTags" as $SessionId2Tags;
+import "SessionId2Notes" as $SessionId2Notes;
+import "SessionId2TimestampsActive" as $SessionId2TimestampsActive;
+import "SessionId2Tags" as $SessionId2Tags;
 
       .parents.group as $GroupLabel 
     | .parents.project as $ProjectId
@@ -18,7 +18,7 @@ import "Id2SessionTags" as $SessionId2Tags;
     | $Id2Labels::Id2Labels[][.parents.subject] as $SubjectLabel 
     | $Id2Labels::Id2Labels[][.parents.session] as $SessionLabel 
     | $SessionId2Notes::SessionId2Notes[][.parents.session] as $SessionNotes
-    | $SessionId2Timestamps::SessionId2Timestamps[][.parents.session] as $SessionTimeStamp
+    | $SessionId2TimestampsActive::SessionId2TimestampsActive[][.parents.session] as $SessionTimestamp
     | $SessionId2Tags::SessionId2Tags[][$SessionId] as $SessionTags
 
     | ._id as $AcquisitionId
@@ -32,7 +32,7 @@ import "Id2SessionTags" as $SessionId2Tags;
     | (if .info.PICSL_sMRI_biomarkers.DateTime then .info.PICSL_sMRI_biomarkers.DateTime else "None" end) as $AshsJobDateTime
 
 
-    | (if (.timestamp) then .timestamp else .created end) as $TimeStamp
+    | (if (.timestamp) then .timestamp else .created end) as $Timestamp
 
     # Only select the first .dicom.zip
     | .files
@@ -55,7 +55,7 @@ import "Id2SessionTags" as $SessionId2Tags;
 	    $SubjectLabel,
 	    $ProjectLabel,
 	    $SubjectLabel,
-	    (if $SessionTimeStamp then $SessionTimeStamp else "1900-01-01T00:00:00+00:00" end),
+	    (if $SessionTimestamp then $SessionTimestamp else "1900-01-01T00:00:00+00:00" end),
 	    "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data",
 	    $SessionId,
 	    $SessionLabel,
@@ -69,7 +69,7 @@ import "Id2SessionTags" as $SessionId2Tags;
 	    $Measurement,
 	    $Features,
 	    $AcquisitionId,
-	    ( if $TimeStamp then $TimeStamp else "1900-01-01T00:00:00+0000" end),
+	    ( if $Timestamp then $Timestamp else "1900-01-01T00:00:00+0000" end),
 	    .Modality,
 	    .InstitutionName,
 	    .StationName,

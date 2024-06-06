@@ -81,13 +81,11 @@ do
     sys time fwUpdateCachedSessionJsonFile $opt_n $opt_v -u -t "$gp" "$gp"
     sys time fwUpdateSessionNotes+Tags $opt_n $opt_v -t "$gp" "$gp"
 
-    exit
-
     # Ids are done from a possibly out of date cached acquisitions file
     sys time fwUpdateId2JsonFile $opt_n $opt_v -u -t "$gp" "$CachedAcquisitionsFile"
 
     # Ids are coming from the cached acquisitions, which we update now. 
-    sys time fwUpdateCachedAcquisitionJsonFile $opt_f $opt_n $opt_v -t "$gp" -c "$CachedAcquisitionsFile" "$gp"
+    sys time fwUpdateCachedAcquisitionJsonFile $opt_f $opt_n $opt_v -u -t "$gp" -c "$CachedAcquisitionsFile" "$gp"
 
     sys time syncAcqData2Indd $opt_f $opt_n $opt_v $opt_Q -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
 
