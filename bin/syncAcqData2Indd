@@ -56,6 +56,9 @@ FieldsCommon=(
 	'ICV'
 	'LeftHippocampusVolume'
 	'RightHippocampusVolume'
+	'AshsJobId'
+	'AshsJobUrl'
+	'AshsJobDateTime'
 )
 
 FieldsMisc=(
@@ -205,7 +208,7 @@ fi
 
 # *** update the json file
 # Do we have a cached json file?
-# update in place 
+
 #  syncAcquisitionJsonFiles -d "$TmpDir" -c "$CachedAcquisitionJsonFile" -pi "${Group}/${Project}" "$@"
 CmdArgs=()
 if [ -n "$opt_c" ]
@@ -216,11 +219,6 @@ fi
 if [ -n "$opt_v" ]
 then
 	CmdArgs+=( -v )
-fi
-
-if [ -n "$opt_f" -o -z "$opt_Q" ]
-then
-    sys syncAcquisitionJsonFiles -f "${CmdArgs[@]}" -d "$TmpDir" -pi "${Group}/${Project}" "$@"
 fi
 
 if [ -n "$opt_a" ]

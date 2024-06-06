@@ -77,10 +77,18 @@ do
 
     CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
 
-    sys time fwUpdateCachedSessionFiles $opt_n $opt_v -u -t "$gp" "$gp"
-    sys time fwUpdateId2JsonFile $opt_n $opt_v -u -t "$gp" "$CachedAcquisitionsFile"
-    sys time fwupdateCachedAcquisitionsJsonFile $opt_f $opt_n $opt_v -pi -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
+    # Sessions are done without any other input
+    sys time fwUpdateCachedSessionJsonFile $opt_n $opt_v -u -t "$gp" "$gp"
+    sys time fwUpdateSessionNotes+Tags $opt_n $opt_v -t "$gp" "$gp"
+
     exit
+
+    # Ids are done from a possibly out of date cached acquisitions file
+    sys time fwUpdateId2JsonFile $opt_n $opt_v -u -t "$gp" "$CachedAcquisitionsFile"
+
+    # Ids are coming from the cached acquisitions, which we update now. 
+    sys time fwUpdateCachedAcquisitionJsonFile $opt_f $opt_n $opt_v -t "$gp" -c "$CachedAcquisitionsFile" "$gp"
+
     sys time syncAcqData2Indd $opt_f $opt_n $opt_v $opt_Q -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
 
     ProjectId=$(getProjectId "$gp")

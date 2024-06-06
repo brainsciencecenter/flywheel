@@ -1,0 +1,57 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-f][-m][-n][-v][-p][-t TmpDir] {Group/Project}"
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
+while getopts fmnpt:v arg
+do
+	case "$arg" in
+	     f|m|n|p|t|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+		
+shift $(("${OPTIND}" - 1))
+
+GroupProject="$1"
+
+Group=$(echo "$GroupProject" | cut -f 1 -d /)
+Project=$(echo "$GroupProject" | cut -f 2 -d /)
+if (echo "$GroupProject" | grep -q /) && [ -n "$Group" ] && [ -n "$Project" ]
+then
+    true
+else
+	echo "${CmdName} : Missing or malformed Group/Project '$GroupProject'" 1>&2
+	echo "${Syntax}" 1>&2
+	exit 1
+fi
+
+DeleteTmpDir=False
+if [ -n "$opt_t" ]
+then
+    TmpDir="$opt_t"
+else
+    TmpDir=$(mktemp -d "${TMPDIR:-/tmp}/FwId2LabelsDir-XXXXXXX")
+fi
+
+[ -e "$TmpDir" ] || sys mkdir -p "$TmpDir"
+
+[ -n "$opt_v" ] && opt_v=-v
+
+SessionCachedJsonFile="${TmpDir}/SessionsCached.json"
+SessionId2NotesJsonFile="${TmpDir}/SessionId2Notes.json"
+SessionId2TagsJsonFile="${TmpDir}/SessionId2Tags.json"
+
+# SessionId2TimeStampsActive is created when updating the SessionsCachedJsonFile
+SessionId2TimestampsActiveJsonFile="${TmpDir}/SessionId2TimestampsActive.json"
+
+sys jq --slurp '[ .[]| { (._id): (if (.notes) then .notes | map(.text) | join("\n") else "" end) } ] | add' "$SessionCachedJsonFile" > "$SessionId2NotesJsonFile"
+sys jq --slurp '[.[] | { (._id): (.tags|join(":"))}] | add ' "$SessionCachedJsonFile" > "$SessionId2TagsJsonFile"
+
+
