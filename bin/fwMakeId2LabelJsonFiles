@@ -37,61 +37,26 @@ if [ -n "$opt_t" ]
 then
     TmpDir="$opt_t"
 else
-	TmpDir=$(mktemp -d "${TMPDIR:-/tmp}/FwId2LabelsDir-XXXXXXX")
-	[ -z "$opt_m" ] && DeleteTmpDir=True
+    TmpDir=$(mktemp -d "${TMPDIR:-/tmp}/FwId2LabelsDir-XXXXXXX")
+    [ -z "$opt_m" ] && DeleteTmpDir=True
 fi
+
 [ -e "$TmpDir" ] || sys mkdir -p "$TmpDir"
 
 [ -n "$opt_p" ] && ProgressBar=-p
 
-#
-# *** May want to reorder the searches
-# An item in a colleciton can be from multiple groups/projects, so may want to
-# collect a list of all the group/projects in the found sessions and look up those.
-#
+[ -n "$opt_v" ] && opt_v=-v
 
-Id2ProjectLabelsJson="${TmpDir}/Id2ProjectLabels.json"
-if [ -n "$opt_f" -o ! -e "$Id2ProjectLabelsJson" ]
-then
-    if [ "$Group" == "Collections" ]
-    then
-	sys fwget -1 -c all  | jq -r '[ .[]|{ (._id): .label} ] | add' > "$Id2ProjectLabelsJson"
-    else
-	sys fwlookup $ProgressBar "$Group" | jq -r '[ .[].projects[] | { (._id): .label } ] | add' > "$Id2ProjectLabelsJson"
-    fi
-fi
+CachedAcquisitionJsonFile="${Group}-${Project}-CachedFwAcquisitions.json"
+CachedSessionJsonFile="${TmpDir}/CachedSessions.json"
+SessionCommonJsonFile="${TmpDir}/Id2LabelsCommon.json"
+SessionNewJsonFile="${TmpDir}/Id2LabelsNew.json"
+SessionUpdatedJsonFile="${TmpDir}/Id2LabelsUpdated.json"
+AllCachedSessionIds="${TmpDir}/AllCachedSessionIds"
+ActiveSessionIdsJsonFile="${TmpDir}/ActiveSessionIds.json"
 
-ProjectId=$(jq -r 'to_entries[] | select(.value == "'"$Project"'") | .key' "$Id2ProjectLabelsJson")
+sys jq '.parents.session' "$CachedAcquisitionJsonFile" | sort -u > "$AllCachedSessionIds"
 
-Id2SubjectLabelsJson="${TmpDir}/Id2SubjectLabels.json"
-if [ -n "$opt_f" -o ! -e "$Id2SubjectLabelsJson" ]
-then
-    if [ "$Group" == "Collections" ]
-    then
-	sys fwget -1 -c "$ProjectId" | jq -r '.sessions[].subject._id' | sort -u | fwget -1 | jq --slurp -r '[ .[] | { (._id): .label } ] | add ' > "$Id2SubjectLabelsJson"
-    else
-	#fwsearch doesn't return the subject uid
-	sys fwfind -s group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SubjectLabelsJson"
-    fi
-fi
-
-Id2SessionLabelsJson="${TmpDir}/Id2SessionLabels.json"
-if [ -n "$opt_f" -o ! -e "$Id2SessionLabelsJson" ]
-then
-    if [ "$Group" == "Collections" ]
-    then
-	sys fwget -1 -c "$ProjectId" | jq -r '.sessions[]._id' | sort -u | fwget -1 | jq --slurp -r '[ .[] | { (._id): .label } ] | add ' > "$Id2SessionLabelsJson"
-    else
-	#fwsearch doesn't return the session uid
-	sys fwfind -S group="$Group" parents.project="${ProjectId}" | jq '[.[]| {(._id): .label}] | add ' > "$Id2SessionLabelsJson"
-    fi
-fi
-
-CachedSessionJsonFile="${TmpDir}/CachedSessionJsonFile.json"
-if [ -n "$opt_f" -o ! -e "$CachedSessionJsonFile" ]
-then
-    sys jq -r 'keys[]' "$Id2SessionLabelsJson" | fwget -1 | jq -r --slurp '.' > "$CachedSessionJsonFile"
-fi
 
 Id2SessionTimeStampsJson="${TmpDir}/Id2SessionTimeStamps.json"
 if [ -n "$opt_f" -o ! -e "$Id2SessionTimeStampsJson" ]

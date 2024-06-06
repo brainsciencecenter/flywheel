@@ -70,22 +70,25 @@ fi
 
 for gp in "${GroupProjects[@]}"
 do
+    [ -n "$opt_v" ] && echo "'$gp'"
 
-    echo "'$gp'"
-
-	[ -d "$gp" ] || mkdir -p "$gp"
+    [ -d "$gp" ] || mkdir -p "$gp"
 
 
-	CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
+    CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
 
-	sys time syncAcqData2Indd $opt_f $opt_n $opt_v $opt_Q -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
+    sys time fwUpdateCachedSessionFiles $opt_n $opt_v -u -t "$gp" "$gp"
+    sys time fwUpdateId2JsonFile $opt_n $opt_v -u -t "$gp" "$CachedAcquisitionsFile"
+    sys time fwupdateCachedAcquisitionsJsonFile $opt_f $opt_n $opt_v -pi -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
+    exit
+    sys time syncAcqData2Indd $opt_f $opt_n $opt_v $opt_Q -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
 
-	ProjectId=$(getProjectId "$gp")
-	InddRegEx=$(fwget -1 "$ProjectId" | jq -r '.info.labels.INDDRegEx|select(. != null)')
-	if [ -n "$InddRegEx" ]
-	then
-	    sed -E -i "${InddRegEx}" ${gp}/*.csv
-	fi
+    ProjectId=$(getProjectId "$gp")
+    InddRegEx=$(fwget -1 "$ProjectId" | jq -r '.info.labels.INDDRegEx|select(. != null)')
+    if [ -n "$InddRegEx" ]
+    then
+	sed -E -i "${InddRegEx}" ${gp}/*.csv
+    fi
 	
 done
 

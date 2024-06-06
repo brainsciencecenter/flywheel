@@ -38,6 +38,7 @@ Id2LabelsNewJsonFile="${TmpDir}/Id2LabelsNew.json"
 Id2LabelsUpdatedJsonFile="${TmpDir}/Id2LabelsUpdated.json"
 
 AllCachedParentIds="${TmpDir}/AllCachedParentIds"
+IdsToGet="${TmpDir}/Ids2Get"
 
 if [ -n "$1" ]
 then
@@ -52,13 +53,21 @@ fi
 # don't use jq -r here.
 # need the quotes around the parent ids to be valid json
 #
-sys jq '[(.parents | to_entries[] | select(.key == "group" | not) | .value)] + .collections | .[] ' "$CachedJsonFile" | sort -u > "$AllCachedParentIds"
+#sys jq '[(.parents | to_entries[] | select(.key == "group" | not) | .value)] + .collections | .[] ' "$CachedJsonFile" | sort -u | grep '^"' > "$AllCachedParentIds"
+sys jq '[(.parents | to_entries[]) | .value] + .collections | .[] ' "$CachedJsonFile" | sort -u | grep '^"' > "$AllCachedParentIds"
 
 [ -e "$Id2LabelsJsonFile" ] || sys echo '{}' > "$Id2LabelsJsonFile"
 
 sys jq -r --slurpfile existing "$Id2LabelsJsonFile" 'select(.|in($existing[])) | { (.): $existing[][.]}' "$AllCachedParentIds" | jq -r --slurp '[ . | add ][]' > "$Id2LabelsCommonJsonFile"
 
-sys jq -r --slurpfile existing "$Id2LabelsJsonFile" 'select(.|in($existing[]) | not)' "$AllCachedParentIds" | fwget -1 -v | tee /tmp/json | jq -r '{(._id): .label}' | jq -r --slurp '[ add ][]' > "$Id2LabelsNewJsonFile"
+sys jq -r --slurpfile existing "$Id2LabelsJsonFile" 'select(.|in($existing[]) | not)' "$AllCachedParentIds" > "$IdsToGet"
+
+#
+# *** Sometimes the cached parent ids are no longer valid, in which case, fwget will fail trying to get the metadata for the parent.
+# We will purge the acquisitionCached file by verifying all the parent and collection ids are in the Id2Labels.json file.
+#
+NIdsToGet=$(wc -l < "$IdsToGet")
+fwget -1 -N "$NIdsToGet" -v < "$IdsToGet" | jq -r '{(._id): .label}' | jq -r --slurp '[ add ][]' > "$Id2LabelsNewJsonFile"
 
 sys jq  -r --slurpfile new "$Id2LabelsNewJsonFile"  '$new[] + .' "$Id2LabelsCommonJsonFile" > "$Id2LabelsUpdatedJsonFile"
 

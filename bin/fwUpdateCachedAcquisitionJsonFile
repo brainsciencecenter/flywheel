@@ -1,0 +1,152 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+FwDir=$(dirname $(dirname "$0"))
+
+syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-n][-t TmpDir][-u][-v] [Group/Project [other fw.find option]...]"
+
+#
+# -c cached acquisition json file with details of the acquisitions
+# -t specify the temporary diretory to use.  Creates one with mktemp by default.  Implies -m
+# -n Print the list of AcquisitionIds to be retrieved but don't actually retrieve any 
+# -u Update the cached Acquisition json file
+# Group/Project The group/project path to retrieve acquisitions from -- ignored if -a is specified
+# fw.find options arguments to fw.find for refining search -- ignored if -a is specified
+#
+# The fw.find options can be used to constrain the search to specific projects, subjects, or sessions
+#
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
+function cleanup {
+    [ "$DeleteTmpDir" == True ] && sys rm -rf "$TmpDir"
+    return 0
+}
+
+
+while getopts c:nt:uv arg
+do
+	case "$arg" in
+	     c|n|t|u|v)
+		eval "opt_${arg}='${OPTARG:=-${arg}}'"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+if echo "$0" | grep -q /
+then
+    CmdPath=$(realpath "$0")
+else
+    CmdPath=$(which "$0")
+fi
+FwDir=$(dirname $(dirname "$CmdPath"))
+
+if [ -z "$1" ]
+then
+    if [ -z "$opt_a" ]
+    then
+	echo "${CmdName} : Missing Group/Project or AcquisitionIds list" 1>&2
+	echo "${syntax}" 1>&2
+	exit 1
+    fi
+else
+    GroupProject="$1"
+    Group=$(echo "$GroupProject" | cut -f 1 -d /)
+    Project=$(echo "$GroupProject" | cut -f 2 -d /)
+
+    shift
+
+    FindArgs="$@"
+fi
+
+if [ -n "$opt_l" ]
+then
+    TimeZone=-l
+fi
+
+if [ -n "$opt_t" ]
+then
+	TmpDir="$opt_t"
+else
+	TmpDir=$(mktemp -d "${TMPDIR:=/tmp}/${CmdName}-XXXXXX")
+fi
+
+if [ -n "$opt_m" ]
+then
+    DeleteTmpDir=False
+else
+    DeleteTmpDir=True
+fi
+
+if [ -n "$opt_c" ]
+then
+    AcquisitionsCachedJsonFile="$opt_c"
+    [ -e "$AcquisitionsCachedJsonFile" ] || touch "$AcquisitionsCachedJsonFile" 
+else
+    AcquisitionsCachedJsonFile="${TmpDir}/AcquisitionsCached.json"
+fi
+
+#
+# Pass -f through to fwMakeId2LabelJsonFiles.  Do not quote opt_f in this case so not having -f does not
+# pass an empty string on
+#
+#[ -n "$opt_f" ] && opt_f=-f
+#sys time fwMakeId2LabelJsonFiles $opt_f -t "$TmpDir" "${Group}/${Project}"
+
+AcquisitionSelectJq="${FwDir}/lib/AcquisitionSelect.jq"
+
+Id2Labels="${TmpDir}/Id2Labels.json"
+
+AcquisitionId2TimestampsActiveJsonFile="${TmpDir}/AcquisitionId2TimestampsActive.json"
+AcquisitionId2TimestampsActiveCsvFile="${TmpDir}/AcquisitionId2TimestampsActive.csv"
+AcquisitionIdTimestampsCommonCsvFile="${TmpDir}/AcquisitionsIdTimestampsCommon.csv"
+AcquisitionIdsToGet="${TmpDir}/AcquisitionIdsToGet"
+AcquisitionsCommonJsonFile="${TmpDir}/AcquisitionsCommon.json"
+AcquisitionsNewJsonFile="${TmpDir}/AcquisitionsNew.json"
+AcquisitionsUpdatedJsonFile="${TmpDir}/AcquisitionsUpdate.json"
+
+ProjectId=$(sys fwget -1 "${GroupProject}" | jq -r '._id')
+if [ -z "$ProjectId" ]
+then
+    "${CmdName} : Can not find "$GroupProject" in flywheel.  Bailing" 1>&2
+    exit 2
+fi
+
+sys time fwfind -a -1 group="$Group" project="$ProjectId" | jq -r '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | { (._id): $Timestamp }' | jq -r --slurp ' . | add ' > "$AcquisitionId2TimestampsActiveJsonFile"
+
+if [ -e "$AcquisitionsCachedJsonFile" ]
+then
+    #
+    # Verifying the id is in the time stamp makes sure the acquisition is still active.
+    # Also want to make sure that all the parent ids and collection ids are still valid.  If not, we'll want to keep the acquisition from being added to the AcquisitionsCommonJsonFile
+    #
+    sys jq -r --slurpfile AcquisitionId2Timestamps "$AcquisitionId2TimestampsActiveJsonFile" --slurpfile Ids2Labels "$Id2Labels" -f "$AcquisitionSelectJq" "$AcquisitionsCachedJsonFile" > "$AcquisitionsCommonJsonFile"
+    sys jq -r '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | [ ._id, $Timestamp ] | @csv' "$AcquisitionsCommonJsonFile" | sort -u > "$AcquisitionIdTimestampsCommonCsvFile"
+    sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$AcquisitionId2TimestampsActiveJsonFile" | sort -u > "$AcquisitionId2TimestampsActiveCsvFile"
+    sys diff "$AcquisitionIdTimestampsCommonCsvFile" "$AcquisitionId2TimestampsActiveCsvFile" | grep '> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep . > "$AcquisitionIdsToGet"
+else
+    sys cat /dev/null > "$AcquisitionsCommonJsonFile"
+    sys cat /dev/null > "$AcquisitionIdTimestampsCommonCsvFile"
+    sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$AcquisitionId2TimestampsActiveJsonFile" | sort -u > "$AcquisitionId2TimestampsActiveCsvFile"
+    sys csvcut -c 1 "$AcquisitionId2TimestampsActiveCsvFile" > "$AcquisitionIdsToGet"
+fi
+
+NAcquisitionIdsToGet=$(wc -l < "$AcquisitionIdsToGet")
+if [ "$NAcquisitionIdsToGet" -gt 0 ]
+then
+    sys fwget -v -N "$NAcquisitionIdsToGet" -1 < "$AcquisitionIdsToGet" > "$AcquisitionsNewJsonFile"
+else
+    cat /dev/null > "$AcquisitionsNewJsonFile"
+fi
+
+sys cat "$AcquisitionsCommonJsonFile" "$AcquisitionsNewJsonFile" > "$AcquisitionsUpdatedJsonFile"
+
+if [ -n "$opt_u" ] && [ $(jq . "$AcquisitionsUpdatedJsonFile" | wc -l) -gt 1 ]
+then
+    sys mv "$AcquisitionsUpdatedJsonFile" "$AcquisitionsCachedJsonFile"
+fi

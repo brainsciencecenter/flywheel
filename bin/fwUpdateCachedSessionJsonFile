@@ -1,17 +1,17 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-c CachedAcquisitionJsonFile][-f][-m][-n][-u][-v][-t TmpDir] {Group/Project}"
+Syntax="${CmdName} [-f][-m][-n][-u][-v][-t TmpDir] {Group/Project}"
 
 function sys {
     [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
     [ -n "$opt_n" ] || "$@"
 }
 
-while getopts c:fmnt:uv arg
+while getopts fmnt:uv arg
 do
 	case "$arg" in
-	     c|f|m|n|t|u|v)
+	     f|m|n|t|u|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -32,13 +32,6 @@ else
 	exit 1
 fi
 
-if [ -z "$opt_c" ]
-then
-    echo "${CmdName} : Missing required Cached Acquisition Json File" 1>&2
-    echo "$Syntax" 1>&2
-    exit 1
-fi
-
 DeleteTmpDir=False
 if [ -n "$opt_t" ]
 then
@@ -52,8 +45,6 @@ fi
 
 [ -n "$opt_v" ] && opt_v=-v
 
-AcquisitionsCachedJsonFile="$opt_c"
-
 SessionId2TimestampsActiveJsonFile="${TmpDir}/SessionId2TimestampsActive.json"
 SessionId2TimestampsActiveCsvFile="${TmpDir}/SessionId2TimestampsActive.csv"
 SessionIdTimestampsCommonCsvFile="${TmpDir}/SessionsIdTimestampsCommon.csv"
@@ -66,16 +57,21 @@ SessionsUpdatedJsonFile="${TmpDir}/SessionsUpdate.json"
 #
 # *** How to get the project id for collections?
 #
-ProjectId=$(jq -r '.parents.project' "$AcquisitionsCachedJsonFile" | sort -u)
+ProjectId=$(sys fwget -1 "${GroupProject}" | jq -r '._id')
+if [ -z "$ProjectId" ]
+then
+    "${CmdName} : Can not find "$GroupProject" in flywheel.  Bailing" 1>&2
+    exit 2
+fi
 
-fwfind -S -1 group=cfn project="$ProjectId" | jq -r '{ (._id): .modified }' | jq -r --slurp ' . | add ' > "$SessionId2TimestampsActiveJsonFile"
+sys fwfind -S -1 group="$Group" project="$ProjectId" | jq -r '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | { (._id): $Timestamp }' | jq -r --slurp ' . | add ' > "$SessionId2TimestampsActiveJsonFile"
 
 if [ -e "$SessionsCachedJsonFile" ]
 then
-    sys jq -r --slurpfile SessionId2Timestamps "$SessionId2TimestampsActiveJsonFile" 'select( (._id | in($SessionId2Timestamps[])) and (.modified == $SessionId2Timestamps[][._id]) )' "$SessionsCachedJsonFile" > "$SessionsCommonJsonFile"
-    sys jq -r '[ ._id, .modified ] | @csv' "$SessionsCommonJsonFile" | sort -u > "$SessionIdTimestampsCommonCsvFile"
+    sys jq -r --slurpfile SessionId2Timestamps "$SessionId2TimestampsActiveJsonFile" '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | select( (._id | in($SessionId2Timestamps[])) and ($Timestamp == $SessionId2Timestamps[][._id]) )' "$SessionsCachedJsonFile" > "$SessionsCommonJsonFile"
+    sys jq -r '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | [ ._id, $Timestamp ] | @csv' "$SessionsCommonJsonFile" | sort -u > "$SessionIdTimestampsCommonCsvFile"
     sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
-    sys diff "$SessionIdTimestampsCommonCsvFile" "$SessionId2TimestampsActiveCsvFile" | grep '> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep . > "$SessionIdsToGet"
+    sys diff "$SessionIdTimestampsCommonCsvFile" "$SessionId2TimestampsActiveCsvFile" | grep '> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep '.' > "$SessionIdsToGet"
 else
     sys cat /dev/null > "$SessionsCommonJsonFile"
     sys cat /dev/null > "$SessionIdTimestampsCommonCsvFile"

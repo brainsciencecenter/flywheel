@@ -1,9 +1,10 @@
 # 
 
+import "Id2Labels" as $Id2Labels;
 
-import "Id2ProjectLabels" as $ProjectId2Labels;
-import "Id2SubjectLabels" as $SubjectId2Labels;
-import "Id2SessionLabels" as $SessionId2Labels;
+#import "Id2ProjectLabels" as $ProjectId2Labels;
+#import "Id2SubjectLabels" as $SubjectId2Labels;
+#import "Id2SessionLabels" as $SessionId2Labels;
 import "Id2SessionNotes" as $SessionId2Notes;
 import "Id2SessionTimeStamps" as $SessionId2Timestamps;
 import "Id2SessionTags" as $SessionId2Tags;
@@ -13,9 +14,9 @@ import "Id2SessionTags" as $SessionId2Tags;
     | .parents.subject as $SubjectId
     | .parents.session as $SessionId
 
-    | $ProjectId2Labels::ProjectId2Labels[][.parents.project] as $ProjectLabel 
-    | $SubjectId2Labels::SubjectId2Labels[][.parents.subject] as $SubjectLabel 
-    | $SessionId2Labels::SessionId2Labels[][.parents.session] as $SessionLabel 
+    | $Id2Labels::Id2Labels[][.parents.project] as $ProjectLabel 
+    | $Id2Labels::Id2Labels[][.parents.subject] as $SubjectLabel 
+    | $Id2Labels::Id2Labels[][.parents.session] as $SessionLabel 
     | $SessionId2Notes::SessionId2Notes[][.parents.session] as $SessionNotes
     | $SessionId2Timestamps::SessionId2Timestamps[][.parents.session] as $SessionTimeStamp
     | $SessionId2Tags::SessionId2Tags[][$SessionId] as $SessionTags
@@ -26,6 +27,9 @@ import "Id2SessionTags" as $SessionId2Tags;
     | (if .info.PICSL_sMRI_biomarkers.ICV then .info.PICSL_sMRI_biomarkers.ICV else "None" end) as $Icv
     | (if .info.PICSL_sMRI_biomarkers.LeftHippocampusVolume then .info.PICSL_sMRI_biomarkers.LeftHippocampusVolume else "None" end) as $LeftHippocampusVolume
     | (if .info.PICSL_sMRI_biomarkers.RightHippocampusVolume then .info.PICSL_sMRI_biomarkers.RightHippocampusVolume else "None" end) as $RightHippocampusVolume
+    | (if .info.PICSL_sMRI_biomarkers.JobId then .info.PICSL_sMRI_biomarkers.JobId else "None" end) as $AshsJobId
+    | (if .info.PICSL_sMRI_biomarkers.JobUrl then .info.PICSL_sMRI_biomarkers.JobUrl else "None" end) as $AshsJobUrl
+    | (if .info.PICSL_sMRI_biomarkers.DateTime then .info.PICSL_sMRI_biomarkers.DateTime else "None" end) as $AshsJobDateTime
 
 
     | (if (.timestamp) then .timestamp else .created end) as $TimeStamp
@@ -79,6 +83,9 @@ import "Id2SessionTags" as $SessionId2Tags;
 	    $Icv,
 	    $LeftHippocampusVolume,
 	    $RightHippocampusVolume,
+	    $AshsJobId,
+	    $AshsJobUrl,
+	    $AshsJobDateTime,
 
 	    $AcquisitionFileName,
 
