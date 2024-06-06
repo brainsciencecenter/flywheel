@@ -24,6 +24,7 @@ function sys {
 
 
 function getProjectId {
+    local GroupProject="$1"
     local Group=$(echo "$1" | cut -f 1 -d /)
     local Project=$(echo "$1" | cut -f 2 -d /)
 
@@ -31,7 +32,7 @@ function getProjectId {
     then
 	ProjectId=$(fwget -1 -c all | jq -r '.[] | select(.label == "'"$Project"'") | ._id')
     else
-	ProjectId=$(fwfind -1 -p group="$Group" | jq -r 'select(.label=="'"$Project"'")|._id' )
+	ProjectId=$(fwget -1 "$GroupProject" | jq -r '._id')
     fi
 
     echo "$ProjectId"
