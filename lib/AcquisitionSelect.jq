@@ -1,5 +1,5 @@
     (
-        if (.timestamp) then
+        if (.timestamp > .modified) then
             .timestamp 
         else
             .modified 

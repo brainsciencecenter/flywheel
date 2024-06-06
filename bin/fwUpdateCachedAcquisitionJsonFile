@@ -126,7 +126,7 @@ then
     # Also want to make sure that all the parent ids and collection ids are still valid.  If not, we'll want to keep the acquisition from being added to the AcquisitionsCommonJsonFile
     #
     sys jq -r --slurpfile AcquisitionId2Timestamps "$AcquisitionId2TimestampsActiveJsonFile" --slurpfile Ids2Labels "$Id2Labels" -f "$AcquisitionSelectJq" "$AcquisitionsCachedJsonFile" > "$AcquisitionsCommonJsonFile"
-    sys jq -r '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | [ ._id, $Timestamp ] | @csv' "$AcquisitionsCommonJsonFile" | sort -u > "$AcquisitionIdTimestampsCommonCsvFile"
+    sys jq -r '(if (.timestamp > .modified) then .timestamp else .modified end) as $Timestamp | [ ._id, $Timestamp ] | @csv' "$AcquisitionsCommonJsonFile" | sort -u > "$AcquisitionIdTimestampsCommonCsvFile"
     sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$AcquisitionId2TimestampsActiveJsonFile" | sort -u > "$AcquisitionId2TimestampsActiveCsvFile"
     sys diff "$AcquisitionIdTimestampsCommonCsvFile" "$AcquisitionId2TimestampsActiveCsvFile" | grep '> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep . > "$AcquisitionIdsToGet"
 else
