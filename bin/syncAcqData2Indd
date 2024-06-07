@@ -56,9 +56,9 @@ FieldsCommon=(
 	'ICV'
 	'LeftHippocampusVolume'
 	'RightHippocampusVolume'
-	'AshsJobId'
-	'AshsJobUrl'
-	'AshsJobDateTime'
+#	'AshsJobId'
+#	'AshsJobUrl'
+#	'AshsJobDateTime'
 )
 
 FieldsMisc=(
