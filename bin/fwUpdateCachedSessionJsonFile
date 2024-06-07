@@ -64,7 +64,7 @@ then
     exit 2
 fi
 
-sys fwfind -S -1 group="$Group" project="$ProjectId" | jq -r '(if (.timestamp > .modified) then .timestamp else .modified end) as $Timestamp | { (._id): $Timestamp }' | jq -r --slurp ' . | add ' > "$SessionId2TimestampsActiveJsonFile"
+sys fwfind -S -1 group="$Group" project="$ProjectId" | jq -r '(if (.timestamp > .modified) then .timestamp else .modified end) as $Timestamp | { (._id): $Timestamp }' | jq -r --slurp 'select(.) | add ' > "$SessionId2TimestampsActiveJsonFile"
 
 if [ -e "$SessionsCachedJsonFile" ]
 then

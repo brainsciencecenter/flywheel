@@ -117,6 +117,9 @@ then
     exit 2
 fi
 
+#
+# *** may want to search for only new acquisitions...
+#
 sys time fwfind -a -1 group="$Group" project="$ProjectId" | jq -r '(if (.timestamp > .modified) then .timestamp else .modified end) as $Timestamp | { (._id): $Timestamp }' | jq -r --slurp ' . | add ' > "$AcquisitionId2TimestampsActiveJsonFile"
 
 if [ -e "$AcquisitionsCachedJsonFile" ]

@@ -81,7 +81,21 @@ if __name__ == '__main__':
     if (args.acquisitions):
         if (args.verbose):
             print("%s : fw.acquisitions.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
-        res = fw.acquisitions.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+
+        try:
+            i = (args.findargs.index("group=Collections"))
+
+            ProjectArg = list(filter(lambda arg: re.search("^project=", arg), args.findargs))
+
+            Acquisitions = []
+            m = re.search('^project=(?P<ProjectId>.*)$',ProjectArg[0])
+            if (m):
+                # *** Need to cope with collection label
+                Collection = fw.get_collection(m.group("ProjectId"))
+                res = Collection.acquisitions.iter_find()
+            
+        except (ValueError) as e:
+            res = fw.acquisitions.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
 
 #    if (args.analyses):
 #        print(fw.__dir__())
@@ -111,8 +125,20 @@ if __name__ == '__main__':
     if (args.sessions):
         if (args.verbose):
             print("%s : fw.sessions.find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+
         try:
-            res = fw.sessions.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+            try:
+                i = (args.findargs.index("group=Collections"))
+                ProjectArg = list(filter(lambda arg: re.search("^project=", arg), args.findargs))
+
+                m = re.search('^project=(?P<ProjectId>.*)$',ProjectArg[0])
+                if (m):
+                    Collection = fw.get_collection(m.group("ProjectId"))
+                    res = iter(Collection.sessions.iter_find())
+
+            except (ValueError) as e:
+                # group=Collections not in args.findargs
+                res = fw.sessions.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
         except (flywheel.rest.ApiException) as e:
             print("fw.sessions.find failed",file=sys.stderr)
             res = [ fw.lookup(*args.findargs) ]

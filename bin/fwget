@@ -36,7 +36,19 @@ def getContainer(args=None, id=None):
                 Reload = False
             else:
                 # fw.get_collections(id) seems to be the same as fw.get(id)
-                Container = fw.get_collection(id)
+                try:
+                    Container = fw.get_collection(id)
+                except (OSError,Exception) as e:
+                    m = re.search("^Collections/.*$", id)
+                    if (m):
+                        CollectionName = re.sub('^.*/','', id)
+
+                        AllCollections = fw.get_all_collections()
+                        AllCollectionsDict = fwgearutils.sloppyCopy(AllCollections)
+                        SelectedCollectionArray = pyjq.all('.[]|select(.label == \"{}\") | ._id'.format(CollectionName), AllCollectionsDict)
+                        CollectionId = SelectedCollectionArray[0]
+                        Container = fw.get_collection(CollectionId)
+
         elif (args.job):
             Container = fw.get_job(id)
         elif (args.user):
@@ -58,7 +70,18 @@ def getContainer(args=None, id=None):
             try:
                 Container = fw.get(id)
             except(flywheel.rest.ApiException) as e:
-                Container = fw.lookup(id)
+                    m = re.search("^Collections/.*$", id)
+                    # *** need better error handling here
+                    if (m):
+                        CollectionName = re.sub('^.*/','', id)
+
+                        AllCollections = fw.get_all_collections()
+                        AllCollectionsDict = fwgearutils.sloppyCopy(AllCollections)
+                        SelectedCollectionArray = pyjq.all('.[]|select(.label == \"{}\") | ._id'.format(CollectionName), AllCollectionsDict)
+                        CollectionId = SelectedCollectionArray[0]
+                        Container = fw.get_collection(CollectionId)
+                    else:
+                        Container = fw.lookup(id)
 
     except (OSError, Exception) as e:
         if (not args.quiet):
