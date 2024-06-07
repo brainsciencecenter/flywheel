@@ -84,9 +84,9 @@ import "SessionId2Tags" as $SessionId2Tags;
 	    $Icv,
 	    $LeftHippocampusVolume,
 	    $RightHippocampusVolume,
-	    $AshsJobId,
-	    $AshsJobUrl,
-	    $AshsJobDateTime,
+#	    $AshsJobId,
+#	    $AshsJobUrl,
+#	    $AshsJobDateTime,
 
 	    $AcquisitionFileName,
 
