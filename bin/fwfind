@@ -8,7 +8,9 @@
 # fwfind -1 -r -j  'parents.acquisition=65b2ad5ecaec881b39f9a7b7' | jq -r .gear_info.name will print the names of all gears
 
 #   which used 65b2ad5ecaec881b39f9a7b7 for the acquisition input. Don't know what happens if the gear uses two acquisistions
-
+# *** collection iter_find needs to purge the group= and project= find args before passing the rest of the list
+# into iter_find
+# *** Collection lookups should handle both group=Collections project=6630f58dccf3d2ee82ef6f59 and project=ABCD2_WashU_20240430
 #
 
 import argparse
