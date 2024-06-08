@@ -69,7 +69,7 @@ else
     done < <( fwfind -p 'info.labels.ExportToINDD=true' | jq -r '.[]|"\(.group)/\(.label)"' | sort )
 fi
 
-if [ -n "$opt_Q" ]
+if [ -z "$opt_Q" ]
 then
     
     for gp in "${GroupProjects[@]}"
