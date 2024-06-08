@@ -2,10 +2,6 @@
 
 import "Id2Labels" as $Id2Labels;
 
-#import "Id2ProjectLabels" as $ProjectId2Labels;
-#import "Id2SubjectLabels" as $SubjectId2Labels;
-#import "Id2SessionLabels" as $SessionId2Labels;
-import "Id2Labels" as $Id2Labels;
 import "SessionId2Notes" as $SessionId2Notes;
 import "SessionId2TimestampsActive" as $SessionId2TimestampsActive;
 import "SessionId2Tags" as $SessionId2Tags;
@@ -32,15 +28,11 @@ import "SessionId2Tags" as $SessionId2Tags;
     | (if .info.PICSL_sMRI_biomarkers.JobUrl then .info.PICSL_sMRI_biomarkers.JobUrl else "None" end) as $AshsJobUrl
     | (if .info.PICSL_sMRI_biomarkers.DateTime then .info.PICSL_sMRI_biomarkers.DateTime else "None" end) as $AshsJobDateTime
 
-
     | (if (.timestamp) then .timestamp else .created end) as $Timestamp
 
     # Only select the first .dicom.zip
-    | .files
-#    | [([.[] | select(.name|match("."+$DicomExt+"$"))]|first) , ([.[] | select(.name|match("."+$NiftiExt+"$"))]|first)]|map(select(.))
-    | [.[] | if $Bids then select(.info.BIDS) else select((.name | match("(("+$DicomExt+")|("+$NiftiExt+"))$"))) end] | first
-
-
+    | .files[]
+    | [ if $Bids then select(.info.BIDS) else select((.name | test("(("+$DicomExt+")|("+$NiftiExt+"))$"))) end] | first
 
       | .name as $AcquisitionFileName
       | .type as $AcquisitionType
@@ -49,119 +41,118 @@ import "SessionId2Tags" as $SessionId2Tags;
       | (if .classification.Measurement then .classification.Measurement|join(";") else "None" end) as $Measurement
       | (if .classification.Features then .classification.Features|join(";") else "" end) as $Features
       | .info
+	        | (if ($Bids) then "Bids" else "NoBids" end) as $BidsNoBids
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Acq else "" end) as $BidsAcq
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Ce else "" end) as $BidsCe
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Dir else "" end) as $BidsDir
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Trc else "" end) as $BidsTrc
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Echo else "" end) as $BidsEcho
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Filename else "" end) as $BidsFilename
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Folder else "" end) as $BidsFolder
+		| (if ($Bids and ((.BIDS | type) == "object")) then (if ((.BIDS.IntendedFor|type) == "array" ) then
+				        [(.BIDS.IntendedFor[][]|values)]|join(":")
+				    else
+					.BIDS.IntendedFor
+				    end) else "" end) as $BidsIntendedFor
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Mod else "" end) as $BidsMod
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Modality else "" end) as $BidsModality
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Path else "" end) as $BidsPath
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Rec else "" end) as $BidsRec
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Run else "" end) as $BidsRun
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Task else "" end) as $BidsTask
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.error_message else "" end) as $BidsErrorMessage
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Ignore else "" end) as $BidsIgnore
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.template else "" end) as $BidsTemplate
+		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.valid else "" end) as $BidsValid
+		| (if ( .RadiopharmaceuticalInformationSequence )
+	           then
+		            .RadiopharmaceuticalInformationSequence[].Radiopharmaceutical
+		   else
+		            "NONE"
+	           end) as $DicomRadiopharmaceutical
+		| (if ( .RadiopharmaceuticalInformationSequence )
+	           then
+		          .RadiopharmaceuticalInformationSequence[].RadionuclideCodeSequence[].CodeMeaning
+                   else
+		          "None"
+	           end) as $DicomRadionuclide
 
 	# Need to check file names for ^IND{1,2}_.*$, ^\d{6}$, ^\d{6}[._\-x]\d{2}$
 
-	| [ 
-	    $SubjectLabel,
-	    $ProjectLabel,
-	    $SubjectLabel,
-	    (if $SessionTimestamp then $SessionTimestamp else "1900-01-01T00:00:00+00:00" end),
-	    "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data",
-	    $SessionId,
-	    $SessionLabel,
-	    $SessionTags,
-	    (if $SessionNotes then ($SessionNotes | sub("\\n"; " "; "gm")) else "" end),
-	    $ProjectId,
-	    $AcquisitionLabel,
-	    $AcquisitionType,
-	    $AcquisitionSize,
-	    $Intent,
-	    $Measurement,
-	    $Features,
-	    $AcquisitionId,
-	    ( if $Timestamp then $Timestamp else "1900-01-01T00:00:00+0000" end),
-	    .Modality,
-	    .InstitutionName,
-	    .StationName,
-	    (if .BodyPartExamined then .BodyPartExamined else "None" end),
-	    .StudyInstanceUID,
-	    .SeriesInstanceUID,
-	    .SliceThickness,
-	    .PixelSpacing[0],
-	    .PixelSpacing[1],
+	| { 
+	      "INDDID": $SubjectLabel
+	    , "FlywheelProjectLabel": $ProjectLabel
+	    , "FlywheelSubjectId": $SubjectId
+	    , "FlywheelSessionTimestampUTC": (if $SessionTimestamp then $SessionTimestamp else "1900-01-01T00:00:00+00:00" end)
+	    , "FlywheelSessionURL": "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data"
+	    , "FlywheelSessionId": $SessionId
+	    , "FlywheelSessionLabel": $SessionLabel
+	    , "FlywheelSessionTags": $SessionTags
+	    , "FlywheelSessionNotes": (if $SessionNotes then ($SessionNotes | sub("\\n"; " "; "gm")) else "" end)
+	    , "FlywheelProjectId": $ProjectId
+	    , "FlywheelAcquisitionLabel": $AcquisitionLabel
+	    , "FlywheelAcquisitionType": $AcquisitionType
+	    , "FlywheelAcquisitionSize": $AcquisitionSize
+	    , "FlywheelAcquisitionIntent": $Intent
+	    , "FlywheelAcquisitionMeasurement": $Measurement
+	    , "FlywheelAcquisitionFeatures": $Features
+	    , "FlywheelAcquisitionId": $AcquisitionId
+	    , "AcquisitionTimestampUTC": ( if $Timestamp then $Timestamp else "1900-01-01T00:00:00+0000" end)
+	    , "DicomModality": .Modality
+	    , "DicomInstitutionName": .InstitutionName
+	    , "DicomStationName": .StationName
+	    , "DicomBodyPartExamined": (if .BodyPartExamined then .BodyPartExamined else "None" end)
+	    , "DicomStudyInstanceId": .StudyInstanceUID
+	    , "DicomSeriesInstanceId": .SeriesInstanceUID
+	    , "DicomSliceThickness": .SliceThickness
+	    , "DicomPixelSpacingX": .PixelSpacing[0]
+	    , "DicomPixelSpacingY": .PixelSpacing[1]
 
-	    $Icv,
-	    $LeftHippocampusVolume,
-	    $RightHippocampusVolume,
-#	    $AshsJobId,
-#	    $AshsJobUrl,
-#	    $AshsJobDateTime,
+	    , "ICV": $Icv
+	    , "LeftHippocampusVolume": $LeftHippocampusVolume
+	    , "RightHippocampusVolume": $RightHippocampusVolume
+	    , "AshsJobId": $AshsJobId
+	    , "AshsJobUrl": $AshsJobUrl
+	    , "AshsJobDateTime": $AshsJobDateTime
 
-	    $AcquisitionFileName,
+	    , "AcquisitionFileName": $AcquisitionFileName
 
 	    # BIDS
-	    (
-	      if ( .BIDS and ((.BIDS|type) == "object") ) then 
-	        "Bids",
-		.BIDS.Acq,
-		.BIDS.Ce,
-		.BIDS.Dir,
-		.BIDS.Trc,
-		.BIDS.Echo,
-		.BIDS.Filename,
-		.BIDS.Folder,
-		if ((.BIDS.IntendedFor|type) == "array" ) then
-		   [(.BIDS.IntendedFor[][]|values)]|join(":")
-		else
-		  .BIDS.IntendedFor
-		end,
-		.BIDS.Mod,
-		.BIDS.Modality,
-		.BIDS.Path,
-		.BIDS.Rec,
-		.BIDS.Run,
-		.BIDS.Task,
-		.BIDS.error_message,
-		.BIDS.Ignore,
-		.BIDS.template,
-		.BIDS.valid
-	      else
-	        "NoBid",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                ""
-              end
-            ),
+	    , "BidsNoBids": $BidsNoBids
+	    , "BidsAcq": $BidsAcq
+	    , "BidsCe": $BidsCe
+	    , "BidsDir": $BidsDir
+	    , "BidsTrc": $BidsTrc
+	    , "BidsEcho": $BidsEcho
+	    , "BidsFilename": $BidsFilename
+	    , "BidsFolder": $BidsFolder
+	    , "BidsIntendedFor": $BidsIntendedFor
+	    , "BidsMod": $BidsMod
+	    , "BidsModality": $BidsModality
+	    , "BidsPath": $BidsPath
+	    , "BidsRec": $BidsRec
+	    , "BidsRun": $BidsRun
+	    , "BidsTask": $BidsTask
+	    , "BidsErrorMessage": $BidsErrorMessage
+	    , "BidsIgnore": $BidsIgnore
+	    , "BidsTemplate": $BidsTemplate
+	    , "BidsValid": $BidsValid
 
 	    # MRI
-	    .MagneticFieldStrength,
-	    .SequenceName,
-	    .RepetitionTime,
-	    .EchoTime,
-	    .EchoNumbers,
-	    .FlipAngle,
-	    .NumberOfAverages,
-	    .AcquisitionNumber,
-	    .SpacingBetweenSlices,
+	    , "DicomMagneticFieldStrength": .MagneticFieldStrength
+	    , "DicomSequenceName": .SequenceName
+	    , "DicomRepetitionTime": .RepetitionTime
+	    , "DicomEchoTime": .EchoTime
+	    , "DicomEchoNumbers": .EchoNumbers
+	    , "DicomFlipAngle": .FlipAngle
+	    , "DicomNumberOfAverages": .NumberOfAverages
+	    , "DicomAcquisitionNumber": .AcquisitionNumber
+	    , "DicomSpacingBetweenSlices": .SpacingBetweenSlices
 
 	    # PET
-	    .ReconstructionMethod,
-	    .ScatterCorrectionMethod,
-	    .AttenuationCorrectionMethod,
-	    (if .RadiopharmaceuticalInformationSequence and .RadiopharmaceuticalInformationSequence.Radiopharmaceutical then .RadiopharmaceuticalInformationSequence.Radiopharmaceutical else "NONE" end),
-	    (if     .RadiopharmaceuticalInformationSequence 
-	    	and .RadiopharmaceuticalInformationSequence.RadionuclideCodeSequence 
-		and .RadiopharmaceuticalInformationSequence.RadionuclideCodeSequence.CodeMeaning
-	      then
-		    .RadiopharmaceuticalInformationSequence.RadionuclideCodeSequence.CodeMeaning
-              else
-		    "None"
-	      end)
-
-	  ] | @csv
+	    , "DicomReconstructionMethod": .ReconstructionMethod
+	    , "DicomScatterCorrectionMethod": .ScatterCorrectionMethod
+	    , "DicomAttenuationCorrectionMethod": .AttenuationCorrectionMethod
+	    , "DicomRadiopharmaceutical": $DicomRadiopharmaceutical
+	    , "DicomRadionuclide": $DicomRadionuclide
+	  }

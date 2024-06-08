@@ -69,35 +69,40 @@ else
     done < <( fwfind -p 'info.labels.ExportToINDD=true' | jq -r '.[]|"\(.group)/\(.label)"' | sort )
 fi
 
-for gp in "${GroupProjects[@]}"
-do
-    [ -n "$opt_v" ] && echo "'$gp'"
+if [ -n "$opt_Q" ]
+then
+    
+    for gp in "${GroupProjects[@]}"
+    do
+	[ -n "$opt_v" ] && echo "'$gp'"
 
-    [ -d "$gp" ] || mkdir -p "$gp"
+	[ -d "$gp" ] || mkdir -p "$gp"
 
 
-    CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
+	CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
 
-    # Sessions are done without any other input
-    sys time fwUpdateCachedSessionJsonFile $opt_n $opt_v -u -t "$gp" "$gp"
-    sys time fwUpdateSessionNotes+Tags $opt_n $opt_v -t "$gp" "$gp"
+	# Sessions are done without any other input
+	sys time fwUpdateCachedSessionJsonFile $opt_n $opt_v -u -t "$gp" "$gp"
+	sys time fwUpdateSessionNotes+Tags $opt_n $opt_v -t "$gp" "$gp"
 
-    # Ids are done from a possibly out of date cached acquisitions file
-    sys time fwUpdateId2JsonFile $opt_n $opt_v -u -t "$gp" "$CachedAcquisitionsFile"
+	# Ids are done from a possibly out of date cached acquisitions file
+	sys time fwUpdateId2JsonFile $opt_n $opt_v -u -t "$gp" "$CachedAcquisitionsFile"
 
-    # Ids are coming from the cached acquisitions, which we update now. 
-    sys time fwUpdateCachedAcquisitionJsonFile $opt_f $opt_n $opt_v -u -t "$gp" -c "$CachedAcquisitionsFile" "$gp"
+	# Ids are coming from the cached acquisitions, which we update now. 
+	sys time fwUpdateCachedAcquisitionJsonFile $opt_f $opt_n $opt_v -u -t "$gp" -c "$CachedAcquisitionsFile" "$gp"
 
-    sys time syncAcqData2Indd $opt_f $opt_n $opt_v $opt_Q -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
+	sys time syncAcqData2Indd $opt_f $opt_n $opt_v -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
 
-    ProjectId=$(getProjectId "$gp")
-    InddRegEx=$(fwget -1 "$ProjectId" | jq -r '.info.labels.INDDRegEx|select(. != null)')
-    if [ -n "$InddRegEx" ]
-    then
-	sed -E -i "${InddRegEx}" ${gp}/*.csv
-    fi
-	
-done
+	ProjectId=$(getProjectId "$gp")
+	InddRegEx=$(fwget -1 "$ProjectId" | jq -r '.info.labels.INDDRegEx|select(. != null)')
+	if [ -n "$InddRegEx" ]
+	then
+	    sed -E -i "${InddRegEx}" ${gp}/*.csv
+	fi
+
+	done
+
+fi
 
 #
 # Flywheel groups have to begin with lower case letter.  Collections is upper case

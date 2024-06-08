@@ -28,28 +28,28 @@ FwAcqData2InddJqFile="$FwDir/lib/Fw2InddScanInfo.jq"
 FieldsCommon=(
         'INDDID'
 	'FlywheelProjectLabel'
-        'FlywheelSubjectID'
+        'FlywheelSubjectId'
         'FlywheelSessionTimestampUTC'
         'FlywheelSessionURL'
-        'FlywheelSessionInternalID'
+        'FlywheelSessionId'
 	'FlywheelSessionLabel'
 	'FlywheelSessionTags'
 	'FlywheelSessionNotes'
-        'FlywheelProjectInternalID'
+        'FlywheelProjectId'
         'FlywheelAcquisitionLabel'
 	'FlywheelAcquisitionType'
 	'FlywheelAcquisitionSize'
         'FlywheelAcquisitionIntent'
         'FlywheelAcquisitionMeasurement'
         'FlywheelAcquisitionFeatures'
-        'FlywheelAcquisitionInternalID'
+        'FlywheelAcquisitionId'
         'AcquisitionTimestampUTC'
         'DicomModality'
         'DicomInstitutionName'
         'DicomStationName'
         'DicomBodyPartExamined'
-        'DicomStudyInstanceUID'
-        'DicomSeriesInstanceUID'
+        'DicomStudyInstanceId'
+        'DicomSeriesInstanceId'
         'DicomSliceThickness'
         'DicomPixelSpacingX'
         'DicomPixelSpacingY'
@@ -81,7 +81,7 @@ FieldsBidsUnique=(
 	'BidsRec'
 	'BidsRun'
 	'BidsTask'
-	'BidsError_message'
+	'BidsErrorMessage'
 	'BidsIgnore'
 	'BidsTemplate'
 	'BidsValid'
@@ -122,7 +122,7 @@ FieldsPetUnique=(
 FieldsAll=$( echo "${FieldsCommon[@]}" "${FieldsMisc[@]}" "${FieldsBidsUnique[@]}" "${FieldsMriUnique[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
 FieldsMri=$( echo "${FieldsCommon[@]}" "${FieldsMriUnique[@]}" | sed 's/ /,/g' )
 FieldsPet=$( echo "${FieldsCommon[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
-FieldsBids=$( echo "FlywheelAcquisitionInternalID ${FieldsBidsUnique[@]}" | sed 's/ /,/g' )
+FieldsBids=$( echo "FlywheelAcquisitionId ${FieldsBidsUnique[@]}" | sed 's/ /,/g' )
 
 DicomExt=dicom.zip
 NiftiExt=nii.gz
@@ -143,7 +143,7 @@ NiftiExt=nii.gz
 #   syncAcqData2Indd -c Nacc-ScAcquisitions.json dwolklab/NACC-SC
 # to generate a complete list of all acquisition ids in dwolklab/NACC-SC, then compare the acquisition id list
 # to the one in the cached AcquisitionJsonFile and retrieve any missing acquisitions
-# g
+# 
 # This can be sped up by specifying additional restrictions on the acquisition search
 #   syncAcqData2Indd -c Nacc-ScAcquisitions.json dwolklab/NACC-SC 'created>2021-05-01' 'created<2021-06-01'
 # to constrain the list of new acquisitions to May, 2021
@@ -206,10 +206,6 @@ else
     FindArgs="$@"
 fi
 
-# *** update the json file
-# Do we have a cached json file?
-
-#  syncAcquisitionJsonFiles -d "$TmpDir" -c "$CachedAcquisitionJsonFile" -pi "${Group}/${Project}" "$@"
 CmdArgs=()
 if [ -n "$opt_c" ]
 then
@@ -223,12 +219,24 @@ fi
 
 if [ -n "$opt_a" ]
 then
-   echo "$FieldsAll"
    sys fwget -1 "$opt_a" | sys jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt"
 else
-   rm -f "${TmpDir}/${Project}_MRI.csv" "${TmpDir}/${Project}_PET.csv" "${TmpDir}/${Project}_Bids.csv"
-   jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids false --arg DicomExt "$DicomExt" --arg NiftiExt "$NifitExt" "$opt_c" | tee "${TmpDir}/${Project}.csv" | tee >((echo "$FieldsAll" ; grep ',"NoBid",' | grep ',"MR",')  | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") >((echo "$FieldsAll" ; grep ',"NoBid",' | grep ',"PT",') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv") > /dev/null
-   jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NifitExt" "$opt_c" | tee >((echo "$FieldsAll" ; grep ',"Bids",' | sort -u ) | csvcut -c "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv")  > /dev/null
+    rm -f "${TmpDir}/${Project}_MRI.csv" "${TmpDir}/${Project}_PET.csv" "${TmpDir}/${Project}_Bids.csv"
+    # Headers and next lines
+
+    (
+	# Just grab the keys - csvcut at the end cleans up the headers
+	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids false --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r -n 'first( inputs | keys | @csv)' | csvcut 
+	# format the dict for just values into csv 
+	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids false --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv'
+    ) > "${TmpDir}/${Project}.csv"
+    cat "${TmpDir}/${Project}.csv" | tee \
+          >((echo "$FieldsAll" ; csvcut -c "$FieldsAll" | grep ',NoBids,' | grep ',MR,') | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") \
+          >((echo "$FieldsAll" ; csvcut -c "$Fieldsall" | grep ',NoBids,' | grep ',PT,') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv") > /dev/null
+    (
+	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r -n 'first( inputs | keys | @csv)' | csvcut
+        jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv'
+    ) | (echo "$FieldsAll" ; csvcut -c "$FieldsAll" | grep ',Bids,' | sort -u ) | csvcut -c "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv"
 fi
 
 if [ "$DeleteTmpDir" == True ]
