@@ -230,9 +230,10 @@ else
 	# format the dict for just values into csv 
 	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids false --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv'
     ) > "${TmpDir}/${Project}.csv"
-    cat "${TmpDir}/${Project}.csv" | tee \
-          >((echo "$FieldsAll" ; csvcut -c "$FieldsAll" | grep ',NoBids,' | grep ',MR,') | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv") \
-          >((echo "$FieldsAll" ; csvcut -c "$Fieldsall" | grep ',NoBids,' | grep ',PT,') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv") > /dev/null
+
+    (echo "$FieldsAll" ; csvcut -c "$FieldsAll" "${TmpDir}/${Project}.csv" | grep ',NoBids,' | grep ',MR,') | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv"
+    (echo "$FieldsAll" ; csvcut -c "$FieldsAll" "${TmpDir}/${Project}.csv" | grep ',NoBids,' | grep ',PT,') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv"
+
     (
 	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r -n 'first( inputs | keys | @csv)' | csvcut
         jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv'
