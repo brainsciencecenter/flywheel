@@ -64,95 +64,108 @@ import "SessionId2Tags" as $SessionId2Tags;
 		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Ignore else "" end) as $BidsIgnore
 		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.template else "" end) as $BidsTemplate
 		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.valid else "" end) as $BidsValid
+
 		| (if ( .RadiopharmaceuticalInformationSequence )
 	           then
+			if ((.RadiopharmaceuticalInformationSequence | type) == "array")
+			then
 		            .RadiopharmaceuticalInformationSequence[].Radiopharmaceutical
+			else
+			    .RadiopharmaceuticalInformationSequence.Radiopharmaceutical
+			end
 		   else
 		            "NONE"
 	           end) as $DicomRadiopharmaceutical
+
 		| (if ( .RadiopharmaceuticalInformationSequence )
 	           then
-		          .RadiopharmaceuticalInformationSequence[].RadionuclideCodeSequence[].CodeMeaning
-                   else
+			if ((.RadiopharmaceuticalInformationSequence) == "array")
+			then
+			     .RadiopharmaceuticalInformationSequence[].RadionuclideCodeSequence[].CodeMeaning
+			else
+		             .RadiopharmaceuticalInformationSequence.RadionuclideCodeSequence.CodeMeaning 
+			end
+                  else
 		          "None"
 	           end) as $DicomRadionuclide
-
-	# Need to check file names for ^IND{1,2}_.*$, ^\d{6}$, ^\d{6}[._\-x]\d{2}$
-
-	| { 
-	      "INDDID": $SubjectLabel
-	    , "FlywheelProjectLabel": $ProjectLabel
-	    , "FlywheelSubjectId": $SubjectId
-	    , "FlywheelSessionTimestampUTC": (if $SessionTimestamp then $SessionTimestamp else "1900-01-01T00:00:00+00:00" end)
-	    , "FlywheelSessionURL": "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data"
-	    , "FlywheelSessionId": $SessionId
-	    , "FlywheelSessionLabel": $SessionLabel
-	    , "FlywheelSessionTags": $SessionTags
-	    , "FlywheelSessionNotes": (if $SessionNotes then ($SessionNotes | sub("\\n"; " "; "gm")) else "" end)
-	    , "FlywheelProjectId": $ProjectId
-	    , "FlywheelAcquisitionLabel": $AcquisitionLabel
-	    , "FlywheelAcquisitionType": $AcquisitionType
-	    , "FlywheelAcquisitionSize": $AcquisitionSize
-	    , "FlywheelAcquisitionIntent": $Intent
-	    , "FlywheelAcquisitionMeasurement": $Measurement
-	    , "FlywheelAcquisitionFeatures": $Features
-	    , "FlywheelAcquisitionId": $AcquisitionId
-	    , "AcquisitionTimestampUTC": ( if $Timestamp then $Timestamp else "1900-01-01T00:00:00+0000" end)
-	    , "DicomModality": .Modality
-	    , "DicomInstitutionName": .InstitutionName
-	    , "DicomStationName": .StationName
-	    , "DicomBodyPartExamined": (if .BodyPartExamined then .BodyPartExamined else "None" end)
-	    , "DicomStudyInstanceId": .StudyInstanceUID
-	    , "DicomSeriesInstanceId": .SeriesInstanceUID
-	    , "DicomSliceThickness": .SliceThickness
-	    , "DicomPixelSpacingX": .PixelSpacing[0]
-	    , "DicomPixelSpacingY": .PixelSpacing[1]
-
-	    , "ICV": $Icv
-	    , "LeftHippocampusVolume": $LeftHippocampusVolume
-	    , "RightHippocampusVolume": $RightHippocampusVolume
-	    , "AshsJobId": $AshsJobId
-	    , "AshsJobUrl": $AshsJobUrl
-	    , "AshsJobDateTime": $AshsJobDateTime
-
-	    , "AcquisitionFileName": $AcquisitionFileName
-
-	    # BIDS
-	    , "BidsNoBids": $BidsNoBids
-	    , "BidsAcq": $BidsAcq
-	    , "BidsCe": $BidsCe
-	    , "BidsDir": $BidsDir
-	    , "BidsTrc": $BidsTrc
-	    , "BidsEcho": $BidsEcho
-	    , "BidsFilename": $BidsFilename
-	    , "BidsFolder": $BidsFolder
-	    , "BidsIntendedFor": $BidsIntendedFor
-	    , "BidsMod": $BidsMod
-	    , "BidsModality": $BidsModality
-	    , "BidsPath": $BidsPath
-	    , "BidsRec": $BidsRec
-	    , "BidsRun": $BidsRun
-	    , "BidsTask": $BidsTask
-	    , "BidsErrorMessage": $BidsErrorMessage
-	    , "BidsIgnore": $BidsIgnore
-	    , "BidsTemplate": $BidsTemplate
-	    , "BidsValid": $BidsValid
-
-	    # MRI
-	    , "DicomMagneticFieldStrength": .MagneticFieldStrength
-	    , "DicomSequenceName": .SequenceName
-	    , "DicomRepetitionTime": .RepetitionTime
-	    , "DicomEchoTime": .EchoTime
-	    , "DicomEchoNumbers": .EchoNumbers
-	    , "DicomFlipAngle": .FlipAngle
-	    , "DicomNumberOfAverages": .NumberOfAverages
-	    , "DicomAcquisitionNumber": .AcquisitionNumber
-	    , "DicomSpacingBetweenSlices": .SpacingBetweenSlices
-
-	    # PET
-	    , "DicomReconstructionMethod": .ReconstructionMethod
-	    , "DicomScatterCorrectionMethod": .ScatterCorrectionMethod
-	    , "DicomAttenuationCorrectionMethod": .AttenuationCorrectionMethod
-	    , "DicomRadiopharmaceutical": $DicomRadiopharmaceutical
-	    , "DicomRadionuclide": $DicomRadionuclide
-	  }
+| .
+#	# Need to check file names for ^IND{1,2}_.*$, ^\d{6}$, ^\d{6}[._\-x]\d{2}$
+#
+#	| { 
+#	      "INDDID": $SubjectLabel
+#	    , "FlywheelProjectLabel": $ProjectLabel
+#	    , "FlywheelSubjectId": $SubjectId
+#	    , "FlywheelSessionTimestampUTC": (if $SessionTimestamp then $SessionTimestamp else "1900-01-01T00:00:00+00:00" end)
+#	    , "FlywheelSessionURL": "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data"
+#	    , "FlywheelSessionId": $SessionId
+#	    , "FlywheelSessionLabel": $SessionLabel
+#	    , "FlywheelSessionTags": $SessionTags
+#	    , "FlywheelSessionNotes": (if $SessionNotes then ($SessionNotes | sub("\\n"; " "; "gm")) else "" end)
+#	    , "FlywheelProjectId": $ProjectId
+#	    , "FlywheelAcquisitionLabel": $AcquisitionLabel
+#	    , "FlywheelAcquisitionType": $AcquisitionType
+#	    , "FlywheelAcquisitionSize": $AcquisitionSize
+#	    , "FlywheelAcquisitionIntent": $Intent
+#	    , "FlywheelAcquisitionMeasurement": $Measurement
+#	    , "FlywheelAcquisitionFeatures": $Features
+#	    , "FlywheelAcquisitionId": $AcquisitionId
+#	    , "AcquisitionTimestampUTC": ( if $Timestamp then $Timestamp else "1900-01-01T00:00:00+0000" end)
+#	    , "DicomModality": .Modality
+#	    , "DicomInstitutionName": .InstitutionName
+#	    , "DicomStationName": .StationName
+#	    , "DicomBodyPartExamined": (if .BodyPartExamined then .BodyPartExamined else "None" end)
+#	    , "DicomStudyInstanceId": .StudyInstanceUID
+#	    , "DicomSeriesInstanceId": .SeriesInstanceUID
+#	    , "DicomSliceThickness": .SliceThickness
+#	    , "DicomPixelSpacingX": .PixelSpacing[0]
+#	    , "DicomPixelSpacingY": .PixelSpacing[1]
+#
+#	    , "ICV": $Icv
+#	    , "LeftHippocampusVolume": $LeftHippocampusVolume
+#	    , "RightHippocampusVolume": $RightHippocampusVolume
+#	    , "AshsJobId": $AshsJobId
+#	    , "AshsJobUrl": $AshsJobUrl
+#	    , "AshsJobDateTime": $AshsJobDateTime
+#
+#	    , "AcquisitionFileName": $AcquisitionFileName
+#
+#	    # BIDS
+#	    , "BidsNoBids": $BidsNoBids
+#	    , "BidsAcq": $BidsAcq
+#	    , "BidsCe": $BidsCe
+#	    , "BidsDir": $BidsDir
+#	    , "BidsTrc": $BidsTrc
+#	    , "BidsEcho": $BidsEcho
+#	    , "BidsFilename": $BidsFilename
+#	    , "BidsFolder": $BidsFolder
+#	    , "BidsIntendedFor": $BidsIntendedFor
+#	    , "BidsMod": $BidsMod
+#	    , "BidsModality": $BidsModality
+#	    , "BidsPath": $BidsPath
+#	    , "BidsRec": $BidsRec
+#	    , "BidsRun": $BidsRun
+#	    , "BidsTask": $BidsTask
+#	    , "BidsErrorMessage": $BidsErrorMessage
+#	    , "BidsIgnore": $BidsIgnore
+#	    , "BidsTemplate": $BidsTemplate
+#	    , "BidsValid": $BidsValid
+#
+#	    # MRI
+#	    , "DicomMagneticFieldStrength": .MagneticFieldStrength
+#	    , "DicomSequenceName": .SequenceName
+#	    , "DicomRepetitionTime": .RepetitionTime
+#	    , "DicomEchoTime": .EchoTime
+#	    , "DicomEchoNumbers": .EchoNumbers
+#	    , "DicomFlipAngle": .FlipAngle
+#	    , "DicomNumberOfAverages": .NumberOfAverages
+#	    , "DicomAcquisitionNumber": .AcquisitionNumber
+#	    , "DicomSpacingBetweenSlices": .SpacingBetweenSlices
+#
+#	    # PET
+#	    , "DicomReconstructionMethod": .ReconstructionMethod
+#	    , "DicomScatterCorrectionMethod": .ScatterCorrectionMethod
+#	    , "DicomAttenuationCorrectionMethod": .AttenuationCorrectionMethod
+#	    , "DicomRadiopharmaceutical": $DicomRadiopharmaceutical
+#	    , "DicomRadionuclide": $DicomRadionuclide
+#	  }
+#
