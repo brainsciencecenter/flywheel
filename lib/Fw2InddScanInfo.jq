@@ -41,29 +41,53 @@ import "SessionId2Tags" as $SessionId2Tags;
       | (if .classification.Measurement then .classification.Measurement|join(";") else "None" end) as $Measurement
       | (if .classification.Features then .classification.Features|join(";") else "" end) as $Features
       | .info
-	        | (if ($Bids) then "Bids" else "NoBids" end) as $BidsNoBids
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Acq else "" end) as $BidsAcq
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Ce else "" end) as $BidsCe
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Dir else "" end) as $BidsDir
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Trc else "" end) as $BidsTrc
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Echo else "" end) as $BidsEcho
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Filename else "" end) as $BidsFilename
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Folder else "" end) as $BidsFolder
-		| (if ($Bids and ((.BIDS | type) == "object")) then (if ((.BIDS.IntendedFor|type) == "array" ) then
+	        | (if ((.BIDS | type) == "object") then "Bids" else "NoBids" end) as $BidsNoBids
+		| (if ((.BIDS | type) == "object") then .BIDS.Acq else "" end) as $BidsAcq
+		| (if ((.BIDS | type) == "object") then .BIDS.Ce else "" end) as $BidsCe
+		| (if ((.BIDS | type) == "object") then .BIDS.Dir else "" end) as $BidsDir
+		| (if ((.BIDS | type) == "object") then .BIDS.Trc else "" end) as $BidsTrc
+		| (if ((.BIDS | type) == "object") then .BIDS.Echo else "" end) as $BidsEcho
+		| (if ((.BIDS | type) == "object") then .BIDS.Filename else "" end) as $BidsFilename
+		| (if ((.BIDS | type) == "object") then .BIDS.Folder else "" end) as $BidsFolder
+		| (if ((.BIDS | type) == "object") then (if ((.BIDS.IntendedFor|type) == "array" ) then
 				        [(.BIDS.IntendedFor[][]|values)]|join(":")
 				    else
 					.BIDS.IntendedFor
 				    end) else "" end) as $BidsIntendedFor
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Mod else "" end) as $BidsMod
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Modality else "" end) as $BidsModality
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Path else "" end) as $BidsPath
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Rec else "" end) as $BidsRec
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Run else "" end) as $BidsRun
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Task else "" end) as $BidsTask
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.error_message else "" end) as $BidsErrorMessage
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Ignore else "" end) as $BidsIgnore
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.template else "" end) as $BidsTemplate
-		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.valid else "" end) as $BidsValid
+		| (if ((.BIDS | type) == "object") then .BIDS.Mod else "" end) as $BidsMod
+		| (if ((.BIDS | type) == "object") then .BIDS.Modality else "" end) as $BidsModality
+		| (if ((.BIDS | type) == "object") then .BIDS.Path else "" end) as $BidsPath
+		| (if ((.BIDS | type) == "object") then .BIDS.Rec else "" end) as $BidsRec
+		| (if ((.BIDS | type) == "object") then .BIDS.Run else "" end) as $BidsRun
+		| (if ((.BIDS | type) == "object") then .BIDS.Task else "" end) as $BidsTask
+		| (if ((.BIDS | type) == "object") then .BIDS.error_message else "" end) as $BidsErrorMessage
+		| (if ((.BIDS | type) == "object") then .BIDS.Ignore else "" end) as $BidsIgnore
+		| (if ((.BIDS | type) == "object") then .BIDS.template else "" end) as $BidsTemplate
+		| (if ((.BIDS | type) == "object") then .BIDS.valid else "" end) as $BidsValid
+
+#	        | (if ($Bids) then "Bids" else "NoBids" end) as $BidsNoBids
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Acq else "" end) as $BidsAcq
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Ce else "" end) as $BidsCe
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Dir else "" end) as $BidsDir
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Trc else "" end) as $BidsTrc
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Echo else "" end) as $BidsEcho
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Filename else "" end) as $BidsFilename
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Folder else "" end) as $BidsFolder
+#		| (if ($Bids and ((.BIDS | type) == "object")) then (if ((.BIDS.IntendedFor|type) == "array" ) then
+#				        [(.BIDS.IntendedFor[][]|values)]|join(":")
+#				    else
+#					.BIDS.IntendedFor
+#				    end) else "" end) as $BidsIntendedFor
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Mod else "" end) as $BidsMod
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Modality else "" end) as $BidsModality
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Path else "" end) as $BidsPath
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Rec else "" end) as $BidsRec
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Run else "" end) as $BidsRun
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Task else "" end) as $BidsTask
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.error_message else "" end) as $BidsErrorMessage
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Ignore else "" end) as $BidsIgnore
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.template else "" end) as $BidsTemplate
+#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.valid else "" end) as $BidsValid
 
 		| (if ( .RadiopharmaceuticalInformationSequence )
 	           then
