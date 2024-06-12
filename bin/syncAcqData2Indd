@@ -236,10 +236,10 @@ else
     # Don't want to sort the header line to the somewhere besides the first line
     #
     echo "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv"
-    cat <(head -n 1 "${TmpDir}/${Project}.csv") <(grep ',"MR",' "${TmpDir}/${Project}.csv") | csvcut -c "$FieldsMri" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_MRI.csv"
+    cat <(head -n 1 "${TmpDir}/${Project}.csv") <(grep ',"NoBids",' "${TmpDir}/${Project}.csv" | grep ',"MR",') | csvcut -c "$FieldsMri" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_MRI.csv"
 
     echo "$FieldsAll" > "${TmpDir}/${Project}_PET.csv"
-    cat <(head -n 1 "${TmpDir}/${Project}.csv") <(grep ',"PT",' "${TmpDir}/${Project}.csv") | csvcut -c "$FieldsPet" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_PET.csv"
+    cat <(head -n 1 "${TmpDir}/${Project}.csv") <(grep ',"NoBids",' "${TmpDir}/${Project}.csv" | grep ',"PT",' ) | csvcut -c "$FieldsPet" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_PET.csv"
 																			     
     echo "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv"
     cat <(head -n 1 "${TmpDir}/${Project}.csv") <(grep ',"Bids",' "${TmpDir}/${Project}.csv") | csvcut -c "$FieldsBids" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_Bids.csv"
