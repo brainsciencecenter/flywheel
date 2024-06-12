@@ -231,13 +231,22 @@ else
 	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids false --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv'
     ) > "${TmpDir}/${Project}.csv"
 
-    (echo "$FieldsAll" ; csvcut -c "$FieldsAll" "${TmpDir}/${Project}.csv" | grep ',NoBids,' | grep ',MR,') | csvcut -c "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv"
-    (echo "$FieldsAll" ; csvcut -c "$FieldsAll" "${TmpDir}/${Project}.csv" | grep ',NoBids,' | grep ',PT,') | csvcut -c "$FieldsPet" > "${TmpDir}/${Project}_PET.csv"
+    #
+    # Grepping out MR or PT loses the header line.
+    # Don't want to sort the header line to the somewhere besides the first line
+    #
+    echo "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv"
+    cat <(head -n 1 "${TmpDir}/${Project}.csv") <(grep ',NoBids,' "${TmpDir}/${Project}.csv" | grep ',MR,') | csvcut -c "$FieldsMri" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_MRI.csv"
 
+    echo "$FieldsAll" > "${TmpDir}/${Project}_PET.csv"
+    cat <(head -n 1 "${TmpDir}/${Project}.csv") <(grep ',NoBids,' "${TmpDir}/${Project}.csv" | grep ',PT,') | csvcut -c "$FieldsPet" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_PET.csv"
+																			     
+    echo "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv"
     (
 	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r -n 'first( inputs | keys | @csv)' | csvcut
-        jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv'
-    ) | (echo "$FieldsAll" ; csvcut -c "$FieldsAll" | grep ',Bids,' | sort -u ) | csvcut -c "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv"
+	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv' | grep ',"Bids",' 
+    ) | csvcut -c "$FieldsBids" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_Bids.csv"
+
 fi
 
 if [ "$DeleteTmpDir" == True ]
