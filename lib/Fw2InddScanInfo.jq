@@ -30,10 +30,17 @@ import "SessionId2Tags" as $SessionId2Tags;
 
     | (if (.timestamp) then .timestamp else .created end) as $Timestamp
 
-    # Only select the first .dicom.zip
     | .files
-    | [ .[] | if $Bids then select(.info.BIDS) else select((.name | test("(("+$DicomExt+")|("+$NiftiExt+"))$"))) end] | first
-
+      # Want Bids files or the first NoBids with DicomExt or NiftiExt
+    | [
+           # Select the Bids files
+	   .[] | select( ((.info.BIDS | type) == "object") )
+      ] +
+      [
+           # Select the first DicomExt or NiftiExt file
+	 [ .[] | select(  (.name | test("(("+$DicomExt+")|("+$NiftiExt+"))$")) ) ] | first
+      ] | .[]
+#    | [ .[] | if $Bids then select(.info.BIDS) else select((.name | test("(("+$DicomExt+")|("+$NiftiExt+"))$"))) end] | first
       | .name as $AcquisitionFileName
       | .type as $AcquisitionType
       | .size as $AcquisitionSize
