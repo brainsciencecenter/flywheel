@@ -126,7 +126,7 @@ FieldsBids=$( echo "FlywheelAcquisitionId ${FieldsBidsUnique[@]}" | sed 's/ /,/g
 
 DicomExt=dicom.zip
 NiftiExt=nii.gz
-FileExt="(($DicomExt)|($NiftiExt))$"
+FileExt="((dicom.zip)|(dcm)|(nii.gz))$"
 
 #
 # -a comma or space separated list of acquisition ids to retrieve from flywheel
