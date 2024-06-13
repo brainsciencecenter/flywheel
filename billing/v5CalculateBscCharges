@@ -9,9 +9,10 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
 '"$(< ${v5TempFunctions})"'
 
 #
-DROP TABLE IF EXISTS
-         `'"${Project}.${Dataset}.${Database}"'`
-    ;
+#DROP TABLE IF EXISTS
+#         `'"${Project}.${Dataset}.${Database}"'`
+#    ;
+
 CREATE TABLE IF NOT EXISTS
          `'"${Project}.${Dataset}.${Database}"'`
      (
