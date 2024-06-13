@@ -126,6 +126,7 @@ FieldsBids=$( echo "FlywheelAcquisitionId ${FieldsBidsUnique[@]}" | sed 's/ /,/g
 
 DicomExt=dicom.zip
 NiftiExt=nii.gz
+FileExt="(($DicomExt)|($NiftiExt))$"
 
 #
 # -a comma or space separated list of acquisition ids to retrieve from flywheel
@@ -224,28 +225,33 @@ else
     rm -f "${TmpDir}/${Project}_MRI.csv" "${TmpDir}/${Project}_PET.csv" "${TmpDir}/${Project}_Bids.csv"
     # Headers and next lines
 
-    (
-	# Just grab the keys - csvcut at the end cleans up the headers
-	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids false --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r -n 'first( inputs | keys | @csv)' 
-	# format the dict for just values into csv 
-	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids false --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv'
-    ) > "${TmpDir}/${Project}.csv"
+    # Just grab the keys - csvcut at the end cleans up the headers
+    jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --arg FileExt "$FileExt" "$opt_c" | jq -r -n 'first( inputs | keys | @csv)' > "${TmpDir}/${Project}.csv"
+
+    # format the dict for just values into csv 
+    jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --arg FileExt "$FileExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv' >> "${TmpDir}/${Project}.csv"
 
     #
-    # Grepping out MR or PT loses the header line.
+    # Greping out MR or PT loses the header line.
     # Don't want to sort the header line to the somewhere besides the first line
     #
     echo "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv"
-    cat <(head -n 1 "${TmpDir}/${Project}.csv") <(grep ',"NoBids",' "${TmpDir}/${Project}.csv" | grep ',"MR",') | csvcut -c "$FieldsMri" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_MRI.csv"
+    (
+	head -n 1 "${TmpDir}/${Project}.csv"
+	grep ',"NoBids",' "${TmpDir}/${Project}.csv" | grep ',"MR",'
+    ) | csvcut -c "$FieldsMri" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_MRI.csv"
 
     echo "$FieldsAll" > "${TmpDir}/${Project}_PET.csv"
-    cat <(head -n 1 "${TmpDir}/${Project}.csv") <(grep ',"NoBids",' "${TmpDir}/${Project}.csv" | grep ',"PT",' ) | csvcut -c "$FieldsPet" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_PET.csv"
+    (
+	head -n 1 "${TmpDir}/${Project}.csv"
+	grep ',"NoBids",' "${TmpDir}/${Project}.csv" | grep ',"PT",' 
+    ) | csvcut -c "$FieldsPet" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_PET.csv"
 																			     
     echo "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv"
-    cat <(head -n 1 "${TmpDir}/${Project}.csv") <(grep ',"Bids",' "${TmpDir}/${Project}.csv") | csvcut -c "$FieldsBids" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_Bids.csv"
-#	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r -n 'first( inputs | keys | @csv)' | csvcut
-#	jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --argjson Bids true --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv' | grep ',"Bids",' 
-#    ) | csvcut -c "$FieldsBids" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_Bids.csv"
+    (
+	head -n 1 "${TmpDir}/${Project}.csv"
+	grep ',"Bids",' "${TmpDir}/${Project}.csv"
+    ) | csvcut -c "$FieldsBids" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_Bids.csv"
 
 fi
 

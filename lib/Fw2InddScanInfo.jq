@@ -37,10 +37,9 @@ import "SessionId2Tags" as $SessionId2Tags;
 	   .[] | select( ((.info.BIDS | type) == "object") )
       ] +
       [
-           # Select the first DicomExt or NiftiExt file
-	 [ .[] | select(  (.name | test("(("+$DicomExt+")|("+$NiftiExt+"))$")) ) ] | first
+	 [ .[] | select(  (.name | test($FileExt)) ) ] | first
       ] | .[]
-#    | [ .[] | if $Bids then select(.info.BIDS) else select((.name | test("(("+$DicomExt+")|("+$NiftiExt+"))$"))) end] | first
+#    | [ .[] | if $Bids then select(.info.BIDS) else select((.name | test($FileExt))) end] | first
       | .name as $AcquisitionFileName
       | .type as $AcquisitionType
       | .size as $AcquisitionSize
