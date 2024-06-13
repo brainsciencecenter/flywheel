@@ -105,6 +105,11 @@ syntax="${CmdName} [-d Dataset][-f][-p Project][-v] {-m Month} {-y Year}"
 
 Version=5
 
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
 function OutputControl {
     local Verbose="$1"
     
@@ -150,21 +155,21 @@ Project=pennbrain-center
 [ -n "$opt_y" ] && CommonArgs+=( -y "$opt_y" )
 
 
-v5GcpClassifiedMetrics "${CommonArgs[@]}"
-v5FwComputeMetrics  "${CommonArgs[@]}"
-v5FwStorageMetrics "${CommonArgs[@]}"
-v5FwComputeStorageMetrics "${CommonArgs[@]}"
+sys v5GcpClassifiedMetrics "${CommonArgs[@]}"
+sys v5FwComputeMetrics  "${CommonArgs[@]}"
+sys v5FwStorageMetrics "${CommonArgs[@]}"
+sys v5FwComputeStorageMetrics "${CommonArgs[@]}"
 
-v5GcpFwGroupComputeStorageMetrics "${CommonArgs[@]}"
+sys v5GcpFwGroupComputeStorageMetrics "${CommonArgs[@]}"
 
-v5GcpFwGroupTotalComputeStorageMetrics "${CommonArgs[@]}"
-v5GcpFwTotalComputeStorageMetrics "${CommonArgs[@]}"
+sys v5GcpFwGroupTotalComputeStorageMetrics "${CommonArgs[@]}"
+sys v5GcpFwTotalComputeStorageMetrics "${CommonArgs[@]}"
 
-v5AllocatedGcpFwGroupProjectGears "${CommonArgs[@]}"
+sys v5AllocatedGcpFwGroupProjectGears "${CommonArgs[@]}"
 
-v5EstTotalStaticGearOverheadMetrics "${CommonArgs[@]}"
+sys v5EstTotalStaticGearOverheadMetrics "${CommonArgs[@]}"
 
-v5AllocatedStaticGearSiteOverhead "${CommonArgs[@]}"
+sys v5AllocatedStaticGearSiteOverhead "${CommonArgs[@]}"
 
-v5CalculateBscCharges "${CommonArgs[@]}"
+sys v5CalculateBscCharges "${CommonArgs[@]}"
 
