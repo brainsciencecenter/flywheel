@@ -28,7 +28,7 @@ FwAcqData2InddJqFile="$FwDir/lib/Fw2InddScanInfo.jq"
 FieldsCommon=(
         'INDDID'
 	'FlywheelProjectLabel'
-        'FlywheelSubjectId'
+        'FlywheelSubjectLabel'
         'FlywheelSessionTimestampUTC'
         'FlywheelSessionURL'
         'FlywheelSessionId'
@@ -241,7 +241,7 @@ else
 	grep ',"NoBids",' "${TmpDir}/${Project}_all.csv" | grep ',"MR",'
     ) | csvcut -c "$FieldsMri" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_MRI.csv"
 
-    echo "$FieldsAll" > "${TmpDir}/${Project}_PET.csv"
+    echo "$FieldsPet" > "${TmpDir}/${Project}_PET.csv"
     (
 	head -n 1 "${TmpDir}/${Project}.csv"
 	grep ',"NoBids",' "${TmpDir}/${Project}_all.csv" | grep ',"PT",' 

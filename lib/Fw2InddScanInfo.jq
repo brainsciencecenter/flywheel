@@ -114,7 +114,7 @@ import "SessionId2Tags" as $SessionId2Tags;
 	| { 
 	      "INDDID": $SubjectLabel
 	    , "FlywheelProjectLabel": $ProjectLabel
-	    , "FlywheelSubjectId": $SubjectId
+	    , "FlywheelSubjectLabel": $SubjectLabel
 	    , "FlywheelSessionTimestampUTC": (if $SessionTimestamp then $SessionTimestamp else "1900-01-01T00:00:00+00:00" end)
 	    , "FlywheelSessionURL": "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data"
 	    , "FlywheelSessionId": $SessionId
