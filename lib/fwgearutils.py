@@ -155,71 +155,117 @@ def fwGlobPath(fw,Path):
 
     return(Containers)
 
-def sloppyCopy(d, recurse=True, UTC=True, regex=None, to=None):
+def sloppyCopy(d, recurse=True, UTC=True, Verbose=False, regex=None, to=None):
     '''
     serializes a object, ignoring all the stuff it cant easily serialize, but will give you something
     '''
 
     from tzlocal import get_localzone
 
-    # print("sloppyCopy: ", d, file=sys.stderr)
+    if (Verbose):
+        print("sloppyCopy: type(d) = '{}'".format(type(d)), file=sys.stderr)
+
+    if (type(d) == type(None)):
+        if (Verbose):
+            print("sloppyCopy: d is None", file=sys.stderr)
+
+        return(None)
+    
     try:
+        if (Verbose):
+            print("sloppyCopy: try: json.dumps(d)", file=sys.stderr)
+
         json.dumps(d)
-        #print("sloppyCopy d is serializable", file=sys.stderr)
+
         if (regex):
-           d = re.sub(regex,to,d)
+            d = re.sub(regex,to,d)
            
         return(d)
 
     except (TypeError, OverflowError) as e:
-       if (hasattr(d,'keys')):
-            nd = {}
-            for k in d.keys():
+         if (Verbose):
+             print("sloppyCopy: except: json.dumps(d)", file=sys.stderr)
+
+         if (hasattr(d,'keys')):
+             nd = {}
+             for k in d.keys():
+                if (Verbose):
+                    print("sloppyCopy: except: json.dumps(d): haskeys: d[{}] = '{}': try: json.dumps(d[k])".format(k, d[k]), file=sys.stderr)
+
+                #
+                # calling sloppyCopy(d[k]) is recursing, and recurse might be False
+                # just dump d's json.dumpable stuff and timestamps if recurse=False
                 try:
-                    json.dumps(d[k])
-                    nd[k] = d[k]
+                    nd[k] = json.dumps(d[k], UTC)
+ 
                 except (TypeError, OverflowError) as e2:
-                   if (type(d[k]) is datetime.datetime):
-                      #d.datetime.datetime is supposed to be in UTC 
-                      #sess.timestamp.replace(tzinfo=datetime.timezone.utc).isoformat()
-                      if (UTC):
-                         nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S%z"))
-                      else:
-                         nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
-                   else:
-                      if (recurse): 
-                         nd[k] = sloppyCopy(d[k], UTC=UTC)
+                    if (Verbose):
+                        print("sloppyCopy: except: json.dumps(d): haskeys: except: json.dumps(d[{}])".format(k), file=sys.stderr)
 
-            if (    type(d) is flywheel.models.file_output.FileOutput
-                and d.zip_member_count 
-                and d.zip_member_count > 0
+                    if (type(d[k]) is datetime.datetime):
+                        #d.datetime.datetime is supposed to be in UTC 
+                        #sess.timestamp.replace(tzinfo=datetime.timezone.utc).isoformat()
+                        if (UTC):
+                            nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S%z"))
+                        else:
+                            nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
+                    else:
+                        if (recurse): 
+                            if (Verbose):
+                                print("sloppyCopy: except: json.dumps(d): haskeys: except: json.dumps(d[{}]): recurse".format(k), file=sys.stderr)
+
+                            nd[k] = sloppyCopy(d[k], Verbose=Verbose, UTC=UTC)
+
+             # Don't know why zip_info isn't a key
+             if (    type(d) is flywheel.models.file_output.FileOutput
+                 and d.zip_member_count 
+                 and d.zip_member_count > 0
                 ):
-                  nd['zip_info'] = sloppyCopy(d.get_zip_info())
+                     try:
+                         if (Verbose):
+                             print("sloppyCopy: except: json.dumps(d): haskeys: except: type(d[{}]) = '{}': d.zip_member_count = '{}'".format(k, type(d[k]), d.zip_member_count), file=sys.stderr)
+                             print("sloppyCopy: except: json.dumps(d): haskeys: except: type(d[{}]) = '{}': type(d.get_zip_info()) = '{}'".format(k, type(d[k]), type(d.get_zip_info())), file=sys.stderr)
 
-            # print("sloppyCopy: d is sorta dict", nd.copy(), file=sys.stderr)
-            if (regex):
-               nd = re.sub(regex,to,nd)
+                         nd['zip_info'] = sloppyCopy(d.get_zip_info())
+                     except(flywheel.rest.ApiException) as e:
+                         if (Verbose):
+                             print("sloppyCopy: no zip_info for f({}) with zip_member_count == '{}'".format(d.file_id,d.zip_member_count), file=sys.stderr)
+                         
+                         nd['zip_info'] = None
+             # print("sloppyCopy: d is sorta dict", nd.copy(), file=sys.stderr)
+             if (regex):
+                 nd = re.sub(regex,to,nd)
 
-            return(nd)
+             return(nd)
 
-       if (type(d) is list):
-            nd = []
-            for i in d:
-               if (recurse):
-                  nd.append(sloppyCopy(i, UTC=UTC))
+         n = 1
+         if (type(d) is list):
+             nd = []
+
+             if (Verbose):
+                 print("sloppyCopy: except: json.dumps(d): haskeys: except: d is list", file=sys.stderr)
+
+             for i in d:
+                 if (Verbose):
+                     print("sloppyCopy: except: json.dumps(d): haskeys: except: d is list: sloppyCopy(n)".format(n), file=sys.stderr)
+
+                 if (recurse):
+                     nd.append(sloppyCopy(i, Verbose=Verbose, UTC=UTC))
+
+                 n += 1
 
             # print("sloppyCopy: d is list", nd.copy(), file=sys.stderr)
-            if (regex):
-               nd = re.sub(regex,to,nd)
+             if (regex):
+                 nd = re.sub(regex,to,nd)
 
-            return(nd)
+             return(nd)
 
-       if (type(d) is datetime.datetime):
-          #d.datetime.datetime is supposed to be in UTC 
-          if (UTC):
-             return(d.strftime("%Y-%m-%dT%H:%M:%S%z"))
-          else:
-             return(d.astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
+         if (type(d) is datetime.datetime):
+             #d.datetime.datetime is supposed to be in UTC 
+             if (UTC):
+                 return(d.strftime("%Y-%m-%dT%H:%M:%S%z"))
+             else:
+                 return(d.astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
 
 
 
@@ -328,6 +374,7 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
         Output['acquisitions'] = Acquisitions
 
     elif (   type(r) == flywheel.models.acquisition.Acquisition 
+          or type(r) == flywheel.models.acquisition_output.AcquisitionOutput
 #          or type(r) == flywheel.models.resolver_acquisition_node.ResolverAcquisitionNode 
 #          or type(r) == flywheel.models.acquisition_list_output.AcquisitionListOutput
           ):
@@ -339,8 +386,7 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
 
         try:
             for f in r.files:
-                File = sloppyCopy(f, UTC=UTC
-)
+                File = sloppyCopy(f, UTC=UTC)
                 if (re.search('\.zip$', f.name)):
                     if (f.size > 0):
                         try:
