@@ -126,7 +126,7 @@ def processId(args=None, id=None):
                     print("{} : Ready to recurse".format(CmdName), file=sys.stderr)
                 Output = fwgearutils.recurse(fw,Container, CmdName=CmdName, Get=args.do_get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
             else:
-                Output = fwgearutils.sloppyCopy(Container, Verbose=args.verbose, UTC=(not args.localtime))
+                Output = fwgearutils.sloppyCopy(Container, UTC=(not args.localtime))
 
         if (type(Container) == flywheel.models.job_output.JobOutput):
             if (args.log):
@@ -201,6 +201,7 @@ if __name__ == '__main__':
     n=1
     for i in IdGenerator:
         id = i.rstrip('\n')
+        id = re.sub('/$','',id)
 
         if (args.verbose):
             if (args.number):
