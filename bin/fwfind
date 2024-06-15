@@ -66,7 +66,10 @@ if __name__ == '__main__':
 
     args = ap.parse_args()
 
-    fw = fwgearutils.getFW(args)
+    if (args.debug):
+        print("args.findargs = '{}'".format(' '.join(args.findargs)), file=sys.stderr)
+
+    fw = fwgearutils.getFW({})
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
@@ -82,7 +85,7 @@ if __name__ == '__main__':
 
     if (args.acquisitions):
         if (args.verbose):
-            print("%s : fw.acquisitions.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.acquisitions.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
 
         try:
             i = (args.findargs.index("group=Collections"))
@@ -105,28 +108,28 @@ if __name__ == '__main__':
 
     if (args.jobs):
         if (args.verbose):
-            print("%s : fw.jobs.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.jobs.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.jobs.iter_find(*args.findargs,limit=args.limit)
         # Need -gr to do job detail and profile
 
     if (args.gears):
         if (args.verbose):
-            print("%s : fw.gears.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.gears.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.gears.iter_find(*args.findargs,limit=args.limit)
 
     if (args.projects):
         if (args.verbose):
-            print("%s : fw.projects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.projects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.projects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
 
     if (args.subjects):
         if (args.verbose):
-            print("%s : fw.subjects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs),ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.subjects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs),ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.subjects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
 
     if (args.sessions):
         if (args.verbose):
-            print("%s : fw.sessions.find(%s,exhaustive=%s,limit=%s)" % (CmdName, ''.join(*args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.sessions.find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
 
         try:
             try:
