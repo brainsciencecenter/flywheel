@@ -192,29 +192,33 @@ def sloppyCopy(d, recurse=True, UTC=True, Verbose=False, regex=None, to=None):
                 if (Verbose):
                     print("sloppyCopy: except: json.dumps(d): haskeys: d[{}] = '{}': try: json.dumps(d[k])".format(k, d[k]), file=sys.stderr)
 
-                #
-                # calling sloppyCopy(d[k]) is recursing, and recurse might be False
-                # just dump d's json.dumpable stuff and timestamps if recurse=False
-                try:
-                    nd[k] = json.dumps(d[k], UTC)
- 
-                except (TypeError, OverflowError) as e2:
-                    if (Verbose):
-                        print("sloppyCopy: except: json.dumps(d): haskeys: except: json.dumps(d[{}])".format(k), file=sys.stderr)
+                nd[k] = sloppyCopy(d[k], recurse=recurse, Verbose=Verbose, UTC=UTC)
 
-                    if (type(d[k]) is datetime.datetime):
-                        #d.datetime.datetime is supposed to be in UTC 
-                        #sess.timestamp.replace(tzinfo=datetime.timezone.utc).isoformat()
-                        if (UTC):
-                            nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S%z"))
-                        else:
-                            nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
-                    else:
-                        if (recurse): 
-                            if (Verbose):
-                                print("sloppyCopy: except: json.dumps(d): haskeys: except: json.dumps(d[{}]): recurse".format(k), file=sys.stderr)
 
-                            nd[k] = sloppyCopy(d[k], Verbose=Verbose, UTC=UTC)
+#                                            #
+#                # calling sloppyCopy(d[k]) is recursing, and recurse might be False
+#                # just dump d's json.dumpable stuff and timestamps if recurse=False
+#                try:
+#                    nd[k] = json.dumps(d[k], UTC)
+# 
+#                except (TypeError, OverflowError) as e2:
+#                    if (Verbose):
+#                        print("sloppyCopy: except: json.dumps(d): haskeys: except: json.dumps(d[{}])".format(k), file=sys.stderr)
+#
+#                    if (type(d[k]) is datetime.datetime):
+#                        #d.datetime.datetime is supposed to be in UTC 
+#                        #sess.timestamp.replace(tzinfo=datetime.timezone.utc).isoformat()
+#                        if (UTC):
+#                            nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S%z"))
+#                        else:
+#                            nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
+#                    else:
+#                        if (recurse): 
+#                            if (Verbose):
+#                                print("sloppyCopy: except: json.dumps(d): haskeys: except: json.dumps(d[{}]): recurse".format(k), file=sys.stderr)
+#
+#                            nd[k] = sloppyCopy(d[k], Verbose=Verbose, UTC=UTC)
+#
 
              # Don't know why zip_info isn't a key
              if (    type(d) is flywheel.models.file_output.FileOutput
@@ -263,11 +267,9 @@ def sloppyCopy(d, recurse=True, UTC=True, Verbose=False, regex=None, to=None):
          if (type(d) is datetime.datetime):
              #d.datetime.datetime is supposed to be in UTC 
              if (UTC):
-                 return(d.strftime("%Y-%m-%dT%H:%M:%S%z"))
+                 return(re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S%z")))
              else:
-                 return(d.astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
-
-
+                 return(re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d.astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z")))
 
 
 def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UTC=True, Verbose=False, ZipInfo=False ):
