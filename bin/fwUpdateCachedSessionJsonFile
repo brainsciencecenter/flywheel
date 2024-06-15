@@ -81,7 +81,7 @@ then
 else
     sys cat /dev/null > "$SessionsCommonJsonFile"
     sys cat /dev/null > "$SessionId2TimestampsCommonCsvFile"
-    sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
+    sys jq -r 'to_entries[] | [ .key, .value.created, value.modified, value.timestamp] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
     sys csvcut -c 1 "$SessionId2TimestampsActiveCsvFile" > "$SessionIdsToGet"
 fi
 
