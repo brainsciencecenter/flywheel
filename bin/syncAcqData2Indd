@@ -1,6 +1,8 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
+FwDir=$(dirname $(dirname $(which "$0")))
+FwLib="${FwDir}/lib"
 
 #
 # syncAcqData2Indd -d corlab/Unsorted -c corelab-Unsorted-CachedFwAcquisitions.json corelab/Unsorted
@@ -29,7 +31,7 @@ FieldsCommon=(
         'INDDID'
 	'FlywheelProjectLabel'
         'FlywheelSubjectLabel'
-        'FlywheelSessionTimestampUTC'
+        'FlywheelSessionTimestampCreatedUTC'
         'FlywheelSessionURL'
         'FlywheelSessionId'
 	'FlywheelSessionLabel'
@@ -43,7 +45,7 @@ FieldsCommon=(
         'FlywheelAcquisitionMeasurement'
         'FlywheelAcquisitionFeatures'
         'FlywheelAcquisitionId'
-        'AcquisitionTimestampUTC'
+        'AcquisitionTimestampCreatedUTC'
         'DicomModality'
         'DicomInstitutionName'
         'DicomStationName'
@@ -123,10 +125,6 @@ FieldsAll=$( echo "${FieldsCommon[@]}" "${FieldsMisc[@]}" "${FieldsBidsUnique[@]
 FieldsMri=$( echo "${FieldsCommon[@]}" "${FieldsMriUnique[@]}" | sed 's/ /,/g' )
 FieldsPet=$( echo "${FieldsCommon[@]}" "${FieldsPetUnique[@]}" | sed 's/ /,/g' )
 FieldsBids=$( echo "FlywheelAcquisitionId ${FieldsBidsUnique[@]}" | sed 's/ /,/g' )
-
-DicomExt=dicom.zip
-NiftiExt=nii.gz
-FileExt="((dicom.zip)|(dcm)|(nii.gz))$"
 
 #
 # -a comma or space separated list of acquisition ids to retrieve from flywheel
@@ -218,40 +216,44 @@ then
 	CmdArgs+=( -v )
 fi
 
+ProjectAllCsvFile="${TmpDir}/${Project}_all.csv"
+ProjectMriCsvFile="${TmpDir}/${Project}_mri.csv"
+ProjectPetCsvFile="${TmpDir}/${Project}_pet.csv"
+ProjectBidsCsvFile="${TmpDir}/${Project}_bids.csv"
+
 if [ -n "$opt_a" ]
 then
-   sys fwget -1 "$opt_a" | sys jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --arg DicomExt "$DicomExt" --arg NiftiExt "$NiftiExt"
+   sys fwget -1 "$opt_a" | sys jq -r -L "$FwLib" -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$NiftiExt"
 else
-    rm -f "${TmpDir}/${Project}_all.csv" "${TmpDir}/${Project}_MRI.csv" "${TmpDir}/${Project}_PET.csv" "${TmpDir}/${Project}_Bids.csv"
-    # Headers and next lines
+    rm -f "$ProjectAllCsvFile" "$ProjectAllCsvFile" "$ProjectAllCsvFile" "$ProjectAllCsvFile"
 
     # Just grab the keys - csvcut at the end cleans up the headers
-    jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --arg FileExt "$FileExt" "$opt_c" | jq -r -n 'first( inputs | keys | @csv)' > "${TmpDir}/${Project}_all.csv"
+    jq -r -L "$FwLib" -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$opt_c" | jq -r -n 'first( inputs | keys | @csv)' > "$ProjectAllCsvFile"
 
     # format the dict for just values into csv 
-    jq -r -L "${TmpDir}" -f "$FwAcqData2InddJqFile" --arg FileExt "$FileExt" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv' >> "${TmpDir}/${Project}_all.csv"
+    jq -r -L "$FwLib" -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv' >> "$ProjectAllCsvFile"
 
     #
     # Greping out MR or PT loses the header line.
     # Don't want to sort the header line to the somewhere besides the first line
     #
-    echo "$FieldsMri" > "${TmpDir}/${Project}_MRI.csv"
+    echo "$FieldsMri" > "$ProjectMriCsvFile"
     (
-	head -n 1 "${TmpDir}/${Project}.csv"
-	grep ',"NoBids",' "${TmpDir}/${Project}_all.csv" | grep ',"MR",'
-    ) | csvcut -c "$FieldsMri" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_MRI.csv"
+	head -n 1 "$ProjectAllCsvFile"
+	grep ',"NoBids",' "$ProjectAllCsvFile" | grep ',"MR",'
+    ) | csvcut -c "$FieldsMri" | tail -n +2 | sort -u >> "$ProjectMriCsvFile"
 
-    echo "$FieldsPet" > "${TmpDir}/${Project}_PET.csv"
+    echo "$FieldsPet" > "$ProjectPetCsvFile"
     (
-	head -n 1 "${TmpDir}/${Project}.csv"
-	grep ',"NoBids",' "${TmpDir}/${Project}_all.csv" | grep ',"PT",' 
-    ) | csvcut -c "$FieldsPet" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_PET.csv"
+	head -n 1 "$ProjectAllCsvFile"
+	grep ',"NoBids",' "$ProjectAllCsvFile" | grep ',"PT",' 
+    ) | csvcut -c "$FieldsPet" | tail -n +2 | sort -u >> "$ProjectPetCsvFile"
 																			     
-    echo "$FieldsBids" > "${TmpDir}/${Project}_Bids.csv"
+    echo "$FieldsBids" > "$ProjectBidsCsvFile"
     (
-	head -n 1 "${TmpDir}/${Project}.csv"
-	grep ',"Bids",' "${TmpDir}/${Project}_all.csv"
-    ) | csvcut -c "$FieldsBids" | tail -n +2 | sort -u >> "${TmpDir}/${Project}_Bids.csv"
+	head -n 1 "$ProjectAllCsvFile"
+	grep ',"Bids",' "$ProjectAllCsvFile"
+    ) | csvcut -c "$FieldsBids" | tail -n +2 | sort -u >> "$ProjectBidsCsvFile"
 
 fi
 
