@@ -82,6 +82,7 @@ then
 
 
 	CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
+	[ -e "$CachedAcquisitionsFile" ] || sys touch "$CachedAcquisitionsFile"
 
 	# Sessions are done without any other input
 	sys time fwUpdateCachedSessionJsonFile $opt_n $opt_v -u -t "$gp" "$gp"
