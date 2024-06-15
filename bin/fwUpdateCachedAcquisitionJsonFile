@@ -1,7 +1,8 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-FwDir=$(dirname $(dirname "$0"))
+FwDir=$(dirname $(dirname $(which "$0")))
+FwLib="${FwDir}/lib"
 
 syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-n][-t TmpDir][-u][-v] [Group/Project [other fw.find option]...]"
 
@@ -120,7 +121,7 @@ fi
 #
 # *** may want to search for only new acquisitions...
 #
-sys time fwfind -a -1 group="$Group" project="$ProjectId" | jq -r '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | { (._id): $Timestamp }' | jq -r --slurp ' . | add ' > "$AcquisitionId2TimestampsActiveJsonFile"
+sys time fwfind -a -1 group="$Group" project="$ProjectId" | jq -r -L "$FwLib" 'include "FwLib"; { (._id): container2Timestamps(.) }' | jq -r --slurp ' . | add ' > "$AcquisitionId2TimestampsActiveJsonFile"
 
 if [ -e "$AcquisitionsCachedJsonFile" ]
 then
@@ -128,14 +129,16 @@ then
     # Verifying the id is in the time stamp makes sure the acquisition is still active.
     # Also want to make sure that all the parent ids and collection ids are still valid.  If not, we'll want to keep the acquisition from being added to the AcquisitionsCommonJsonFile
     #
-    sys jq -r --slurpfile AcquisitionId2TimestampsActive "$AcquisitionId2TimestampsActiveJsonFile" --slurpfile Ids2Labels "$Id2Labels" -f "$AcquisitionSelectJq" "$AcquisitionsCachedJsonFile" > "$AcquisitionsCommonJsonFile"
-    sys jq -r '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | [ ._id, $Timestamp ] | @csv' "$AcquisitionsCommonJsonFile" | sort -u > "$AcquisitionId2TimestampsCommonCsvFile"
-    sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$AcquisitionId2TimestampsActiveJsonFile" | sort -u > "$AcquisitionId2TimestampsActiveCsvFile"
+    sys jq -r -L "$FwLib" --slurpfile AcquisitionId2TimestampsActive "$AcquisitionId2TimestampsActiveJsonFile" --slurpfile Ids2Labels "$Id2Labels" -f "$AcquisitionSelectJq" "$AcquisitionsCachedJsonFile" > "$AcquisitionsCommonJsonFile"
+
+    sys jq -r -L "$FwLib" 'include "FwLib"; container2Timestamps(.) as $Timestamps | [ ._id, $Timestamps.created, $Timestamps.modified, $Timestamps.timestamp ] | @csv' "$AcquisitionsCommonJsonFile" | sort -u> "$AcquisitionId2TimestampsCommonCsvFile"
+
+    sys jq -r 'to_entries[] | [ .key, .value.created, .value.modified, .value.timestamp] | @csv' "$AcquisitionId2TimestampsActiveJsonFile" | sort -u > "$AcquisitionId2TimestampsActiveCsvFile"
     sys diff "$AcquisitionId2TimestampsCommonCsvFile" "$AcquisitionId2TimestampsActiveCsvFile" | grep '> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep . > "$AcquisitionIdsToGet"
 else
     sys cat /dev/null > "$AcquisitionsCommonJsonFile"
     sys cat /dev/null > "$AcquisitionId2TimestampsCommonCsvFile"
-    sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$AcquisitionId2TimestampsActiveJsonFile" | sort -u > "$AcquisitionId2TimestampsActiveCsvFile"
+    sys jq -r 'to_entries[] | [ .key, .value.created, value.modified, .value.timestamp] | @csv' "$AcquisitionId2TimestampsActiveJsonFile" | sort -u > "$AcquisitionId2TimestampsActiveCsvFile"
     sys csvcut -c 1 "$AcquisitionId2TimestampsActiveCsvFile" > "$AcquisitionIdsToGet"
 fi
 
