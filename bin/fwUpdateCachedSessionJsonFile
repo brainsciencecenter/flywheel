@@ -1,6 +1,9 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
+FwDir=$(dirname $(dirname $(which "$0")))
+FwLib="${FwDir}/lib"
+
 Syntax="${CmdName} [-f][-m][-n][-u][-v][-t TmpDir] {Group/Project}"
 
 function sys {
@@ -64,13 +67,16 @@ then
     exit 2
 fi
 
-sys fwfind -S -1 group="$Group" project="$ProjectId" | jq -r '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | { (._id): $Timestamp }' | jq -r --slurp 'select(.) | add ' > "$SessionId2TimestampsActiveJsonFile"
+sys fwfind -S -1 group="$Group" project="$ProjectId" | jq -r -L "$FwLib" 'include "FwLib"; {(._id): container2Timestamps(.) }'  | jq -r --slurp 'select(.) | add ' > "$SessionId2TimestampsActiveJsonFile"
 
 if [ -e "$SessionsCachedJsonFile" ]
 then
-    sys jq -r --slurpfile SessionId2TimestampsActive "$SessionId2TimestampsActiveJsonFile" '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | select( (._id | in($SessionId2TimestampsActive[])) and ($Timestamp == $SessionId2TimestampsActive[][._id]) )' "$SessionsCachedJsonFile" > "$SessionsCommonJsonFile"
-    sys jq -r '(if (.timestamp) then .timestamp else .modified end) as $Timestamp | [ ._id, $Timestamp ] | @csv' "$SessionsCommonJsonFile" | sort -u > "$SessionId2TimestampsCommonCsvFile"
-    sys jq -r 'to_entries[] | [ .key, .value] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
+    sys jq -r -L "$FwLib" --slurpfile SessionId2TimestampsActive "$SessionId2TimestampsActiveJsonFile" 'include "FwLib"; container2Timestamps(.) as $Timestamps | select( (._id | in($SessionId2TimestampsActive[])) and ($Timestamps == $SessionId2TimestampsActive[][._id]) )' "$SessionsCachedJsonFile" > "$SessionsCommonJsonFile"
+
+    sys jq -r -L "$FwLib" 'include "FwLib"; container2Timestamps(.) as $Timestamps | [ ._id, $Timestamps.created, $Timestamps.modified, $Timestamps.timestamp ] | @csv' "$SessionsCommonJsonFile" | sort -u  > "$SessionId2TimestampsCommonCsvFile"
+
+    sys jq -r 'to_entries[] | [ .key, .value.created, .value.modified, .value.timestamp] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
+
     sys diff "$SessionId2TimestampsCommonCsvFile" "$SessionId2TimestampsActiveCsvFile" | grep '> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep '.' > "$SessionIdsToGet"
 else
     sys cat /dev/null > "$SessionsCommonJsonFile"

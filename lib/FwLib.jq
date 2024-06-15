@@ -1,0 +1,1 @@
+def container2Timestamps(c): (c | {"created": .created, "modified": .modified,  "timestamp": (if .timestamp then .timestamp else "" end) } ) ;

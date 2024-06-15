@@ -1,10 +1,16 @@
 # 
+# include seems to have to come before import
+#
+
+include "FwLib";
 
 import "Id2Labels" as $Id2Labels;
 
 import "SessionId2Notes" as $SessionId2Notes;
 import "SessionId2TimestampsActive" as $SessionId2TimestampsActive;
 import "SessionId2Tags" as $SessionId2Tags;
+
+#def container2Timestamps(c): (c | { (._id): {"created": .created, "modified": .modified,  "timestamp": (if .timestamp then .timestamp else "" end) } }) ;
 
       .parents.group as $GroupLabel 
     | .parents.project as $ProjectId
@@ -15,7 +21,7 @@ import "SessionId2Tags" as $SessionId2Tags;
     | $Id2Labels::Id2Labels[][.parents.subject] as $SubjectLabel 
     | $Id2Labels::Id2Labels[][.parents.session] as $SessionLabel 
     | $SessionId2Notes::SessionId2Notes[][.parents.session] as $SessionNotes
-    | $SessionId2TimestampsActive::SessionId2TimestampsActive[][.parents.session] as $SessionTimestamp
+    | $SessionId2TimestampsActive::SessionId2TimestampsActive[][.parents.session] as $SessionTimestamps
     | $SessionId2Tags::SessionId2Tags[][$SessionId] as $SessionTags
 
     | ._id as $AcquisitionId
@@ -28,7 +34,7 @@ import "SessionId2Tags" as $SessionId2Tags;
     | (if .info.PICSL_sMRI_biomarkers.JobUrl then .info.PICSL_sMRI_biomarkers.JobUrl else "None" end) as $AshsJobUrl
     | (if .info.PICSL_sMRI_biomarkers.DateTime then .info.PICSL_sMRI_biomarkers.DateTime else "None" end) as $AshsJobDateTime
 
-    | (if (.timestamp) then .timestamp else .created end) as $Timestamp
+    | container2Timestamps(.) as $AcquisitionTimestamps
 
     | .files
       # Want Bids files or the first NoBids with DicomExt or NiftiExt
@@ -37,7 +43,7 @@ import "SessionId2Tags" as $SessionId2Tags;
 	   .[] | select( ((.info.BIDS | type) == "object") )
       ] +
       [
-	 [ .[] | select(  (.name | test($FileExt)) ) ] | first
+	 [ .[] | select(  (.type == "dicom") or (.type == "nifti") ) ] | first
       ] | .[]
 #    | [ .[] | if $Bids then select(.info.BIDS) else select((.name | test($FileExt))) end] | first
       | .name as $AcquisitionFileName
@@ -115,7 +121,9 @@ import "SessionId2Tags" as $SessionId2Tags;
 	      "INDDID": $SubjectLabel
 	    , "FlywheelProjectLabel": $ProjectLabel
 	    , "FlywheelSubjectLabel": $SubjectLabel
-	    , "FlywheelSessionTimestampUTC": (if $SessionTimestamp then $SessionTimestamp else "1900-01-01T00:00:00+00:00" end)
+	    , "FlywheelSessionTimestampCreatedUTC": (if $SessionTimestamps then $SessionTimestamps.created else "1900-01-01T00:00:00+00:00" end)
+	    , "FlywheelSessionTimestampFwModifiedUTC": (if $SessionTimestamps then $SessionTimestamps.modified else "1900-01-01T00:00:00+00:00" end)
+	    , "FlywheelSessionTimestampFwUserModiifedUTC": (if $SessionTimestamps then $SessionTimestamps.timestamp else "1900-01-01T00:00:00+00:00" end)
 	    , "FlywheelSessionURL": "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data"
 	    , "FlywheelSessionId": $SessionId
 	    , "FlywheelSessionLabel": $SessionLabel
@@ -129,7 +137,9 @@ import "SessionId2Tags" as $SessionId2Tags;
 	    , "FlywheelAcquisitionMeasurement": $Measurement
 	    , "FlywheelAcquisitionFeatures": $Features
 	    , "FlywheelAcquisitionId": $AcquisitionId
-	    , "AcquisitionTimestampUTC": ( if $Timestamp then $Timestamp else "1900-01-01T00:00:00+0000" end)
+	    , "AcquisitionTimestampCreatedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.created else "1900-01-01T00:00:00+00:00" end)
+	    , "AcquisitionTimestampFwModifiedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.modified else "1900-01-01T00:00:00+00:00" end)
+	    , "AcquisitionTimestampUserModifiedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.timestamp else "1900-01-01T00:00:00+00:00" end)
 	    , "DicomModality": .Modality
 	    , "DicomInstitutionName": .InstitutionName
 	    , "DicomStationName": .StationName
