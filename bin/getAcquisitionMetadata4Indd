@@ -60,12 +60,14 @@ fi
 
 if [ -n "$1" ]
 then
-    GroupProjects+=( "$1" )
+    l=$(echo "$1" | sed 's,/$,,')
+    GroupProjects+=( "$l" )
     shift
 else
     while read line
     do
-    	GroupProjects+=( $line )
+	l=$(echo "$line" | sed 's,/$,,')
+   	GroupProjects+=(  "$l" )
     done < <( fwfind -p 'info.labels.ExportToINDD=true' | jq -r '.[]|"\(.group)/\(.label)"' | sort )
 fi
 
@@ -109,7 +111,7 @@ fi
 #
 if [ -n "$opt_a" ]
 then
-    (head -q -n 1 [a-z]*/*/*MRI.csv | sort -u; tail -q -n +2 [a-z]*/*/*MRI.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_mri.csv
-    (head -q -n 1 [a-z]*/*/*PET.csv | sort -u; tail -q -n +2 [a-z]*/*/*PET.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_pet.csv
-    (head -q -n 1 [a-z]*/*/*Bids.csv | sort -u; tail -q -n +2 [a-z]*/*/*Bids.csv | sort -u) > fw_bids.csv
+    (head -q -n 1 [a-z]*/*/*_mri.csv | sort -u; tail -q -n +2 [a-z]*/*/*_mri.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_mri.csv
+    (head -q -n 1 [a-z]*/*/*_pet.csv | sort -u; tail -q -n +2 [a-z]*/*/*_pet.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_pet.csv
+    (head -q -n 1 [a-z]*/*/*_bids.csv | sort -u; tail -q -n +2 [a-z]*/*/*_bids.csv | sort -u) > fw_bids.csv
 fi
