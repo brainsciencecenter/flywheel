@@ -121,9 +121,9 @@ import "SessionId2Tags" as $SessionId2Tags;
 	      "INDDID": $SubjectLabel
 	    , "FlywheelProjectLabel": $ProjectLabel
 	    , "FlywheelSubjectLabel": $SubjectLabel
-	    , "FlywheelSessionTimestampCreatedUTC": (if $SessionTimestamps then $SessionTimestamps.created else "1900-01-01T00:00:00+00:00" end)
-	    , "FlywheelSessionTimestampFwModifiedUTC": (if $SessionTimestamps then $SessionTimestamps.modified else "1900-01-01T00:00:00+00:00" end)
-	    , "FlywheelSessionTimestampFwUserModiifedUTC": (if $SessionTimestamps then $SessionTimestamps.timestamp else "1900-01-01T00:00:00+00:00" end)
+	    , "FlywheelSessionCreatedUTC": (if $SessionTimestamps then $SessionTimestamps.created else "1900-01-01T00:00:00+00:00" end)
+	    , "FlywheelSessionModifiedUTC": (if $SessionTimestamps then $SessionTimestamps.modified else "1900-01-01T00:00:00+00:00" end)
+	    , "FlywheelSessionTimestampUTC": (if $SessionTimestamps then $SessionTimestamps.timestamp else "1900-01-01T00:00:00+00:00" end)
 	    , "FlywheelSessionURL": "https://upenn.flywheel.io/#/projects/\($ProjectId)/sessions/\($SessionId)?tab=data"
 	    , "FlywheelSessionId": $SessionId
 	    , "FlywheelSessionLabel": $SessionLabel
@@ -137,9 +137,9 @@ import "SessionId2Tags" as $SessionId2Tags;
 	    , "FlywheelAcquisitionMeasurement": $Measurement
 	    , "FlywheelAcquisitionFeatures": $Features
 	    , "FlywheelAcquisitionId": $AcquisitionId
-	    , "AcquisitionTimestampCreatedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.created else "1900-01-01T00:00:00+00:00" end)
-	    , "AcquisitionTimestampFwModifiedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.modified else "1900-01-01T00:00:00+00:00" end)
-	    , "AcquisitionTimestampUserModifiedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.timestamp else "1900-01-01T00:00:00+00:00" end)
+	    , "AcquisitionCreatedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.created else "1900-01-01T00:00:00+00:00" end)
+	    , "AcquisitionModifiedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.modified else "1900-01-01T00:00:00+00:00" end)
+	    , "AcquisitionTimestampUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.timestamp else "1900-01-01T00:00:00+00:00" end)
 	    , "DicomModality": .Modality
 	    , "DicomInstitutionName": .InstitutionName
 	    , "DicomStationName": .StationName
