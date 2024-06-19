@@ -78,7 +78,8 @@ if __name__ == '__main__':
         print("FwNewInfo = '{}'".format(FwNewInfo))
 
         res.update_info(FwNewInfo)
-        res.update({ 'timestamp': ds } )
+# this will overwrite the time the scan was made.  create when it hits flywheel, modify is when flywheel last messed with it, .timestamp is from the classifier or the user finishes messing with the container.
+#        res.update({ 'timestamp': ds } )
         res = res.reload()
 
         FwContainerInfo = res.info    

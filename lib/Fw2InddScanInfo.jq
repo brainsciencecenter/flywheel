@@ -138,6 +138,7 @@ import "SessionId2Tags" as $SessionId2Tags;
 	    , "AcquisitionCreatedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.created else "1900-01-01T00:00:00+00:00" end)
 	    , "AcquisitionModifiedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.modified else "1900-01-01T00:00:00+00:00" end)
 	    , "AcquisitionTimestampUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.timestamp else "1900-01-01T00:00:00+00:00" end)
+	    , "$AshsJobDateTime": (if $AshsJobDateTime then $AshsJobDateTime else "1900-01-01T00:00:00+00:00" end)
 	    , "DicomModality": .Modality
 	    , "DicomInstitutionName": .InstitutionName
 	    , "DicomStationName": .StationName
