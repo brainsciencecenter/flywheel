@@ -13,7 +13,7 @@ import time
 from datetime import datetime
 
 
-def runGear(gear, inputs, dest, config={}, tags=None):
+def runGear(gear, inputs=None, dest=None, config={}, tags=None):
    """Submits a job with specified gear and inputs.
     
    Args:
@@ -30,6 +30,7 @@ def runGear(gear, inputs, dest, config={}, tags=None):
         fwRunGear  -g dicom-mr-classifier -i dicom dwolklab/NACC/1234/1234-3T/files/foo.dicom
         fwRunGear  -g dicom-mr-classifier -i dicom <InputFileUuid> [ ... ]
         fwRunGear  -g ashs -i T1w <InputFileUuid> 
+        fwRunGear  -g zip-audit-logs cfn/pmc_exvivo
 
    You can only submit one input at this time
         
@@ -92,7 +93,7 @@ if __name__ == '__main__':
     ap.add_argument('-L', '--label', action='store', help='Job Label')
     ap.add_argument('-l', '--show-log', default=False, action='store_true', help='Dump log at the end of the job')
     ap.add_argument('-n', '--noop', default=False, action='store_true', help='do not actually submit the job')
-    ap.add_argument('-i', '--input-key', required=True,  action='store', help='gear input key')
+    ap.add_argument('-i', '--input-key', action='store', help='gear input key')
     ap.add_argument('-o', '--output-file-info', default=False,  action='store_true', help='print output file ids')
     ap.add_argument('-t', '--tags', required=False, default=None, action='store', help='comma separated gear tags')
     ap.add_argument('-V', '--version', action='store', help='gear version to run')
@@ -140,10 +141,13 @@ if __name__ == '__main__':
           if (args.debug):
              print("file_obj = '{}'".format(file_obj), file=sys.stderr)
           
-       if (gear.category == "analysis"):
-          dest = fw.get(file_obj.parents.session)
+       if (type(file_obj) == flywheel.models.project_output.ProjectOutput):
+           dest = file_obj
        else:
-          dest = fw.get(file_obj.parents.acquisition)
+           if (gear.category == "analysis"):
+               dest = fw.get(file_obj.parents.session)
+           else:
+               dest = fw.get(file_obj.parents.acquisition)
        
        if (args.debug):
           print("dest = '{}'".format(dest), file=sys.stderr)
@@ -159,7 +163,10 @@ if __name__ == '__main__':
        if (args.debug):
           print("Config = '{}'".format(Config), file=sys.stderr)
 
-       job_id = runGear(gear,{InputKey: file_obj}, dest, config=Config, tags=tags)
+       if (args.input_key):
+           job_id = runGear(gear,inputs={InputKey: file_obj}, dest=dest, config=Config, tags=tags)
+       else:
+           job_id = runGear(gear, dest=dest, config=Config, tags=tags)
 
        if (args.verbose):
           print("{}: '{}'".format(fn,job_id))
