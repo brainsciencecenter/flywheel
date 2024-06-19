@@ -10,8 +10,6 @@ import "SessionId2Notes" as $SessionId2Notes;
 import "SessionId2TimestampsActive" as $SessionId2TimestampsActive;
 import "SessionId2Tags" as $SessionId2Tags;
 
-#def container2Timestamps(c): (c | { (._id): {"created": .created, "modified": .modified,  "timestamp": (if .timestamp then .timestamp else "" end) } }) ;
-
       .parents.group as $GroupLabel 
     | .parents.project as $ProjectId
     | .parents.subject as $SubjectId
