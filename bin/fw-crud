@@ -85,11 +85,11 @@ class FW():
         self.Config = parser.parse_args()
 
         try:
-            self.fw = flywheel.Client()
+            self.fw = flywheel.Client(request_timeout=120)
         except (OSError, Exception) as e:
             try:
                 with open(self.ApiKeyFile) as x: ApiKey = x.read().rstrip()
-                self.fw = flywheel.Client(ApiKey,root=self.Config.root)
+                self.fw = flywheel.Client(ApiKey,root=self.Config.root,request_timeout=120)
 
                 if (self.Config.root):
                     try:
