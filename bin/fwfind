@@ -67,7 +67,7 @@ if __name__ == '__main__':
     args = ap.parse_args()
 
     if (args.debug):
-        print("args.findargs = '{}'".format(' '.join(args.findargs)), file=sys.stderr)
+        print("args.findargs = '{}'".format(','.join(args.findargs)), file=sys.stderr)
 
     fw = fwgearutils.getFW({})
     if (not fw):
@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
     if (args.acquisitions):
         if (args.verbose):
-            print("%s : fw.acquisitions.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.acquisitions.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
 
         try:
             i = (args.findargs.index("group=Collections"))
@@ -100,6 +100,7 @@ if __name__ == '__main__':
                 res = Collection.acquisitions.iter_find()
             
         except (ValueError) as e:
+#            print("type(fw.acquisitions) == '{}'".format(type(fw.acquisitions)), file=sys.stderr)
             res = fw.acquisitions.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
 
 #    if (args.analyses):
@@ -108,28 +109,28 @@ if __name__ == '__main__':
 
     if (args.jobs):
         if (args.verbose):
-            print("%s : fw.jobs.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.jobs.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.jobs.iter_find(*args.findargs,limit=args.limit)
         # Need -gr to do job detail and profile
 
     if (args.gears):
         if (args.verbose):
-            print("%s : fw.gears.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.gears.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.gears.iter_find(*args.findargs,limit=args.limit)
 
     if (args.projects):
         if (args.verbose):
-            print("%s : fw.projects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.projects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.projects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
 
     if (args.subjects):
         if (args.verbose):
-            print("%s : fw.subjects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs),ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.subjects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs),ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.subjects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
 
     if (args.sessions):
         if (args.verbose):
-            print("%s : fw.sessions.find(%s,exhaustive=%s,limit=%s)" % (CmdName, ' '.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.sessions.find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
 
         try:
             try:
@@ -171,14 +172,18 @@ if __name__ == '__main__':
     Outputs = []
 
     for r in res:
+
         if (args.verbose):
             print("%s : r._id = '%s'" % (CmdName, r._id), file=sys.stderr)
 
         if (args.recurse):
             Output = fwgearutils.recurse(fw, r, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.recurse_acquisitions, ZipInfo=args.zip_info)
         else:
-            if (args.get):
-                r = fw.get(r.id)
+#            print("type(a) = '{}'".format(type(r)), file=sys.stderr)
+
+            r = fw.get(r.id)
+#            print("type(a) after get = '{}'".format(type(r)), file=sys.stderr)
+#            sys.exit(0)
 
             Output = fwgearutils.sloppyCopy(r, recurse=False, UTC=(not args.localtime))
 
