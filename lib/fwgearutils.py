@@ -278,6 +278,8 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
         try:
            if (type(r) == flywheel.models.job_list_entry.JobListEntry):
               r = r.reload()
+           elif (type(r) == flywheel.models.file_output.FileOutput):
+              r = fw.get(r.file_id)
            else:
               r = fw.get(r._id)
         except (flywheel.rest.ApiException) as e:
@@ -286,7 +288,7 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
            True
 
     if (Debug):
-        print(type(r), file=sys.stderr)
+        print("{} : {} : type(r) = {}".format(CmdName, "recurse", type(r)), file=sys.stderr)
 
     Output = sloppyCopy(r, UTC=UTC)
 
@@ -388,6 +390,9 @@ def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UT
 
         try:
             for f in r.files:
+                if (Verbose):
+                    print("%s : %s zipinfo files %s" % (CmdName, r.label, f.name), file=sys.stderr)
+
                 File = sloppyCopy(f, UTC=UTC)
                 if (re.search('\.zip$', f.name)):
                     if (f.size > 0):
