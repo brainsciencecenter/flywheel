@@ -99,19 +99,21 @@ import "SessionId2Tags" as $SessionId2Tags;
 #		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.template else "" end) as $BidsTemplate
 #		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.valid else "" end) as $BidsValid
 
-		| (if ( .RadiopharmaceuticalInformationSequence )
-	           then
-			.RadiopharmaceuticalInformationSequence | .. | .Radiopharmaceutical?
-		   else
-		        "None"
-	           end) as $DicomRadiopharmaceutical
+                | (if ( .RadiopharmaceuticalInformationSequence )
+                   then
+                        .RadiopharmaceuticalInformationSequence | toObject
+                      | .Radiopharmaceutical
+                   else
+                        "None"
+                   end) as $DicomRadiopharmaceutical
 
-		| (if ( .RadiopharmaceuticalInformationSequence )
-	           then
-			.RadiopharmaceuticalInformationSequence | .. | .CodeMeaning?
-                  else
-		        "None"
-	          end) as $DicomRadionuclide
+                | ( if (.RadiopharmaceuticalInformationSequence) then
+                        .RadiopharmaceuticalInformationSequence | toObject
+                      | .RadionuclideCodeSequence | toObject
+                      | .CodeMeaning
+                    else
+                         "None"
+                    end) as $DicomRadionuclide
 
 	# Need to check file names for ^IND{1,2}_.*$, ^\d{6}$, ^\d{6}[._\-x]\d{2}$
 
@@ -138,7 +140,7 @@ import "SessionId2Tags" as $SessionId2Tags;
 	    , "AcquisitionCreatedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.created else "1900-01-01T00:00:00+00:00" end)
 	    , "AcquisitionModifiedUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.modified else "1900-01-01T00:00:00+00:00" end)
 	    , "AcquisitionTimestampUTC": (if $AcquisitionTimestamps then $AcquisitionTimestamps.timestamp else "1900-01-01T00:00:00+00:00" end)
-	    , "$AshsJobDateTime": (if $AshsJobDateTime then $AshsJobDateTime else "1900-01-01T00:00:00+00:00" end)
+	    , "AshsJobDateTime": (if $AshsJobDateTime then $AshsJobDateTime else "1900-01-01T00:00:00+00:00" end)
 	    , "DicomModality": .Modality
 	    , "DicomInstitutionName": .InstitutionName
 	    , "DicomStationName": .StationName
