@@ -38,7 +38,7 @@ import "SessionId2Tags" as $SessionId2Tags;
       # Want Bids files or the first NoBids with DicomExt or NiftiExt
     | [
            # Select the Bids files
-	   .[] | select( ((.info.BIDS | type) == "object") )
+	   [ .[] | select( ((.info.BIDS | type) == "object") ) ] | first
       ] +
       [
 	 [ .[] | select(  (.type == "dicom") or (.type == "nifti") ) ] | first
