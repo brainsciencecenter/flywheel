@@ -179,10 +179,13 @@ if __name__ == '__main__':
         if (args.recurse):
             Output = fwgearutils.recurse(fw, r, CmdName=CmdName, Get=args.get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.verbose, GetAcquisitions=args.recurse_acquisitions, ZipInfo=args.zip_info)
         else:
-#            print("type(a) = '{}'".format(type(r)), file=sys.stderr)
+#            print("type(r) = '{}'".format(type(r)), file=sys.stderr)
 
-            r = fw.get(r.id)
-#            print("type(a) after get = '{}'".format(type(r)), file=sys.stderr)
+            if (type(r) == flywheel.models.job_list_output.JobListOutput):
+                r = fw.get_job(r.id)
+            else:
+                r = fw.get(r.id)
+#            print("type(r) after get = '{}'".format(type(r)), file=sys.stderr)
 #            sys.exit(0)
 
             Output = fwgearutils.sloppyCopy(r, recurse=False, UTC=(not args.localtime))
