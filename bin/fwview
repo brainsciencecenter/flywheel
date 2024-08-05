@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+
+#
+# fwView [-c containertype][-F csv|json][-f filter][-l limit][-p ProjectId] {field1 [[field2]...]}
+
+import argparse
+import csv
+import datetime
+import flywheel
+import fwgearutils
+import json
+import os
+import re
+import sys
+import pyjq
+import pprint
+
+from datetime import datetime
+from tzlocal import get_localzone
+
+
+if __name__ == '__main__':
+
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+
+    ap.add_argument('-c', '--container-type', default='acquisition',  action='store', help='Container type: group, project, subject, acquisition')
+    ap.add_argument('-F', '--format', default=None,  action='store', help='format to return output in. either csv or json')
+    ap.add_argument('-f', '--filter', default=None,  action='store', help='comma separated list of filters to use')
+    
+    ap.add_argument('-l', '--limit', default=None,  action='store', help='Maximum number of items to return')
+    ap.add_argument('-p', '--project-id', default=None,  action='store', required=True, help=' of gears, get all gears if none specified')
+
+    ap.add_argument('fields', nargs='+', type=str, default=None, help='fields')
+
+    args = ap.parse_args()
+
+    fw = fwgearutils.getFW(args, Root=True)
+    if (not fw):
+        print("{} : unable to initialize flywheel object".format(CmdName), file=sys.stderr)
+        sys.exit(1)
+
+
+ViewId = fw.View(columns=args.fields, container=args.container_type, sort=False, include_ids=False, include_labels=False)
+#ViewId = fw.View(columns=['session.id','session.label'], container='session', sort=False, include_ids=False, include_labels=False)
+#ViewId = fw.View(columns=['subject.id','subject.label'], container='subject', sort=False, include_ids=False, include_labels=False)
+#ViewId = fw.View(columns=['project.id','project.label'], container='project', sort=False, include_ids=False, include_labels=False)
+
+ProjectId = "5c37ac6d1de80b00198acd4a" # cfn/pmc_exvivo
+ProjectId = "5d07b942a550c600296fadda" # cfn/PMC-CLINICAL
+ProjectId = "5c508d5fc2a4ad002d7628d8" # dwolklab/NACC-SC
+ProjectId = "5e1cec8e3a9694005b6d12ab" # pennftdcenter/HUP6
+ProjectId = "6630f58dccf3d2ee82ef6f59" # Collections/ABCD2_WashU_20240430
+
+ProjectId = "65e5f43074ebb37c174510c8" # holder/IcvMarking
+
+ProjectId = args.project_id
+
+#with fw.read_view_data(ViewId, ProjectId, format='csv', limit=200) as resp:
+with fw.read_view_data(ViewId, ProjectId, format='csv') as resp:
+    while True:
+        chunk = resp.readline().strip()
+        if not chunk:
+            break
+        print(chunk)
+        
+
+
+            
