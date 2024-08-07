@@ -1,5 +1,5 @@
 #
-# fwview -c acquisition -p 65e5f43074ebb37c174510c8 acquisition.id acquisition.created acquisition.modified acquisition.timestamp acquisition.info.PICSL_sMRI_biomarkers.ASHS-{HarP,ICV,PMC-T1,PMC,ABC-3T,ABC-7T,Magdeburg,Princeton,Utrect}.JobInfo.JobDateTime | csvjson -y 0 --stream | jq -f fwview2IdNDateTimes.jq
+# fwview -c $container -p 65e5f43074ebb37c174510c8 $container.id $container.created $container.modified $container.timestamp $container.info.PICSL_sMRI_biomarkers.ASHS-{HarP,ICV,PMC-T1,PMC,ABC-3T,ABC-7T,Magdeburg,Princeton,Utrect}.JobInfo.JobDateTime | csvjson -y 0 --stream | jq --arg container $container -f fwview2IdNDateTimes.jq
 #
 # Looking for output like:
 # {
@@ -30,14 +30,14 @@
 #
 # this finds the most recent Atlas JobDateTime from the possible atlases and stores it as $AshsJobDateTime
 # 
-  (to_entries | [ .[] | select(.key | test("acquisition.info.PICSL_sMRI_biomarkers.ASHS.*.JobInfo.JobDateTime") ) | .value ] | sort | last) as $AshsJobDateTime
+  (to_entries | [ .[] | select(.key | test($container+".info.PICSL_sMRI_biomarkers.ASHS.*.JobInfo.JobDateTime") ) | .value ] | sort | last) as $AshsJobDateTime
 
 # build the timestamp dict with $AshsJobDateTime if there is a non-null
 | {
-     (.["acquisition.id"]): {
-          "created": .["acquisition.created"]
-        , "modified": .["acquisition.modified"]
-        , "timestamp": .["acquisition.timestamp"]
+     (.[$container+".id"]): {
+          "created": (if (.[$container+".created"]) then .[$container+".created"] else "" end)
+        , "modified": (if (.[$container+".modified"]) then .[$container+".modified"] else "" end)
+        , "timestamp": (if (.[$container+".timestamp"]) then .[$container+".timestamp"] else "" end)
         , "AshsJobDateTime": (if ($AshsJobDateTime) then $AshsJobDateTime else "" end)
      }
    } 

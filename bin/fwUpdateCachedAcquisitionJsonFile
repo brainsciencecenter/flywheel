@@ -123,7 +123,7 @@ fi
 # -g needed to get info.PICSL_sMRI_biomarkers
 
 #sys time fwfind -a -g -1 group="$Group" project="$ProjectId" | jq -r -L "$FwLib" 'include "FwLib"; { (._id): container2Timestamps(.) }' | jq -r --slurp ' . | add ' > "$AcquisitionId2TimestampsActiveJsonFile"
-sys time fwview -c acquisition -p "$ProjectId" acquisition.id acquisition.created acquisition.modified acquisition.timestamp acquisition.info.PICSL_sMRI_biomarkers.ASHS-{HarP,ICV,PMC-T1,PMC,ABC-3T,ABC-7T,Magdeburg,Princeton,Utrect}.JobInfo.JobDateTime | sys sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq -f "${FwLib}/fwview2IdNDateTimes.jq" > "$AcquisitionId2TimestampsActiveJsonFile"
+sys time fwview -c acquisition -p "$ProjectId" acquisition.id acquisition.created acquisition.modified acquisition.timestamp acquisition.info.PICSL_sMRI_biomarkers.ASHS-{HarP,ICV,PMC-T1,PMC,ABC-3T,ABC-7T,Magdeburg,Princeton,Utrect}.JobInfo.JobDateTime | sys sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq --arg container acquisition -f "${FwLib}/fwview2IdNDateTimes.jq" | jq -s 'add' > "$AcquisitionId2TimestampsActiveJsonFile"
 
 if [ -e "$AcquisitionsCachedJsonFile" ]
 then
