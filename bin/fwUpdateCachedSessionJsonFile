@@ -71,7 +71,7 @@ fi
 #
 # *** does not work for collections
 #
-fwview -c session -p "$ProjectId" session.id session.created session.modified session.timestamp | sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq '{  (.["session.id"]) : { "created": (.["session.created"]), "modified": (.["session.modified"]), "timestamp": (.["session.timestamp"]), "AshsJobDateTime": "" } }' | jq -s '. | add'  > "$SessionId2TimestampsActiveJsonFile"
+sys fwview -c session -p "$ProjectId" session.id session.created session.modified session.timestamp | sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq '{  (.["session.id"]) : { "created": (.["session.created"]), "modified": (.["session.modified"]), "timestamp": (.["session.timestamp"]), "AshsJobDateTime": "" } }' | jq -s '. | add'  > "$SessionId2TimestampsActiveJsonFile"
 
 if [ -e "$SessionsCachedJsonFile" ]
 then
