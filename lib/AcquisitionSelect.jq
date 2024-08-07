@@ -1,7 +1,6 @@
 include "FwLib";
 
 container2Timestamps(.) as $Timestamps
-
 | select(
 	      # verify the Id is in the active Acquisition list
               (._id | in($AcquisitionId2TimestampsActive[]))

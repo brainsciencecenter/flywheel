@@ -67,21 +67,25 @@ then
     exit 2
 fi
 
-sys fwfind -S -g -1 group="$Group" project="$ProjectId" | jq -r -L "$FwLib" 'include "FwLib"; {(._id): container2Timestamps(.) }'  | jq -r --slurp 'select(.) | add ' > "$SessionId2TimestampsActiveJsonFile"
+#sys fwfind -S -g -1 group="$Group" project="$ProjectId" | jq -r -L "$FwLib" 'include "FwLib"; {(._id): container2Timestamps(.) }'  | jq -r --slurp 'select(.) | add ' > "$SessionId2TimestampsActiveJsonFile"
+#
+# *** does not work for collections
+#
+fwview -c session -p "$ProjectId" session.id session.created session.modified session.timestamp | sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq '{  (.["session.id"]) : { "created": (.["session.created"]), "modified": (.["session.modified"]), "timestamp": (.["session.timestamp"]), "AshsJobDateTime": "" } }' | jq -s '. | add'  > "$SessionId2TimestampsActiveJsonFile"
 
 if [ -e "$SessionsCachedJsonFile" ]
 then
     sys jq -r -L "$FwLib" --slurpfile SessionId2TimestampsActive "$SessionId2TimestampsActiveJsonFile" 'include "FwLib"; container2Timestamps(.) as $Timestamps | select( (._id | in($SessionId2TimestampsActive[])) and ($Timestamps == $SessionId2TimestampsActive[][._id]) )' "$SessionsCachedJsonFile" > "$SessionsCommonJsonFile"
 
-    sys jq -r -L "$FwLib" 'include "FwLib"; container2Timestamps(.) as $Timestamps | [ ._id, $Timestamps.created, $Timestamps.modified, $Timestamps.timestamp, $Timestamps.AshsJobDate ] | @csv' "$SessionsCommonJsonFile" | sort -u  > "$SessionId2TimestampsCommonCsvFile"
+    sys jq -r -L "$FwLib" 'include "FwLib"; container2Timestamps(.) as $Timestamps | [ ._id, $Timestamps.created, $Timestamps.modified, $Timestamps.timestamp, $Timestamps.AshsJobDateTime ] | @csv' "$SessionsCommonJsonFile" | sort -u  > "$SessionId2TimestampsCommonCsvFile"
 
-    sys jq -r 'to_entries[] | [ .key, .value.created, .value.modified, .value.timestamp, .value.AshsJobDate] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
+    sys jq -r 'to_entries[] | [ .key, .value.created, .value.modified, .value.timestamp, .value.AshsJobDateTime] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
 
     sys diff "$SessionId2TimestampsCommonCsvFile" "$SessionId2TimestampsActiveCsvFile" | grep '> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep '.' > "$SessionIdsToGet"
 else
     sys cat /dev/null > "$SessionsCommonJsonFile"
     sys cat /dev/null > "$SessionId2TimestampsCommonCsvFile"
-    sys jq -r 'to_entries[] | [ .key, .value.created, .value.modified, .value.timestamp, .value.AshsJobDate ] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
+    sys jq -r 'to_entries[] | [ .key, .value.created, .value.modified, .value.timestamp, .value.AshsJobDateTime ] | @csv' "$SessionId2TimestampsActiveJsonFile" | sort -u > "$SessionId2TimestampsActiveCsvFile"
     sys csvcut -c 1 "$SessionId2TimestampsActiveCsvFile" > "$SessionIdsToGet"
 fi
 
