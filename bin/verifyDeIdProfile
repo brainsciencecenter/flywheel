@@ -60,7 +60,7 @@ then
 		exit 5
 	fi
 	
-	DeIdProfileYaml="$(< \"$opt_d\")"
+	DeIdProfileYaml=$(< "$opt_d")
 else
 	FlywheelGroupProjectDeIdFile="${Group}/${Project}/files/deid_profile.yaml"
 	DeIdProfileYaml=$(fw download --quiet -o -- "$FlywheelGroupProjectDeIdFile" 2>/dev/null )
