@@ -60,6 +60,7 @@ SessionsUpdatedJsonFile="${TmpDir}/SessionsUpdate.json"
 #
 # *** How to get the project id for collections?
 #
+[ -n "$opt_v" ] && echo "${CmdName} : getting Project Id" 1>&2
 ProjectId=$(sys fwget -1 "${GroupProject}" | jq -r '._id')
 if [ -z "$ProjectId" ]
 then
@@ -71,7 +72,10 @@ fi
 #
 # *** does not work for collections
 #
-sys fwview -c session -p "$ProjectId" session.id session.created session.modified session.timestamp | sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq --arg container session -f "${FwLib}/fwview2IdNDateTimes.jq" | jq -s '. | add'  > "$SessionId2TimestampsActiveJsonFile"
+[ -n "$opt_v" ] && echo "${CmdName} : getting Session Timestamps Id" 1>&2
+#sys fwview -c session -p "$ProjectId" session.id session.created session.modified session.timestamp | sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq --arg container session -f "${FwLib}/fwview2IdNDateTimes.jq" | jq -s '. | add'  > "$SessionId2TimestampsActiveJsonFile"
+# sys getContainerTimestamps -c session -p "$ProjectId" session.id session.created session.modified session.timestamp | sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq --arg container session -f "${FwLib}/fwview2IdNDateTimes.jq" | jq -s '. | add'  > "$SessionId2TimestampsActiveJsonFile"
+sys getContainerTimestamps -c session -p "$ProjectId" session.id session.created session.modified session.timestamp > "$SessionId2TimestampsActiveJsonFile"
 
 if [ -e "$SessionsCachedJsonFile" ]
 then
@@ -92,6 +96,8 @@ fi
 NSessionIdsToGet=$(wc -l < "$SessionIdsToGet")
 if [ "$NSessionIdsToGet" -gt 0 ]
 then
+    [ -n "$opt_v" ] && echo "${CmdName} : getting new sessions" 1>&2
+
     sys fwget -v -N "$NSessionIdsToGet" -1 < "$SessionIdsToGet" > "$SessionsNewJsonFile"
 else
     cat /dev/null > "$SessionsNewJsonFile"

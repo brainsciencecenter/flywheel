@@ -4,7 +4,7 @@ CmdName=$(basename "$0")
 FwDir=$(dirname $(dirname $(which "$0")))
 FwLib="${FwDir}/lib"
 
-syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-n][-t TmpDir][-u][-v] [Group/Project [other fw.find option]...]"
+syntax="${CmdName} [-a AcquistionIds][-c CachedAcquisitionJsonFile][-n][-T Timeout][-t TmpDir][-u][-v] [Group/Project [other fw.find option]...]"
 
 #
 # -c cached acquisition json file with details of the acquisitions
@@ -27,11 +27,13 @@ function cleanup {
     return 0
 }
 
+Timeout=3600
 
-while getopts c:nt:uv arg
+
+while getopts c:nTt:uv arg
 do
 	case "$arg" in
-	     c|n|t|u|v)
+	     c|n|T|t|u|v)
 		eval "opt_${arg}='${OPTARG:=-${arg}}'"
 		;;
 	esac
@@ -84,6 +86,8 @@ else
     DeleteTmpDir=True
 fi
 
+[ -n "$opt_T" ] && Timeout="$opt_T"
+
 if [ -n "$opt_c" ]
 then
     AcquisitionsCachedJsonFile="$opt_c"
@@ -111,6 +115,7 @@ AcquisitionsCommonJsonFile="${TmpDir}/AcquisitionsCommon.json"
 AcquisitionsNewJsonFile="${TmpDir}/AcquisitionsNew.json"
 AcquisitionsUpdatedJsonFile="${TmpDir}/AcquisitionsUpdate.json"
 
+[ -n "$opt_v" ] && echo "${CmdName} : getting Project Id" 1>&2
 ProjectId=$(sys fwget -1 "${GroupProject}" | jq -r '._id')
 if [ -z "$ProjectId" ]
 then
@@ -123,7 +128,11 @@ fi
 # -g needed to get info.PICSL_sMRI_biomarkers
 
 #sys time fwfind -a -g -1 group="$Group" project="$ProjectId" | jq -r -L "$FwLib" 'include "FwLib"; { (._id): container2Timestamps(.) }' | jq -r --slurp ' . | add ' > "$AcquisitionId2TimestampsActiveJsonFile"
-sys time fwview -c acquisition -p "$ProjectId" acquisition.id acquisition.created acquisition.modified acquisition.timestamp acquisition.info.PICSL_sMRI_biomarkers.ASHS-{HarP,ICV,PMC-T1,PMC,ABC-3T,ABC-7T,Magdeburg,Princeton,Utrect}.JobInfo.JobDateTime | sys sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq --arg container acquisition -f "${FwLib}/fwview2IdNDateTimes.jq" | jq -s 'add' > "$AcquisitionId2TimestampsActiveJsonFile"
+
+[ -n "$opt_v" ] && echo "${CmdName} : getting Acquisition Timestamps for '${GroupProject}'" 1>&2
+
+#sys timeout "$Timeout" time fwview -c acquisition -p "$ProjectId" acquisition.id acquisition.created acquisition.modified acquisition.timestamp acquisition.info.PICSL_sMRI_biomarkers.ASHS-{HarP,ICV,PMC-T1,PMC,ABC-3T,ABC-7T,Magdeburg,Princeton,Utrect}.JobInfo.JobDateTime | sys sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq --arg container acquisition -f "${FwLib}/fwview2IdNDateTimes.jq" | jq -s 'add' > "$AcquisitionId2TimestampsActiveJsonFile"
+sys timeout "$Timeout" time getContainerTimestamps -c acquisition -p "$ProjectId" acquisition.id acquisition.created acquisition.modified acquisition.timestamp acquisition.info.PICSL_sMRI_biomarkers.ASHS-{HarP,ICV,PMC-T1,PMC,ABC-3T,ABC-7T,Magdeburg,Princeton,Utrect}.JobInfo.JobDateTime > "$AcquisitionId2TimestampsActiveJsonFile"
 
 if [ -e "$AcquisitionsCachedJsonFile" ]
 then
