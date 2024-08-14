@@ -38,6 +38,19 @@ function getProjectId {
     echo "$ProjectId"
 }
 
+function groupProject2csv {
+    local extension="$1"
+
+    shift
+
+    for f in "$@"
+    do
+	Project=$(echo "$f" | cut -f 2 -d /)
+	CsvFile="${f}/${Project}_${extension}.csv"
+	[ -e "$CsvFile" ] && echo "$CsvFile"
+    done
+}
+
 while getopts afnQv arg
 do
     case "$arg" in
@@ -60,9 +73,10 @@ fi
 
 if [ -n "$1" ]
 then
-    l=$(echo "$1" | sed 's,/$,,')
-    GroupProjects+=( "$l" )
-    shift
+    for l in "$@"
+    do
+	GroupProjects+=( $(echo "$l" | sed 's,/$,,')  )
+    done
 else
     while read line
     do
@@ -112,7 +126,7 @@ fi
 #
 if [ -n "$opt_a" ]
 then
-    (head -q -n 1 [a-z]*/*/*_mri.csv | sort -u; tail -q -n +2 [a-z]*/*/*_mri.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_mri.csv
-    (head -q -n 1 [a-z]*/*/*_pet.csv | sort -u; tail -q -n +2 [a-z]*/*/*_pet.csv | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_pet.csv
-    (head -q -n 1 [a-z]*/*/*_bids.csv | sort -u; tail -q -n +2 [a-z]*/*/*_bids.csv | sort -u) > fw_bids.csv
+    (head -q -n 1 $(groupProject2csv mri "${GroupProjects[@]}") | sort -u; tail -q -n +2 $(groupProject2csv mri "${GroupProjects[@]}") | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_mri.csv
+    (head -q -n 1 $(groupProject2csv pet "${GroupProjects[@]}") | sort -u; tail -q -n +2 $(groupProject2csv pet "${GroupProjects[@]}") | sed -r 's/(,*)([0-9]{6})([_x])([0-9]{2}),/\1\2.\4,/g' | grep -P '^\d{6}([_\.x]\d{2})?,' | sort -u) > fw_pet.csv
+    (head -q -n 1 $(groupProject2csv bids "${GroupProjects[@]}") | sort -u; tail -q -n +2 $(groupProject2csv bids "${GroupProjects[@]}") | sort -u) > fw_bids.csv
 fi
