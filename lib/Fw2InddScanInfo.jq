@@ -41,7 +41,7 @@ import "SessionId2Tags" as $SessionId2Tags;
 	   [ .[] | select( ((.info.BIDS | type) == "object") ) ] | first
       ] +
       [
-	 [ .[] | select(  (.type == "dicom") or (.type == "nifti") ) ] | first
+	 [ .[] | select( ((.info.BIDS | type) == "null") and  ((.type == "dicom") or (.type == "nifti")) ) ] | first
       ] | .[]
 #    | [ .[] | if $Bids then select(.info.BIDS) else select((.name | test($FileExt))) end] | first
       | .name as $AcquisitionFileName
