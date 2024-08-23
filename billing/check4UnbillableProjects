@@ -1,0 +1,3 @@
+#!/bin/bash
+
+fwfind -1 -p 'info.ProjectFunding=null' | jq -r 'select(.info.ProjectFunding == null) | [.group, .label] | @csv' | sort | grep -v -E 'camris|holder|unknown' | sed 's/"//g; s:,:/:'

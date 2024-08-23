@@ -13,14 +13,27 @@ function findReportFile {
     local YearMonth="$3"
     local NestYearMonth="$4"
 
-    Dirs=( ~/Work/flywheel/GCPBilling/${YearMonth} ~/Downloads )
+    Dirs=( ~/Downloads ~/Work/flywheel/GCPBilling/${YearMonth} )
     for d in "${Dirs[@]}"
     do
-	FileName=$(realpath "${d}/${Date}-${File}")
-	[ -e "$FileName" ] && break
+	FileName="${d}/${Date}-${File}"
+	if [ -e "$FileName" ]
+	then
+	    FileName=$(realpath "$FileName")
+	    break
+	fi
 
-	FileName=$(realpath "${d}/${File}")
-	[ -e "$FileName" ] && break
+	FileName="${d}/${File}"
+	if [ -e "$FileName" ]
+        then
+	    FileName=$(realpath "$FileName")
+
+	    [ -d ~/Work/flywheel/GCPBilling/${YearMonth} ] || mkdir -p ~/Work/flywheel/GCPBilling/${YearMonth}
+	    cp ${FileName} ~/Work/flywheel/GCPBilling/${YearMonth}/${Date}-${File}
+
+	    break
+	fi
+	
     done
 
     if [ -n "$FileName" ] && [ -e "$FileName" ]
@@ -89,6 +102,7 @@ then
     echo "${CmdName} : Missing UserReportFile" 1>&2
     exit
 fi
+
 RPmacsUserReportFile="${RReportDir}/${Date}-userreport.txt"
 echo "cat $LPmacsUserReportFile | $(ssh2bscsub tee $RPmacsUserReportFile)"
    

@@ -44,6 +44,7 @@ Dataset=BillingAllocation
 InputTables='
     `unipen-015ee8-997645-50785f.billing_export.gcp_billing_export_v1_015EE8_997645_50785F`
     `upenn-017978-eb30e0-a7e2f9.billing_export.gcp_billing_export_v1_017978_EB30E0_A7E2F9`
+    `unipen-01d041-ec8a99-818ff3.billing_export.gcp_billing_export_v1_01D041_EC8A99_818FF3`
 '
 
 [ -n "$opt_i" ] && InputTables="$opt_i"

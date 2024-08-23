@@ -2,6 +2,10 @@
 
 v5TempFunctions=$(which v5TempFunctions)
 
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -z "$opt_n" ] && "$@"
+}
 
 function v5DownloadFwIlabCharges {
     local Database=v5BscFwCharges
@@ -264,80 +268,26 @@ function downloadFwIlabChargesV4 {
     '
 }
 
-function downloadNonFwGcpIlabCharges {
-    #
-    # Edit link: https://docs.google.com/spreadsheets/d/1aNXqOV7WYSzVKrm-4Vhz54USyi0Ns9Prd4QsCVSf92A/edit#gid=0
-    #		 Owned by holder@pennbrain.upenn.edu
-    #
-    BscGcpProjectCostAllocations=https://docs.google.com/spreadsheets/d/e/2PACX-1vQo4_xTQmetGhNCH_sEo_B1KI7glRgRqizq1LthUo36g3tIZ9iO5-Ll07qk6-NFw1FjLQQ5yDkmtp1S/pub?output=csv
-
-    BscGcpProjectCostAllocationsFile=$(mktemp /tmp/BscGcpProjectCostAllocations-XXXXXX)
-    #
-    # UPHS firewall blocks chead from accessing google sheets where the gcp cost allocation is maintained,
-    # so we go to bscsub to get the data.
-    #
-    [ "$(hostname -s)" == "chead" ] && CmdPrefix="ssh holder@bscsub.pmacs.upenn.edu"
-
-    ($CmdPrefix wget -q -O - "$BscGcpProjectCostAllocations" ; echo "") > "$BscGcpProjectCostAllocationsFile"
-
-    DB="${Dataset}.BscGcpProjectCostAllocations"
-
-    ServiceId=455000
-    BscStorageFeePercent=0.25
-
-    PurchaseDate="${opt_y}${opt_m}01"
-
-    ($CmdPrefix wget -q -O - "$BscGcpProjectCostAllocations" ; echo "") > "$BscGcpProjectCostAllocationsFile"
-
-    if [ ! -s "$BscGcpProjectCostAllocationsFile" ]
-    then
-	echo "$CmdName : Zero size Bsc GCP Project Allocation file '$BscGcpProjectCostAllocationsFile'" 1>&2
-	exit 1
-    fi
-    
-    bq load --autodetect --project_id="${Project}" --skip_leading_rows 1 --replace --source_format=CSV "$DB" "$BscGcpProjectCostAllocationsFile" 2> /dev/null
-
-    ProblemProjects="$(bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
-    
-    SELECT 
-    	     GcpProjectName
-	   , TotalProjectAllocationPercent
-    FROM (
-    	 SELECT
-    	       GcpProjectName
-	     , SUM(AllocationPercent) AS TotalProjectAllocationPercent
-         FROM
-	     `'"${Project}.${Dataset}."'BscGcpProjectCostAllocations`
-         GROUP BY
-    	    GcpProjectName
-
-    )
-    WHERE
-        TotalProjectAllocationPercent != 1.0
-    ORDER BY
-    	GcpProjectName
-	
-    '  2> /dev/null)"
-    if [ -n "$ProblemProjects" ]
-    then
-	echo "${CmdName} : GcpProject allocations" 1>&2
-        echo "$ProblemProjects" | column -t -s, 1>&2
-	exit 2
-    fi
-
-
+function calculateNonFwGcpChargesPre20240701 {
     bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    # ServiceId
+    # BscGcpSurchargePercent
+    # PurchaseDate
+    # Year
+    # Month
+    # Project
+    # Dateset
     
     SELECT 
         "'"$ServiceId"'" AS service_id,
         format("%s (%8.2f + (%8.2f * %0.2f = %8.2f)) * %0.2f = %8.2f",
              GcpProjectName,
-    	 TotalDiscountedCosts,
-    	 TotalDiscountedStorageCosts,
-    	 '"$BscStorageFeePercent"',
-    	 BscGcpStorageFee,
-    	 AllocationPercent,
-    	 TotalAllocatedCharges
+             TotalDiscountedCosts,
+    	     TotalDiscountedStorageCosts,
+    	     '"$BscGcpSurchargePercent"',
+    	     BscGcpStorageFee,
+    	     AllocationPercent,
+    	     TotalAllocatedCharges
           )
           AS note,
         format("%8.2f", ROUND(TotalAllocatedCharges,2)) AS service_quantity,
@@ -356,9 +306,12 @@ function downloadNonFwGcpIlabCharges {
     	        GcpProjectName,
     	        TotalDiscountedCosts,
     	        TotalDiscountedStorageCosts,
-    	        ROUND((TotalDiscountedStorageCosts * '"$BscStorageFeePercent"'),2) AS BscGcpStorageFee,
-    	        ROUND(TotalDiscountedStorageCosts + (TotalDiscountedStorageCosts * 0.25),2) AS TotalCharges,
+    	        ROUND((TotalDiscountedStorageCosts * '"$BscGcpSurchargePercent"'),2) AS BscGcpStorageFee,	     # How much we charge them for storage
+    	        ROUND(TotalDiscountedStorageCosts + (TotalDiscountedStorageCosts * 0.25),2) AS TotalCharges,	     # Total storage costs with bsc surcharge
+
+		# *** this sure looks like StorageCosts are being charged for twice - once in TotalDiscountedStorageCosts and again in TotalDicountedCosts
     	        ROUND((TotalDiscountedCosts + (TotalDiscountedStorageCosts * 0.25)) * AllocationPercent,2) AS TotalAllocatedCharges,
+
     		IlabServiceRequestNumber,
     		FundNumber,
     	FROM (
@@ -402,6 +355,165 @@ function downloadNonFwGcpIlabCharges {
     )	
     '
 }
+
+function calculateNonFwGcpChargesPost20240701 {
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    # ServiceId
+    # BscGcpSurchargePercent
+    # PurchaseDate
+    # Year
+    # Month
+    # Project
+    # Dateset
+    
+    SELECT 
+        "'"$ServiceId"'" AS service_id,
+        format("%s (%8.2f + (%8.2f * %0.2f = %8.2f)) * %0.2f = %8.2f",
+             GcpProjectName,
+             TotalDiscountedCosts,
+    	     TotalDiscountedCosts,
+    	     '"$BscGcpSurchargePercent"',
+    	     BscGcpFee,
+    	     AllocationPercent,
+    	     TotalAllocatedCharges
+          )
+          AS note,
+        format("%8.2f", ROUND(TotalAllocatedCharges,2)) AS service_quantity,
+        "" AS price,
+        "'"$PurchaseDate"'" AS purchased_on,
+        IlabServiceRequestNumber AS service_request_id,
+        "" AS owner_email,
+        "" AS pi_email_or_group_id,
+        "" AS payment_number
+    FROM (
+         SELECT
+    	*
+         FROM (
+    	SELECT
+    	        AllocationPercent,
+    	        GcpProjectName,
+    	        TotalDiscountedCosts,
+    	        ROUND((TotalDiscountedCosts * '"$BscGcpSurchargePercent"'),2) AS BscGcpFee,		    # How much we charge them for GCP usage
+
+    	        ROUND((TotalDiscountedCosts + (TotalDiscountedCosts * '"$BscGcpSurchargePercent"')) * AllocationPercent,2) AS TotalAllocatedCharges,
+
+    		IlabServiceRequestNumber,
+    		FundNumber,
+    	FROM (
+    	    SELECT 
+    	        BscGcpProjectCosts.InvoiceMonth AS InvoiceMonth,
+    	        BscGcpProjectCosts.GcpProjectName AS GcpProjectName,
+    	        ROUND(SUM(DiscountedCosts),2) AS TotalDiscountedCosts,
+    	        ROUND(SUM(DiscountedStorageCosts),2) AS TotalDiscountedStorageCosts,
+    	        BscGcpProjectCostAllocations.AllocationPercent AS AllocationPercent,
+    	        BscGcpProjectCostAllocations.iLabServiceRequestNumber AS IlabServiceRequestNumber,
+    	        BscGcpProjectCostAllocations.FundNumber AS FundNumber
+    	    FROM (
+    	        SELECT 
+    	            InvoiceMonth,
+    	            GcpProjectName,
+    	            ServiceDescription,
+    	            Costs + Discounts AS DiscountedCosts,
+    	            IF ((ServiceDescription = "Cloud Storage"), (Costs + Discounts), 0.0) AS DiscountedStorageCosts,
+    	        FROM `'"${Project}.${Dataset}."'GcpNonFlywheelCosts` 
+    	        WHERE 
+    	            InvoiceMonth = @InvoiceMonth
+    	    ) BscGcpProjectCosts
+    	    FULL OUTER JOIN 
+    	    	`'"${Project}.${Dataset}."'BscGcpProjectCostAllocations` BscGcpProjectCostAllocations
+    	    ON
+    		BscGcpProjectCosts.GcpProjectName = BscGcpProjectCostAllocations.GcpProjectName
+    	    GROUP BY 
+    	        BscGcpProjectCosts.InvoiceMonth,
+    	        BscGcpProjectCosts.GcpProjectName,
+    	    	BscGcpProjectCostAllocations.AllocationPercent,
+    		BscGcpProjectCostAllocations.FundNumber,
+    		IlabServiceRequestNumber
+    	    ORDER BY 
+    	        BscGcpProjectCosts.GcpProjectName ASC
+    	)
+         )
+         WHERE
+    	  ROUND(TotalAllocatedCharges,2) >= 0.01
+    	AND
+    	  FundNumber != "InternalBenNumber"
+    )	
+    '
+}
+
+function downloadNonFwGcpIlabCharges {
+    #
+    # Edit link: https://docs.google.com/spreadsheets/d/1aNXqOV7WYSzVKrm-4Vhz54USyi0Ns9Prd4QsCVSf92A/edit?pli=1&gid=0#gid=0
+    #		 Owned by holder@pennbrain.upenn.edu
+    #
+    BscGcpProjectCostAllocations=https://docs.google.com/spreadsheets/d/e/2PACX-1vQo4_xTQmetGhNCH_sEo_B1KI7glRgRqizq1LthUo36g3tIZ9iO5-Ll07qk6-NFw1FjLQQ5yDkmtp1S/pub?output=csv
+    BscGcpProjectCostAllocations='https://docs.google.com/spreadsheets/d/1aNXqOV7WYSzVKrm-4Vhz54USyi0Ns9Prd4QsCVSf92A/pub?output=csv'
+
+    BscGcpProjectCostAllocationsFile=$(mktemp /tmp/BscGcpProjectCostAllocations-XXXXXX)
+    #
+    # UPHS firewall blocks chead from accessing google sheets where the gcp cost allocation is maintained,
+    # so we go to bscsub to get the data.
+    #
+    [ "$(hostname -s)" == "chead" ] && CmdPrefix="ssh holder@bscsub.pmacs.upenn.edu"
+
+    ($CmdPrefix wget -q -O - "$BscGcpProjectCostAllocations" ; echo "") > "$BscGcpProjectCostAllocationsFile"
+
+    DB="${Dataset}.BscGcpProjectCostAllocations"
+
+    ServiceId=455000
+
+    BscGcpSurchargePercent=0.50
+    [ "${Year}${Month}" -lt "202407" ] && BscGcpSurchargePercent=0.25
+
+    PurchaseDate="${opt_y}${opt_m}01"
+
+    ($CmdPrefix wget -q -O - "$BscGcpProjectCostAllocations" ; echo "") > "$BscGcpProjectCostAllocationsFile"
+
+    if [ ! -s "$BscGcpProjectCostAllocationsFile" ]
+    then
+	echo "$CmdName : Zero size Bsc GCP Project Allocation file '$BscGcpProjectCostAllocationsFile'" 1>&2
+	exit 1
+    fi
+    
+    bq load --autodetect --project_id="${Project}" --skip_leading_rows 1 --replace --source_format=CSV "$DB" "$BscGcpProjectCostAllocationsFile" 2> /dev/null
+
+    ProblemProjects="$(bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    
+    SELECT 
+    	     GcpProjectName
+	   , TotalProjectAllocationPercent
+    FROM (
+    	 SELECT
+    	       GcpProjectName
+	     , SUM(AllocationPercent) AS TotalProjectAllocationPercent
+         FROM
+	     `'"${Project}.${Dataset}."'BscGcpProjectCostAllocations`
+         GROUP BY
+    	    GcpProjectName
+
+    )
+    WHERE
+        TotalProjectAllocationPercent != 1.0
+    ORDER BY
+    	GcpProjectName
+	
+    '  2> /dev/null)"
+    if [ -n "$ProblemProjects" ]
+    then
+	echo "${CmdName} : GcpProject allocations" 1>&2
+        echo "$ProblemProjects" | column -t -s, 1>&2
+	exit 2
+    fi
+
+    if [ "${Year}${Month}" -lt "202407" ]
+    then
+	sys calculateNonFwGcpChargesPre20240701
+    else
+	sys calculateNonFwGcpChargesPost20240701
+    fi
+
+}
+
 
 function downloadFwMriIlabCharges {
     bq query --batch=true --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
@@ -528,7 +640,7 @@ fi
 
 if [ -n "$opt_g" ]
 then
-	downloadNonFwGcpIlabCharges
+	downloadNonFwGcpIlabCharges NonFwGcpServiceId BscGcpSurchargePercent Year MonthProject Dataset
 fi
 
 if [ -n "$opt_M" ]

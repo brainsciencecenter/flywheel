@@ -35,9 +35,9 @@ import "SessionId2Tags" as $SessionId2Tags;
     | container2Timestamps(.) as $AcquisitionTimestamps
 
     | .files
-      # Want Bids files or the first NoBids with DicomExt or NiftiExt
+      # Want Bids files and the first NoBids of type Dicom or Nifti
     | [
-           # Select the Bids files
+           # Select the Bids *files*
 	   [ .[] | select( ((.info.BIDS | type) == "object") ) ] | first
       ] +
       [
