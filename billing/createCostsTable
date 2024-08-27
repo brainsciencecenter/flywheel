@@ -104,7 +104,9 @@ do
               UNNEST(credits) c
             WHERE
               c.type = "PROMOTION" ),
-            0)) AS Promotions
+            0)) AS Promotions,
+        billing_account_id as BillingAccountId,
+        "BogusBillingAccountName" as BillingAccountName
       FROM
         '"${InputTable}"'
       LEFT JOIN
@@ -117,6 +119,7 @@ do
             '"$WhereClause"'
         GROUP BY
             InvoiceMonth,
+	    billing_account_id,
             FlywheelGroup,
             GcpProjectName,
             ServiceDescription,
