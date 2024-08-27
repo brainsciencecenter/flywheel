@@ -47,7 +47,7 @@ if [ -n "$opt_P" ]
 then
 	PIICheckJqFile="$opt_P"
 else
-	PiiCheckerJqFile="${FlywheelDir}/lib/PIIChecker.jq"
+	PiiCheckerJqFile="${FlywheelDir}/lib/PiiChecker.jq"
 fi
 
 
@@ -78,9 +78,9 @@ else
 	Id2LabelsDir="${Group}/${Project}"
 fi
 
-if [ ! -e "$Id2LabelsDir" ] && [ ! -e "${Id2LabelsDir}/Id2ProjectLabels.json" ]
+if [ ! -e "$Id2LabelsDir" ] && [ ! -e "${Id2LabelsDir}/Id2Labels.json" ]
 then
-	echo "${CmdName} : Cannot find 'Id2ProjectLabels.json' in '$Id2LabelsDir'" 1>&2
+	echo "${CmdName} : Cannot find 'Id2Labels.json' in '$Id2LabelsDir'" 1>&2
 	exit 4
 fi
 
@@ -89,5 +89,5 @@ DeIdProfileNullFields="$( echo "$DeIdProfileYaml" | yq -o json | jq -r ' [.dicom
 
 for i in "$@"
 do
-	sys jq -r -L "${Id2LabelsDir}" --argjson DeIdProfileNullFields "$DeIdProfileNullFields" -f "${PiiCheckerJqFile}" "$i"
+	sys jq -r -L "${Id2LabelsDir}" --argjson DeIdProfileNullFields "$DeIdProfileNullFields" --argjson Header false -f "${PiiCheckerJqFile}" "$i"
 done

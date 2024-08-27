@@ -1,11 +1,9 @@
 # 
 
-import "Id2ProjectLabels" as $ProjectId2Labels;
-import "Id2SubjectLabels" as $SubjectId2Labels;
-import "Id2SessionLabels" as $SessionId2Labels;
-import "Id2SessionNotes" as $SessionId2Notes;
-import "Id2SessionTimeStamps" as $SessionId2Timestamps;
-import "Id2SessionTags" as $SessionId2Tags;
+import "Id2Labels" as $Id2Labels;
+import "SessionId2Notes" as $SessionId2Notes;
+import "SessionId2TimestampsActive" as $SessionId2Timestamps;
+import "SessionId2Tags" as $SessionId2Tags;
 
 if $Header then
       (["ProjectLabel","ProjectId","SubjectLabel","SubjectId","SessionLabel","SessionId","AcquisitionLabel","AcquisitionId","FileName","FileId","FileSize","FileDeIdProfile","FilePiiStatus","MetadataDeIdProfile","MetadataPiiStatus"]|@csv)
@@ -25,16 +23,16 @@ else
     | .parents.subject as $SubjectId
     | .parents.session as $SessionId
 
-    | $ProjectId2Labels::ProjectId2Labels[][.parents.project] as $ProjectLabel 
-    | $SubjectId2Labels::SubjectId2Labels[][.parents.subject] as $SubjectLabel 
-    | $SessionId2Labels::SessionId2Labels[][.parents.session] as $SessionLabel 
+    | $Id2Labels::Id2Labels[][.parents.project] as $ProjectLabel 
+    | $Id2Labels::Id2Labels[][.parents.subject] as $SubjectLabel 
+    | $Id2Labels::Id2Labels[][.parents.session] as $SessionLabel 
     | $SessionId2Notes::SessionId2Notes[][.parents.session] as $SessionNotes
-    | $SessionId2Timestamps::SessionId2Timestamps[][.parents.session] as $SessionTimeStamp
+    | $SessionId2Timestamps::SessionId2Timestamps[][.parents.session] as $SessionTimestamp
     | $SessionId2Tags::SessionId2Tags[][$SessionId] as $SessionTags
 
     | ._id as $AcquisitionId
     | .label as $AcquisitionLabel
-    | (if (.timestamp) then .timestamp else .created end) as $TimeStamp
+    | (if (.timestamp) then .timestamp else .created end) as $Timestamp
 
     | .metadata as $Metadata
 
