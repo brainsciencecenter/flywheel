@@ -202,6 +202,7 @@ if __name__ == '__main__':
     for i in IdGenerator:
         id = i.rstrip('\n')
         id = re.sub('/$','',id)
+        id = re.sub('^\s*','',id)
 
         if (args.verbose):
             if (args.number):
