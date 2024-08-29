@@ -2,7 +2,7 @@
 
 #Baseline T1 trimmed
 
-fwfind -1 -S  -d -rzRg parents.subject=66cf1987d024e261be4335f7
+fwfind -1 -S  -d -rzRg parents.subject=66cf1987d024e261be4335f7 > /tmp/json
 
 BaselineJson=$(jq 'select(.tags|any(. == "Baseline"))' /tmp/json)
 
