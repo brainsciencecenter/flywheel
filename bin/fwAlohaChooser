@@ -1,0 +1,33 @@
+#!/bin/bash
+
+#Baseline T1 trimmed
+BaselineJson=$(jq 'select(.tags|any(. == "Baseline"))' /tmp/json)
+
+BaselineTrimmedT1FileId=$(echo "$BaselineJson" | jq -r '.acquisitions[].files[] | select((.tags | (any(. == "Trimmed") and any(. == "AlohaInput"))) and (.classification["Measurement"] | any(. == "T1")) ) | .file_id' )
+BaselineLeftSegmentedT1FileId=$(echo "$BaselineJson" | jq -r '.acquisitions[].files[] | select( .tags | ( any(. == "T1") and any(. == "Segmentation") and any(. == "Left") ) ) | .file_id' )
+BaselineRightSegmentedT1FileId=$(echo "$BaselineJson" | jq -r '.acquisitions[].files[] | select( .tags | ( any(. == "T1") and any(. == "Segmentation") and any(. == "Right") ) ) | .file_id' )
+BaselineLeftSegmentedT2FileId=$(echo "$BaselineJson" | jq -r '.acquisitions[].files[] | select( .tags | ( any(. == "T2") and any(. == "Segmentation") and any(. == "Left") ) ) | .file_id' )
+BaselineRightSegmentedT2FileId=$(echo "$BaselineJson" | jq -r '.acquisitions[].files[] | select( .tags | ( any(. == "T2") and any(. == "Segmentation") and any(. == "Right") ) ) | .file_id' )
+BaselineT2FileId=$(echo "$BaselineJson" | jq -r '.acquisitions[].files[] | select( (.tags | any(. == "AlohaInput")) and (.classification["Measurement"] | any(. == "T2")) ) | .file_id' )
+
+echo "$BaselineTrimmedT1FileId
+$BaselineLeftSegmentedT1FileId
+$BaselineRightSegmentedT1FileId
+$BaselineLeftSegmentedT2FileId
+$BaselineRightSegmentedT2FileId
+$BaselineT2FileId"  | fwget -1 -f | jq '.name'
+
+FollowupSessionIds=( $(jq -r 'select(.tags|any(. == "Followup")) | ._id' /tmp/json) )
+
+for FollowupSessionId in "${FollowupSessionIds[@]}"
+do
+
+	FollowupJson=$(jq 'select(._id == "'"$FollowupSessionId"'")' /tmp/json)
+
+	FollowupTrimmedT1FileId=$(echo "$FollowupJson" | jq -r '.acquisitions[].files[] | select((.tags | (any(. == "Trimmed") and any(. == "AlohaInput"))) and (.classification["Measurement"] | any(. == "T1")) ) | .file_id' )
+	FollowupT2FileId=$(echo "$FollowupJson" | jq -r '.acquisitions[].files[] | select( (.tags | any(. == "AlohaInput")) and (.classification["Measurement"] | any(. == "T2")) ) | .file_id' )
+
+	echo "$FollowupTrimmedT1FileId
+$FollowupT2FileId"  | fwget -1 -f | jq '.name'
+	
+done
