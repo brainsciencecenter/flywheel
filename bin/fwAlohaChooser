@@ -2,7 +2,7 @@
 
 #Baseline T1 trimmed
 
-fwfind -1 -S  -d -rzRg parents.subject=66cf1987d024e261be4335f7 > /tmp/json
+fwfind -1 -S -rzRg parents.subject=66cf1987d024e261be4335f7 > /tmp/json
 
 BaselineJson=$(jq 'select(.tags|any(. == "Baseline"))' /tmp/json)
 
@@ -13,12 +13,14 @@ BaselineLeftSegmentedT2FileId=$(echo "$BaselineJson" | jq -r '.acquisitions[].fi
 BaselineRightSegmentedT2FileId=$(echo "$BaselineJson" | jq -r '.acquisitions[].files[] | select( .tags | ( any(. == "T2") and any(. == "Segmentation") and any(. == "Right") ) ) | .file_id' )
 BaselineT2FileId=$(echo "$BaselineJson" | jq -r '.acquisitions[].files[] | select( (.tags | any(. == "AlohaInput")) and (.classification["Measurement"] | any(. == "T2")) ) | .file_id' )
 
-echo "$BaselineTrimmedT1FileId
-$BaselineLeftSegmentedT1FileId
-$BaselineRightSegmentedT1FileId
-$BaselineLeftSegmentedT2FileId
-$BaselineRightSegmentedT2FileId
-$BaselineT2FileId"  | fwget -1 -f | jq '.name'
+echo "{
+     \"-b\": \"$BaselineTrimmedT1FileId\",
+     \"-r\": \"$BaselineLeftSegmentedT1FileId\",
+     \"-s\": \"$BaselineRightSegmentedT1FileId\",
+     \"-c\": \"$BaselineT2FileId\",
+     \"-t\": \"$BaselineLeftSegmentedT2FileId\",
+     \"-u\": \"$BaselineRightSegmentedT2FileId\",
+}" | jq .
 
 FollowupSessionIds=( $(jq -r 'select(.tags|any(. == "Followup")) | ._id' /tmp/json) )
 
@@ -30,7 +32,9 @@ do
 	FollowupTrimmedT1FileId=$(echo "$FollowupJson" | jq -r '.acquisitions[].files[] | select((.tags | (any(. == "Trimmed") and any(. == "AlohaInput"))) and (.classification["Measurement"] | any(. == "T1")) ) | .file_id' )
 	FollowupT2FileId=$(echo "$FollowupJson" | jq -r '.acquisitions[].files[] | select( (.tags | any(. == "AlohaInput")) and (.classification["Measurement"] | any(. == "T2")) ) | .file_id' )
 
-	echo "$FollowupTrimmedT1FileId
-$FollowupT2FileId"  | fwget -1 -f | jq '.name'
+	echo "{
+	"-f": \"$FollowupTrimmedT1FileId\",
+	"-g": \"$FollowupT2FileId\"
+	}" | jq .
 	
 done
