@@ -1,8 +1,11 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-n][-v][-c CachedFwAcquisitionJsonFile][-t TmpDir][-d DeIdProfileNullFieldsJsonFile] {Group/Project}"
+Syntax="${CmdName} [-n][-v][-c CachedFwAcquisitionJsonFile]-t TmpDir][-u][-d DeIdProfileNullFieldsJsonFile] {Group/Project}"
 
+#
+# -u update
+#
 FwUtilsBaseDir=$(dirname $(dirname $(realpath "$0")))
 if [ ! -e "${FwUtilsBaseDir}/bin/fwget" ]
 then
@@ -15,10 +18,10 @@ function sys {
 }
 
 
-while getopts nvc:t:d: arg
+while getopts nvc:t:ud: arg
 do
 	case "$arg" in 
-		c|d|n|t|v)
+		c|d|n|t|u|v)
 			eval "opt_${arg}='${OPTARG:=1}'"
 			;;
 	esac
@@ -55,7 +58,7 @@ do
 	[ -e "$CachedFwAcquisitionJsonFile" ] || CachedFwAcquisitionJsonFile="${TmpDir}/${CachedFwAcquisitionJsonFile}"
 	[ -n "$opt_c" ] && CachedFwAcquisitionJsonFile="$opt_c"
 
-	sys syncAcquisitionJsonFiles -f -d "$TmpDir" -c "$CachedFwAcquisitionJsonFile" -pi "${GroupProject}"
+	[ -n "$opt_u" ] || sys syncAcquisitionJsonFiles -f -d "$TmpDir" -c "$CachedFwAcquisitionJsonFile" -pi "${GroupProject}"
 
 	jq -r -n --argjson Header true --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$TmpDir" /dev/null
 
