@@ -58,7 +58,7 @@ do
 	[ -e "$CachedFwAcquisitionJsonFile" ] || CachedFwAcquisitionJsonFile="${TmpDir}/${CachedFwAcquisitionJsonFile}"
 	[ -n "$opt_c" ] && CachedFwAcquisitionJsonFile="$opt_c"
 
-	[ -n "$opt_u" ] || sys syncAcquisitionJsonFiles -f -d "$TmpDir" -c "$CachedFwAcquisitionJsonFile" -pi "${GroupProject}"
+	[ -n "$opt_u" ] && sys syncAcquisitionJsonFiles -f -d "$TmpDir" -c "$CachedFwAcquisitionJsonFile" -pi "${GroupProject}"
 
 	jq -r -n --argjson Header true --argjson DeIdProfileNullFields "$SiteDeIdProfileJson" -f "$PiiCheckerJqFile" -L "$TmpDir" /dev/null
 
