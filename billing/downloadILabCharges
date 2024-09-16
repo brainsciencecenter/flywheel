@@ -366,7 +366,7 @@ CREATE TABLE IF NOT EXISTS
      (
 	  InvoiceMonth				STRING
 	, GcpProjectName			STRING
-	, TotalDicountedCosts			FLOAT64
+	, TotalDiscountedCosts			FLOAT64
 	, BscGcpFee				FLOAT64
 	, AllocationPercent			FLOAT64
 	, TotalAllocatedCharges			FLOAT64
@@ -393,12 +393,12 @@ INSERT
     	      , TotalDiscountedCosts
     	      , ROUND((TotalDiscountedCosts * '"$BscGcpSurchargePercent"'),2) AS BscGcpFee	    # How much we charge them for GCP usage
 
-    	       , ROUND((TotalDiscountedCosts + (TotalDiscountedCosts * '"$BscGcpSurchargePercent"')) * AllocationPercent,2) AS TotalAllocatedCharges
-    	       , AllocationPercent
+    	      , ROUND((TotalDiscountedCosts + (TotalDiscountedCosts * '"$BscGcpSurchargePercent"')) * AllocationPercent,2) AS TotalAllocatedCharges
+    	      , AllocationPercent
 
-    	       , IlabServiceRequestNumber
-    	       , FundNumber
-	       , GcpProjectId
+    	      , IlabServiceRequestNumber
+    	      , FundNumber
+	      , GcpProjectId
     	FROM (
     	    SELECT 
     	        BscGcpProjectCosts.InvoiceMonth AS InvoiceMonth,
@@ -417,6 +417,7 @@ INSERT
     	            ServiceDescription,
     	            Costs + Discounts AS DiscountedCosts,
     	            IF ((ServiceDescription = "Cloud Storage"), (Costs + Discounts), 0.0) AS DiscountedStorageCosts,
+		    GcpProjectId,
     	        FROM
 		     `'"${Project}.${Dataset}."'GcpNonFlywheelCosts` 
     	        WHERE 
@@ -431,15 +432,16 @@ INSERT
     	        BscGcpProjectCosts.GcpProjectName,
     	    	BscGcpProjectCostAllocations.AllocationPercent,
     		BscGcpProjectCostAllocations.FundNumber,
-    		IlabServiceRequestNumber
+    		IlabServiceRequestNumber,
+		BscGcpProjectCosts.GcpProjectId
     	    ORDER BY 
     	        BscGcpProjectCosts.GcpProjectName ASC
     	)
        )
          WHERE
-    	  ROUND(TotalAllocatedCharges,2) >= 0.01
-    	AND
-    	  FundNumber != "InternalBenNumber"
+	         InvoiceMonth = @InvoiceMonth
+    	     AND ROUND(TotalAllocatedCharges,2) >= 0.01
+    	     AND FundNumber != "InternalBenNumber"
     ;
 
 
@@ -453,8 +455,9 @@ INSERT
     
     SELECT 
         "'"$ServiceId"'" AS service_id,
-        format("%s (%8.2f + (%8.2f * %0.2f = %8.2f)) * %0.2f = %8.2f",
-             GcpProjectName,
+        format("%s(%s) (%8.2f + (%8.2f * %0.2f = %8.2f)) * %0.2f = %8.2f",
+             GcpProjectId,
+	     GcpProjectName,
              TotalDiscountedCosts,
     	     TotalDiscountedCosts,
     	     '"$BscGcpSurchargePercent"',
@@ -470,59 +473,91 @@ INSERT
         "" AS owner_email,
         "" AS pi_email_or_group_id,
         "" AS payment_number
-    FROM (
-         SELECT
-    	*
-         FROM (
-    	SELECT
-    	        AllocationPercent,
-    	        GcpProjectName,
-    	        TotalDiscountedCosts,
-    	        ROUND((TotalDiscountedCosts * '"$BscGcpSurchargePercent"'),2) AS BscGcpFee,		    # How much we charge them for GCP usage
+    FROM
+       `'"${Project}.${Dataset}.${Database}"'`      
+    WHERE
+	         InvoiceMonth = @InvoiceMonth
+    	     AND ROUND(TotalAllocatedCharges,2) >= 0.01
+    	     AND FundNumber != "InternalBenNumber"
+    ;
 
-    	        ROUND((TotalDiscountedCosts + (TotalDiscountedCosts * '"$BscGcpSurchargePercent"')) * AllocationPercent,2) AS TotalAllocatedCharges,
-
-    		IlabServiceRequestNumber,
-    		FundNumber,
-    	FROM (
-    	    SELECT 
-    	        BscGcpProjectCosts.InvoiceMonth AS InvoiceMonth,
-    	        BscGcpProjectCosts.GcpProjectName AS GcpProjectName,
-    	        ROUND(SUM(DiscountedCosts),2) AS TotalDiscountedCosts,
-    	        ROUND(SUM(DiscountedStorageCosts),2) AS TotalDiscountedStorageCosts,
-    	        BscGcpProjectCostAllocations.AllocationPercent AS AllocationPercent,
-    	        BscGcpProjectCostAllocations.iLabServiceRequestNumber AS IlabServiceRequestNumber,
-    	        BscGcpProjectCostAllocations.FundNumber AS FundNumber
-    	    FROM (
-    	        SELECT 
-    	            InvoiceMonth,
-    	            GcpProjectName,
-    	            ServiceDescription,
-    	            Costs + Discounts AS DiscountedCosts,
-    	            IF ((ServiceDescription = "Cloud Storage"), (Costs + Discounts), 0.0) AS DiscountedStorageCosts,
-    	        FROM `'"${Project}.${Dataset}."'GcpNonFlywheelCosts` 
-    	        WHERE 
-    	            InvoiceMonth = @InvoiceMonth
-    	    ) BscGcpProjectCosts
-    	    FULL OUTER JOIN 
-    	    	`'"${Project}.${Dataset}."'BscGcpProjectCostAllocations` BscGcpProjectCostAllocations
-    	    ON
-    		BscGcpProjectCosts.GcpProjectName = BscGcpProjectCostAllocations.GcpProjectName
-    	    GROUP BY 
-    	        BscGcpProjectCosts.InvoiceMonth,
-    	        BscGcpProjectCosts.GcpProjectName,
-    	    	BscGcpProjectCostAllocations.AllocationPercent,
-    		BscGcpProjectCostAllocations.FundNumber,
-    		IlabServiceRequestNumber
-    	    ORDER BY 
-    	        BscGcpProjectCosts.GcpProjectName ASC
-    	)
-         )
-         WHERE
-    	  ROUND(TotalAllocatedCharges,2) >= 0.01
-    	AND
-    	  FundNumber != "InternalBenNumber"
-    )	
+#    SELECT 
+#        "'"$ServiceId"'" AS service_id,
+#        format("%s(%s) (%8.2f + (%8.2f * %0.2f = %8.2f)) * %0.2f = %8.2f",
+#             GcpProjectId,
+#	     GcpProjectName,
+#             TotalDiscountedCosts,
+#    	     TotalDiscountedCosts,
+#    	     '"$BscGcpSurchargePercent"',
+#    	     BscGcpFee,
+#    	     AllocationPercent,
+#    	     TotalAllocatedCharges
+#          )
+#          AS note,
+#        format("%8.2f", ROUND(TotalAllocatedCharges,2)) AS service_quantity,
+#        "" AS price,
+#        "'"$PurchaseDate"'" AS purchased_on,
+#        IlabServiceRequestNumber AS service_request_id,
+#        "" AS owner_email,
+#        "" AS pi_email_or_group_id,
+#        "" AS payment_number
+#    FROM (
+#         SELECT
+#    	*
+#         FROM (
+#    	SELECT
+#    	        AllocationPercent,
+#		GcpProjectName,
+#		GcpProjectId,
+#    	        TotalDiscountedCosts,
+#    	        ROUND((TotalDiscountedCosts * '"$BscGcpSurchargePercent"'),2) AS BscGcpFee,		    # How much we charge them for GCP usage
+#
+#    	        ROUND((TotalDiscountedCosts + (TotalDiscountedCosts * '"$BscGcpSurchargePercent"')) * AllocationPercent,2) AS TotalAllocatedCharges,
+#
+#    		IlabServiceRequestNumber,
+#    		FundNumber,
+#    	FROM (
+#    	    SELECT 
+#    	        BscGcpProjectCosts.InvoiceMonth AS InvoiceMonth,
+#    	        BscGcpProjectCosts.GcpProjectName AS GcpProjectName,
+#    	        BscGcpProjectCosts.GcpProjectId AS GcpProjectId,
+#    	        ROUND(SUM(DiscountedCosts),2) AS TotalDiscountedCosts,
+#    	        ROUND(SUM(DiscountedStorageCosts),2) AS TotalDiscountedStorageCosts,
+#    	        BscGcpProjectCostAllocations.AllocationPercent AS AllocationPercent,
+#    	        BscGcpProjectCostAllocations.iLabServiceRequestNumber AS IlabServiceRequestNumber,
+#    	        BscGcpProjectCostAllocations.FundNumber AS FundNumber
+#    	    FROM (
+#    	        SELECT 
+#    	            InvoiceMonth,
+#    	            GcpProjectName,
+#    	            GcpProjectId,
+#    	            ServiceDescription,
+#    	            Costs + Discounts AS DiscountedCosts,
+#    	            IF ((ServiceDescription = "Cloud Storage"), (Costs + Discounts), 0.0) AS DiscountedStorageCosts,
+#    	        FROM `'"${Project}.${Dataset}."'GcpNonFlywheelCosts` 
+#    	        WHERE 
+#    	            InvoiceMonth = @InvoiceMonth
+#    	    ) BscGcpProjectCosts
+#    	    FULL OUTER JOIN 
+#    	    	`'"${Project}.${Dataset}."'BscGcpProjectCostAllocations` BscGcpProjectCostAllocations
+#    	    ON
+#    		BscGcpProjectCosts.GcpProjectName = BscGcpProjectCostAllocations.GcpProjectName
+#    	    GROUP BY 
+#    	        BscGcpProjectCosts.InvoiceMonth,
+#    	        BscGcpProjectCosts.GcpProjectName,
+#    	        BscGcpProjectCosts.GcpProjectId,
+#    	    	BscGcpProjectCostAllocations.AllocationPercent,
+#    		BscGcpProjectCostAllocations.FundNumber,
+#    		IlabServiceRequestNumber
+#    	    ORDER BY 
+#    	        BscGcpProjectCosts.GcpProjectId ASC
+#    	)
+#         )
+#         WHERE
+#    	  ROUND(TotalAllocatedCharges,2) >= 0.01
+#    	AND
+#    	  FundNumber != "InternalBenNumber"
+#    )	
     '
 }
 
