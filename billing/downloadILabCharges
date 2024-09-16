@@ -370,7 +370,7 @@ CREATE TABLE IF NOT EXISTS
 	, BscGcpFee				FLOAT64
 	, AllocationPercent			FLOAT64
 	, TotalAllocatedCharges			FLOAT64
-	, IlabServiceRequestNumber		STRING
+	, IlabServiceRequestNumber		INT64
 	, FundNumber				STRING
      );
 
@@ -390,7 +390,6 @@ INSERT
 		InvoiceMonth
 	      , GcpProjectName
     	      , TotalDiscountedCosts
-
     	      , ROUND((TotalDiscountedCosts * '"$BscGcpSurchargePercent"'),2) AS BscGcpFee	    # How much we charge them for GCP usage
 
     	       , ROUND((TotalDiscountedCosts + (TotalDiscountedCosts * '"$BscGcpSurchargePercent"')) * AllocationPercent,2) AS TotalAllocatedCharges
@@ -414,7 +413,8 @@ INSERT
     	            ServiceDescription,
     	            Costs + Discounts AS DiscountedCosts,
     	            IF ((ServiceDescription = "Cloud Storage"), (Costs + Discounts), 0.0) AS DiscountedStorageCosts,
-    	        FROM `'"${Project}.${Dataset}."'GcpNonFlywheelCosts` 
+    	        FROM
+		     `'"${Project}.${Dataset}."'GcpNonFlywheelCosts` 
     	        WHERE 
     	            InvoiceMonth = @InvoiceMonth
     	    ) BscGcpProjectCosts
