@@ -74,7 +74,7 @@ CREATE TEMP FUNCTION isAnalysisGear(GearCategory STRING) RETURNS BOOLEAN AS (
   );
 
 CREATE TEMP FUNCTION isGroupComputeNode(ComputeNode STRING) RETURNS BOOLEAN AS (
-  IF (regexp_contains(ComputeNode,"^compute[^-][^-]*-"), TRUE, FALSE)
+  IF (regexp_contains(ComputeNode,"^[^-][^-]*-compute[^-][^-]*-"), TRUE, FALSE)
   );
 
 CREATE TEMP FUNCTION isUtilityGear(GearCategory STRING) RETURNS BOOLEAN AS (

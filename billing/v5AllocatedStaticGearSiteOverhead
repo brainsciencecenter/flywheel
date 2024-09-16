@@ -262,6 +262,7 @@ INSERT
 	    # Static Site Allocation
 	    #
 
+	      # GcpGroupComputeStaticCosts + GcpGroupComputeUnlabeledCosts = AllocatedStaticSiteComputeCosts
             , AllocateGcpMetrics(TotalOverheadComputeCosts,FwGearDynamicCpuHours,FwTotalDynamicCpuHours, FwGroupProjectCount) AS AllocatedStaticSiteComputeCosts
             , AllocateGcpMetrics(TotalOverheadComputeCpuHours,FwGearDynamicCpuHours,FwTotalDynamicCpuHours, FwGroupProjectCount) AS AllocatedStaticSiteComputeCpuHours
 
