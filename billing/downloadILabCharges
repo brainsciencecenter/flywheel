@@ -372,6 +372,7 @@ CREATE TABLE IF NOT EXISTS
 	, TotalAllocatedCharges			FLOAT64
 	, IlabServiceRequestNumber		INT64
 	, FundNumber				STRING
+	, GcpProjectId			        STRING
      );
 
 DELETE FROM

@@ -68,6 +68,7 @@ bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=10
 	 Costs				FLOAT64,
 	 Discounts			FLOAT64,
 	 Promotions			FLOAT64,
+	 GcpProjectId			STRING,
   );
 
   DELETE FROM `'"${Project}.${Dataset}.${OutputTable}"'`
@@ -106,7 +107,8 @@ do
               c.type = "PROMOTION" ),
             0)) AS Promotions,
         billing_account_id as BillingAccountId,
-        "BogusBillingAccountName" as BillingAccountName
+        "BogusBillingAccountName" as BillingAccountName,
+	project.id as GcpProjectId
       FROM
         '"${InputTable}"'
       LEFT JOIN
@@ -124,7 +126,8 @@ do
             GcpProjectName,
             ServiceDescription,
             SkuDescription,
-            UsagePricingUnit
+            UsagePricingUnit,
+	    GcpProjectId
     ' | OutputControl
     
 done
