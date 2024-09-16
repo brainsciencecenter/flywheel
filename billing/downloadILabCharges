@@ -408,7 +408,7 @@ INSERT
     	        BscGcpProjectCostAllocations.AllocationPercent AS AllocationPercent,
     	        BscGcpProjectCostAllocations.iLabServiceRequestNumber AS IlabServiceRequestNumber,
     	        BscGcpProjectCostAllocations.FundNumber AS FundNumber
-		, BscGcpProjectCosts.GcpProjectId
+		, BscGcpProjectCosts.GcpProjectId AS GcpProjectId
 
     	    FROM (
     	        SELECT 
