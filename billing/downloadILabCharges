@@ -383,7 +383,7 @@ INSERT
 
     SELECT
     	*
-         FROM (
+    FROM (
     	SELECT
 		InvoiceMonth
 	      , GcpProjectName
@@ -429,12 +429,11 @@ INSERT
     	    ORDER BY 
     	        BscGcpProjectCosts.GcpProjectName ASC
     	)
-         )
+       )
          WHERE
     	  ROUND(TotalAllocatedCharges,2) >= 0.01
     	AND
     	  FundNumber != "InternalBenNumber"
-    )	
     ;
 
 
@@ -659,6 +658,12 @@ function downloadFwMriIlabCharges {
 
 syntax="${CmdName} [-4|-5][-d Dataset][-p Project][-f][-g][-M][-n][-v] {-m Month} {-y Year}"
 
+#
+# -f flywheel
+# -g GCPNonFlywheel
+# -M MRI imports
+# -P PMACS
+#
 while getopts 45d:fgMm:p:vy: arg
 do
 	case "$arg" in 
