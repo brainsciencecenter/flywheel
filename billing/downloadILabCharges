@@ -357,6 +357,8 @@ function calculateNonFwGcpChargesPre20240701 {
 }
 
 function calculateNonFwGcpChargesPost20240701 {
+    Database=v5BscGcpNonFwCharges
+
     bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
 
 CREATE TABLE IF NOT EXISTS
