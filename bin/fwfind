@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # but Analyses are only containers within the other containers and not from the flywheel object
     cap = ap.add_mutually_exclusive_group()
     cap.add_argument('-a', '--acquisitions',  action='store_true', help='find acquisition information')
-#    cap.add_argument('-A', '--analyses',  action='store_true', help='find analyses information')
+    cap.add_argument('-A', '--analyses',  action='store_true', help='find analyses information')
     ap.add_argument('--gears',  action='store_true', help='find gear information')
     cap.add_argument('-j', '--jobs',  action='store_true', help='find job information')
     cap.add_argument('-p', '--projects',  action='store_true', help='find project information')
@@ -127,6 +127,11 @@ if __name__ == '__main__':
         if (args.verbose):
             print("%s : fw.subjects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs),ExhaustiveFlag,args.limit), file=sys.stderr)
         res = fw.subjects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+
+    if (args.analyses):
+        if (args.verbose):
+            print("%s : fw.analyses.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs),ExhaustiveFlag,args.limit), file=sys.stderr)
+        res = fw.analyses.iter_find(*args.findargs,limit=args.limit)
 
     if (args.sessions):
         if (args.verbose):
