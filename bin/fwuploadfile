@@ -34,6 +34,7 @@ if __name__ == '__main__':
     ap.add_argument('-p', '--container-path',  action='store', default=False, help='group/project|ContainerUid')
     ap.add_argument('-q', '--quiet',  action='store_true', default=False, help='quiet')
     ap.add_argument('-t', '--tags',  action='store', default=False, help='comma separated list of tags to add to the files')
+    ap.add_argument('-u', '--update-timestamp',  action='store_true', default=False, help='whether to update the container timestamp')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
 
     ap.add_argument('files', nargs='*', type=str, default=None, help='Files to upload')
@@ -67,8 +68,14 @@ if __name__ == '__main__':
             print("Container id = {}".format(Container.id), file=sys.stderr)
 
         res = Container.upload_file(file)
-        Container.update({ 'timestamp': ds })
-        Container = Container.reload()
+        try:
+            Container.update({ 'timestamp': ds })
+            Container = Container.reload()
+        except(flywheel.rest.ApiException):
+            if ((args.quite == False) or(args.update_timestamp == False) ):
+                True
+            else:
+                print("{} : Could not update timestamp on '{}'".format(CmdName,Container),file=sys.stderr)
 
         try:
             UploadedFileUid = res[0].file_id
