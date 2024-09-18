@@ -72,7 +72,7 @@ if __name__ == '__main__':
             Container.update({ 'timestamp': ds })
             Container = Container.reload()
         except(flywheel.rest.ApiException):
-            if ((args.quiet == False) or(args.update_timestamp == False) ):
+            if ((args.quiet == True) or (args.update_timestamp == False) ):
                 True
             else:
                 print("{} : Could not update timestamp on '{}'".format(CmdName,Container),file=sys.stderr)
