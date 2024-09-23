@@ -30,6 +30,7 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
 
     ap.add_argument('-d', '--debug',  action='store_true', default=False, help='debug option')
+    ap.add.argument('-m', '--metadata-json', action='store', default=None, help='metadata to attach to file')
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-p', '--container-path',  action='store', default=False, help='group/project|ContainerUid')
     ap.add_argument('-q', '--quiet',  action='store_true', default=False, help='quiet')
@@ -82,6 +83,8 @@ if __name__ == '__main__':
         except(AttributeError) as e:
             UploadedFileUid = res[0].id
 
+        File = fw.get_file(UploadedFileUid)
+            
         if (args.verbose):
             print("Uploaded file Id = '{}'".format(UploadedFileUid), file=sys.stderr)
             
@@ -90,11 +93,14 @@ if __name__ == '__main__':
 
         # *** should be a way to add/sub/set tags
         if (args.tags):
-            File = fw.get_file(UploadedFileUid)
-            
             File.add_tags(FileTags)
             File = File.reload()
 
             if (args.debug):
                 print("File tags = '{}'".format(File.tags), file=sys.stderr)
 
+#        if (args.metadata_json):
+#            File.update(, modality='MR', classification={
+#      'Intent': ['Functional'],
+#      'Measurement': ['T2*']
+#   })
