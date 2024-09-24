@@ -6,6 +6,10 @@
 # Otherwise, it is really easy to update something you didn't mean to because all the Id numbers look the same.
 # 
 
+#
+# fwUpdate --update-fields label="ashs - ASHS-PMC-T2" 66f1d1dcbeab535513dc65e4
+#
+
 import argparse
 import csv
 import datetime
