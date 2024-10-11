@@ -31,6 +31,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
         fwRunGear  -g dicom-mr-classifier -i dicom <InputFileUuid> [ ... ]
         fwRunGear  -g ashs -i T1w <InputFileUuid> 
         fwRunGear  -g zip-audit-logs cfn/pmc_exvivo
+        fwRunGear  -g necktrim -i file  66e4743cf671b87d3bce278d
 
    You can only submit one input at this time
         
@@ -141,7 +142,8 @@ if __name__ == '__main__':
           if (args.debug):
              print("file_obj = '{}'".format(file_obj), file=sys.stderr)
           
-       if (type(file_obj) == flywheel.models.project_output.ProjectOutput):
+       if ((type(file_obj) == flywheel.models.project_output.ProjectOutput)
+           or (type(file_obj) == flywheel.models.file_output.FileOutput)):
            dest = file_obj
        else:
            if (gear.category == "analysis"):
