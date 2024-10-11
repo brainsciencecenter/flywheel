@@ -66,7 +66,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
        else:
           if (args.verbose):
              print("{} : gear.run(config={},tags={},inputs={},destination={})".format(
-                CmdName,config,tags,inputs.file_id,dest.id), file=sys.stderr),
+                CmdName,config,tags,inputs,dest.id), file=sys.stderr),
 
           if (not args.noop):
              gear_job_id = gear.run(
@@ -142,9 +142,9 @@ if __name__ == '__main__':
           if (args.debug):
              print("file_obj = '{}'".format(file_obj), file=sys.stderr)
           
-       if ((type(file_obj) == flywheel.models.project_output.ProjectOutput)
+       if (   (type(file_obj) == flywheel.models.project_output.ProjectOutput)
            or (type(file_obj) == flywheel.models.file_output.FileOutput)):
-           dest = file_obj
+                 dest = file_obj
        else:
            if (gear.category == "analysis"):
                dest = fw.get(file_obj.parents.session)
