@@ -221,5 +221,8 @@ if __name__ == '__main__':
             else:
                 Outputs.append(Output)
 
+
     if ((not args.one_at_a_time) and len(Outputs) > 0):
         print(json.dumps(Outputs, indent=2))
+    else:
+        sys.exit(1)
