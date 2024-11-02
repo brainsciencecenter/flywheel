@@ -272,7 +272,7 @@ def sloppyCopy(d, recurse=True, UTC=True, Verbose=False, regex=None, to=None):
                  return(re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d.astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z")))
 
 
-def recurse(fw, r, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UTC=True, Verbose=False, ZipInfo=False ):
+def recurse(fw, r, GetAnalysis=False, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UTC=True, Verbose=False, ZipInfo=False ):
 
     if (Get):
         try:

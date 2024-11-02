@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import argparse
 import fwgearutils
@@ -29,7 +29,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
         fwRunGear  -g dcm2niix -i dcm2niix_input dwolklab/NACC/1234/1234-3T/files/foo.dicom
         fwRunGear  -g dicom-mr-classifier -i dicom dwolklab/NACC/1234/1234-3T/files/foo.dicom
         fwRunGear  -g dicom-mr-classifier -i dicom <InputFileUuid> [ ... ]
-        fwRunGear  -g ashs -i T1w <InputFileUuid> 
+        fwRunGear  -g ashs -i T1w <T1InputFileUuid> -i T2w T2InputFileId -c '{"ASHS_Atlases": "ASHS-PMC-T2"}'
         fwRunGear  -g zip-audit-logs cfn/pmc_exvivo
         fwRunGear  -g necktrim -i file  66e4743cf671b87d3bce278d
 
@@ -94,19 +94,20 @@ if __name__ == '__main__':
     ap.add_argument('-L', '--label', action='store', help='Job Label')
     ap.add_argument('-l', '--show-log', default=False, action='store_true', help='Dump log at the end of the job')
     ap.add_argument('-n', '--noop', default=False, action='store_true', help='do not actually submit the job')
-    ap.add_argument('-i', '--input-key', action='store', help='gear input key')
+    ap.add_argument('-i', '--input-key', action='append', nargs=2, metavar=("input_name", "input_value"), help='gear input key')
     ap.add_argument('-o', '--output-file-info', default=False,  action='store_true', help='print output file ids')
     ap.add_argument('-t', '--tags', required=False, default=None, action='store', help='comma separated gear tags')
     ap.add_argument('-V', '--version', action='store', help='gear version to run')
     ap.add_argument('-v', '--verbose', action='store_true', help='verbose')
     ap.add_argument('-w', '--wait', default=False,  action='store_true', help='wait for job completion')
 
-    ap.add_argument('acqfilepaths', nargs='*', type=str, action='store', help='acquisition filename paths')
+#    ap.add_argument('acqfilepaths', nargs='*', type=str, action='store', help='acquisition filename paths')
     #ap.add_argument(metavar='AcqFile', nargs='+',  dest='acqfiles',  type=str, default=None, help='AcquisitionFileName pairs')
 
     args = ap.parse_args()
 
-    InputKey = args.input_key
+    
+    InputArgs = pyjq.all('[.[]|{(.[0]): .[1]}] | add ',args.input_key)[0]
     Version = args.version
 
     fw = fwgearutils.getFW(args)
@@ -120,73 +121,69 @@ if __name__ == '__main__':
     else:
        gear = fw.lookup('gears/{}'.format(args.gear_name))
 
-    for fn in args.acqfilepaths:
-#       print("'{}'".format(fn))
+    inputs={}
+    for InputKey, InputValue in InputArgs.items():
 
-       if (re.search('/',fn)):
+       if (re.search('/',InputValue)):
           try:
-             file_obj = fw.lookup(fn)
+             inputs[InputKey] = fw.lookup(InputValue)
           except (flywheel.rest.ApiException) as e:
-             print("{} : No such acquisition '{}'".format(CmdName,fn), file=sys.stderr)
-             continue
+             print("{} : No such acquisition '{}'".format(CmdName,InputValue), file=sys.stderr)
+
        else:          
           try:
-             file_obj = fw.get_file(fn)
+             inputs[InputKey] = fw.get_file(InputValue)
           except (flywheel.rest.ApiException) as e:
-             print("{} : No such file '{}'".format(CmdName,fn), file=sys.stderr)
-             continue
+             print("{} : No such file '{}'".format(CmdName,InputValue), file=sys.stderr)
 
-   # *** it is possible to specify the Acquisition instead of the acquisisition file and file_obj is a
-   # list of file objects -- not what we want.
-   # the path parsing should be more robust.
+
+    file_obj = inputs[list(inputs.keys())[0]]
+    
+    if (   (type(file_obj) == flywheel.models.project_output.ProjectOutput)
+        or (type(file_obj) == flywheel.models.file_output.FileOutput)):
+              dest = file_obj
+    else:
+        if (gear.category == "analysis"):
+            print(file_obj)
+            dest = fw.get(file_obj.parents.session)
+        else:
+            dest = fw.get(file_obj.parents.acquisition)
+
+    if (args.debug):
+       print("dest = '{}'".format(dest), file=sys.stderr)
+
+    if (args.tags and len(args.tags) > 0):
+       tags = args.tags.split(",")
+    else:
+       tags = None
+
+    Config=json.loads(args.config)
+
+    if (args.debug):
+       print("Config = '{}'".format(Config), file=sys.stderr)
+
+    if (args.input_key):
+        job_id = runGear(gear,inputs=inputs, dest=dest, config=Config, tags=tags)
+    else:
+        job_id = runGear(gear, dest=dest, config=Config, tags=tags)
+
+
+    print("{}".format(job_id))
+
+    if (args.wait):
+       count = 0
+       while True:
+          count = count + 1
+          time.sleep(5)
+          job_info = fw.get_job(job_id)
           if (args.debug):
-             print("file_obj = '{}'".format(file_obj), file=sys.stderr)
-          
-       if (   (type(file_obj) == flywheel.models.project_output.ProjectOutput)
-           or (type(file_obj) == flywheel.models.file_output.FileOutput)):
-                 dest = file_obj
-       else:
-           if (gear.category == "analysis"):
-               dest = fw.get(file_obj.parents.session)
-           else:
-               dest = fw.get(file_obj.parents.acquisition)
-       
-       if (args.debug):
-          print("dest = '{}'".format(dest), file=sys.stderr)
+             print("{} : {} Job {} status {}".format(CmdName, count, job_id, job_info.state), file=sys.stderr)
+          if (job_info.state == 'complete' or job_info.state == "failed"):
 
-       if (args.tags and len(args.tags) > 0):
-          tags = args.tags.split(",")
+             if (args.show_log):
+                print(fw.get_job_logs(job_id), file=sys.stderr)
 
-       else:
-          tags = None
+             if (job_info.state == 'complete' and args.output_file_info):
+                print(*pyjq.all('.outputs[] | [ .name, .file_id ] | @csv', fwgearutils.sloppyCopy(job_info)), sep="\n")
 
-       Config=json.loads(args.config)
-
-       if (args.debug):
-          print("Config = '{}'".format(Config), file=sys.stderr)
-
-       if (args.input_key):
-           job_id = runGear(gear,inputs={InputKey: file_obj}, dest=dest, config=Config, tags=tags)
-       else:
-           job_id = runGear(gear, dest=dest, config=Config, tags=tags)
-
-       if (args.verbose):
-          print("{}: '{}'".format(fn,job_id))
-
-       if (args.wait):
-          count = 0
-          while True:
-             count = count + 1
-             time.sleep(5)
-             job_info = fw.get_job(job_id)
-             if (args.debug):
-                print("{} : {} Job {} status {}".format(CmdName, count, job_id, job_info.state), file=sys.stderr)
-             if (job_info.state == 'complete' or job_info.state == "failed"):
-
-                if (args.show_log):
-                   print(fw.get_job_logs(job_id), file=sys.stderr)
-
-                if (job_info.state == 'complete' and args.output_file_info):
-                   print(*pyjq.all('.outputs[] | [ .name, .file_id ] | @csv', fwgearutils.sloppyCopy(job_info)), sep="\n")
-
-                break
+             break

@@ -9,7 +9,7 @@ def getLastPicslBioMarkersDateTime(p): (
       else
           ""
       end
-);
+) ;
 
 def container2Timestamps(c): (
       c
@@ -19,6 +19,13 @@ def container2Timestamps(c): (
 	,  "timestamp": (if .timestamp then .timestamp else "" end)
 	, "AshsJobDateTime": getLastPicslBioMarkersDateTime(.info.PICSL_sMRI_biomarkers)
        }
+) ;
+
+#
+# Returns the datetime the session was scanned
+#
+def sessionScanDateTime(s): (
+    .timestamp
 ) ;
 
 def from2Time(f;t): (sub("\\..*";"") | strptime(f) | strftime(t)) ;
