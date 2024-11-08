@@ -118,7 +118,8 @@ def processId(args=None, id=None):
                 print("download to '{}'".format(FileName), file=sys.stderr)
 
             Container.download(FileName)
-            return(None)
+            
+            return(True)
 
         else:
             if (args.recurse):
@@ -198,6 +199,7 @@ if __name__ == '__main__':
     if (len(args.id) > 0):
         IdGenerator = args.id
 
+    ExitCode = 0
     n=1
     for i in IdGenerator:
         id = i.rstrip('\n')
@@ -216,11 +218,11 @@ if __name__ == '__main__':
         Output = processId(args=args,id=id)
 
         if (Output):
-            ExitCode = 0
-            if (args.one_at_a_time):
-                print(json.dumps(Output, indent=2))
-            else:
-                Outputs.append(Output)
+            if (not args.download):
+                if (args.one_at_a_time):
+                    print(json.dumps(Output, indent=2))
+                else:
+                    Outputs.append(Output)
         else:
             ExitCode = 1
 
