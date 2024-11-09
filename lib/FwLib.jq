@@ -31,3 +31,4 @@ def sessionScanDateTime(s): (
 def from2Time(f;t): (sub("\\..*";"") | strptime(f) | strftime(t)) ;
 
 def toObject: if ((. | type) == "array") then .[] else . end ;
+
