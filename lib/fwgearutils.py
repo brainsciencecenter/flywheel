@@ -276,9 +276,11 @@ def recurse(fw, r, GetAnalysis=False, GetAcquisitions=False, CmdName="", Debug=F
 
     if (Get):
         try:
-           if (type(r) == flywheel.models.job_list_entry.JobListEntry):
+           if (type(r) == flywheel.models.job_list_entry.JobListEntry
+               ):
               r = r.reload()
-           elif (type(r) == flywheel.models.file_output.FileOutput):
+           elif (type(r) == flywheel.models.file_output.FileOutput
+                 ):
               r = fw.get(r.file_id)
            else:
               r = fw.get(r._id)
@@ -309,7 +311,10 @@ def recurse(fw, r, GetAnalysis=False, GetAcquisitions=False, CmdName="", Debug=F
     if (  type(r) == flywheel.models.job_list_entry.JobListEntry
        or type(r) == flywheel.models.job_output.JobOutput
        or type(r) == flywheel.models.job.Job ):
+
        Output['detail'] = sloppyCopy(fw.get_job_detail(r.id), UTC=UTC)
+       Output['outputs'] = sloppyCopy(r.outputs, UTC=UTC)
+
        try:
           profile = sloppyCopy(r['profile'], UTC=UTC)
           Output['profile'] = profile
