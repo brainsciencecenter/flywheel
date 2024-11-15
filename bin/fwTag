@@ -22,8 +22,6 @@ if __name__ == '__main__':
     
     ap = argparse.ArgumentParser()
 
-    ap.add_argument('--download', default=False,  action='store_true', help='download instead of print')
-    ap.add_argument('--download-dir', default='.',  action='store', help='directory to download to.  defaults to add')
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-t', '--tags',  action='store', default=False, help='[+|-|=]comma separated list of tags to add to the files')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
@@ -85,6 +83,6 @@ if __name__ == '__main__':
 
                     break
 
-        print("{}".format(Container.tags), file=sys.stderr)
+        print("{}".format(','.join(Container.tags)))
 
     
