@@ -29,7 +29,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
         fwRunGear  -g dcm2niix -i dcm2niix_input dwolklab/NACC/1234/1234-3T/files/foo.dicom
         fwRunGear  -g dicom-mr-classifier -i dicom dwolklab/NACC/1234/1234-3T/files/foo.dicom
         fwRunGear  -g dicom-mr-classifier -i dicom <InputFileUuid> [ ... ]
-        fwRunGear  -g ashs -i T1w <T1InputFileUuid> -i T2w T2InputFileId -c '{"ASHS_Atlases": "ASHS-PMC-T2"}'
+        fwRunGear  -g ashs -i T1w <T1InputFileUuid> -i T2w <T2InputFileId> -c '{"ASHS_Atlases": "ASHS-PMC-T2"}'
         fwRunGear  -g zip-audit-logs cfn/pmc_exvivo
         fwRunGear  -g necktrim -i file  66e4743cf671b87d3bce278d
 
@@ -88,14 +88,15 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(message)s')
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('-d', '--debug', default=False,  action='store_true', help='debug')
     ap.add_argument('-c', '--config', action='store', default='{}', help='config json string. Defaults to "{}"')
+    ap.add_argument('-d', '--debug', default=False,  action='store_true', help='debug')
     ap.add_argument('-g', '--gear-name', required=True, action='store', help='gear name')
+    ap.add_argument('-i', '--input-key', action='append', nargs=2, metavar=("input_name", "input_value"), help='gear input key')
     ap.add_argument('-L', '--label', action='store', help='Job Label')
     ap.add_argument('-l', '--show-log', default=False, action='store_true', help='Dump log at the end of the job')
     ap.add_argument('-n', '--noop', default=False, action='store_true', help='do not actually submit the job')
-    ap.add_argument('-i', '--input-key', action='append', nargs=2, metavar=("input_name", "input_value"), help='gear input key')
     ap.add_argument('-o', '--output-file-info', default=False,  action='store_true', help='print output file ids')
+    ap.add_argument('-q', '--quiet', default=False, action='store_true', help='do not print the job id')
     ap.add_argument('-t', '--tags', required=False, default=None, action='store', help='comma separated gear tags')
     ap.add_argument('-V', '--version', action='store', help='gear version to run')
     ap.add_argument('-v', '--verbose', action='store_true', help='verbose')
@@ -138,16 +139,14 @@ if __name__ == '__main__':
 
 
     file_obj = inputs[list(inputs.keys())[0]]
+
+    if (args.debug):
+       print("type(file_obj) = '{}', file_obj = '{}'".format(type(file_obj), file_obj), file=sys.stderr)
     
-    if (   (type(file_obj) == flywheel.models.project_output.ProjectOutput)
-        or (type(file_obj) == flywheel.models.file_output.FileOutput)):
-              dest = file_obj
+    if (gear.category == "analysis"):
+       dest = fw.get(file_obj.parents.session)
     else:
-        if (gear.category == "analysis"):
-            print(file_obj)
-            dest = fw.get(file_obj.parents.session)
-        else:
-            dest = fw.get(file_obj.parents.acquisition)
+       dest = fw.get(file_obj.parents.acquisition)
 
     if (args.debug):
        print("dest = '{}'".format(dest), file=sys.stderr)
@@ -168,7 +167,8 @@ if __name__ == '__main__':
         job_id = runGear(gear, dest=dest, config=Config, tags=tags)
 
 
-    print("{}".format(job_id))
+    if (not args.quiet):
+       print("{}".format(job_id))
 
     if (args.wait):
        count = 0
