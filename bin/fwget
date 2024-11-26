@@ -114,8 +114,8 @@ def processId(args=None, id=None):
             elif (hasattr(Container, 'name')):
                 FileName = Container.name
 
-            if (args.verbose or args.noop):
-                print("download to '{}'".format(FileName), file=sys.stderr)
+            if (not args.quiet or args.noop):
+                print("'{}' => '{}'".format(Container.file_id, FileName), file=sys.stderr)
 
             Container.download(FileName)
             
