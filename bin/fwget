@@ -115,7 +115,7 @@ def processId(args=None, id=None):
                 FileName = Container.name
 
             if (not args.quiet or args.noop):
-                print("'{}' => '{}'".format(Container.file_id, FileName), file=sys.stderr)
+                print("{} => {}/{}".format(Container.file_id, args.download_dir, FileName), file=sys.stdout)
 
             Container.download(FileName)
             
