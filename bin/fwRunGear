@@ -180,7 +180,7 @@ if __name__ == '__main__':
           if (args.debug):
              print("{} : {} Job {} status {}".format(CmdName, count, job_id, job_info.state), file=sys.stderr)
           if (job_info.state != state):
-             print("{} : {}".format(CmdName,job_info.state))
+             print("{} : {}".format(CmdName,job_info.state), file=sys.stderr)
              state = job_info.state
 
           if (job_info.state == 'complete' or job_info.state == "failed"):
