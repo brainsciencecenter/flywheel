@@ -25,6 +25,7 @@ if __name__ == '__main__':
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-q', '--quiet',  action='store_true', default=False, help='no output')
     ap.add_argument('-t', '--tags',  action='store', default=False, help='[+|-|=]comma separated list of tags to add to the files')
+    ap.add_argument('-u', '--update-timestamp', default=False,  action='store_true', help='update the timestamp of the container parent')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
 
     ap.add_argument('id', nargs='*', type=str, default=None, help='group/project|ProjectID|uuid')
@@ -34,13 +35,19 @@ if __name__ == '__main__':
     TagOp = '+'
     NewTags = None
     if (args.tags):
-        m = re.search('^(?P<TagOp>\+|\-|=)?(?P<Tags>(.)+)$',args.tags)
+        m = re.search('^(?P<TagOp>\+|\-|=)?(?P<Tags>(.)*)$',args.tags)
         if (m):
             if (m.group('TagOp')):
                 TagOp = m.group('TagOp')
 
             if (m.group('Tags')):
                 NewTags = m.group('Tags').split(',')
+
+    if (args.verbose):
+        if (NewTags is None):
+            print("TagOp = '{}', NewTags = '{}'".format(TagOp,None), file=sys.stderr)
+        else:
+            print("TagOp = '{}', NewTags = '{}'".format(TagOp,','.join(NewTags)), file=sys.stderr)
         
     fw = fwgearutils.getFW(args, Root=True)
     if (not fw):
@@ -52,25 +59,37 @@ if __name__ == '__main__':
         try:
             Container = fw.get(id)
         except(flywheel.rest.ApiException) as e:
-            Container = fw.get_file(id)
-
-        if (NewTags):
-            if (TagOp == '+'):
-                Container.add_tags(NewTags)
-
-            elif (TagOp == '-'):
-                for Tag in NewTags:
-                    Container.delete_tag(Tag)
-
-            elif (TagOp == '='):
-                CurrentTags = set(Container.tags)
-                for Tag in CurrentTags:
-                    Container.delete_tag(Tag)
+            try:
+                Container = fw.get_file(id)
+            except(flywheel.rest.ApiException) as e:
+                try:
+                    Container = fw.lookup(id)
+                except(flywheel.rest.ApiException) as e:
+                    print("{} : could not find container for '{}'".format(CmdName,id), file=sys.stderr)
+                    sys.exit(1)
                 
+        UpdateParent = False
+        if (TagOp == '+' and NewTags):
+            Container.add_tags(NewTags)
+            UpdateParent = True
+
+        elif (TagOp == '-'):
+            for Tag in NewTags:
+                Container.delete_tag(Tag)
+            UpdateParent = True
+
+        elif (TagOp == '='):
+            CurrentTags = set(Container.tags)
+            for Tag in CurrentTags:
+                Container.delete_tag(Tag)
+
+            if (NewTags):
                 Container.add_tags(NewTags)
+            UpdateParent = True
 
-            Container = Container.reload()
+        Container = Container.reload()
 
+        if (args.update_timestamp and UpdateParent):
             # Want to update the timestamp on the parent so the new tags are visable
             for ParentType in ParentOrder:
                 if (hasattr(Container.parents, ParentType)):
@@ -78,8 +97,10 @@ if __name__ == '__main__':
                     Parent = fw.get(ParentId)
 
                     if (args.verbose):
-                        print("Parent = '{}'".format(Parent.label))
+                        print("Parent = '{}({})'".format(Parent.label,Parent.id))
 
+                    # *** the timestamp is where flywheel stores the scan date.  
+                    # modifying it is not something to do lightly
                     Parent.update({ 'timestamp': ds })
 
                     break
