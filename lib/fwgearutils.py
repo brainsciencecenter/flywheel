@@ -339,6 +339,7 @@ def recurse(fw, r, GetAnalysis=False, GetAcquisitions=False, CmdName="", Debug=F
         Output['subjects'] = Subjects
         
     elif (   type(r) == flywheel.models.subject.Subject 
+          or type(r) == flywheel.models.subject_output.SubjectOutput
 #          or type(r) == flywheel.models.resolver_subject_node.ResolverSubjectNode 
 #          or type(r) == flywheel.models.container_subject_output.SubjectOutput
         ):
