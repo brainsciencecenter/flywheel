@@ -43,11 +43,11 @@ if __name__ == '__main__':
             if (m.group('Tags')):
                 NewTags = m.group('Tags').split(',')
 
-    if (args.verbose):
-        if (NewTags is None):
-            print("TagOp = '{}', NewTags = '{}'".format(TagOp,None), file=sys.stderr)
-        else:
-            print("TagOp = '{}', NewTags = '{}'".format(TagOp,','.join(NewTags)), file=sys.stderr)
+#    if (args.verbose):
+#        if (NewTags is None):
+#            print("TagOp = '{}', NewTags = '{}'".format(TagOp,None), file=sys.stderr)
+#        else:
+#            print("TagOp = '{}', NewTags = '{}'".format(TagOp,','.join(NewTags)), file=sys.stderr)
         
     fw = fwgearutils.getFW(args, Root=True)
     if (not fw):
