@@ -47,8 +47,17 @@ if (args.verbose):
     
 ViewId = fw.View(columns=args.fields, container=args.container_type, sort=False, include_ids=False, include_labels=False)
 
-ProjectId = args.project_id
-
+try:
+    ProjectId = args.project_id
+    fw.get(ProjectId)
+except(flywheel.rest.ApiException) as e:
+    try:
+        ProjectContainer = fw.lookup(args.project_id)
+        ProjectId = ProjectContainer.id
+    except(flywheel.rest.ApiException) as e:
+        print("{} : could not find container for '{}'".format(CmdName, args.project_id), file=sys.stderr)
+        sys.exit(2)
+        
 #with fw.read_view_data(ViewId, ProjectId, format='csv', limit=200) as resp:
 with fw.read_view_data(ViewId, ProjectId, format='csv') as resp:
     while True:
