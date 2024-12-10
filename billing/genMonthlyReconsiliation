@@ -1,0 +1,88 @@
+#!/bin/bash
+
+opt_y=2024
+opt_m=08
+
+    Database=v5BscGcpNonFwCharges
+    Project=pennbrain-center
+    Dataset=BillingAllocation
+    BscGcpSurchargePercent=.5
+
+    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+    CREATE TEMP TABLE GcpNonFlywheelReconcilation (
+    	    InvoiceMonth		STRING
+	  , GcpProjectId		STRING
+  	  , GcpProjectName		STRING
+	  , TotalDiscountedCosts	FLOAT64
+	  , BscGcpFees			FLOAT64
+	  , TotalBscChargeBack		FLOAT64
+    ) AS
+    SELECT
+          t1.InvoiceMonth
+	, t1.GcpProjectId
+	, t1.GcpProjectName
+	, t1.TotalDiscountedCosts
+	, t1.BscGcpFee
+	, t2.TotalBscChargeBack
+    FROM (
+        SELECT 
+             InvoiceMonth
+    	   , GcpProjectId
+    	   , GcpProjectName
+    	   , TotalDiscountedCosts
+    	   , BscGcpFee
+        FROM
+           `'"${Project}.${Dataset}.${Database}"'`      
+        WHERE
+    	         InvoiceMonth = @InvoiceMonth
+        GROUP BY
+            InvoiceMonth
+          , GcpProjectId
+          , GcpProjectName
+          , TotalDiscountedCosts
+          , BscGcpFee
+    ) t1
+    LEFT JOIN (
+    	 SELECT
+             InvoiceMonth
+    	   , GcpProjectId
+    	   , GcpProjectName
+	   , SUM(TotalAllocatedCharges) AS TotalBscChargeBack
+         FROM
+            `'"${Project}.${Dataset}.${Database}"'`      
+         WHERE
+	    InvoiceMonth = @InvoiceMonth
+	 GROUP BY
+    	     InvoiceMonth
+	   , GcpProjectId
+	   , GcpProjectName
+	 
+    ) t2
+    ON
+              t1.InvoiceMonth = t2.InvoiceMonth
+          AND t1.GcpProjectId = t2.GcpProjectId
+          AND t1.GcpProjectName = t2.GcpProjectName
+    ORDER BY
+        GcpProjectid ASC
+    ;
+
+    SELECT * FROM GcpNonFlywheelReconcilation;
+
+    SELECT
+	     InvoiceMonth
+	   , "" AS GcpProjectId
+	   , "" AS GcpProjectName
+	   , ROUND(SUM(TotalDiscountedCosts),2) AS TotalDiscountedCosts
+	   , ROUND(SUM(BscGcpFees),2) AS BscGcpFees
+	   , ROUND(SUM(TotalBscChargeBack),2) AS TotalBscChargeBack
+    FROM
+        GcpNonFlywheelReconcilation
+    GROUP BY
+	     InvoiceMonth
+    ORDER BY
+	     InvoiceMonth
+    ;
+    
+    DROP TABLE GcpNonFlywheelReconcilation;
+'
+
