@@ -1,17 +1,17 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-c YYYY-MM-DD][-m YYYY-MM-DD][-w YYYY-MM-DD] [-s Scanner]" 
+Syntax="${CmdName} [-c YYYY-MM-DD][-g GroupId][-m YYYY-MM-DD][-p ProjectLabel][-w YYYY-MM-DD] [-s Scanner]" 
 
 FwDir=$(dirname $(dirname $(realpath "$0")))
 
 ScannerMapJsonFile="${FwDir}/etc/ScannerMap.json"
 ScannerStationNamesJsonFile="${FwDir}/etc/ScannerStationNames.json"
 
-while getopts c:m:s:w: arg
+while getopts c:g:m:p:s:w: arg
 do
 	case "$arg" in
-	     c|m|s|w)
+	     c|g|m|p|s|w)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -22,8 +22,14 @@ shift $(($OPTIND - 1))
 CriticalDate=$(date --date='2 days ago' +%Y-%m-%d)
 [ -n "$opt_c" ] && CriticalDate="$opt_c"
 
+GroupId=camris
+[ -n "$opt_g" ] && GroupId="$opt_g"
+
 MonthAgoDate=$(date --date='2 months ago' +%Y-%m-%d)
 [ -n "$opt_m" ] && MonthAgoDateDate="$opt_m"
+
+ProjectLabel=qa
+[ -n "$opt_p" ] && ProjectLabel="$opt_p"
 
 WarningDate=$(date --date='1 day ago' +%Y-%m-%d)
 [ -n "$opt_w" ] && WarningDate="$opt_w"
@@ -52,9 +58,6 @@ fi
 
 CategorizedScanDatesFile="/tmp/${CmdName}CategorizedScanDates"
 
-
-GroupId=camris
-ProjectLabel=qa
 
 CategorizeCreatedDateJq='
   .session.created | sub("T.*$";"") as $CreatedDate
@@ -103,19 +106,19 @@ WarningCount=$(grep "Warning" "$CategorizedScanDatesFile" | wc -l)
 
 if [ "$OkCount" -gt 0 ]
 then
-	Msg="OK - ${OkCount} scan(s) since ${WarningDate}"
+	Msg="OK - ${OkCount} scan(s) in ${GroupId}/${ProjectLabel} since ${WarningDate}"
 	ExitCode=0
 elif [ "$WarningCount" -gt 0 ]
 then
-	Msg="Warning - $WarningCount scan(s) between ${CriticalDate} and ${WarningDate}"
+	Msg="Warning - ${WarningCount} scan(s) in ${GroupId}/${ProjectLabel} between ${CriticalDate} and ${WarningDate}"
 	ExitCode=1
 else
 	LastScanSeenDate=$(grep Critical "$CategorizedScanDatesFile" | sort | tail -n 1 | cut -f 2 -d ' ')
 	if [ -z "$LastScanSeenDate" ]
 	then
-		Msg="CRITICAL - No scans seen after ${MonthAgoDate}"
+		Msg="CRITICAL - No scans seen in ${GroupId}/${ProjectLabel} after ${MonthAgoDate}"
 	else
-		Msg="CRITICAL - Last scan seen on ${LastScanSeenDate}"
+		Msg="CRITICAL - Last scan in ${GroupId}/${ProjectLabel} seen on ${LastScanSeenDate}"
 	fi
 
 	ExitCode=2
