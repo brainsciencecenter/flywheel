@@ -1,0 +1,126 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-c YYYY-MM-DD][-m YYYY-MM-DD][-w YYYY-MM-DD] [-s Scanner]" 
+
+FwDir=$(dirname $(dirname $(realpath "$0")))
+
+ScannerMapJsonFile="${FwDir}/etc/ScannerMap.json"
+ScannerStationNamesJsonFile="${FwDir}/etc/ScannerStationNames.json"
+
+while getopts c:m:s:w: arg
+do
+	case "$arg" in
+	     c|m|s|w)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+
+CriticalDate=$(date --date='2 days ago' +%Y-%m-%d)
+[ -n "$opt_c" ] && CriticalDate="$opt_c"
+
+MonthAgoDate=$(date --date='2 months ago' +%Y-%m-%d)
+[ -n "$opt_m" ] && MonthAgoDateDate="$opt_m"
+
+WarningDate=$(date --date='1 day ago' +%Y-%m-%d)
+[ -n "$opt_w" ] && WarningDate="$opt_w"
+
+ValidScanners=$(jq -r ".[]" "$ScannerMapJsonFile" "$ScannerStationNamesJsonFile" | sort -u)
+
+if [ -z "$opt_s" ]
+then
+	echo "$Syntax" 1>&2
+	echo "Scanner must be one of: " 1>&2	
+	echo "$ValidScanners" 1>&2
+
+	exit 1
+else
+	if echo "$ValidScanners" | grep -q "$opt_s"
+	then
+		Scanner="$opt_s"
+	else
+		echo "$Syntax" 1>&2
+		echo "'$opt_s' not found in list of valid scanners: " 1>&2
+		echo "$ValidScanners" 1>&2
+
+		exit 2
+	fi
+fi	
+
+CategorizedScanDatesFile="/tmp/${CmdName}CategorizedScanDates"
+
+
+GroupId=camris
+ProjectLabel=qa
+
+CategorizeCreatedDateJq='
+  .session.created | sub("T.*$";"") as $CreatedDate
+| if ($CreatedDate >= $WarningDate) then
+      "Ok "
+  else if ($CreatedDate > $CriticalDate and $CreatedDate <= $WarningDate) then
+        "Warning "
+     else
+         "Critical "
+     end
+  end + $CreatedDate
+'
+
+function getScannerSessionsJson {
+	local Scanner="$1"
+	local GroupId="$2"
+	local ProjectLabel="$3"
+	local MonthAgoDate="$4"
+
+	if [ "$Scanner" = "PAV10" ]
+	then
+		ScannerStationNames=(
+			 $(jq -r --argjson Scanner "\"$Scanner\"" 'to_entries[] | select(.value == $Scanner) | .key' $ScannerStationNamesJsonFile)
+	        )
+
+		for ScannerStationName in "${ScannerStationNames[@]}"
+		do
+			fwsearch -r session 'group._id = '"$GroupId"' AND project.label = '"$ProjectLabel"' AND session.created > '"$MonthAgoDate"' AND file.info.StationName = "'"$ScannerStationName"'"' | jq -r '.[]'
+		done 
+	else
+		ScannerIds=(
+			 $(jq -r --argjson Scanner "\"$Scanner\"" 'to_entries[] | select(.value == $Scanner) | .key' "$ScannerMapJsonFile")
+	        )
+		for i in "${ScannerIds[@]}"
+		do
+			fwsearch -r session 'group._id = '"$GroupId"' AND project.label = '"$ProjectLabel"' AND session.created > '"$MonthAgoDate"' AND file.origin.id = "'"$i"'"' | jq -r '.[]' 
+		done
+	fi
+}
+
+getScannerSessionsJson "$Scanner" "$GroupId" "$ProjectLabel" "$MonthAgoDate" | tee /tmp/json | jq -r --argjson WarningDate "\"$WarningDate\"" --argjson CriticalDate "\"$CriticalDate\"" "$CategorizeCreatedDateJq" > "$CategorizedScanDatesFile"
+
+
+OkCount=$(grep "Ok" "$CategorizedScanDatesFile" | wc -l)
+WarningCount=$(grep "Warning" "$CategorizedScanDatesFile" | wc -l)
+
+if [ "$OkCount" -gt 0 ]
+then
+	Msg="OK - ${OkCount} scan(s) since ${WarningDate}"
+	ExitCode=0
+elif [ "$WarningCount" -gt 0 ]
+then
+	Msg="Warning - $WarningCount scan(s) between ${CriticalDate} and ${WarningDate}"
+	ExitCode=1
+else
+	LastScanSeenDate=$(grep Critical "$CategorizedScanDatesFile" | sort | tail -n 1 | cut -f 2 -d ' ')
+	if [ -z "$LastScanSeenDate" ]
+	then
+		Msg="CRITICAL - No scans seen after ${MonthAgoDate}"
+	else
+		Msg="CRITICAL - Last scan seen on ${LastScanSeenDate}"
+	fi
+
+	ExitCode=2
+fi
+
+echo "$Msg"
+exit "$ExitCode"
+	
