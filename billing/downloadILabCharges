@@ -4,7 +4,7 @@ v5TempFunctions=$(which v5TempFunctions)
 
 function sys {
     [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
-    [ -z "$opt_n" ] && "$@"
+    [ -n "$opt_n" ] || "$@"
 }
 
 function v5DownloadFwIlabCharges {
@@ -352,16 +352,15 @@ function calculateNonFwGcpChargesPre20240701 {
     	  ROUND(TotalAllocatedCharges,2) >= 0.01
     	AND
     	  FundNumber != "InternalBenNumber"
-    )	
-    '
+    );	
+    ' 
 }
 
 function calculateNonFwGcpChargesPost20240701 {
     Database=v5BscGcpNonFwCharges
 
-    bq query --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
-
-CREATE TABLE IF NOT EXISTS
+    bq query --batch=true --quiet=true --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
+     CREATE TABLE IF NOT EXISTS
          `'"${Project}.${Dataset}.${Database}"'`
      (
 	  InvoiceMonth				STRING
@@ -373,15 +372,16 @@ CREATE TABLE IF NOT EXISTS
 	, IlabServiceRequestNumber		INT64
 	, FundNumber				STRING
 	, GcpProjectId			        STRING
-     );
+     )
+     ;
 
-DELETE FROM
+    DELETE FROM
          `'"${Project}.${Dataset}.${Database}"'`
     WHERE
         InvoiceMonth = @InvoiceMonth
-;
+    ;
 
-INSERT 
+    INSERT 
        `'"${Project}.${Dataset}.${Database}"'`
 
     SELECT
@@ -393,8 +393,8 @@ INSERT
     	      , TotalDiscountedCosts
     	      , ROUND((TotalDiscountedCosts * '"$BscGcpSurchargePercent"'),2) AS BscGcpFee	    # How much we charge them for GCP usage
 
-    	      , ROUND((TotalDiscountedCosts + (TotalDiscountedCosts * '"$BscGcpSurchargePercent"')) * AllocationPercent,2) AS TotalAllocatedCharges
     	      , AllocationPercent
+    	      , ROUND((TotalDiscountedCosts + (TotalDiscountedCosts * '"$BscGcpSurchargePercent"')) * AllocationPercent,2) AS TotalAllocatedCharges
 
     	      , IlabServiceRequestNumber
     	      , FundNumber
@@ -443,8 +443,9 @@ INSERT
     	     AND ROUND(TotalAllocatedCharges,2) >= 0.01
     	     AND FundNumber != "InternalBenNumber"
     ;
+' > /dev/null
 
-
+    bq query --batch=true --quiet=true --use_legacy_sql=false --format=csv --allow_large_results --max_rows=1000000 --parameter="InvoiceMonth:STRING:${opt_y}${opt_m}" '
     # ServiceId
     # BscGcpSurchargePercent
     # PurchaseDate
@@ -480,85 +481,7 @@ INSERT
     	     AND ROUND(TotalAllocatedCharges,2) >= 0.01
     	     AND FundNumber != "InternalBenNumber"
     ;
-
-#    SELECT 
-#        "'"$ServiceId"'" AS service_id,
-#        format("%s(%s) (%8.2f + (%8.2f * %0.2f = %8.2f)) * %0.2f = %8.2f",
-#             GcpProjectId,
-#	     GcpProjectName,
-#             TotalDiscountedCosts,
-#    	     TotalDiscountedCosts,
-#    	     '"$BscGcpSurchargePercent"',
-#    	     BscGcpFee,
-#    	     AllocationPercent,
-#    	     TotalAllocatedCharges
-#          )
-#          AS note,
-#        format("%8.2f", ROUND(TotalAllocatedCharges,2)) AS service_quantity,
-#        "" AS price,
-#        "'"$PurchaseDate"'" AS purchased_on,
-#        IlabServiceRequestNumber AS service_request_id,
-#        "" AS owner_email,
-#        "" AS pi_email_or_group_id,
-#        "" AS payment_number
-#    FROM (
-#         SELECT
-#    	*
-#         FROM (
-#    	SELECT
-#    	        AllocationPercent,
-#		GcpProjectName,
-#		GcpProjectId,
-#    	        TotalDiscountedCosts,
-#    	        ROUND((TotalDiscountedCosts * '"$BscGcpSurchargePercent"'),2) AS BscGcpFee,		    # How much we charge them for GCP usage
-#
-#    	        ROUND((TotalDiscountedCosts + (TotalDiscountedCosts * '"$BscGcpSurchargePercent"')) * AllocationPercent,2) AS TotalAllocatedCharges,
-#
-#    		IlabServiceRequestNumber,
-#    		FundNumber,
-#    	FROM (
-#    	    SELECT 
-#    	        BscGcpProjectCosts.InvoiceMonth AS InvoiceMonth,
-#    	        BscGcpProjectCosts.GcpProjectName AS GcpProjectName,
-#    	        BscGcpProjectCosts.GcpProjectId AS GcpProjectId,
-#    	        ROUND(SUM(DiscountedCosts),2) AS TotalDiscountedCosts,
-#    	        ROUND(SUM(DiscountedStorageCosts),2) AS TotalDiscountedStorageCosts,
-#    	        BscGcpProjectCostAllocations.AllocationPercent AS AllocationPercent,
-#    	        BscGcpProjectCostAllocations.iLabServiceRequestNumber AS IlabServiceRequestNumber,
-#    	        BscGcpProjectCostAllocations.FundNumber AS FundNumber
-#    	    FROM (
-#    	        SELECT 
-#    	            InvoiceMonth,
-#    	            GcpProjectName,
-#    	            GcpProjectId,
-#    	            ServiceDescription,
-#    	            Costs + Discounts AS DiscountedCosts,
-#    	            IF ((ServiceDescription = "Cloud Storage"), (Costs + Discounts), 0.0) AS DiscountedStorageCosts,
-#    	        FROM `'"${Project}.${Dataset}."'GcpNonFlywheelCosts` 
-#    	        WHERE 
-#    	            InvoiceMonth = @InvoiceMonth
-#    	    ) BscGcpProjectCosts
-#    	    FULL OUTER JOIN 
-#    	    	`'"${Project}.${Dataset}."'BscGcpProjectCostAllocations` BscGcpProjectCostAllocations
-#    	    ON
-#    		BscGcpProjectCosts.GcpProjectName = BscGcpProjectCostAllocations.GcpProjectName
-#    	    GROUP BY 
-#    	        BscGcpProjectCosts.InvoiceMonth,
-#    	        BscGcpProjectCosts.GcpProjectName,
-#    	        BscGcpProjectCosts.GcpProjectId,
-#    	    	BscGcpProjectCostAllocations.AllocationPercent,
-#    		BscGcpProjectCostAllocations.FundNumber,
-#    		IlabServiceRequestNumber
-#    	    ORDER BY 
-#    	        BscGcpProjectCosts.GcpProjectId ASC
-#    	)
-#         )
-#         WHERE
-#    	  ROUND(TotalAllocatedCharges,2) >= 0.01
-#    	AND
-#    	  FundNumber != "InternalBenNumber"
-#    )	
-    '
+'
 }
 
 function downloadNonFwGcpIlabCharges {
@@ -616,6 +539,7 @@ function downloadNonFwGcpIlabCharges {
         TotalProjectAllocationPercent != 1.0
     ORDER BY
     	GcpProjectName
+    ;
 	
     '  2> /dev/null)"
     if [ -n "$ProblemProjects" ]
@@ -692,6 +616,7 @@ function downloadFwMriIlabCharges {
             AND Path NOT LIKE "%unknown%"
         ORDER BY 
 	   service_quantity desc
+	
 	;
 
     ' | sed '1,/^[	 ]*service_quantity/d'
