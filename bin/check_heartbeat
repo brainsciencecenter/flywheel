@@ -100,7 +100,7 @@ function getScannerSessionsJson {
 	fi
 }
 
-getScannerSessionsJson "$Scanner" "$GroupId" "$ProjectLabel" "$MonthAgoDate" | tee /tmp/json | jq -r --argjson WarningDate "\"$WarningDate\"" --argjson CriticalDate "\"$CriticalDate\"" "$CategorizeCreatedDateJq" > "$CategorizedScanDatesFile"
+getScannerSessionsJson "$Scanner" "$GroupId" "$ProjectLabel" "$MonthAgoDate" | jq -r --argjson WarningDate "\"$WarningDate\"" --argjson CriticalDate "\"$CriticalDate\"" "$CategorizeCreatedDateJq" > "$CategorizedScanDatesFile"
 
 
 OkCount=$(grep "Ok" "$CategorizedScanDatesFile" | wc -l)
