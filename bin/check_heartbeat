@@ -1,17 +1,17 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-c YYYY-MM-DD][-g GroupId][-m YYYY-MM-DD][-p ProjectLabel][-w YYYY-MM-DD] [-s Scanner]" 
+Syntax="${CmdName} [-c YYYY-MM-DD][-g GroupId][-m YYYY-MM-DD][-p ProjectLabel][-w YYYY-MM-DD] [Scanner]" 
 
 FwDir=$(dirname $(dirname $(realpath "$0")))
 
 ScannerMapJsonFile="${FwDir}/etc/ScannerMap.json"
 ScannerStationNamesJsonFile="${FwDir}/etc/ScannerStationNames.json"
 
-while getopts c:g:m:p:s:w: arg
+while getopts c:g:m:p:w: arg
 do
 	case "$arg" in
-	     c|g|m|p|s|w)
+	     c|g|m|p|w)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -36,7 +36,7 @@ WarningDate=$(date --date='1 day ago' +%Y-%m-%d)
 
 ValidScanners=$(jq -r ".[]" "$ScannerMapJsonFile" "$ScannerStationNamesJsonFile" | sort -u)
 
-if [ -z "$opt_s" ]
+if [ -z "$1" ]
 then
 	echo "$Syntax" 1>&2
 	echo "Scanner must be one of: " 1>&2	
@@ -44,12 +44,12 @@ then
 
 	exit 1
 else
-	if echo "$ValidScanners" | grep -q "$opt_s"
+	if echo "$ValidScanners" | grep -q "$1"
 	then
-		Scanner="$opt_s"
+		Scanner="$1"
 	else
 		echo "$Syntax" 1>&2
-		echo "'$opt_s' not found in list of valid scanners: " 1>&2
+		echo "'$1' not found in list of valid scanners: " 1>&2
 		echo "$ValidScanners" 1>&2
 
 		exit 2
@@ -106,19 +106,19 @@ WarningCount=$(grep "Warning" "$CategorizedScanDatesFile" | wc -l)
 
 if [ "$OkCount" -gt 0 ]
 then
-	Msg="OK - ${OkCount} scan(s) in ${GroupId}/${ProjectLabel} since ${WarningDate}"
+	Msg="OK - ${OkCount} scan(s) in ${GroupId}/${ProjectLabel} from ${Scanner} since ${WarningDate}"
 	ExitCode=0
 elif [ "$WarningCount" -gt 0 ]
 then
-	Msg="Warning - ${WarningCount} scan(s) in ${GroupId}/${ProjectLabel} between ${CriticalDate} and ${WarningDate}"
+	Msg="Warning - ${WarningCount} scan(s) in ${GroupId}/${ProjectLabel} from ${Scanner} between ${CriticalDate} and ${WarningDate}"
 	ExitCode=1
 else
 	LastScanSeenDate=$(grep Critical "$CategorizedScanDatesFile" | sort | tail -n 1 | cut -f 2 -d ' ')
 	if [ -z "$LastScanSeenDate" ]
 	then
-		Msg="CRITICAL - No scans seen in ${GroupId}/${ProjectLabel} after ${MonthAgoDate}"
+		Msg="CRITICAL - No scans seen in ${GroupId}/${ProjectLabel} from ${Scanner} after ${MonthAgoDate}"
 	else
-		Msg="CRITICAL - Last scan in ${GroupId}/${ProjectLabel} seen on ${LastScanSeenDate}"
+		Msg="CRITICAL - Last scan in ${GroupId}/${ProjectLabel} from ${Scanner} seen on ${LastScanSeenDate}"
 	fi
 
 	ExitCode=2
