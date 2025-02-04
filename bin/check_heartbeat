@@ -6,6 +6,7 @@ Syntax="${CmdName} [-c YYYY-MM-DD][-g GroupId][-m YYYY-MM-DD][-p ProjectLabel][-
 FwDir=$(dirname $(dirname $(realpath "$0")))
 
 export PATH="${PATH}:${FwDir}/bin"
+export PYTHON_PATH="${FwDir}/lib"
 
 ScannerMapJsonFile="${FwDir}/etc/ScannerMap.json"
 ScannerStationNamesJsonFile="${FwDir}/etc/ScannerStationNames.json"
