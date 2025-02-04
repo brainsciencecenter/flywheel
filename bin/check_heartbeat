@@ -58,7 +58,7 @@ else
 	fi
 fi	
 
-CategorizedScanDatesFile="/tmp/${CmdName}CategorizedScanDates"
+CategorizedScanDatesFile=$(mktemp "/tmp/${CmdName}CategorizedScanDates-XXXXXX")
 
 
 CategorizeCreatedDateJq='
