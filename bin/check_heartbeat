@@ -64,6 +64,7 @@ function checkScannerHeartbeat {
 	fi	
 	
 	CategorizedScanDatesFile=$(mktemp "/tmp/${CmdName}CategorizedScanDates${Scanner}-XXXXXX")
+	[ -n "$opt_v" ] && echo "$CmdName}: CategorizedScanDatesFile = '${CategorizedScanDatesFile}'" 1>&2
 	
 	CategorizeCreatedDateJq='
 	  ( .session.created | sub("T.*$";"") )as $CreatedDate
