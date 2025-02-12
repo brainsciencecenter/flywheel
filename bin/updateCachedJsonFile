@@ -1,0 +1,96 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+FwDir=$(dirname $(dirname $(which "$0")))
+FwLib="${FwDir}/lib"
+
+Syntax="${CmdName} {-c ActiveIdCsvFile}[-f][-n][-p Prefix][-u][-v][-t TmpDir] CachedJsonFile"
+# updateCachedJsonFile -u -t holder/IcvMarking -c /tmp/ActiveAcquisitionIds.csv holder-IcvMarking-CachedFwAcquisitions.json
+
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
+while getopts c:np:t:uv arg
+do
+	case "$arg" in
+	     c|n|p|t|u|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+		
+shift $(("${OPTIND}" - 1))
+
+CachedJsonFile="$1"
+
+[ -n "$opt_v" ] && opt_v='-v'
+
+# Changing the container label _does_ update the modification time. May take a few minutes
+
+TmpDir='/tmp' 
+[ -n "$opt_t" ] && TmpDir="$opt_t"
+[ -e "$TmpDir" ] || sys mkdir -p "$TmpDir"
+
+Prefix=""
+[ -n "$opt_p" ] && Prefix="$opt_p"
+
+IdsToGet="${TmpDir}/${Prefix}IdsToGet"
+
+#
+# fwview -v -c acquisition -f 'created > 1970-01-01' -p holder/IcvMarking acquisition.id acquisition.created acquisition.modified acquisition.timestamp | tail +2 | sed 's/\.[0-9][0-9][0-9][0-9][0-9][0-9]\([+-]\)/\1/g; s/,$//; s/ /T/' > ActiveIdsCsvFile
+#
+
+ActiveIdsCsvFile="$opt_c"
+ActiveIdsJsonFile="${TmpDir}/${Prefix}ActiveIds.json"
+if [ -s "$ActiveIdsCsvFile" ]
+then
+    ( echo '_id,created,modified,timestamp' ; cat "$ActiveIdsCsvFile") | csvjson | jq '.[] | { (._id): { "created": .created, "modified": .modified, "timestamp": .timestamp} }' | jq -s 'add' > "$ActiveIdsJsonFile"
+else
+    echo "${CmdName} : No Active Ids" 1>&2
+    exit 1
+fi
+
+CommonJsonFile="${TmpDir}/${Prefix}Common.json"
+if [ -e "$CachedJsonFile" ]
+then
+    sys jq -r --slurpfile ActiveIds "$ActiveIdsJsonFile" -L "$FwLib" 'include "FwLib"; container2Timestamps(.) as $Timestamps | select( (._id | in($ActiveIds[])) and ($Timestamps == $ActiveIds[][._id]) )' "$CachedJsonFile" > "$CommonJsonFile"
+
+    CommonIdsJsonFile="${TmpDir}/${Prefix}CommonIds.json"
+    if [ -s "$CommonJsonFile" ]
+    then
+	jq -r '{(._id): (.label)}' "$CommonJsonFile" | jq -s 'add' > "$CommonIdsJsonFile"
+    else
+	echo '{}' > "$CommonIdsJsonFile"
+    fi
+
+    CommonIdsCsvFile="${TmpDir}/${Prefix}CommonIds.csv"
+    jq -r -L "$FwLib" 'include "FwLib";  ._id as $ContainerId | container2Timestamps(.) | [ $ContainerId, .created, .modified, .timestamp ]| @csv' "$CommonJsonFile" | sed 's/"//g' > "$CommonIdsCsvFile"
+    sys diff <(sort "$CommonIdsCsvFile")  <(sort "$ActiveIdsCsvFile") | grep '^> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep '.' > "$IdsToGet"
+else
+    sys cat /dev/null > "$CommonJsonFile"
+    sys csvcut -c 1 "$ActiveIdsCsvFile" > "$IdsToGet"
+fi
+
+NewJsonFile="${TmpDir}/${Prefix}New.json"
+
+NIdsToGet=$(wc -l < "$IdsToGet")
+if [ "$NIdsToGet" -gt 0 ]
+then
+    [ -n "$opt_v" ] && echo "${CmdName} : getting new Ids" 1>&2
+
+    sys fwget -1 -N "$NIdsToGet" < "$IdsToGet" > "$NewJsonFile"
+else
+    cat /dev/null > "$NewJsonFile"
+fi
+
+UpdatedJsonFile="${TmpDir}/${Prefix}Updated.json"
+sys cat "$CommonJsonFile" "$NewJsonFile" > "$UpdatedJsonFile"
+
+if [ -n "$opt_u" ] && [ $(jq . "$UpdatedJsonFile" | wc -l) -gt 1 ]
+then
+    sys mv "$UpdatedJsonFile" "$CachedJsonFile"
+fi
+

@@ -17,7 +17,7 @@ def container2Timestamps(c): (
           "created": (if (.created) then .created else "" end)
 	, "modified": (if (.modified) then .modified else "" end)
 	,  "timestamp": (if .timestamp then .timestamp else "" end)
-	, "AshsJobDateTime": getLastPicslBioMarkersDateTime(.info.PICSL_sMRI_biomarkers)
+#	, "AshsJobDateTime": getLastPicslBioMarkersDateTime(.info.PICSL_sMRI_biomarkers)
        }
 ) ;
 
