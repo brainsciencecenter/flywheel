@@ -1,0 +1,37 @@
+#!/bin/bash
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
+while getopts nv arg
+do
+	case "$arg" in
+	     n|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift $(( "$OPTIND" - 1 ))
+
+ProjectCsvFile="$1"
+
+while read line
+do
+
+	Group=$(echo "$line" | csvcut -c 1)
+	[ "$Group" = 'Group' ] && continue
+
+	Collection=$(echo "$line" | csvcut -c 2)
+	SubjectLabel=$(echo "$line" | csvcut -c 3)
+	SessionLabel=$(echo "$line" | csvcut -c 4)
+	AcquisitionLabel=$(echo "$line" | csvcut -c 5)
+	FileId=$(echo "$line" | csvcut -c 6)
+
+	DownloadDir="${Group}/${Collection}/${SubjectLabel}/${SessionLabel}/${AcquisitionLabel}" 
+	[ -e "$DownloadDir" ] || sys mkdir -p "$DownloadDir"
+
+	sys fwget -f --download --download-dir "$DownloadDir" "${FileId}"
+done < <(csvcut -c Group,Collection,SubjectLabel,SessionLabel,AcquisitionLabel,FileId "$1")
