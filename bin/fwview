@@ -47,6 +47,8 @@ if (args.verbose):
     
 ViewId = fw.View(columns=args.fields, container=args.container_type, sort=False, include_ids=False, include_labels=False)
 
+#ViewId = fw.View(columns=args.fields, container=args.container_type, filter='acquisition.created>"2025-01-01",acquisition.created<"2025-01-15",acquisition.file.origin.type="device"', sort=False, include_ids=False, include_labels=False)
+
 try:
     ProjectId = args.project_id
     fw.get(ProjectId)
