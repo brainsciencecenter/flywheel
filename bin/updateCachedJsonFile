@@ -4,7 +4,7 @@ CmdName=$(basename "$0")
 FwDir=$(dirname $(dirname $(which "$0")))
 FwLib="${FwDir}/lib"
 
-Syntax="${CmdName} {-c ActiveIdCsvFile}[-f][-n][-p Prefix][-u][-v][-t TmpDir] CachedJsonFile"
+Syntax="${CmdName} {-c ActiveIdCsvFile}[-f][-j ActiveTimestampsJsonFile][-n][-p Prefix][-u][-v][-t TmpDir] CachedJsonFile"
 # updateCachedJsonFile -u -t holder/IcvMarking -c /tmp/ActiveAcquisitionIds.csv holder-IcvMarking-CachedFwAcquisitions.json
 
 
@@ -13,10 +13,10 @@ function sys {
     [ -n "$opt_n" ] || "$@"
 }
 
-while getopts c:np:t:uv arg
+while getopts c:j:np:t:uv arg
 do
 	case "$arg" in
-	     c|n|p|t|u|v)
+	     c|j|n|p|t|u|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -44,7 +44,7 @@ IdsToGet="${TmpDir}/${Prefix}IdsToGet"
 #
 
 ActiveIdsCsvFile="$opt_c"
-ActiveIdsJsonFile="${TmpDir}/${Prefix}ActiveIds.json"
+ActiveIdsJsonFile="$opt_j"
 if [ -s "$ActiveIdsCsvFile" ]
 then
     ( echo '_id,created,modified,timestamp' ; cat "$ActiveIdsCsvFile") | csvjson | jq '.[] | { (._id): { "created": .created, "modified": .modified, "timestamp": .timestamp} }' | jq -s 'add' > "$ActiveIdsJsonFile"

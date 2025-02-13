@@ -90,25 +90,70 @@ then
     
     for gp in "${GroupProjects[@]}"
     do
+	TmpDir="$gp"
+
 	[ -n "$opt_v" ] && echo "'$gp'"
 
 	[ -d "$gp" ] || mkdir -p "$gp"
 
-
-	CachedAcquisitionsFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
-	[ -e "$CachedAcquisitionsFile" ] || sys touch "$CachedAcquisitionsFile"
+	CachedAcquisitionsJsonFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
+	[ -e "$CachedAcquisitionsJsonFile" ] || sys touch "$CachedAcquisitionsFile"
 
 	# Sessions are done without any other input
-	sys time fwUpdateCachedSessionJsonFile $opt_n $opt_v -u -t "$gp" "$gp"
-	sys time fwUpdateSessionNotes+Tags $opt_n $opt_v -t "$gp" "$gp"
+	SessionCachedJsonFile="${gp}/SessionCached.json"
+	SessionId2TimestampsActiveCsvFile="${gp}/SessionActiveIds.csv"
+
+	if [ "$Group" = 'Collections' ]
+	then
+	    fwget -1 -raG "Collections/${Project}" | jq -r -L ~/flywheel/lib 'include "FwLib";  .sessions[] |  ._id as $ContainerId | container2Timestamps(.) | [ $ContainerId, .created, .modified, .timestamp ]| @csv ' | tail +2 | sed 's/\.[0-9][0-9][0-9][0-9][0-9][0-9]\([+-]\)/\1/g; s/,$//; s/ /T/' > "$SessionId2TimestampsActiveCsvFile"
+	else
+	    sys fwview -v -c session -f 'created > 1970-01-01' -p "$gp" session.id session.created session.modified session.timestamp | tail +2 | sed 's/\.[0-9][0-9][0-9][0-9][0-9][0-9]\([+-]\)/\1/g; s/,$//; s/ /T/' > "$SessionId2TimestampsActiveCsvFile"
+	fi
+
+	SessionId2TimestampsActiveJsonFile="${TmpDir}/SessionId2TimestampsActive.json"
+	sys updateCachedJsonFile -u -p Session -j "$SessionId2TimestampsActiveJsonFile" -t "$gp" -c "$SessionId2TimestampsActiveCsvFile" "$SessionCachedJsonFile"
+
+	Id2LabelsJsonFile="${TmpDir}/Id2Labels.json"
+
+	(
+	    if [ "$Group" = 'Collections' ]
+	    then
+		sys fwsearch -r subject 'collection.label = '"\"${Project}\" | jq -r '.[]| { (.group._id): (.group.label), (.project._id): (.project.label)}, { (.subject._id): (.subject.code) }' | jq -s 'add' ;
+	    else
+		sys fwsearch -r subject 'group._id = '"\"${Group}\""' AND project.label = '"\"${Project}\" | jq -r '.[]| { (.group._id): (.group.label), (.project._id): (.project.label)}, { (.subject._id): (.subject.code) }' | jq -s 'add' ;
+	    fi
+	    
+	    sys jq -r '{ (._id): (.label) }' "$CachedAcquisitionsJsonFile" | jq -r -s 'add'
+	) | jq -s 'add' > "$Id2LabelsJsonFile"
+
+	#
+	# Need 
+	#   Id2Labels.json
+	#   SessionId2TimestampsActive.json
+	#   SessionId2Notes.json
+	#   SessionId2Tags.json
+	SessionId2NotesJsonFile="${TmpDir}/SessionId2Notes.json"
+	sys jq --slurp '[ .[]| { (._id): (if (.notes) then .notes | map(.text) | join("\n") else "" end) } ] | add' "$SessionCachedJsonFile" > "$SessionId2NotesJsonFile"
+
+	SessionId2TagsJsonFile="${TmpDir}/SessionId2Tags.json"
+	sys jq --slurp '[.[] | { (._id): (.tags|join(":"))}] | add ' "$SessionCachedJsonFile" > "$SessionId2TagsJsonFile"
+
+	#sys time fwUpdateCachedSessionJsonFile $opt_n $opt_v -u -t "$gp" "$gp"
+	#sys time fwUpdateSessionNotes+Tags $opt_n $opt_v -t "$gp" "$gp"
 
 	# Ids are done from a possibly out of date cached acquisitions file
-	sys time fwUpdateId2JsonFile $opt_n $opt_v -u -t "$gp" "$CachedAcquisitionsFile"
+	#sys time fwUpdateId2JsonFile $opt_n $opt_v -u -t "$gp" "$CachedAcquisitionsFile"
 
 	# Ids are coming from the cached acquisitions, which we update now. 
-	sys time fwUpdateCachedAcquisitionJsonFile $opt_f $opt_n $opt_v -u -t "$gp" -c "$CachedAcquisitionsFile" "$gp"
+	ActiveAcquisitionIdsCsvFile="${gp}/AcquisitionActiveIds.csv"
+	sys fwview -v -c acquisition -f 'created > 1970-01-01' -p "$gp" acquisition.id acquisition.created acquisition.modified acquisition.timestamp | tail +2 | sed 's/\.[0-9][0-9][0-9][0-9][0-9][0-9]\([+-]\)/\1/g; s/,$//; s/ /T/' > "$ActiveAcquisitionIdsCsvFile"
 
-	sys time syncAcqData2Indd $opt_f $opt_n $opt_v -d "$gp" -c "$CachedAcquisitionsFile" "$gp"
+	ActiveAcquisitionIdsJsonFile="${gp}/AcquisitionActiveIds.json"
+	sys updateCachedJsonFile -u -p Acquisitions -j "$ActiveAcquisitionIdsJsonFile" -t "$gp" -c "$ActiveAcquisitionIdsCsvFile" "$CachedAcquisitionsJsonFile"
+
+	#sys time fwUpdateCachedAcquisitionJsonFile $opt_f $opt_n $opt_v -u -t "$gp" -c "$CachedAcquisitionsFile" "$gp"
+
+	sys syncAcqData2Indd $opt_f $opt_n $opt_v -d "$gp" -c "$CachedAcquisitionsJsonFile" "$gp"
 
 	ProjectId=$(getProjectId "$gp")
 	InddRegEx=$(fwget -1 "$ProjectId" | jq -r '.info.labels.INDDRegEx|select(. != null)')
