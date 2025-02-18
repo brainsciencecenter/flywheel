@@ -8,7 +8,7 @@
 # getContainerTimestamps -v -c "$Container" -p "$ProjectId" "$Container".{id,created,modified,timestamp} 
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-n][-v] {-c ContainerType} {-p ProjectId} {container.elements [container.elements[...]]}"
+Syntax="${CmdName} [-n][-v] {-c ContainerType} {-p ProjectId} [container.elements [container.elements[...]]]"
 
 FwDir=$(dirname $(dirname $(realpath $(which "$0"))))
 FwLib="${FwDir}/lib"
@@ -30,13 +30,6 @@ done
 
 shift $(($OPTIND - 1))
 
-if [ -z "$1" ]
-then
-	echo "${CmdName} : missing container elements" 1>&2
-	echo "$Syntax" 1>&2
-	exit 1
-fi
-	
 if [ -z "$opt_p" ]
 then
 	echo "${CmdName} : missing -p ProjectId" 1>&2
@@ -52,7 +45,19 @@ then
 	echo "$Syntax" 1>&2
 	exit 3
 else
-	Container="$opt_c"
+	ContainerType="$opt_c"
+fi
+
+ContainerElements=()
+
+if [ -n "$1" ]
+then
+    ContainerElements=( "$@" )
+else
+    for i in id created modified timestamp
+    do
+	ContainerElements+=( "${ContainerType}.${i}" )
+    done
 fi
 
 CsvHeader=$(echo "$*" | sed 's/ /,/g')
@@ -66,17 +71,17 @@ then
 	# This is a collection
 	Group="Collections"
 
-	[ "$Container" = "session" ] && ContainerArg=-S
-	[ "$Container" = "acquisition" ] && ContainerArg=-a
+	[ "$ContainerType" = "session" ] && ContainerArg=-S
+	[ "$ContainerType" = "acquisition" ] && ContainerArg=-a
 
 	(
 		echo "$CsvHeader"
 		sys fwfind -1 -g "$ContainerArg" group="$Group" project="$ProjectId" | jq -r -L "$FwLib" 'include "FwLib"; {(._id): container2Timestamps(.) }'  | jq -r --slurp 'select(.) | add | to_entries[] | [ .key, .value.created, .value.modified, .value.timestamp] | @csv ' | sed -E 's/\.[0-9]{6}//g; s/ /T/g'
-	) | csvjson -y 0 --stream | jq --arg container "$Container" -f "${FwLib}/fwview2IdNDateTimes.jq" | jq -s '. | add'
+	) | csvjson -y 0 --stream | jq --arg container "$ContainerType" -f "${FwLib}/fwview2IdNDateTimes.jq" | jq -s '. | add'
 
 else
 	Group=$(fwget -1 "$ProjectId" | jq -r '.group')
-	sys fwview -c "$Container" -p "$ProjectId" "$@" | sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq '.' | jq --arg container "$Container" -f "${FwLib}/fwview2IdNDateTimes.jq" | jq -s '. | add' 
+	sys fwview -c "$ContainerType" -p "$ProjectId" "${ContainerElements[@]}" | sed -E 's/\.[0-9]{6}//g; s/ /T/g' | csvjson -y 0 --stream | jq '.' | jq --arg container "$ContainerType" -f "${FwLib}/fwview2IdNDateTimes.jq" | jq -s '. | add' 
 
 fi
 

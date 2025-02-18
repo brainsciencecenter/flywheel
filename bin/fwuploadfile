@@ -70,13 +70,13 @@ if __name__ == '__main__':
 
         res = Container.upload_file(file)
         try:
-            Container.update({ 'timestamp': ds })
-            Container = Container.reload()
+            fwgearutils.updateContainerModified(Container)
+
         except(flywheel.rest.ApiException):
-            if ((args.quiet == True) or (args.update_timestamp == False) ):
+            if ((args.quiet == True) or (args.update_modified == False) ):
                 True
             else:
-                print("{} : Could not update timestamp on '{}'".format(CmdName,Container),file=sys.stderr)
+                print("{} : Could not update modified on '{}'".format(CmdName,Container),file=sys.stderr)
 
         try:
             UploadedFileUid = res[0].file_id
