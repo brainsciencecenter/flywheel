@@ -24,7 +24,7 @@ CmdName = os.path.basename(sys.argv[0])
 ap = argparse.ArgumentParser()
 
 ap.add_argument('-c', '--container-type', default='acquisition',  action='store', help='Container type: group, project, subject, acquisition')
-ap.add_argument('-F', '--format', default=None,  action='store', help='format to return output in. either csv or json')
+ap.add_argument('-F', '--format', default='csv',  action='store', help='format to return output in. either csv or json')
 ap.add_argument('-f', '--filter', default=None,  action='store', help='comma separated list of filters to use')
     
 ap.add_argument('-l', '--limit', default=None,  action='store', help='Maximum number of items to return')
@@ -61,7 +61,7 @@ except(flywheel.rest.ApiException) as e:
         sys.exit(2)
         
 #with fw.read_view_data(ViewId, ProjectId, format='csv', limit=200) as resp:
-with fw.read_view_data(ViewId, ProjectId, format='csv') as resp:
+with fw.read_view_data(ViewId, ProjectId, format=args.format) as resp:
     while True:
         chunk = resp.readline().strip()
         if not chunk:

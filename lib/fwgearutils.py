@@ -155,6 +155,19 @@ def fwGlobPath(fw,Path):
 
     return(Containers)
 
+#
+# Update the container modified timestamp to now
+# by setting the container label to its current value
+#
+# Thanks flywheel for another convenient convention.
+#
+def updateContainerModified(Container):
+    OldLabel = Container.label
+
+    Container.update(label=OldLabel)
+    NewRes = Container.reload()
+    return(NewRes)
+
 def sloppyCopy(d, recurse=True, UTC=True, Verbose=False, regex=None, to=None):
     '''
     serializes a object, ignoring all the stuff it cant easily serialize, but will give you something
