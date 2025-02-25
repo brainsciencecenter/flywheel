@@ -65,6 +65,7 @@ FieldsCommon=(
 
 FieldsMisc=(
 	'AcquisitionFileName'
+	'AcquisitionFileId'
 	'BidsNoBids'
 )
 
@@ -216,6 +217,7 @@ then
 	CmdArgs+=( -v )
 fi
 
+ProjectAllJsonFile="${TmpDir}/${Project}_all.json"
 ProjectAllCsvFile="${TmpDir}/${Project}_all.csv"
 ProjectMriCsvFile="${TmpDir}/${Project}_mri.csv"
 ProjectPetCsvFile="${TmpDir}/${Project}_pet.csv"
@@ -227,11 +229,13 @@ then
 else
     rm -f "$ProjectAllCsvFile" "$ProjectAllCsvFile" "$ProjectAllCsvFile" "$ProjectAllCsvFile"
 
+
     # Just grab the keys - csvcut at the end cleans up the headers
+    # don't generate the json here.  Do it in the next append part.
     jq -r -L "$FwLib" -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$opt_c" | jq -r -n 'first( inputs | keys | @csv)' > "$ProjectAllCsvFile"
 
-    # format the dict for just values into csv 
-    jq -r -L "$FwLib" -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$opt_c" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv' >> "$ProjectAllCsvFile"
+    # format the dict for just values into csv
+    jq -r -L "$FwLib" -L "${TmpDir}" -f "$FwAcqData2InddJqFile" "$opt_c" | tee "$ProjectAllJsonFile" | jq -r '[ (keys[]) as $k | .[$k] ] | @csv' >> "$ProjectAllCsvFile"
 
     #
     # Greping out MR or PT loses the header line.

@@ -6,8 +6,8 @@ include "FwLib";
 
 import "Id2Labels" as $Id2Labels;
 
+import "SessionId2Timestamps" as $SessionId2Timestamps;
 import "SessionId2Notes" as $SessionId2Notes;
-import "SessionId2TimestampsActive" as $SessionId2TimestampsActive;
 import "SessionId2Tags" as $SessionId2Tags;
 
       .parents.group as $GroupLabel 
@@ -18,8 +18,8 @@ import "SessionId2Tags" as $SessionId2Tags;
     | $Id2Labels::Id2Labels[][.parents.project] as $ProjectLabel 
     | $Id2Labels::Id2Labels[][.parents.subject] as $SubjectLabel 
     | $Id2Labels::Id2Labels[][.parents.session] as $SessionLabel 
+    | $SessionId2Timestamps::SessionId2Timestamps[][.parents.session] as $SessionTimestamps
     | $SessionId2Notes::SessionId2Notes[][.parents.session] as $SessionNotes
-    | $SessionId2TimestampsActive::SessionId2TimestampsActive[][.parents.session] as $SessionTimestamps
     | $SessionId2Tags::SessionId2Tags[][$SessionId] as $SessionTags
 
     | ._id as $AcquisitionId
@@ -31,6 +31,7 @@ import "SessionId2Tags" as $SessionId2Tags;
     | (if .info.PICSL_sMRI_biomarkers.JobId then .info.PICSL_sMRI_biomarkers.JobId else "None" end) as $AshsJobId
     | (if .info.PICSL_sMRI_biomarkers.JobUrl then .info.PICSL_sMRI_biomarkers.JobUrl else "None" end) as $AshsJobUrl
     | (if .info.PICSL_sMRI_biomarkers.DateTime then .info.PICSL_sMRI_biomarkers.DateTime else "None" end) as $AshsJobDateTime
+
 
     | container2Timestamps(.) as $AcquisitionTimestamps
 
@@ -45,6 +46,7 @@ import "SessionId2Tags" as $SessionId2Tags;
       ] | .[]
 #    | [ .[] | if $Bids then select(.info.BIDS) else select((.name | test($FileExt))) end] | first
       | .name as $AcquisitionFileName
+      | .file_id as $AcquisitionFileId
       | .type as $AcquisitionType
       | .size as $AcquisitionSize
       | (if .classification.Intent then .classification.Intent|join(";") else "None" end) as $Intent
@@ -74,30 +76,6 @@ import "SessionId2Tags" as $SessionId2Tags;
 		| (if ((.BIDS | type) == "object") then .BIDS.Ignore else "" end) as $BidsIgnore
 		| (if ((.BIDS | type) == "object") then .BIDS.template else "" end) as $BidsTemplate
 		| (if ((.BIDS | type) == "object") then .BIDS.valid else "" end) as $BidsValid
-
-#	        | (if ($Bids) then "Bids" else "NoBids" end) as $BidsNoBids
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Acq else "" end) as $BidsAcq
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Ce else "" end) as $BidsCe
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Dir else "" end) as $BidsDir
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Trc else "" end) as $BidsTrc
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Echo else "" end) as $BidsEcho
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Filename else "" end) as $BidsFilename
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Folder else "" end) as $BidsFolder
-#		| (if ($Bids and ((.BIDS | type) == "object")) then (if ((.BIDS.IntendedFor|type) == "array" ) then
-#				        [(.BIDS.IntendedFor[][]|values)]|join(":")
-#				    else
-#					.BIDS.IntendedFor
-#				    end) else "" end) as $BidsIntendedFor
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Mod else "" end) as $BidsMod
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Modality else "" end) as $BidsModality
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Path else "" end) as $BidsPath
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Rec else "" end) as $BidsRec
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Run else "" end) as $BidsRun
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Task else "" end) as $BidsTask
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.error_message else "" end) as $BidsErrorMessage
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.Ignore else "" end) as $BidsIgnore
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.template else "" end) as $BidsTemplate
-#		| (if ($Bids and ((.BIDS | type) == "object")) then .BIDS.valid else "" end) as $BidsValid
 
                 | (if ( .RadiopharmaceuticalInformationSequence )
                    then
@@ -159,6 +137,7 @@ import "SessionId2Tags" as $SessionId2Tags;
 	    , "AshsJobDateTime": $AshsJobDateTime
 
 	    , "AcquisitionFileName": $AcquisitionFileName
+	    , "AcquisitionFileId": $AcquisitionFileId
 
 	    # BIDS
 	    , "BidsNoBids": $BidsNoBids
