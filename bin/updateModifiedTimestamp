@@ -31,7 +31,7 @@ if __name__ == '__main__':
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
 
-    ap.add_argument('id', nargs='*', type=str, default=None, help='group/project|ProjectID|uuid')
+    ap.add_argument('id', nargs='*', type=str, default=None, help='group[/project[/subject[/session[/acquisition]]]]|ProjectID|uuid')
 
     args = ap.parse_args()
 

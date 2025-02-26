@@ -206,10 +206,10 @@ if __name__ == '__main__':
         id = re.sub('/$','',id)
         id = re.sub('^\s*','',id)
 
-        if (args.verbose):
-            if (args.number):
-                print("{}: {}/{} '{}'".format(CmdName,n,args.number,id), file=sys.stderr)
-            else:
+        if (args.verbose and args.number):
+            print("{}: {}/{} '{}'".format(CmdName,n,args.number,id), file=sys.stderr)
+        else:
+            if (args.verbose):
                 print("{}: '{}'".format(CmdName,id), file=sys.stderr)
 
         n = n + 1

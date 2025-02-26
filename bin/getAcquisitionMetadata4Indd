@@ -116,7 +116,7 @@ then
 	sys fwview -c acquisition -p "$gp" acquisition.{id,created,modified,timestamp} | tail +2 | sed 's/\.[0-9][0-9][0-9][0-9][0-9][0-9]\([+-]\)/\1/g; s/,$//; s/ /T/' > "$ActiveAcquisitionIdsCsvFile"
 
 	ActiveAcquisitionIdsJsonFile="${gp}/AcquisitionActiveIds.json"
-	sys updateCachedJsonFile -u -p Acquisitions -j "$ActiveAcquisitionIdsJsonFile" -t "$gp" -c "$ActiveAcquisitionIdsCsvFile" "$CachedAcquisitionsJsonFile"
+	sys updateCachedJsonFile $opt_v -u -p Acquisitions -j "$ActiveAcquisitionIdsJsonFile" -t "$gp" -c "$ActiveAcquisitionIdsCsvFile" "$CachedAcquisitionsJsonFile"
 
 	Id2LabelsJsonFile="${TmpDir}/Id2Labels.json"
 	(
