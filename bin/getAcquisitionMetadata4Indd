@@ -86,7 +86,7 @@ then
 	[ -d "$gp" ] || mkdir -p "$gp"
 
 	CachedAcquisitionsJsonFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
-	[ -e "$CachedAcquisitionsJsonFile" ] || sys touch "$CachedAcquisitionsFile"
+	[ -e "$CachedAcquisitionsJsonFile" ] || sys touch "$CachedAcquisitionsJsonFile"
 
 	read Group Project < <(echo "$gp" | sed 's,/, ,')
 
