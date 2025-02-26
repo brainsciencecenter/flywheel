@@ -40,7 +40,7 @@ Prefix=""
 IdsToGet="${TmpDir}/${Prefix}IdsToGet"
 
 #
-# fwview -v -c acquisition -f 'created > 1970-01-01' -p holder/IcvMarking acquisition.id acquisition.created acquisition.modified acquisition.timestamp | tail +2 | sed 's/\.[0-9][0-9][0-9][0-9][0-9][0-9]\([+-]\)/\1/g; s/,$//; s/ /T/' > ActiveIdsCsvFile
+# fwview -v -c acquisition -f 'created > 1970-01-01' -p holder/IcvMarking acquisition.id acquisition.created acquisition.modified acquisition.timestamp | tail -n +2 | sed 's/\.[0-9][0-9][0-9][0-9][0-9][0-9]\([+-]\)/\1/g; s/,$//; s/ /T/' > ActiveIdsCsvFile
 #
 
 ActiveIdsCsvFile="$opt_c"
