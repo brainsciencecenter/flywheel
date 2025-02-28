@@ -2,6 +2,8 @@
 
 #
 # fwView [-c containertype][-F csv|json][-f filter][-l limit][-p ProjectId] {field1 [[field2]...]}
+#
+# fwview -v -c acquisition -f 'acquisition.created>"2025-02-23"' -p 67bccb178aeaa4c653bc9050 acquisition.file.origin.id  acquisition.created subject.code session.label session.id file.info.{DeidentificationMethod,ImageComments,ManufacturerModelName,PerformedProcedureStepDescription,StudyComments,StudyDescription}
 
 import argparse
 import csv
@@ -28,7 +30,7 @@ ap.add_argument('-F', '--format', default='csv',  action='store', help='format t
 ap.add_argument('-f', '--filter', default=None,  action='store', help='comma separated list of filters to use')
     
 ap.add_argument('-l', '--limit', default=None,  action='store', help='Maximum number of items to return')
-ap.add_argument('-p', '--project-id', default=None,  action='store', required=True, help='project id of view')
+ap.add_argument('-p', '--project-id', default=None,  action='store', required=True, help='comma separated list of project ids')
 ap.add_argument('-v', '--verbose', default=None,  action='store_true', help='verbose')
 
 ap.add_argument('fields', nargs='+', type=str, default=None, help='fields')
@@ -45,28 +47,31 @@ if (args.verbose):
         args.fields,
         args.container_type), file=sys.stderr)
     
-ViewId = fw.View(columns=args.fields, container=args.container_type, sort=False, include_ids=False, include_labels=False)
+if (args.filter):
+    print("Filter:", args.filter)
 
-#ViewId = fw.View(columns=args.fields, container=args.container_type, filter='acquisition.created>"2025-01-01",acquisition.created<"2025-01-15",acquisition.file.origin.type="device"', sort=False, include_ids=False, include_labels=False)
+    ViewId = fw.View(columns=args.fields, container=args.container_type, filter=args.filter, sort=False, include_ids=False, include_labels=False)
+else:
+    ViewId = fw.View(columns=args.fields, container=args.container_type, sort=False, include_ids=False, include_labels=False)
 
-try:
-    ProjectId = args.project_id
-    fw.get(ProjectId)
-except(flywheel.rest.ApiException) as e:
+for ProjectId in args.project_id.split(','):
     try:
-        ProjectContainer = fw.lookup(args.project_id)
-        ProjectId = ProjectContainer.id
+        fw.get(ProjectId)
     except(flywheel.rest.ApiException) as e:
-        print("{} : could not find container for '{}'".format(CmdName, args.project_id), file=sys.stderr)
-        sys.exit(2)
-        
-#with fw.read_view_data(ViewId, ProjectId, format='csv', limit=200) as resp:
-with fw.read_view_data(ViewId, ProjectId, format=args.format) as resp:
-    while True:
-        chunk = resp.readline().strip()
-        if not chunk:
-            break
-        print(chunk)
+        try:
+            ProjectContainer = fw.lookup(args.project_id)
+            ProjectId = ProjectContainer.id
+        except(flywheel.rest.ApiException) as e:
+            print("{} : could not find container for '{}'".format(CmdName, args.project_id), file=sys.stderr)
+            sys.exit(2)
+
+    #with fw.read_view_data(ViewId, ProjectId, format='csv', limit=200) as resp:
+    with fw.read_view_data(ViewId, ProjectId, format=args.format) as resp:
+        while True:
+            chunk = resp.readline().strip()
+            if not chunk:
+                break
+            print(chunk)
         
 
 
