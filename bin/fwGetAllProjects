@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 #
 # get all the analysises from flywheel
@@ -20,18 +20,14 @@ import sys
 
 ap = argparse.ArgumentParser()
 
-ap.add_argument('-b', '--bar-length', action='store', default=40, type=int, help='bar length')
 ap.add_argument('-e', '--exhaustive', action='store_false', default=True, help='exhaustive session flag')
 ap.add_argument('-l', '--limit', action='store', default=1000000, type=int, help='Flywheel cost allocation csv file')
-ap.add_argument('-p', '--progressbar', action='store_true', help='show progress bar')
-
-ap.add_argument('filter', nargs='?', type=str, default=None, help='arguments to fw.find()')
 
 args = ap.parse_args()
 
 fw = fwgearutils.getFW(args,Root=True)
 
-Projects = fw.get_all_projects(exhaustive=True,limit=100000)
+Projects = fw.get_all_projects(exhaustive=args.exhaustive,limit=args.limit)
 
 AllProjects = []
 
