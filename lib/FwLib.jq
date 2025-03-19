@@ -21,6 +21,11 @@ def container2Timestamps(c): (
        }
 ) ;
 
+def fwThing2FwPath(t; Id2Label): (
+     ( if (t | has("name")) then ("files/" + t.name) else (t.label) end) as $Label
+   | [ t.parents[] | select(.) ] | map(Id2Label[][.])| join("/") + "/" + $Label | sub("//"; "/")
+) ;
+
 #
 # Returns the datetime the session was scanned
 #
