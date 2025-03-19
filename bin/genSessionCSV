@@ -4,6 +4,9 @@ CmdName=$(basename "$0")
 
 syntax="$CmdName [-d DicomHeader[[,DicomHeader]...][-j jsonfile][-n][-p][-u][-w WorkDir] fwfindargs....]"
 
+#
+# fwview -v  -f 'acquisition.created>"2025-02-24"' -c acquisition  -p 5a15f72fe108ff001bc0d2ca,5ba2913fe849c300150d02ed,5bb4ade9e849c300150d0d99 acquisition.file.origin.id  acquisition.created subject.code session.label session.id file.info.{DeidentificationMethod,ImageComments,ManufacturerModelName,PerformedProcedureStepDescription,StudyComments,StudyDescription
+
 Epoch=1970-01-01
 
 function sys() {
