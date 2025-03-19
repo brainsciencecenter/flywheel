@@ -54,7 +54,10 @@ if (args.filter):
 else:
     ViewId = fw.View(columns=args.fields, container=args.container_type, sort=False, include_ids=False, include_labels=False)
 
-for ProjectId in args.project_id.split(','):
+ProjectIds = args.project_id.split(',')
+ProjectIdCount = len(ProjectIds)
+N = 0
+for ProjectId in ProjectIds:
     try:
         fw.get(ProjectId)
     except(flywheel.rest.ApiException) as e:
@@ -65,13 +68,17 @@ for ProjectId in args.project_id.split(','):
             print("{} : could not find container for '{}'".format(CmdName, args.project_id), file=sys.stderr)
             sys.exit(2)
 
-    #with fw.read_view_data(ViewId, ProjectId, format='csv', limit=200) as resp:
     with fw.read_view_data(ViewId, ProjectId, format=args.format) as resp:
+        N = N + 1
+        if (args.verbose):
+            print("{}: {}/{}".format(CmdName,N,ProjectIdCount), file=sys.stderr)
+
         while True:
             chunk = resp.readline().strip()
             if not chunk:
                 break
             print(chunk)
+
         
 
 
