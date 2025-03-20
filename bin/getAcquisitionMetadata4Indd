@@ -120,6 +120,8 @@ then
 
 	Id2LabelsJsonFile="${TmpDir}/Id2Labels.json"
 	(
+	    jq '{ (._id): .label}' "$CachedAcquisitionsJsonFile"
+
 	    if [ "$Group" = 'Collections' ]
 	    then
 		# Can't use fwsearch on collections
