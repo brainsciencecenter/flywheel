@@ -144,7 +144,7 @@ then
 		sys fwsearch -r subject 'group._id = "'"$Group"'" AND project.label = "'"$Project"'"' |  jq "$FwSearch2SessionIds2LabelsJq"
 	    fi
 	    sys jq '.data[] | { (.["session.id"]): (.["session.label"]) }' "$SessionJsonFile"
-#	    sys jq '{ (._id): (.label) }' "$CachedAcquisitionsJsonFile"
+
 	) | jq -s 'sort | add' > "$Id2LabelsJsonFile"
 
 

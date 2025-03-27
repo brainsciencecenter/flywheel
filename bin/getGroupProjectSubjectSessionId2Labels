@@ -1,0 +1,31 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-n][-v] {-g Group} {-p Project}"
+
+while getopts g:np:v arg
+do
+	case "$arg" in
+	     g|n|p|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+	esac
+done
+
+shift $(("$OPTIND" - 1))
+
+Group="$opt_g"
+Project="$opt_p"
+
+FwSearchJson2Id2LabelsJq='[
+   (
+         .[]
+       | {
+              (.group._id): (.group.label)
+	    , (.subject._id): (.subject.code)
+	    , (.session._id): (.session.label)
+	 }
+   )
+] | add' 
+
+fwsearch -r session -v 'group._id = '"$Group"' AND project.label = '"$Project" | jq -r "$FwSearchJson2Id2LabelsJq"
+
