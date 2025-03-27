@@ -184,7 +184,7 @@ if __name__ == '__main__':
              if (args.verbose):
                 print("{} : {}".format(CmdName,job_info.state), file=sys.stderr)
 
-          if (job_info.state == 'complete' or job_info.state == "failed"):
+          if (job_info.state == 'complete' or job_info.state == "failed" or job_info.state == "cancelled"):
 
              if (args.show_log):
                 print(fw.get_job_logs(job_id), file=sys.stderr)
