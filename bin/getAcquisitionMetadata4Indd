@@ -136,7 +136,7 @@ then
 		ProjectId=$(fwget -1 "$gp" | jq -r '._id')
 		echo "{ \"${ProjectId}\": \"${Project}\" }"
 
-		SubjectIds=$(jq -r '.sessions[].parents.subject' "$ProjectJsonFile" | sort -u)
+		SubjectIds=$(jq -r '.parents.subject' "$SessionJsonFile" | sort -u)
 		NSubjectIds=$(echo "$SubjectIds" | wc -w)
 		echo "$SubjectIds" | fwget -1 -N "$NSubjectIds" | jq '{ (._id): (.label) }'
 		jq '{ (._id): (.label) }' "$SessionJsonFile"
