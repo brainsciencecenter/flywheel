@@ -106,7 +106,7 @@ then
 	    fwget -1 -raG "Collections/${Project}" | jq '.sessions[]' > "$SessionJsonFile"
 
 	    jq -L "$FwLib" 'include "FwLib"; container2Timestamps(.) as $Timestamps | { (._id): ($Timestamps) }' "$SessionJsonFile" | jq -s 'add' > "$SessionId2TimestampsJsonFile"
-	    jq '{ (._id): (if ((.notes[] | length) > 0) then .notes[] | sub("[\n\r]"; " ") else "" end ) }' "$SessionJsonFile" | jq -s 'if (length(.) > 0) then add else {} end' > "$SessionId2NotesJsonFile"
+	    jq '{ (._id): (if ((.notes[] | length) > 0) then .notes[] | sub("[\n\r]"; " ") else "" end ) }' "$SessionJsonFile" | jq -s 'if (length > 0) then add else {} end' > "$SessionId2NotesJsonFile"
 	    jq ' { (._id): (if ((.tags[] | length) > 0) then .tags | join(":") else "" end ) }' "$SessionJsonFile" | jq -s 'add' > "$SessionId2TagsJsonFile"
 
 	    jq -r -L "$FwLib" 'include "FwLib"; .acquisitions[] | container2Timestamps(.) as $Timestamps | [ ._id, $Timestamps.created, $Timestamps.modified, $Timestamps.timestamp] | @csv' "$SessionJsonFile" | sed 's/"//g' > "$ActiveAcquisitionIdsCsvFile"
