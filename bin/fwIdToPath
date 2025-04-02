@@ -1,0 +1,51 @@
+#!/bin/bash
+
+FwDir=/home/holder/flywheel
+FwLibDir="${FwDir}/lib"
+CmdName=$(basename "$0")
+
+Syntax="${CmdName} [-n][-v][-u][-d]"
+
+Separator='/'
+
+while getopts 'dns:uv' arg
+do
+	case "$arg" in
+	     d|n|s|u|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift $(("$OPTIND" - 1))
+
+[ -n "$opt_s" ] && Separator="$opt_s"
+
+for uid in "$@"
+do
+	[ -n "$opt_v" ] && echo "${CmdName}: ${uid}" 1>&2
+
+	FwJson=$(fwget -1 "$uid" 2> /dev/null)
+	[ "$?" = 0 ] || FwJson=$(fwget -f -1 "$uid" 2> /dev/null)
+	[ "$?" = 0 ] || FwJson=$(fwget -j -1 "$uid" 2> /dev/null)
+	[ "$?" = 0 ] || FwJson=$(fwget -d -1 "$uid" 2> /dev/null)
+	
+	if [ "$?" != 0 ]
+	then
+		echo "${CmdName}: Can not find uid '$uid'" 1>&2
+		exit 1
+	fi
+
+	GroupId=$(echo "$FwJson" | jq -r .parents.group)
+	Thing=$(echo "$FwJson" | jq -r '(if .name then .name else .label end)')
+
+	ThingPath=$(echo "$FwJson" | jq -r  '[.parents[] | select(.)][1:] | .[]' | fwget -1 | jq -s -r --argjson GroupId "\"$GroupId\"" --argjson Thing "\"$Thing\"" '([$GroupId] + [ .[] | .label ] + [$Thing]) | join("'"$Separator"'")')
+	if [ -n "$opt_d" ]
+	then
+		DirPath=$(dirname "$ThingPath")
+		echo "${uid},${DirPath}"
+	else
+		echo "${uid},${ThingPath}"
+	fi
+	
+done
