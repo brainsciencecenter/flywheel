@@ -168,7 +168,7 @@ def updateContainerModified(Container):
     NewRes = Container.reload()
     return(NewRes)
 
-def sloppyCopy(d, recurse=True, UTC=True, Verbose=False, regex=None, to=None):
+def sloppyCopy(d, recurse=True, UTC=True, Debug=False, Verbose=False, GetAcquisitions=False, regex=None, to=None):
     '''
     serializes a object, ignoring all the stuff it cant easily serialize, but will give you something
     '''
@@ -205,33 +205,11 @@ def sloppyCopy(d, recurse=True, UTC=True, Verbose=False, regex=None, to=None):
                 if (Verbose):
                     print("sloppyCopy: except: json.dumps(d): haskeys: d[{}] = '{}': try: json.dumps(d[k])".format(k, d[k]), file=sys.stderr)
 
-                nd[k] = sloppyCopy(d[k], recurse=recurse, Verbose=Verbose, UTC=UTC)
+                nd[k] = sloppyCopy(d[k], recurse=recurse, Verbose=Verbose, GetAcquisitions=GetAcquisitions, UTC=UTC)
 
-
-#                                            #
-#                # calling sloppyCopy(d[k]) is recursing, and recurse might be False
-#                # just dump d's json.dumpable stuff and timestamps if recurse=False
-#                try:
-#                    nd[k] = json.dumps(d[k], UTC)
-# 
-#                except (TypeError, OverflowError) as e2:
-#                    if (Verbose):
-#                        print("sloppyCopy: except: json.dumps(d): haskeys: except: json.dumps(d[{}])".format(k), file=sys.stderr)
-#
-#                    if (type(d[k]) is datetime.datetime):
-#                        #d.datetime.datetime is supposed to be in UTC 
-#                        #sess.timestamp.replace(tzinfo=datetime.timezone.utc).isoformat()
-#                        if (UTC):
-#                            nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S%z"))
-#                        else:
-#                            nd[k] = re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d[k].astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z"))
-#                    else:
-#                        if (recurse): 
-#                            if (Verbose):
-#                                print("sloppyCopy: except: json.dumps(d): haskeys: except: json.dumps(d[{}]): recurse".format(k), file=sys.stderr)
-#
-#                            nd[k] = sloppyCopy(d[k], Verbose=Verbose, UTC=UTC)
-#
+             if (     (type(d) == flywheel.models.session_list_output.SessionListOutput) and recurse and GetAcquisitions):
+               # print("sloppyCopy: Getting session.acquisitions()", file=sys.stderr)
+               nd['acquisitions'] = sloppyCopy(d.acquisitions(), recurse=recurse, Verbose=Verbose, GetAcquisitions=GetAcquisitions)
 
              # Don't know why zip_info isn't a key
              if (    type(d) is flywheel.models.file_output.FileOutput
@@ -243,7 +221,7 @@ def sloppyCopy(d, recurse=True, UTC=True, Verbose=False, regex=None, to=None):
                              print("sloppyCopy: except: json.dumps(d): haskeys: except: type(d[{}]) = '{}': d.zip_member_count = '{}'".format(k, type(d[k]), d.zip_member_count), file=sys.stderr)
                              print("sloppyCopy: except: json.dumps(d): haskeys: except: type(d[{}]) = '{}': type(d.get_zip_info()) = '{}'".format(k, type(d[k]), type(d.get_zip_info())), file=sys.stderr)
 
-                         nd['zip_info'] = sloppyCopy(d.get_zip_info())
+                         nd['zip_info'] = sloppyCopy(d.get_zip_info(), recurse=recurse, Verbose=Verbose, GetAcquisitions=GetAcquisitions)
                      except(flywheel.rest.ApiException) as e:
                          if (Verbose):
                              print("sloppyCopy: no zip_info for f({}) with zip_member_count == '{}'".format(d.file_id,d.zip_member_count), file=sys.stderr)
@@ -267,8 +245,8 @@ def sloppyCopy(d, recurse=True, UTC=True, Verbose=False, regex=None, to=None):
                      print("sloppyCopy: except: json.dumps(d): haskeys: except: d is list: sloppyCopy(n)".format(n), file=sys.stderr)
 
                  if (recurse):
-                     nd.append(sloppyCopy(i, Verbose=Verbose, UTC=UTC))
-
+                     nd.append(sloppyCopy(i, Verbose=Verbose, UTC=UTC, recurse=recurse, GetAcquisitions=GetAcquisitions))
+                     # print("sloppyCopy: recurse type", type(i), file=sys.stderr)
                  n += 1
 
             # print("sloppyCopy: d is list", nd.copy(), file=sys.stderr)
@@ -285,6 +263,9 @@ def sloppyCopy(d, recurse=True, UTC=True, Verbose=False, regex=None, to=None):
                  return(re.sub(r'([+-])(\d{2})(\d{2})$',r'\1\2:\3',d.astimezone(get_localzone()).strftime("%Y-%m-%dT%H:%M:%S%z")))
 
 
+###############################
+# Recurse
+#
 def recurse(fw, r, GetAnalysis=False, GetAcquisitions=False, CmdName="", Debug=False, Get=False, UTC=True, Verbose=False, ZipInfo=False ):
 
     if (Get):
@@ -305,7 +286,7 @@ def recurse(fw, r, GetAnalysis=False, GetAcquisitions=False, CmdName="", Debug=F
     if (Debug):
         print("{} : {} : type(r) = {}".format(CmdName, "recurse", type(r)), file=sys.stderr)
 
-    Output = sloppyCopy(r, UTC=UTC)
+    Output = sloppyCopy(r, UTC=UTC, recurse=True, Verbose=Verbose, GetAcquisitions=GetAcquisitions)
 
     if (type(r) == flywheel.models.group_output.GroupOutput):
         if (Verbose):
@@ -363,11 +344,13 @@ def recurse(fw, r, GetAnalysis=False, GetAcquisitions=False, CmdName="", Debug=F
         for s in fw.get_subject_sessions(r._id):
             if (Verbose):
                 print("%s : %s/%s" % (CmdName, r.label, s.label), file=sys.stderr)
-            Session = recurse(fw, s, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
+            Session = recurse(fw, s, recurse=True, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
+            # *** Session should be json structure, so running sloppyCopy on it doesn't make sense
             Sessions.append(sloppyCopy(Session, UTC=UTC))
         Output['sessions'] = Sessions
 
-    elif (   type(r) == flywheel.models.session.Session 
+    elif (    type(r) == flywheel.models.session.Session
+           or type(r) == flywheel.models.session_parents.SessionParents
 #          or type(r) == flywheel.models.resolver_sebssion_node.ResolverSessionNode 
 #          or type(r) == flywheel.models.container_session_output.ContainerSessionOutput
           ):
@@ -390,7 +373,8 @@ def recurse(fw, r, GetAnalysis=False, GetAcquisitions=False, CmdName="", Debug=F
             if (Debug):
                 print("%s : Looking for acquisitions = '%s'" % (CmdName,GetAcquisitions), file=sys.stderr)
             
-            for a in r.acquisitions():
+            AcquisitionsList = r.acquisitions()
+            for a in AcquisitionsList:
                 Acquisition = recurse(fw, a, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
                 Acquisitions.append(sloppyCopy(Acquisition, UTC=UTC))
 

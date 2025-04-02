@@ -86,7 +86,7 @@ then
 	[ -d "$gp" ] || mkdir -p "$gp"
 
 	CachedAcquisitionsJsonFile=$(echo "$gp"-CachedFwAcquisitions.json | sed 's,/,-,')
-	[ -e "$CachedAcquisitionsJsonFile" ] || sys touch "$CachedAcquisitionsFile"
+	[ -e "$CachedAcquisitionsJsonFile" ] || sys touch "$CachedAcquisitionsJsonFile"
 
 	read Group Project < <(echo "$gp" | sed 's,/, ,')
 
@@ -94,39 +94,52 @@ then
 	SessionId2TimestampsJsonFile="${TmpDir}/SessionId2Timestamps.json"
 	SessionId2NotesJsonFile="${TmpDir}/SessionId2Notes.json"
 	SessionId2TagsJsonFile="${TmpDir}/SessionId2Tags.json"
+	ActiveAcquisitionIdsCsvFile="${gp}/AcquisitionActiveIds.csv"
+	ActiveAcquisitionIdsJsonFile="${gp}/AcquisitionActiveIds.json"
+
 	if [ "$Group" = 'Collections' ]
 	then
 	    #
 	    # Collections are small enough, we can just grab everything 
 	    #
-	    ProjectJsonFile="${TmpDir}"
-	    fwget -1 -raG "Collections/${Project}" > "$ProjectJsonFile"
-	    jq '.sessions[] | { (._id): (if ((.notes[] | length) > 0) then .notes[] | sub("[\n\r]"; " ") else "" end ) } > '$SessionId2NotesJsonFile"
-	    jq '.sessions[] | { (._id): (if ((.tagss[] | length) > 0) then .tags[] | join(":") else "" end ) } > '$SessionId2TagsJsonFile"
+	    ProjectJsonFile="${TmpDir}/Project.json"
+	    fwget -1 -raG "Collections/${Project}" | jq '.sessions[]' > "$SessionJsonFile"
+
+	    jq -L "$FwLib" 'include "FwLib"; container2Timestamps(.) as $Timestamps | { (._id): ($Timestamps) }' "$SessionJsonFile" | jq -s 'add' > "$SessionId2TimestampsJsonFile"
+	    jq '{ (._id): (if ((.notes[] | length) > 0) then .notes[] | sub("[\n\r]"; " ") else "" end ) }' "$SessionJsonFile" | jq -s 'if (length(.) > 0) then add else {} end' > "$SessionId2NotesJsonFile"
+	    jq ' { (._id): (if ((.tags[] | length) > 0) then .tags | join(":") else "" end ) }' "$SessionJsonFile" | jq -s 'add' > "$SessionId2TagsJsonFile"
+
+	    jq -r -L "$FwLib" 'include "FwLib"; .acquisitions[] | container2Timestamps(.) as $Timestamps | [ ._id, $Timestamps.created, $Timestamps.modified, $Timestamps.timestamp] | @csv' "$SessionJsonFile" | sed 's/"//g' > "$ActiveAcquisitionIdsCsvFile"
 
 	else
 	    sys fwview -c session -F json -p "$gp" session.{id,label,created,modified,timestamp,notes,tags} | jq . > "$SessionJsonFile"
 	    sys jq -f "${FwLib}/fwview2SessionId2Timestamps.jq" "$SessionJsonFile" > "$SessionId2TimestampsJsonFile"
 	    sys jq -f "${FwLib}/fwview2SessionId2Notes.jq" "$SessionJsonFile" > "$SessionId2NotesJsonFile"
 	    sys jq -f "${FwLib}/fwview2SessionId2Tags.jq" "$SessionJsonFile" > "$SessionId2TagsJsonFile"
+
+	    sys fwview -c acquisition -p "$gp" acquisition.{id,created,modified,timestamp} | tail -n +2 | sed 's/\.[0-9][0-9][0-9][0-9][0-9][0-9]\([+-]\)/\1/g; s/,$//; s/ /T/' > "$ActiveAcquisitionIdsCsvFile"
 	fi
 
 	# Ids are coming from the cached acquisitions, which we update now. 
-	ActiveAcquisitionIdsCsvFile="${gp}/AcquisitionActiveIds.csv"
-	sys fwview -c acquisition -p "$gp" acquisition.{id,created,modified,timestamp} | tail +2 | sed 's/\.[0-9][0-9][0-9][0-9][0-9][0-9]\([+-]\)/\1/g; s/,$//; s/ /T/' > "$ActiveAcquisitionIdsCsvFile"
 
-	ActiveAcquisitionIdsJsonFile="${gp}/AcquisitionActiveIds.json"
-	sys updateCachedJsonFile -u -p Acquisitions -j "$ActiveAcquisitionIdsJsonFile" -t "$gp" -c "$ActiveAcquisitionIdsCsvFile" "$CachedAcquisitionsJsonFile"
+	sys updateCachedJsonFile $opt_v -u -p Acquisitions -j "$ActiveAcquisitionIdsJsonFile" -t "$gp" -c "$ActiveAcquisitionIdsCsvFile" "$CachedAcquisitionsJsonFile"
 
 	Id2LabelsJsonFile="${TmpDir}/Id2Labels.json"
 	(
+	    jq '{ (._id): .label}' "$CachedAcquisitionsJsonFile"
+
 	    if [ "$Group" = 'Collections' ]
 	    then
 		# Can't use fwsearch on collections
 		# get the Collection id to label
 		# then all the labels for the parents of the sessions we collected in the $ProjectJsonfile
-		sys fwget -1 "$gp" | jq -r '{ (._id): .label }'
-		sys jq -r '{ (._id): (if (._id | test("^[a-z]+$")) then ._id else .label end) }' "$ProjectJsonFile"
+		ProjectId=$(fwget -1 "$gp" | jq -r '._id')
+		echo "{ \"${ProjectId}\": \"${Project}\" }"
+
+		SubjectIds=$(jq -r '.sessions[].parents.subject' "$ProjectJsonFile" | sort -u)
+		NSubjectIds=$(echo "$SubjectIds" | wc -w)
+		echo "$SubjectIds" | fwget -1 -N "$NSubjectIds" | jq '{ (._id): (.label) }'
+		jq '{ (._id): (.label) }' "$SessionJsonFile"
 	    else
 	        FwSearch2SessionIds2LabelsJq='[
                     .[] 
@@ -140,9 +153,11 @@ then
 		#  get the group, project and subject entries for Id2Labels.
 		#  don't want to redirect to a file
 		sys fwsearch -r subject 'group._id = "'"$Group"'" AND project.label = "'"$Project"'"' |  jq "$FwSearch2SessionIds2LabelsJq"
+
+		# fwsearch returns object with keys 'session.id' and 'session.label', but that shouldn't be in the SessionJsonFile
+		sys jq '.data[] | { (.["session.id"]): (.["session.label"]) }' "$SessionJsonFile"
 	    fi
-	    sys jq '.data[] | { (.["session.id"]): (.["session.label"]) }' "$SessionJsonFile"
-#	    sys jq '{ (._id): (.label) }' "$CachedAcquisitionsJsonFile"
+	    #sys jq '.data[] | { (.["session.id"]): (.["session.label"]) }' "$SessionJsonFile"
 	) | jq -s 'sort | add' > "$Id2LabelsJsonFile"
 
 
