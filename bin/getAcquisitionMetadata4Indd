@@ -138,7 +138,7 @@ then
 
 		SubjectIds=$(jq -r '.parents.subject' "$SessionJsonFile" | sort -u)
 		NSubjectIds=$(echo "$SubjectIds" | wc -w)
-		echo "$SubjectIds" | fwget -1 -N "$NSubjectIds" | jq '{ (._id): (.label) }'
+		echo "$SubjectIds" | fwget -1 -v -N "$NSubjectIds" | jq '{ (._id): (.label) }'
 		jq '{ (._id): (.label) }' "$SessionJsonFile"
 	    else
 	        FwSearch2SessionIds2LabelsJq='[

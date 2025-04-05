@@ -81,7 +81,7 @@ if [ "$NIdsToGet" -gt 0 ]
 then
     [ -n "$opt_v" ] && echo "${CmdName} : getting new Ids" 1>&2
 
-    sys fwget -1 -N "$NIdsToGet" < "$IdsToGet" > "$NewJsonFile"
+    sys fwget -1 -v -N "$NIdsToGet" < "$IdsToGet" > "$NewJsonFile"
 else
     cat /dev/null > "$NewJsonFile"
 fi
