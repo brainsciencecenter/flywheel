@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#
+# Assumes current directory has the cached json file and the supporting Id2Labels.json files
+#
+
+FwDir=$(dirname $(dirname $(which fwget)))
+FwLib="${FwDir}/lib"
+FwBin="${FwDir}/bin"
+
+TmpFile=/tmp/NaccScFilesT13TNd.csv
+
+Tag=PreferredT1
+FileIdField=17
+
+jq -r --slurpfile Id2Labels dwolklab/NACC-SC/Id2Labels.json -f "${FwLib}/NaccScSelect.jq" dwolklab-NACC-SC-CachedFwAcquisitions.json | (LANG=C sort -u) | awk -f "${FwBin}/NaccScMerge.awk" |  grep 'x3T' | grep -E '[":]T1[:"]' | grep ND | grep '.nii.gz'  > "$TmpFile"
+
+fwTag -u -p --tags=PreferredT1 $(grep -v "$Tag" "$TmpFile" | csvcut -c "$FileIdField")
