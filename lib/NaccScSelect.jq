@@ -8,7 +8,8 @@
 #
 # jq -r --slurpfile Id2Labels dwolklab/NACC-SC/Id2Labels.json -f ~/flywheel/lib/NaccScSelect.jq dwolklab-NACC-SC-CachedFwAcquisitions.json | (LANG=C sort -u) | awk -f ~/flywheel/bin/NaccScMerge.awk
 # 
-    (.parents.group) as $GroupLabel
+    (now | todate) as $Now
+  | (.parents.group) as $GroupLabel
   | (.parents.project) as $ProjectId
   | ($Id2Labels[][$ProjectId]) as $ProjectLabel
   | (.parents.subject) as $SubjectId
@@ -89,6 +90,7 @@
              , .type
              , .name
 	     , $FileTags
+	     , $Now
              , .file_id
            ]
     | @csv
