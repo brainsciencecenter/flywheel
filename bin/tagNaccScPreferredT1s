@@ -19,7 +19,7 @@ function Report {
     if [ "$NumToTag" -gt 0 ]
     then
 	echo -e "${NumToTag} scan(s) to tag ${Now}\n"
-	csvcut -c "${TaggingDateFieldId},${FileIdField},${FwFilePathColumnFieldIds}" "$NaccScScansToTagCsvFile" | sed 's/,/ /; s/,/:\t/; s/,/\//g' 
+	csvcut -c "${FileIdField},${FwFilePathColumnFieldIds}" "$NaccScScansToTagCsvFile" | sed 's/,/:\t/; s/,/\//g' 
     else
 	echo "No scans to tag ${Now}"
     fi
