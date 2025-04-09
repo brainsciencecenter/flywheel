@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+
+import argparse
+import flywheel
+import fwgearutils
+import json
+import os
+import pyjq
+import re
+import sys
+import time
+
+CmdName = os.path.basename(sys.argv[0])
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument('id', nargs='+', type=str, default=None, help='FlywheelId [[FlywheelId] ...]')
+
+args = ap.parse_args()
+
+fw = fwgearutils.getFW(args, Root=True)
+if (not fw):
+    print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+    sys.exit(1)
+
+NewTags = "PreferredT1"
+
+for id in args.id:
+
+    File = fw.get_file(id)
+    File.add_tags([ NewTags ])
+
+    File = File.reload()
+
+    print("{} {} {}  {}".format(File.id, id, File.version,','.join(File.tags)))
+
+    i = 1
+    N = 180
+    while (i < N):
+        i += 1
+        time.sleep(1)
+
+        File = fw.get_file(id)
+        File = File.reload()
+
+        Tags = ','.join(File.tags)
+        print("{}/{}: {} {} {} {}".format(i,N,File.id, File.file_id, File.version,Tags))
+        if (not re.search(".*{}.*".format(NewTags),Tags)):
+            sys.exit(1)
+

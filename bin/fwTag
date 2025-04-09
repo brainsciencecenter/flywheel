@@ -79,6 +79,7 @@ if __name__ == '__main__':
             Progress = "{}/{} ".format(N,Max)
 
         UpdateParent = False
+
         if (TagOp == '+' and NewTags):
             Container.add_tags(NewTags)
             UpdateParent = True
@@ -99,7 +100,7 @@ if __name__ == '__main__':
 
         Container = Container.reload()
 
-        if (args.update_timestamp and UpdateParent):
+        if (args.update_timestamp):
             # Want to update the timestamp on the parent so the new tags are visable
             for ParentType in ParentOrder:
                 if (hasattr(Container.parents, ParentType)):
@@ -110,9 +111,11 @@ if __name__ == '__main__':
                         print("Parent = '{}({})'".format(Parent.label,Parent.id))
 
                     # *** the timestamp is where flywheel stores the scan date.  
-                    # modifying it is not something to do lightly
-                    Parent.update({ 'timestamp': ds })
-
+                    # .modified is what we want to change, but users can't directly change that.
+                    # Update the parent container with the container's name. This updates the modified
+                    # timestamp
+                    Parent.update(label=(Parent.label))
+                    Parent = Parent.reload()
                     break
 
         if (not args.quiet):

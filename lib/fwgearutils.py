@@ -344,7 +344,7 @@ def recurse(fw, r, GetAnalysis=False, GetAcquisitions=False, CmdName="", Debug=F
         for s in fw.get_subject_sessions(r._id):
             if (Verbose):
                 print("%s : %s/%s" % (CmdName, r.label, s.label), file=sys.stderr)
-            Session = recurse(fw, s, recurse=True, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
+            Session = recurse(fw, s, GetAcquisitions=GetAcquisitions, CmdName=CmdName, Debug=Debug, Get=Get, UTC=UTC, Verbose=Verbose, ZipInfo=ZipInfo)
             # *** Session should be json structure, so running sloppyCopy on it doesn't make sense
             Sessions.append(sloppyCopy(Session, UTC=UTC))
         Output['sessions'] = Sessions
