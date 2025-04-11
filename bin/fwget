@@ -207,7 +207,7 @@ if __name__ == '__main__':
         id = re.sub('/$','',id)
         id = re.sub('^\s*','',id)
 
-        if (args.verbose and args.number):
+        if (args.number):
             print("{}: {}/{} '{}'".format(CmdName,n,args.number,id), file=sys.stderr)
         else:
             if (args.verbose):
