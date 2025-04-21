@@ -44,7 +44,7 @@ for id in args.id:
         File = File.reload()
 
         Tags = ','.join(File.tags)
-        print("{}/{}: {} {} {} {}".format(i,N,File.id, File.file_id, File.version,Tags))
+        print("{}/{}: {} {} {} {} {}".format(i,N,File.modified,File.id, File.file_id, File.version,Tags))
         if (not re.search(".*{}.*".format(NewTags),Tags)):
             sys.exit(1)
 
