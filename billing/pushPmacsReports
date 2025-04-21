@@ -96,7 +96,7 @@ then
 fi
 
 
-LPmacsUserReportFile=$(findReportFile userreport.txt "$Date" "$YearMonth" "$NextYearMonth")
+LPmacsUserReportFile=$(findReportFile UTF-8userreport.txt "$Date" "$YearMonth" "$NextYearMonth")
 if [ -z "$LPmacsUserReportFile" ]
 then
     echo "${CmdName} : Missing UserReportFile" 1>&2
@@ -106,7 +106,7 @@ fi
 RPmacsUserReportFile="${RReportDir}/${Date}-userreport.txt"
 echo "cat $LPmacsUserReportFile | $(ssh2bscsub tee $RPmacsUserReportFile)"
    
-LPmacsProjectReportFile=$(findReportFile projectreport.txt "$Date" "$YearMonth" "$NextYearMonth")
+LPmacsProjectReportFile=$(findReportFile UTF-8projectreport.txt "$Date" "$YearMonth" "$NextYearMonth")
 if [ -z "$LPmacsProjectReportFile" ]
 then
     echo "${CmdName} : Missing ProjectReportFile" 1>&2
@@ -115,7 +115,7 @@ fi
 RPmacsProjectReportFile="${RReportDir}/${Date}-projectreport.txt"
 echo "cat $LPmacsProjectReportFile | $(ssh2bscsub tee $RPmacsProjectReportFile)"
 
-LPmacsGpfsReportFile=$(findReportFile projectGpfsreport.txt "$Date" "$YearMonth" "$NextYearMonth")
+LPmacsGpfsReportFile=$(findReportFile UTF-8projectGpfsreport.txt "$Date" "$YearMonth" "$NextYearMonth")
 if [ -n "$LPmacsGpfsReportFile" ]
 then
     RPmacsGpfsReportFile="${RReportDir}/${Date}-projectGpfsreport.txt"
