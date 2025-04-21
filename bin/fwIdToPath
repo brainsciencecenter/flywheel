@@ -4,14 +4,14 @@ FwDir=/home/holder/flywheel
 FwLibDir="${FwDir}/lib"
 CmdName=$(basename "$0")
 
-Syntax="${CmdName} [-n][-v][-u][-d]"
+Syntax="${CmdName} [-c][-i Id2Labels.json][-n][-v][-u][-d]"
 
 Separator='/'
 
-while getopts 'dns:uv' arg
+while getopts 'cdi:ns:uv' arg
 do
 	case "$arg" in
-	     d|n|s|u|v)
+	     c|d|i|n|s|u|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -25,21 +25,28 @@ for uid in "$@"
 do
 	[ -n "$opt_v" ] && echo "${CmdName}: ${uid}" 1>&2
 
-	FwJson=$(fwget -1 "$uid" 2> /dev/null)
-	[ "$?" = 0 ] || FwJson=$(fwget -f -1 "$uid" 2> /dev/null)
-	[ "$?" = 0 ] || FwJson=$(fwget -j -1 "$uid" 2> /dev/null)
-	[ "$?" = 0 ] || FwJson=$(fwget -d -1 "$uid" 2> /dev/null)
-	
-	if [ "$?" != 0 ]
+	if [ -n "$opt_i" ]
 	then
+	    
+	    ThingPath=$(echo "$FwJson" | jq -r --slurpfile Id2Labels Collections/ABCD2_WashU_20250331/Id2Labels.json '.label as $Label | [.parents[] | $Id2Labels[][.]] as $ParentLabels | if ( $ParentLabels[0] == null ) and ($ParentLabels[1] == null) then [ "Collections", $Id2Labels[][.collections[0]] ] + $ParentLabels[2:] + [ $Label ] | join("/") else "Container" end')
+	else
+	    FwJson=$(fwget -1 "$uid" 2> /dev/null)
+	    ExitCode="$?"
+	    [ "$ExitCode" = 0 ] || FwJson=$(fwget -f -1 "$uid" 2> /dev/null) || ExitCode="$?"
+	    [ "$ExitCode" = 0 ] || FwJson=$(fwget -j -1 "$uid" 2> /dev/null) || ExitCode="$?"
+	    [ "$ExitCode" = 0 ] || FwJson=$(fwget -d -1 "$uid" 2> /dev/null) || ExitCode="$?"
+	
+	    if [ "$?" != 0 ]
+	    then
 		echo "${CmdName}: Can not find uid '$uid'" 1>&2
 		exit 1
+	    fi
+
+	    GroupId=$(echo "$FwJson" | jq -r .parents.group)
+	    Thing=$(echo "$FwJson" | jq -r '(if .name then .name else .label end)')
+	    ThingPath=$(echo "$FwJson" | jq -r  '[.parents[] | select(.)][1:] | .[]' | fwget -1 | jq -s -r --argjson GroupId "\"$GroupId\"" --argjson Thing "\"$Thing\"" '([$GroupId] + [ .[] | .label ] + [$Thing]) | join("'"$Separator"'")')
 	fi
-
-	GroupId=$(echo "$FwJson" | jq -r .parents.group)
-	Thing=$(echo "$FwJson" | jq -r '(if .name then .name else .label end)')
-
-	ThingPath=$(echo "$FwJson" | jq -r  '[.parents[] | select(.)][1:] | .[]' | fwget -1 | jq -s -r --argjson GroupId "\"$GroupId\"" --argjson Thing "\"$Thing\"" '([$GroupId] + [ .[] | .label ] + [$Thing]) | join("'"$Separator"'")')
+	
 	if [ -n "$opt_d" ]
 	then
 		DirPath=$(dirname "$ThingPath")

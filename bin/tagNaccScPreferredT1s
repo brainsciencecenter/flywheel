@@ -1,0 +1,69 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-r][-t][-u]"
+
+#
+# Assumes current directory has the cached json file and the supporting Id2Labels.json files
+#
+
+function Report {
+    local NumToTag="$1"
+    local Now=$(date '+%Y-%m-%dT%H:%M:%d%z')
+
+    local FwFilePathColumnFieldIds='1-4,10,15'
+    local TaggingDateFieldId='17'
+    
+    echo -e "Nacc-SC Preferred T1 Tag Report\n\n"
+
+    if [ "$NumToTag" -gt 0 ]
+    then
+	echo -e "${NumToTag} scan(s) to tag ${Now}\n"
+	csvcut -c "${FileIdField},${FwFilePathColumnFieldIds}" "$NaccScScansToTagCsvFile" | sed 's/,/:\t/; s/,/\//g' 
+    else
+	echo "No scans to tag ${Now}"
+    fi
+}
+
+while getopts rtu arg
+do
+    case "$arg" in
+	r|t|u)
+	    eval "opt_${arg}='${OPTARG:=1}'"
+	    ;;
+    esac
+    
+done
+
+shift $(("$OPTIND" - 1 ))
+
+FwDir=$(dirname $(dirname $(which fwget)))
+FwLib="${FwDir}/lib"
+FwBin="${FwDir}/bin"
+
+NaccScT13TNdScansCsvFile='/tmp/NaccScFilesT13TNd.csv'
+NaccScScansToTagCsvFile='/tmp/NaccScScansToTag.csv'
+
+FileIdField='18'
+Tag='PreferredT1'
+
+if [ -n "$opt_u" ]
+then
+    jq -r --slurpfile Id2Labels dwolklab/NACC-SC/Id2Labels.json -f "${FwLib}/NaccScSelect.jq" dwolklab-NACC-SC-CachedFwAcquisitions.json | (LANG=C sort -u) | awk -f "${FwBin}/NaccScMerge.awk" |  grep 'x3T' | grep -E '[":]T1[:"]' | grep ND | grep '.nii.gz'  > "$NaccScT13TNdScansCsvFile"
+
+    grep -v "$Tag" "$NaccScT13TNdScansCsvFile" > "$NaccScScansToTagCsvFile"
+fi
+
+NumberOfScansToTag=$(wc -l < "$NaccScScansToTagCsvFile")
+if [ "$NumberOfScansToTag" -gt 0 ] && [ -n "$opt_t" ]
+then
+    fwTag -u -p --tags=PreferredT1 $(csvcut -c "${FileIdField}" "$NaccScScansToTagCsvFile")
+fi
+
+if [ -n "$opt_r" ]
+then
+    Report "$NumberOfScansToTag"
+fi
+
+
+

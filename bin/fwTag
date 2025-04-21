@@ -24,13 +24,16 @@ if __name__ == '__main__':
 
     ap.add_argument('-n', '--noop',  action='store_true', default=False, help='no-op')
     ap.add_argument('-q', '--quiet',  action='store_true', default=False, help='no output')
-    ap.add_argument('-t', '--tags',  action='store', default=False, help='[+|-|=]comma separated list of tags to add to the files')
+    ap.add_argument('-p', '--progress',  action='store_true', default=False, help='progress count')
+    ap.add_argument('-t', '--tags',  action='store', default=False, help='[+|-|=]comma separated list of tags to add to the files.  May need --tags=-my-tag to remove tags')
     ap.add_argument('-u', '--update-timestamp', default=False,  action='store_true', help='update the timestamp of the container parent')
     ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
 
     ap.add_argument('id', nargs='*', type=str, default=None, help='group/project|ProjectID|uuid')
 
     args = ap.parse_args()
+
+    Progress = ""
 
     TagOp = '+'
     NewTags = None
@@ -55,6 +58,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     ds = datetime.now()
+
+    Max = len(args.id)
+    N = 0
     for id in args.id:
         try:
             Container = fw.get(id)
@@ -68,7 +74,12 @@ if __name__ == '__main__':
                     print("{} : could not find container for '{}'".format(CmdName,id), file=sys.stderr)
                     sys.exit(1)
                 
+        N += 1
+        if (args.progress):
+            Progress = "{}/{} ".format(N,Max)
+
         UpdateParent = False
+
         if (TagOp == '+' and NewTags):
             Container.add_tags(NewTags)
             UpdateParent = True
@@ -89,7 +100,7 @@ if __name__ == '__main__':
 
         Container = Container.reload()
 
-        if (args.update_timestamp and UpdateParent):
+        if (args.update_timestamp):
             # Want to update the timestamp on the parent so the new tags are visable
             for ParentType in ParentOrder:
                 if (hasattr(Container.parents, ParentType)):
@@ -100,12 +111,14 @@ if __name__ == '__main__':
                         print("Parent = '{}({})'".format(Parent.label,Parent.id))
 
                     # *** the timestamp is where flywheel stores the scan date.  
-                    # modifying it is not something to do lightly
-                    Parent.update({ 'timestamp': ds })
-
+                    # .modified is what we want to change, but users can't directly change that.
+                    # Update the parent container with the container's name. This updates the modified
+                    # timestamp
+                    Parent.update(label=(Parent.label))
+                    Parent = Parent.reload()
                     break
 
         if (not args.quiet):
-            print("{}".format(','.join(Container.tags)))
+            print("{}: {}{} {}".format(CmdName,Progress, id,','.join(Container.tags)))
 
     

@@ -123,7 +123,7 @@ def processId(args=None, id=None):
 
         else:
             if (args.recurse):
-                if (args.verbose):
+                if (args.verbose or args.debug):
                     print("{} : Ready to recurse".format(CmdName), file=sys.stderr)
                 Output = fwgearutils.recurse(fw,Container, CmdName=CmdName, Get=args.do_get, UTC=(not args.localtime), Debug=args.debug, Verbose=args.debug, GetAcquisitions=args.acquisitions, ZipInfo=args.zip_info)
             else:
@@ -134,9 +134,10 @@ def processId(args=None, id=None):
                 Logs = fw.get_job_logs(id)
                 Output['log'] = list(map(lambda x: x.msg.replace("\n",""),Logs.logs))
 
-        if (type(Container) == flywheel.models.collection_output.CollectionOutput):
+        if (type(Container) == flywheel.models.collection_output.CollectionOutput
+            or type(Container) == flywheel.models.collection_with_stats.CollectionWithStats):
+            Output['sessions'] = fwgearutils.sloppyCopy(list(Container.sessions()), recurse=args.recurse, Verbose=args.debug, GetAcquisitions=args.acquisitions, UTC=(not args.localtime))
             Output['session_count'] = len(list(Container.sessions()))
-            Output['sessions'] = fwgearutils.sloppyCopy(Container.sessions(), UTC=(not args.localtime), Verbose=args.debug)
 
         return(Output)
 
@@ -206,7 +207,7 @@ if __name__ == '__main__':
         id = re.sub('/$','',id)
         id = re.sub('^\s*','',id)
 
-        if (args.verbose and args.number):
+        if (args.number):
             print("{}: {}/{} '{}'".format(CmdName,n,args.number,id), file=sys.stderr)
         else:
             if (args.verbose):
