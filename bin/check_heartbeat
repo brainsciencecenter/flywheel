@@ -3,7 +3,7 @@
 CmdName=$(basename "$0")
 Syntax="${CmdName} [-c YYYY-MM-DD][-g GroupId][-m YYYY-MM-DD][-n][-p ProjectLabel][-w YYYY-MM-DD][-v] [Scanner]" 
 
-FwDir=$(dirname $(dirname $(realpath "$0")))
+FwDir=$(dirname $(dirname $(realpath $(which 'fwget'))))
 
 export PATH="${PATH}:${FwDir}/bin"
 export PYTHONPATH="${FwDir}/lib"
@@ -117,15 +117,15 @@ done
 
 shift $(($OPTIND - 1))
 
-CriticalDate=$(date --date='3 days ago' +%Y-%m-%d)
-[ -n "$opt_c" ] && CriticalDate="$opt_c"
+CriticalDate=$(date --date='3 days ago' +%Y-%m-%d)T00:00:00
+[ -n "$opt_c" ] && CriticalDate="${opt_c}"
 [ -n "$opt_v" ] && echo "${CmdName}: CriticalDate = '${CriticalDate}'" 1>&2
 
 GroupId=camris
 [ -n "$opt_g" ] && GroupId="$opt_g"
 [ -n "$opt_v" ] && echo "${CmdName}: GroupId = '${GroupId}'" 1>&2
 
-MonthAgoDate=$(date --date='2 months ago' +%Y-%m-%d)
+MonthAgoDate=$(date --date='2 months ago' +%Y-%m-%d)T00:00:00
 [ -n "$opt_m" ] && MonthAgoDateDate="$opt_m"
 [ -n "$opt_v" ] && echo "${CmdName}: MonthAgoDate = '${MonthAgoDate}'" 1>&2
 
@@ -133,8 +133,8 @@ ProjectLabel=qa
 [ -n "$opt_p" ] && ProjectLabel="$opt_p"
 [ -n "$opt_v" ] && echo "${CmdName}: ProjectLabel = '${ProjectLabel}'" 1>&2
 
-WarningDate=$(date --date='1 day ago' +%Y-%m-%d)
-[ -n "$opt_w" ] && WarningDate="$opt_w"
+WarningDate=$(date --date='1 day ago' +%Y-%m-%d)T00:00:00
+[ -n "$opt_w" ] && WarningDate="${opt_w}"
 [ -n "$opt_v" ] && echo "${CmdName}: WarningDate = '${WarningDate}'" 1>&2
 
 for Scanner in "$@"
