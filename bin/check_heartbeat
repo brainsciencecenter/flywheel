@@ -11,6 +11,11 @@ export PYTHONPATH="${FwDir}/lib"
 ScannerMapJsonFile="${FwDir}/etc/ScannerMap.json"
 ScannerStationNamesJsonFile="${FwDir}/etc/ScannerStationNames.json"
 
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
 function getScanSessionAfterJson {
 	local Scanner="$1"
 	local GroupId="$2"
@@ -25,7 +30,7 @@ function getScanSessionAfterJson {
 
 		for ScannerStationName in "${ScannerStationNames[@]}"
 		do
-			fwsearch -r session 'group._id = '"$GroupId"' AND project.label = '"$ProjectLabel"' AND session.created > '"$MonthAgoDate"' AND file.info.StationName = "'"$ScannerStationName"'"' | jq -r '.[]'
+			sys fwsearch -r session 'group._id = '"$GroupId"' AND project.label = '"$ProjectLabel"' AND session.created > '"$MonthAgoDate"' AND file.info.StationName = "'"$ScannerStationName"'"' | jq -r '.[]'
 		done 
 	else
 		ScannerIds=(
@@ -33,7 +38,7 @@ function getScanSessionAfterJson {
 	        )
 		for i in "${ScannerIds[@]}"
 		do
-			fwsearch -r session 'group._id = '"$GroupId"' AND project.label = '"$ProjectLabel"' AND session.created > '"$MonthAgoDate"' AND file.origin.id = "'"$i"'"' | jq -r '.[]' 
+			sys fwsearch -r session 'group._id = '"$GroupId"' AND project.label = '"$ProjectLabel"' AND session.created > '"$MonthAgoDate"' AND file.origin.id = "'"$i"'"' | jq -r '.[]' 
 		done
 	fi
 }
