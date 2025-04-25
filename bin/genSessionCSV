@@ -98,9 +98,9 @@ if [ -s "${WorkDir}/SessionUIDs" ]
 then
 	if [ -n "$opt_p" ]
 	then
-		(fw2json -f '\\r\\n' -s -p -ag $TimeZone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile" ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
+		(fw2json -l -f '\\r\\n' -s -p -ag $TimeZone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile" ) 2>&1 | pv -l -s $(wc -l < ${WorkDir}/SessionUIDs) > /dev/null
 	else
-		sys fw2json -f '\\r\\n' -s -ag $Timezone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile"
+		sys fw2json -l -f '\\r\\n' -s -ag $Timezone $(< ${WorkDir}/SessionUIDs) > "$SessionJsonFile"
 	fi
 
 else
