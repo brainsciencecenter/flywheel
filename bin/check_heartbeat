@@ -134,6 +134,8 @@ then
     exit 0
 fi
 
+[ -n "$opt_l" ] && LeaveCachedScans=1
+
 CriticalDate=$(date --date='3 days ago' +%Y-%m-%d)T00:00:00
 [ -n "$opt_c" ] && CriticalDate="${opt_c}"
 [ -n "$opt_v" ] && echo "${CmdName}: CriticalDate = '${CriticalDate}'" 1>&2
@@ -154,9 +156,7 @@ WarningDate=$(date --date='1 day ago' +%Y-%m-%d)T00:00:00
 [ -n "$opt_w" ] && WarningDate="${opt_w}"
 [ -n "$opt_v" ] && echo "${CmdName}: WarningDate = '${WarningDate}'" 1>&2
 
-CachedScansJsonFile=/tmp/json
-
-#CachedScansJsonFile=$(mktemp "${TmpDir}/${CmdName}-ScanCache-XXXXXXX.json")
+CachedScansJsonFile=$(mktemp "${TmpDir}/${CmdName}-CachedScans-XXXXXXX.json")
 cacheScans "$GroupId" "$ProjectLabel" "$MonthAgoDate" | augmentFwViewJson "$CriticalDate" "$WarningDate" "$ScannerStationNamesJsonFile" > "$CachedScansJsonFile"
 
 for Scanner in "$@"
@@ -167,7 +167,7 @@ do
     echo "$Msg"
 done
 
-#[ -z "$LeaveScanCacheJsonFile" ] && rm "$ScanCacheJsonFile"
+[ -z "$LeaveachedScansJsonFile" ] && rm "$CachedScansJsonFile"
 
 exit "$ExitCode"
 	
