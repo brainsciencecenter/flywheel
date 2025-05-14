@@ -48,7 +48,8 @@ if (args.verbose):
         args.container_type), file=sys.stderr)
     
 if (args.filter):
-    print("Filter:", args.filter)
+    if (args.verbose):
+        print("Filter:", args.filter, file=sys.stderr)
 
     ViewId = fw.View(columns=args.fields, container=args.container_type, filter=args.filter, sort=False, include_ids=False, include_labels=False)
 else:
