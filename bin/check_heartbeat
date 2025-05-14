@@ -68,7 +68,7 @@ function checkScannerHeartbeat {
     local ScannerStationNamesJsonFile="$4"
     
     local ValidScanners=$(jq -r ".[]" "$ScannerMapJsonFile" "$ScannerStationNamesJsonFile" | sort -u)
-    local CategorizedScanDatesFile="/tmp/CategorizedScanDates"
+    local CategorizedScanDatesFile=$(mktemp "${TmpDir}/${CmdName}-CategorizedScanDates-XXXXXX")
 
 	if [ -z "$Scanner" ]
 	then
@@ -114,6 +114,8 @@ function checkScannerHeartbeat {
 	fi
 	
 	echo "$Msg"
+
+	[ -n "$LeaveTmpFiles" ] || rm "$CategorizedScanDatesFile"
 	return "$ReturnCode"
 }
 
@@ -134,7 +136,7 @@ then
     exit 0
 fi
 
-[ -n "$opt_l" ] && LeaveCachedScans=1
+[ -n "$opt_l" ] && LeaveTmpFiles=1
 
 CriticalDate=$(date --date='3 days ago' +%Y-%m-%d)T00:00:00
 [ -n "$opt_c" ] && CriticalDate="${opt_c}"
@@ -167,7 +169,7 @@ do
     echo "$Msg"
 done
 
-[ -z "$LeaveachedScansJsonFile" ] && rm "$CachedScansJsonFile"
+[ -n "$LeaveTmpFiles" ] || rm "$CachedScansJsonFile"
 
 exit "$ExitCode"
 	
