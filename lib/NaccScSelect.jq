@@ -92,5 +92,6 @@
 	     , $FileTags
 	     , $Now
              , .file_id
+	     , .info.PatientAge
            ]
     | @csv
