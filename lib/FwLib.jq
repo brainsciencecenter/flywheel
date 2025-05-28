@@ -1,3 +1,5 @@
+#
+
 def getLastPicslBioMarkersDateTime(p): (
       if ((p) and ((p) | [ keys[] | test("ASHS-") ] | any) )
       then
@@ -9,6 +11,14 @@ def getLastPicslBioMarkersDateTime(p): (
       else
           ""
       end
+) ;
+
+# returns two digit age.  Seconds in Year is roughly right
+def dobToAge(dob): (
+    (365 * 24 * 60 * 62) as $SecondsInYear
+  | now as $CurrentSeconds
+  | (dob | strptime("%m-%d-%Y") | mktime) as $DobSeconds
+  | ($CurrentSeconds - $DobSeconds) / $SecondsInYear | . * 100 | round / 100
 ) ;
 
 def container2Timestamps(c): (
