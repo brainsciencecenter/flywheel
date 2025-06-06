@@ -32,17 +32,18 @@ do
 	else
 	    FwJson=$(fwget -1 "$uid" 2> /dev/null)
 	    ExitCode="$?"
-	    [ "$ExitCode" = 0 ] || FwJson=$(fwget -f -1 "$uid" 2> /dev/null) || ExitCode="$?"
-	    [ "$ExitCode" = 0 ] || FwJson=$(fwget -j -1 "$uid" 2> /dev/null) || ExitCode="$?"
-	    [ "$ExitCode" = 0 ] || FwJson=$(fwget -d -1 "$uid" 2> /dev/null) || ExitCode="$?"
+	    [ "$ExitCode" -eq 0 ] || FwJson=$(fwget -f -1 "$uid" 2> /dev/null) && ExitCode="$?"
+	    [ "$ExitCode" -eq 0 ] || FwJson=$(fwget -j -1 "$uid" 2> /dev/null) && ExitCode="$?"
+	    [ "$ExitCode" -eq 0 ] || FwJson=$(fwget -d -1 "$uid" 2> /dev/null) && ExitCode="$?"
 	
-	    if [ "$?" != 0 ]
+	    if [ "$ExitCode" != 0 ]
 	    then
 		echo "${CmdName}: Can not find uid '$uid'" 1>&2
 		exit 1
 	    fi
 
 	    GroupId=$(echo "$FwJson" | jq -r .parents.group)
+	    
 	    Thing=$(echo "$FwJson" | jq -r '(if .name then .name else .label end)')
 	    ThingPath=$(echo "$FwJson" | jq -r  '[.parents[] | select(.)][1:] | .[]' | fwget -1 | jq -s -r --argjson GroupId "\"$GroupId\"" --argjson Thing "\"$Thing\"" '([$GroupId] + [ .[] | .label ] + [$Thing]) | join("'"$Separator"'")')
 	fi

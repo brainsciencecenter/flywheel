@@ -32,6 +32,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
         fwRunGear  -g ashs -i T1w <T1InputFileUuid> -i T2w <T2InputFileId> -c '{"ASHS_Atlases": "ASHS-PMC-T2"}'
         fwRunGear  -g zip-audit-logs cfn/pmc_exvivo
         fwRunGear  -g necktrim -i file  66e4743cf671b87d3bce278d
+        fwRunGear  -g ashsharpicv -i dicom 675f2c7cd91310e6c4fcca51 -c '{"Age": "32" }'
 
    You can only submit one input at this time
         
