@@ -7,6 +7,11 @@ RReportDir=/project/bsc/Billing/Reports
 RILabChargesDir=/project/bsc/Billing/iLabCharges
 RCalculateCmd=/project/bsc/Billing/bin/calculateBscStorageCharges
 
+UserReportBasename=userreport.txt
+ProjectReportBasename=projectreport.txt
+ProjectGpfsReportBasename=projectGpfsreport.txt
+
+
 function findReportFile {
     local File="$1"
     local Date="$2"
@@ -96,26 +101,26 @@ then
 fi
 
 
-LPmacsUserReportFile=$(findReportFile UTF-8userreport.txt "$Date" "$YearMonth" "$NextYearMonth")
+LPmacsUserReportFile=$(findReportFile "$UserReportBasename" "$Date" "$YearMonth" "$NextYearMonth")
 if [ -z "$LPmacsUserReportFile" ]
 then
-    echo "${CmdName} : Missing UserReportFile" 1>&2
+    echo "${CmdName} : Missing UserReportFile ${UserReportBasename} " 1>&2
     exit
 fi
 
 RPmacsUserReportFile="${RReportDir}/${Date}-userreport.txt"
 echo "cat $LPmacsUserReportFile | $(ssh2bscsub tee $RPmacsUserReportFile)"
    
-LPmacsProjectReportFile=$(findReportFile UTF-8projectreport.txt "$Date" "$YearMonth" "$NextYearMonth")
+LPmacsProjectReportFile=$(findReportFile "${ProjectReportBasename}" "$Date" "$YearMonth" "$NextYearMonth")
 if [ -z "$LPmacsProjectReportFile" ]
 then
-    echo "${CmdName} : Missing ProjectReportFile" 1>&2
+    echo "${CmdName} : Missing ProjectReportFile ${ProjectReportBasename}" 1>&2
     exit
 fi
 RPmacsProjectReportFile="${RReportDir}/${Date}-projectreport.txt"
 echo "cat $LPmacsProjectReportFile | $(ssh2bscsub tee $RPmacsProjectReportFile)"
 
-LPmacsGpfsReportFile=$(findReportFile UTF-8projectGpfsreport.txt "$Date" "$YearMonth" "$NextYearMonth")
+LPmacsGpfsReportFile=$(findReportFile "$ProjectGpfsReportBasename" "$Date" "$YearMonth" "$NextYearMonth")
 if [ -n "$LPmacsGpfsReportFile" ]
 then
     RPmacsGpfsReportFile="${RReportDir}/${Date}-projectGpfsreport.txt"
