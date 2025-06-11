@@ -14,9 +14,9 @@ def getLastPicslBioMarkersDateTime(p): (
 ) ;
 
 # returns two digit age.  Seconds in Year is roughly right
-def dobToAge(dob): (
+def dobToAge(dob;scandate): (
     (365 * 24 * 60 * 62) as $SecondsInYear
-  | now as $CurrentSeconds
+  | (scandate | strptime("%Y-%m-%d") | mktime) as $CurrentSeconds
   | (dob | strptime("%m-%d-%Y") | mktime) as $DobSeconds
   | ($CurrentSeconds - $DobSeconds) / $SecondsInYear | . * 100 | round / 100
 ) ;
