@@ -32,6 +32,7 @@ cat << 'EOL'
    | .parents.subject as $SubjectID
    | .subject.code as $Code
    | .subject.label as $Label
+   | .created as $Created
    | .timestamp as $TimeStamp
    | if (((.acquisitions | length) > 0) and ((.acquisitions[0].files | length) > 0)) then
      .acquisitions[0].files[0]
@@ -45,18 +46,19 @@ cat << 'EOL'
                $ScannerID
              end,
 
-             $TimeStamp,							# 2
+             $Created,								# 2
+             $TimeStamp,							# 3
 
-             if ($SubjectID | in($Subjects::Subjects[])) then			# 3
+             if ($SubjectID | in($Subjects::Subjects[])) then			# 4
                $Subjects::Subjects[][$SubjectID] + "/" + $SessionLabel 
              else
                $SubjectID + "/" + $SessionLabel
              end,
 
-             $Code,								# 4 - Subject
-             $SessionID,							# 5
+             $Code,								# 5 - Subject
+             $SessionID,							# 6
 
-             if ((.DeidentificationMethod | type) == "array") then		# 6
+             if ((.DeidentificationMethod | type) == "array") then		# 7
                .DeidentificationMethod[0]
              else
                 .DeidentificationMethod
