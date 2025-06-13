@@ -109,7 +109,7 @@ then
 	#
 	# We're already in the CachedDir
 	#
-	sys fwget -f --download-dir . --download ${opt_n} ${opt_v} "${FileIds[@]}"
+	sys fwget -f --download-dir . --download ${opt_n} ${opt_v} $(< $PdfFileIdsFile)
 
 fi
 
