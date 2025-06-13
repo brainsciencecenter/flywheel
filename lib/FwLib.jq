@@ -105,6 +105,15 @@ def pmbmJobId(pmbm): (
        end
 ) ;
 
+def pmbmHarpIcvMetrics(pmbm): (
+      {
+          "LeftHippocampusVolume": pmbmLeftHippocampusVolume(.)
+        , "RightHippocampusVolume": pmbmRightHippocampusVolume(.)
+        , "ICV": pmbmIcv(.)
+        , "JobId": pmbmJobId(.)
+      }    
+) ;
+
 def pmbmHasJobId(pmbm): (    
           pmbmJobId(pmbm) as $JobId
        | ($JobId and ($JobId != "None"))

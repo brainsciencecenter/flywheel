@@ -30,6 +30,7 @@ import "SessionId2Tags" as $SessionId2Tags;
     | pmbmRightHippocampusVolume(.info.PICSL_sMRI_biomarkers) as $RightHippocampusVolume
     | pmbmJobId(.info.PICSL_sMRI_biomarkers) as $AshsJobId
     | pmbmJobDateTime(.info.PICSL_sMRI_biomarkers) as $AshsJobDateTime
+
     | jobId2JobUrl($AshsJobId) as $AshsJobUrl
     | container2Timestamps(.) as $AcquisitionTimestamps
 
