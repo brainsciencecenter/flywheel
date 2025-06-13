@@ -25,60 +25,12 @@ import "SessionId2Tags" as $SessionId2Tags;
     | ._id as $AcquisitionId
     | .label as $AcquisitionLabel
 
-    | (
-       if (.info.PICSL_sMRI_biomarkers["ASHS-ICV"].Metrics.left_bootstrap_corr_nogray_volumes_txt.ICV) then
-           .info.PICSL_sMRI_biomarkers["ASHS-ICV"].Metrics.left_bootstrap_corr_nogray_volumes_txt.ICV
-       else
-           if (.info.PICSL_sMRI_biomarkers.ICV) then
-	       .info.PICSL_sMRI_biomarkers.ICV
-           else
-	       "None"
-	   end
-       end
-      ) as $Icv
-    | (
-       if (.info.PICSL_sMRI_biomarkers["ASHS-HarP"].Metrics.left_bootstrap_corr_nogray_volumes_txt.Hippocampus) then
-           .info.PICSL_sMRI_biomarkers["ASHS-HarP"].Metrics.left_bootstrap_corr_nogray_volumes_txt.Hippocampus
-       else
-           if (.info.PICSL_sMRI_biomarkers.LeftHippocampusVolume) then
-	       .info.PICSL_sMRI_biomarkers.LeftHippocampusVolume
-	   else
-	       "None"
-	   end
-       end
-      ) as $LeftHippocampusVolume
-    | (
-       if (.info.PICSL_sMRI_biomarkers["ASHS-HarP"].Metrics.right_bootstrap_corr_nogray_volumes_txt.Hippocampus) then
-           .info.PICSL_sMRI_biomarkers["ASHS-HarP"].Metrics.right_bootstrap_corr_nogray_volumes_txt.Hippocampus
-       else
-           if (.info.PICSL_sMRI_biomarkers.RightHippocampusVolume) then
-	       .info.PICSL_sMRI_biomarkers.RightHippocampusVolume
-	   else
-	       "None"
-	   end
-       end
-      ) as $RightHippocampusVolume
-    
-    | (if (.info.PICSL_sMRI_biomarkers) then
-         [ .info.PICSL_sMRI_biomarkers | to_entries[] | select(.key == "ASHS-ICV" or .key == "ASHS-HarP") | .value.JobInfo ] | sort_by(.JobDateTime, .JobId) | last | .JobId
-       else
-         "None"
-       end
-      ) as $AshsJobId
-    | (if (.info.PICSL_sMRI_biomarkers) then
-         [ .info.PICSL_sMRI_biomarkers | to_entries[] | select(.key == "ASHS-ICV" or .key == "ASHS-HarP") | .value.JobInfo ] | sort_by(.JobDateTime, .JobId) | last | .JobDateTime
-       else
-          "None"
-       end
-      ) as $AshsJobDateTime
-    | (
-       if ($AshsJobId == "None" or $AshsJobId == null) then
-           "None"
-       else
-           "https://upenn.flywheel.io/#/jobs/" + $AshsJobId
-       end
-      ) as $AshsJobUrl
-
+    | pmbmIcv(.info.PICSL_sMRI_biomarkers) as $Icv
+    | pmbmLeftHippocampusVolume(.info.PICSL_sMRI_biomarkers) as $LeftHippocampusVolume
+    | pmbmRightHippocampusVolume(.info.PICSL_sMRI_biomarkers) as $RightHippocampusVolume
+    | pmbmJobId(.info.PICSL_sMRI_biomarkers) as $AshsJobId
+    | pmbmJobDateTime(.info.PICSL_sMRI_biomarkers) as $AshsJobDateTime
+    | jobId2JobUrl($AshsJobId) as $AshsJobUrl
     | container2Timestamps(.) as $AcquisitionTimestamps
 
     | .files

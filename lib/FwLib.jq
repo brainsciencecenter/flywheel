@@ -88,6 +88,10 @@ def pmbmHasHippocampusVolume(pmbm): (
       )
 ) ;
 
+def jobId2JobUrl(jobid): (
+    "https://upenn.flywheel.io/#/jobs/" + jobid
+) ; 
+
 def pmbmHasIcv(pmbm): (
       pmbmIcv(pmbm) as $Icv
     | ($Icv and ($Icv != "None"))
