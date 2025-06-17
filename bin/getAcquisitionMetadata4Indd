@@ -126,12 +126,12 @@ then
 
 	Id2LabelsJsonFile="${TmpDir}/Id2Labels.json"
 	(
+	    ProjectId=$(fwget -1 "$gp" | jq -r '._id')
 	    if [ "$Group" = 'Collections' ]
 	    then
 		# Can't use fwsearch on collections
 		# get the Collection id to label
 		# then all the labels for the parents of the sessions we collected in the $ProjectJsonfile
-		ProjectId=$(fwget -1 "$gp" | jq -r '._id')
 		echo "{ \"${ProjectId}\": \"${Project}\" }"
 
 		SubjectIds=$(jq -r '.parents.subject' "$SessionJsonFile" | sort -u)
@@ -140,7 +140,7 @@ then
 		jq '{ (._id): (.label) }' "$SessionJsonFile"
 	    else
 		echo '{"'"${Group}"'": "'"$Group"'" }'
-		echo '{"'"${Project}"'": "'"$ProjectId"'" }'
+		echo '{"'"${ProjectId}"'": "'"$Project"'" }'
 
 		sys fwview -c subject -F json -p "${gp}" subject.id subject.code | jq '.data[] | { (.["subject.id"]): (.["subject.code"]) } '
 		sys jq '.data[] | { (.["session.id"]): (.["session.label"]) }' "$SessionJsonFile"
