@@ -29,6 +29,10 @@ data = []
 #UsageReport = fw.get_usage_report(year=Year,month=Month,csv=False)
 UsageReport = fw.get_usage_report(year=Year,month=Month)
 
+#print(UsageReport)
+
+#sys.exit(0)
+
 if (len(UsageReport) > 0):
     for row in UsageReport:
 
@@ -54,16 +58,19 @@ if (len(UsageReport) > 0):
     writer = csv.DictWriter(fp, 
                [ 'center_compute_ms',
                  'center_job_count',
+                 'center_storage_soft_deleted_byte_day',
                  'center_storage_byte_day',
                  'days',
                  'group',
                  'group_compute_ms',
                  'group_job_count',
+                 'group_storage_soft_deleted_byte_day',
                  'group_storage_byte_day',
                  'project','project_label',
                  'session_count',
                  'total_compute_ms',
                  'total_job_count',
+                 'total_storage_soft_deleted_byte_day',
                  'total_storage_byte_day',
                  'deleted',
                  'invoice_month',
