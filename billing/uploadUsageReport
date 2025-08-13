@@ -119,7 +119,6 @@ then
 elif [ $(wc -l < "$ReportFile") -le 1 ]
      echo "${CmdName} : No Data to upload" 1>&2
      exit 6
-fi
 else
     bq load --project_id="${Project}" --autodetect --source_format=CSV "$DB" "$ReportFile"
 fi
