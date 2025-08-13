@@ -113,7 +113,7 @@ fi
 
 if [ $(wc -l < "$ReportFile") -le 1 ]
 then
-     echo "${CmdName} : No Data to upload" 1>&2
+     echo "${CmdName} : No Data in '${ReportFile}' to upload" 1>&2
      exit 6
 else
     if isTable -q -d "$Dataset" -p "$Project" -t $(echo "$DB" | cut -d . -f 2)
