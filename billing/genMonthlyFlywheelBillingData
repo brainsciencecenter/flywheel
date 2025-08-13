@@ -98,7 +98,7 @@ fi
 sys uploadUsageReport $KeepFile "${Args[@]}" "$FwUsageReportFile"
 if [ "$?" != 0 ]
 then
-    echo "${CmdName} : Could not upload Usage Report to '$FwJobReportFile'" 1>&2
+    echo "${CmdName} : Could not upload Usage Report to '$FwUsageReportFile'" 1>&2
     exit 4
 fi
 
@@ -106,7 +106,7 @@ FwSessionReportFile="${WorkDir}/${Year}-${Month}-FwSessionReport.csv"
 sys uploadSessionReport $KeepFile "${Args[@]}" "$FwSessionReportFile"
 if [ "$?" != 0 ]
 then
-    echo "${CmdName} : Could not upload Session Report to '$FwJobReportFile'" 1>&2
+    echo "${CmdName} : Could not upload Session Report to '$FwSessionReportFile'" 1>&2
     exit 5
 fi
 
