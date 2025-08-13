@@ -82,6 +82,12 @@ then
 fi
     
 sys uploadJobsReport $KeepFile "${Args[@]}" "$FwJobReportFile"
+if [ "$?" != 0 ]
+then
+    echo "${CmdName} : Could not upload Jobs Report to '$FwJobReportFile'" 1>&2
+    exit 3
+fi
+
 
 FwUsageReportFile="${WorkDir}/${Year}-${Month}-FwUsageReport.csv"
 if [ -n "$opt_u" ]
@@ -90,9 +96,19 @@ then
 fi
     
 sys uploadUsageReport $KeepFile "${Args[@]}" "$FwUsageReportFile"
+if [ "$?" != 0 ]
+then
+    echo "${CmdName} : Could not upload Usage Report to '$FwJobReportFile'" 1>&2
+    exit 4
+fi
 
 FwSessionReportFile="${WorkDir}/${Year}-${Month}-FwSessionReport.csv"
 sys uploadSessionReport $KeepFile "${Args[@]}" "$FwSessionReportFile"
+if [ "$?" != 0 ]
+then
+    echo "${CmdName} : Could not upload Session Report to '$FwJobReportFile'" 1>&2
+    exit 5
+fi
 
 #sys createTempTables "${Args[@]}" 
 sys v5 "${Args[@]}" 
