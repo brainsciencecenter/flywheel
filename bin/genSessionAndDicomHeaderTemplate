@@ -47,18 +47,17 @@ cat << 'EOL'
              end,
 
              $Created,								# 2
-             $TimeStamp,							# 3
 
-             if ($SubjectID | in($Subjects::Subjects[])) then			# 4
+             if ($SubjectID | in($Subjects::Subjects[])) then			# 3
                $Subjects::Subjects[][$SubjectID] + "/" + $SessionLabel 
              else
                $SubjectID + "/" + $SessionLabel
              end,
 
-             $Code,								# 5 - Subject
-             $SessionID,							# 6
+             $Code,								# 4 - Subject
+             $SessionID,							# 5
 
-             if ((.DeidentificationMethod | type) == "array") then		# 7
+             if ((.DeidentificationMethod | type) == "array") then		# 6
                .DeidentificationMethod[0]
              else
                 .DeidentificationMethod
