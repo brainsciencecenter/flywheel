@@ -116,6 +116,10 @@ then
     bq query -q --use_legacy_sql=false 'DELETE FROM `'"${DB}"'` WHERE '"$Cast"' = "'"${Year}${Month}"'"'
 
     bq load --project_id="${Project}" --skip_leading_rows 1 --noreplace --source_format=CSV "$DB" "$ReportFile"
+elif [ $(wc -l < "$ReportFile") -le 1 ]
+     echo "${CmdName} : No Data to upload" 1>&2
+     exit 6
+fi
 else
     bq load --project_id="${Project}" --autodetect --source_format=CSV "$DB" "$ReportFile"
 fi
