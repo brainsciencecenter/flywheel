@@ -76,7 +76,7 @@ then
     if [ "$CmdName" == "uploadJobsReport" ]
     then
 	sys getJobs -aei -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$ReportFile"
-	if [ "$?" != 0 ] || [ -z $(tail -n +2 "$ReportFile") ]
+	if [ "$?" != 0 ] || [ $(wc -l "$ReportFile") -le 1 ]
 	then
 	    echo "${CmdName} : getJobs Failed" 1>&2
 	    exit 3
@@ -86,7 +86,7 @@ then
     if [ "$CmdName" == "uploadUsageReport" ]
     then
 	sys getFwUsageReport -m "$Month" -y "$Year" "$ReportFile"
-	if [ "$?" != 0 ] || [ -z $(tail -n +2 "$ReportFile") ]
+	if [ "$?" != 0 ] || [ $(wc -l "$ReportFile") -le 1 ]
 	then
 	    echo "${CmdName} : getFwUsageReport Failed" 1>&2
 	    exit 4
@@ -96,7 +96,7 @@ then
     if [ "$CmdName" == "uploadSessionReport" ]
     then
 	sys genSessionCSV -p "created>${Year}-${Month}-01" "created<${NextYearMonth}-01" > "$ReportFile"
-	if [ "$?" != 0 ] || [ -z $(tail -n +2 "$ReportFile") ]
+	if [ "$?" != 0 ] || [ $(wc -l "$ReportFile") -le 1 ]
 	then
 	    echo "${CmdName} : genSessionCSV Failed" 1>&2
 	    exit 5
