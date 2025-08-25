@@ -33,7 +33,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
         fwRunGear  -g zip-audit-logs cfn/pmc_exvivo
         fwRunGear  -g necktrim -i file  66e4743cf671b87d3bce278d
         fwRunGear  -g ashsharpicv -i dicom 675f2c7cd91310e6c4fcca51 -c '{"Age": "32" }'
-
+        fwRunGear -w -g 'aloha' -c '{"MachineSize": "supersize", "Stages": "VerifyAlohaInputs,RunAloha"}' -i input-file 6740a5908c6dfc43b3cbb871
    You can only submit one input at this time
         
    """
@@ -80,7 +80,6 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
 
    except flywheel.rest.ApiException:
         logging.exception('An exception was raised when attempting to submit a job for %s', file_obj.name)
-
 
 if __name__ == '__main__':
 
@@ -134,10 +133,11 @@ if __name__ == '__main__':
 
        else:          
           try:
+             inputs[InputKey] = fw.get(InputValue)
+          except (flywheel.rest.ApiException) as e:
              inputs[InputKey] = fw.get_file(InputValue)
           except (flywheel.rest.ApiException) as e:
-             print("{} : No such file '{}'".format(CmdName,InputValue), file=sys.stderr)
-
+             print("{} : No such flywheel Id '{}'".format(CmdName,InputValue), file=sys.stderr)
 
     file_obj = inputs[list(inputs.keys())[0]]
 
