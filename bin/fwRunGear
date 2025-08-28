@@ -139,6 +139,7 @@ if __name__ == '__main__':
           except (flywheel.rest.ApiException) as e:
              print("{} : No such flywheel Id '{}'".format(CmdName,InputValue), file=sys.stderr)
 
+    # *** just because we have a container doesn't mean we know where the output goes !
     file_obj = inputs[list(inputs.keys())[0]]
 
     if (args.debug):
