@@ -4,44 +4,44 @@ DicomDictPy=~/Downloads/_dicom_dict.py
 
 
 DicomTypes='{
-	  "AE": { "Type": "Application Entity", "Empty": "", "Entered": "Text" }
-	, "AS": { "Type": "Age String", "Empty": "", "Entered": "666Y" }
-	, "AT": { "Type": "Attriubte Tag", "Empty": "", "Entered": "", "Review": "Needed" }
-	, "CS": { "Type": "Code String", "Empty": "", "Entered": "Long Text" }
-        , "DA": { "Type": "Date", "Empty": "1970-01-01", "Entered": "2100-12-31" }
-        , "DS": { "Type": "Decimal String", "Empty": "", "Entered": "Long Text" }
-	, "DT": { "Type": "DateTime", "Empty": "", "Entered": "19700101000000.000000+0000" }
-	, "FD": { "Type": "Floating Point Double", "Empty": "", "Entered": "666.0" }
-	, "FL": { "Type": "Floating Point Single", "Empty": "", "Entered": "666.0" }
-	, "IS": { "Type": "Integer String", "Empty": "", "Entered": "666" }
-        , "LO": { "Type": "Long String", "Empty": "", "Entered": "Text" }
-	, "LT": { "Type": "Long Text", "Empty": "", "Entered": "Text" }
-	, "OB": { "Type": "Other Byte String", "Empty": "", "Entered": "Text" }
-	, "OB or OW": { "Type": "", "Empty": "", "Entered": "" }
-	, "OD": { "Type": "Other Double String", "Empty": "", "Entered": "666.0" }
-	, "OF": { "Type": "Other Float String", "Empty": "", "Entered": "666.0" }
-	, "OL": { "Type": "", "Empty": "", "Entered": "", "Review": "Needed" }
-	, "OV": { "Type": "", "Empty": "", "Entered": "", "Review": "Needed" }
-	, "OW": { "Type": "Other Word String", "Empty": "", "Entered": "Text" }
-        , "PN": { "Type": "Person Name", "Empty": "", "Entered": "George McFoo" }
-        , "SH": { "Type": "Short String", "Empty": "", "Entered": "String" }
-	, "SL": { "Type": "Signed Long", "Empty": "", "Entered": 666 }
-        , "SQ": { "Type": "Sequence of Items", "Empty": "", "Entered": "Long Text", "Review": "Needed" }
-	, "SS": { "Type": "Signed Short", "Empty": "", "Entered": -666 }
-        , "ST": { "Type": "Sort Text", "Empty": "", "Entered": "Text" }
-	, "SV": { "Type": "", "Empty": "", "Entered": "", "Review": "Needed" }
-        , "TM": { "Type": "Time", "Empty": "", "Entered": "11:59:59" }
-	, "UC": { "Type": "", "Empty": "", "Entered": "", "Review": "Needed" }
-	, "UI": { "Type": "Unique Identifier", "Empty": "", "Entered": "666" }
-	, "UL": { "Type": "Unsigned Long", "Empty": "", "Entered": "666" }
-	, "UN": { "Type": "Unknown", "Empty": "", "Entered": "Text" }
-	, "UR": { "Type": "", "Empty": "", "Entered": "" }
-        , "US": { "Type": "Unsigned Short", "Empty": 0, "Entered": 666 }
-	, "US or OW": { "Type": "", "Empty": "", "Entered": "", "Review": "Needed" }
-	, "US or SS": { "Type": "", "Empty": "", "Entered": "", "Review": "Needed" }
-	, "US or SS or OW": { "Type": "", "Empty": "", "Entered": "", "Review": "Needed" }
-	, "UT": { "Type": "", "Empty": "", "Entered": "Text" }
-	, "UV": { "Type": "", "Empty": "", "Entered": "", "Review": "Needed" }
+	  "AE": { "Type": "Application Entity", "Empty": "", "Populated": "Text" }
+	, "AS": { "Type": "Age String", "Empty": "", "Populated": "666Y" }
+	, "AT": { "Type": "Attriubte Tag", "Empty": "", "Populated": "", "Review": "Needed" }
+	, "CS": { "Type": "Code String", "Empty": "", "Populated": "Long Text" }
+        , "DA": { "Type": "Date", "Empty": "1970-01-01", "Populated": "2200-12-31" }
+        , "DS": { "Type": "Decimal String", "Empty": "", "Populated": "Long Text" }
+	, "DT": { "Type": "DateTime", "Empty": "", "Populated": "22001231000000.000000+0000" }
+	, "FD": { "Type": "Floating Point Double", "Empty": "", "Populated": "666.0" }
+	, "FL": { "Type": "Floating Point Single", "Empty": "", "Populated": "666.0" }
+	, "IS": { "Type": "Integer String", "Empty": "", "Populated": "666" }
+        , "LO": { "Type": "Long String", "Empty": "", "Populated": "Text" }
+	, "LT": { "Type": "Long Text", "Empty": "", "Populated": "Text" }
+	, "OB": { "Type": "Other Byte String", "Empty": "", "Populated": "Text" }
+	, "OB or OW": { "Type": "", "Empty": "", "Populated": "" }
+	, "OD": { "Type": "Other Double String", "Empty": "", "Populated": "666.0" }
+	, "OF": { "Type": "Other Float String", "Empty": "", "Populated": "666.0" }
+	, "OL": { "Type": "", "Empty": "", "Populated": "", "Review": "Needed" }
+	, "OV": { "Type": "", "Empty": "", "Populated": "", "Review": "Needed" }
+	, "OW": { "Type": "Other Word String", "Empty": "", "Populated": "Text" }
+        , "PN": { "Type": "Person Name", "Empty": "", "Populated": "George McFoo" }
+        , "SH": { "Type": "Short String", "Empty": "", "Populated": "String" }
+	, "SL": { "Type": "Signed Long", "Empty": "", "Populated": 666 }
+        , "SQ": { "Type": "Sequence of Items", "Empty": "", "Populated": "Long Text", "Review": "Needed" }
+	, "SS": { "Type": "Signed Short", "Empty": "", "Populated": -666 }
+        , "ST": { "Type": "Sort Text", "Empty": "", "Populated": "Text" }
+	, "SV": { "Type": "", "Empty": "", "Populated": "", "Review": "Needed" }
+        , "TM": { "Type": "Time", "Empty": "", "Populated": "11:59:59" }
+	, "UC": { "Type": "", "Empty": "", "Populated": "", "Review": "Needed" }
+	, "UI": { "Type": "Unique Identifier", "Empty": "", "Populated": "666" }
+	, "UL": { "Type": "Unsigned Long", "Empty": "", "Populated": "666" }
+	, "UN": { "Type": "Unknown", "Empty": "", "Populated": "Text" }
+	, "UR": { "Type": "", "Empty": "", "Populated": "" }
+        , "US": { "Type": "Unsigned Short", "Empty": 0, "Populated": 666 }
+	, "US or OW": { "Type": "", "Empty": "", "Populated": "", "Review": "Needed" }
+	, "US or SS": { "Type": "", "Empty": "", "Populated": "", "Review": "Needed" }
+	, "US or SS or OW": { "Type": "", "Empty": "", "Populated": "", "Review": "Needed" }
+	, "UT": { "Type": "", "Empty": "", "Populated": "Text" }
+	, "UV": { "Type": "", "Empty": "", "Populated": "", "Review": "Needed" }
 }'
 
 function DicomDictPy2Json {
