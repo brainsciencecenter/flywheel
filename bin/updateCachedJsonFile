@@ -4,19 +4,19 @@ CmdName=$(basename "$0")
 FwDir=$(dirname $(dirname $(which "$0")))
 FwLib="${FwDir}/lib"
 
-Syntax="${CmdName} {-c ActiveIdCsvFile}[-f][-j ActiveTimestampsJsonFile][-n][-p Prefix][-u][-v][-t TmpDir] CachedJsonFile"
-# updateCachedJsonFile -u -t holder/IcvMarking -c /tmp/ActiveAcquisitionIds.csv holder-IcvMarking-CachedFwAcquisitions.json
+Syntax="${CmdName} [-f]{-i Id2LabelsJsonFile}{-j ActiveId2TimestampsJsonFile}[-n][-p Prefix][-u][-v][-t TmpDir] CachedJsonFile"
 
+# updateCachedJsonFile -u -t holder/IcvMarking -i holder/IcvMarking/Id2Labels.json -j holder/IcvMarking/AcquisitionId2Timestamps.json holder-IcvMarking-CachedFwAcquisitions.json
 
 function sys {
     [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
     [ -n "$opt_n" ] || "$@"
 }
 
-while getopts c:j:np:t:uv arg
+while getopts i:j:np:t:uv arg
 do
 	case "$arg" in
-	     c|j|n|p|t|u|v)
+	     i|j|n|p|t|u|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -39,39 +39,40 @@ Prefix=""
 
 IdsToGet="${TmpDir}/${Prefix}IdsToGet"
 
-#
-# fwview -v -c acquisition -f 'created > 1970-01-01' -p holder/IcvMarking acquisition.id acquisition.created acquisition.modified acquisition.timestamp | tail -n +2 | sed 's/\.[0-9][0-9][0-9][0-9][0-9][0-9]\([+-]\)/\1/g; s/,$//; s/ /T/' > ActiveIdsCsvFile
-#
-
-ActiveIdsCsvFile="$opt_c"
-ActiveIdsJsonFile="$opt_j"
-if [ -s "$ActiveIdsCsvFile" ]
+if [ -z "$opt_i" ]
 then
-    ( echo '_id,created,modified,timestamp' ; cat "$ActiveIdsCsvFile") | csvjson | jq '.[] | { (._id): { "created": .created, "modified": .modified, "timestamp": .timestamp} }' | jq -s 'add' > "$ActiveIdsJsonFile"
-else
-    echo "${CmdName} : No Active Ids" 1>&2
+    echo "${CmdName}: missing -i Id2LabelsJsonFile option" 1>&2
+    echo "$Syntax" 1>&2
     exit 1
 fi
+
+Id2LabelsJsonFile="$opt_i"
+
+if [ -z "$opt_j" ]
+then
+    echo "${CmdName}: missing -j ActiveId2TimestampsJsonFile option" 1>&2
+    echo "$Syntax" 1>&2
+    exit 1
+fi
+ActiveId2TimestampsJsonFile="$opt_j"
 
 CommonJsonFile="${TmpDir}/${Prefix}Common.json"
 if [ -e "$CachedJsonFile" ]
 then
-    sys jq -r --slurpfile ActiveIds "$ActiveIdsJsonFile" -L "$FwLib" 'include "FwLib"; container2Timestamps(.) as $Timestamps | select( (._id | in($ActiveIds[])) and ($Timestamps == $ActiveIds[][._id]) )' "$CachedJsonFile" > "$CommonJsonFile"
+    sys jq -r --slurpfile Id2Labels "$Id2LabelsJsonFile" --slurpfile ActiveId2Timestamps "$ActiveId2TimestampsJsonFile" -L "$FwLib" 'include "FwLib"; container2Timestamps(.) as $Timestamps | select( (._id | in($ActiveId2Timestamps[])) and ($Timestamps == container2Timestamps($ActiveId2Timestamps[][._id])) and (.parents.subject | in($Id2Labels[])) and (.parents.session | in($Id2Labels[])) )' "$CachedJsonFile" > "$CommonJsonFile"
 
-    CommonIdsJsonFile="${TmpDir}/${Prefix}CommonIds.json"
+    CommonIdsFile="${TmpDir}/${Prefix}CommonIds"
     if [ -s "$CommonJsonFile" ]
     then
-	jq -r '{(._id): (.label)}' "$CommonJsonFile" | jq -s 'add' > "$CommonIdsJsonFile"
+	jq -r '._id' "$CommonJsonFile" > "$CommonIdsFile"
     else
-	echo '{}' > "$CommonIdsJsonFile"
+	echo '{}' > "$CommonIdsFile"
     fi
 
-    CommonIdsCsvFile="${TmpDir}/${Prefix}CommonIds.csv"
-    jq -r -L "$FwLib" 'include "FwLib";  ._id as $ContainerId | container2Timestamps(.) | [ $ContainerId, .created, .modified, .timestamp ]| @csv' "$CommonJsonFile" | sed 's/"//g' > "$CommonIdsCsvFile"
-    sys diff <(sort "$CommonIdsCsvFile")  <(sort "$ActiveIdsCsvFile") | grep '^> ' | sed 's/^> //' | csvcut -c 1 | sort -u | grep '.' > "$IdsToGet"
+    sys diff <(sort -u "$CommonIdsFile")  <(jq -r 'keys[]' "$ActiveId2TimestampsJsonFile" | sort -u) | grep '^> ' | sed 's/^> //' | sort -u | grep '.' > "$IdsToGet"
 else
     sys cat /dev/null > "$CommonJsonFile"
-    sys csvcut -c 1 "$ActiveIdsCsvFile" > "$IdsToGet"
+    sys jq '._id' "$ActiveId2TimestampsJsonFile" > "$IdsToGet"
 fi
 
 NewJsonFile="${TmpDir}/${Prefix}New.json"
@@ -79,7 +80,9 @@ NewJsonFile="${TmpDir}/${Prefix}New.json"
 NIdsToGet=$(wc -l < "$IdsToGet")
 if [ "$NIdsToGet" -gt 0 ]
 then
-    [ -n "$opt_v" ] && echo "${CmdName} : getting new Ids" 1>&2
+    [ -n "$opt_v" ] && (echo "${CmdName} : getting new Ids") 1>&2
+
+    cat "$IdsToGet"
 
     sys fwget -1 -v -N "$NIdsToGet" < "$IdsToGet" > "$NewJsonFile"
 else
