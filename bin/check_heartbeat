@@ -53,11 +53,7 @@ function cacheScans {
     local Project="$2"
     local MonthAgoDate="$3"
 
-    local ProjectId
-
-    ProjectId=$(fwget -1 "${Group}/${Project}" | jq -r '._id')
-
-    sys fwview -c acquisition -F json -f 'acquisition.created>"'"$MonthAgoDate"'"' -p "$ProjectId" acquisition.file.origin.id  acquisition.created subject.code session.label session.id file.info.{DeidentificationMethod,ImageComments,ManufacturerModelName,PerformedProcedureStepDescription,StationName,StudyComments,StudyDescription} file.origin.id file.origin.type
+    sys fwview -c acquisition -F json -f 'acquisition.created>"'"$MonthAgoDate"'"' -p "${Group}/${Project}" acquisition.created acquisition.file.origin.id file.origin.type file.info.{ManufacturerModelName,StationName,StudyComments,StudyDescription} | jq . 
 }
 
 
@@ -160,6 +156,12 @@ WarningDate=$(date --date='1 day ago' +%Y-%m-%d)T00:00:00
 
 CachedScansJsonFile=$(mktemp "${TmpDir}/${CmdName}-CachedScans-XXXXXXX.json")
 cacheScans "$GroupId" "$ProjectLabel" "$MonthAgoDate" | augmentFwViewJson "$CriticalDate" "$WarningDate" "$ScannerStationNamesJsonFile" > "$CachedScansJsonFile"
+
+if [ ! -s "$CachedScansJsonFile" ]
+then
+    echo "${CmdName} : could not cache scans in '$CachedScansJsonFile'" 1>&2
+    exit 1
+fi
 
 for Scanner in "$@"
 do
