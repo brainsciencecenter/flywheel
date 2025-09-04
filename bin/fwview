@@ -42,17 +42,20 @@ if (not fw):
     print("{} : unable to initialize flywheel object".format(CmdName), file=sys.stderr)
     sys.exit(1)
 
-if (args.verbose):
-    print("fw.View(columns={}, container={}, sort=False, include_ids=False, include_labels=False)".format(
-        args.fields,
-        args.container_type), file=sys.stderr)
-    
 if (args.filter):
     if (args.verbose):
-        print("Filter:", args.filter, file=sys.stderr)
+        print("fw.View(columns={}, container={}, filter={}, sort=False, include_ids=False, include_labels=False)".format(
+            args.fields,
+            args.container_type,
+            args.filter), file=sys.stderr)
 
     ViewId = fw.View(columns=args.fields, container=args.container_type, filter=args.filter, sort=False, include_ids=False, include_labels=False)
 else:
+    if (args.verbose):
+        print("fw.View(columns={}, container={}, sort=False, include_ids=False, include_labels=False)".format(
+            args.fields,
+            args.container_type), file=sys.stderr)
+    
     ViewId = fw.View(columns=args.fields, container=args.container_type, sort=False, include_ids=False, include_labels=False)
 
 ProjectIds = args.project_id.split(',')
