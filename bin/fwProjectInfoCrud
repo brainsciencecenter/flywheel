@@ -81,6 +81,9 @@ if __name__ == '__main__':
         except flywheel.rest.ApiException as e:
             try:
                 project = fw.lookup(pid)
+                # lookup doesn't get the info portion of the container.  
+                project = fw.get(project.id)
+
             except flywheel.rest.ApiException as e:
                 print("%s : Cannot find project by '%s' : %s" % (CmdName, pid, e.reason), file=sys.stderr)
                 sys.exit(e.status)
