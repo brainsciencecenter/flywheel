@@ -17,6 +17,12 @@ TmpDir="${TMPDIR:=/tmp}"
 ScannerMapJsonFile="${FwDir}/etc/ScannerMap.json"
 ScannerStationNamesJsonFile="${FwDir}/etc/ScannerStationNames.json"
 
+if [ -e /etc/profile.d/conda.sh ]
+then
+    . /etc/profile.d/conda.sh
+    conda activate flywheel
+fi
+
 function sys {
     [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
     [ -n "$opt_n" ] || "$@"
