@@ -1,0 +1,86 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+Syntax="${CmdName} [-l][-n][-v][-p ProjectInfoJsonFile]"
+
+ProjectInfoPath='.ProjectFunding'
+TmpDir="${TMPDIR:=/tmp}"
+
+InternalGroupJson='[
+        "camris"
+      , "fw-support"
+      , "holder"
+      , "nncadim"
+      , "techdev"
+]'
+InternalGroupRegex=$(echo "$InternalGroupJson" | jq -j 'join("|")')
+
+JqFindProjectFundingInfo='
+  .[]
+| to_entries[]
+     | .key as $GroupProjectPath
+         | (if ($GroupProjectPath | test("^('"$InternalGroupRegex"')/")) then
+                   "Free"
+               else
+                   "Paid"
+               end) as $GroupType
+	    | .value.accountNumber as $AccountNumber
+            | (if (.value.PIs) then 
+                 .value.PIs | join(":")
+                else
+	         ""
+	        end) as $PiNamesAndEmails
+             | (.value.iLabServiceRequestNumber) as $ServiceRequestNumber
+             | [ $GroupProjectPath, $GroupType, $PiNamesAndEmails, $AccountNumber, $ServiceRequestNumber ]
+             | @csv
+'
+
+
+while getopts "lnp:v" arg
+do
+    case "$arg" in
+	l|n|p|v)
+	    eval "opt_${arg}='${OPTARG:=1}'"
+	    ;;
+    esac
+done
+
+shift $(("$OPTIND" - 1))
+
+if [ -n "$opt_p" ]
+then
+    DeleteProjectInfoJsonFile=false
+    ProjectInfoJsonFile="$opt_p"
+else
+    DeleteProjectInfoJsonFile=true
+    ProjectInfoJsonFile=$(mktemp "${TmpDir}/${CmdName}-XXXXXX")
+fi
+
+[ -n "$opt_l" ] && DeleteProjectInfoJsonFile=false
+
+
+if [ ! -s "$ProjectInfoJsonFile" ]
+then
+   fwProjectInfoCrud  -p .ProjectFunding > "$ProjectInfoJsonFile"
+fi
+
+ProjectsMissingPis=$(jq -r "$JqFindProjectFundingInfo" "$ProjectInfoJsonFile" | csvcut -c 1-3 | grep -v ',Free,' | grep ',$' | sort)
+if [ -n "$ProjectsMissingPis" ]
+then
+    echo "Projects Missing PIs"
+    echo
+    echo "$ProjectsMissingPis"
+    echo
+fi
+
+ProjectsMissingServiceRequestNumbers=$(jq -r "$JqFindProjectFundingInfo" "$ProjectInfoJsonFile"| csvcut -c 1-5 | grep -v ',Free,' | grep -v ',InternalBenNumber,' | grep ',$' | sort)
+if [ -n "$ProjectsMissingServiceRequestNumbers" ]
+then
+    echo "Projects Missing Service Request Numbers"
+    echo
+    echo "$ProjectsMissingServiceRequestNumbers"
+    echo
+fi
+
+[ "$DeleteProjectInfoJsonFile" = 'true' ] && rm "$ProjectInfoJsonFile"
