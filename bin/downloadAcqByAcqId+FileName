@@ -25,7 +25,7 @@ ap.add_argument('-v', '--verbose', action='store_true', help='show what is being
 ap.add_argument('scans', nargs='*', help='list of acquisitionsid:scanid:filenames')
 args = ap.parse_args()
 
-fw = fwgearutils.getFW(args, Root=True)
+fw = fwgearutils.getFW(args, exhaustive=True)
 
 if (args.download_dir):
     BaseDownloadDir = args.download_dir + '/'

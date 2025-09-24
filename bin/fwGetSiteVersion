@@ -12,7 +12,7 @@ CmdName = os.path.basename(sys.argv[0])
 
 
 args={}
-fw = fwgearutils.getFW(args, Root=True)
+fw = fwgearutils.getFW(args, exhaustive=True)
 if (not fw):
     print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
     sys.exit(1)

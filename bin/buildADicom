@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+
+"""
+================
+Write DICOM data
+================
+
+This example shows how to write a DICOM file from scratch using pydicom. This
+example does not produce a DICOM standards compliant file as written, you will
+have to change UIDs to valid values and add all required DICOM data elements.
+
+Via: https://stackoverflow.com/questions/14350675/create-pydicom-file-from-numpy-array
+"""
+
+# authors : Darcy Mason, Guillaume Lemaitre <g.lemaitre58@gmail.com>
+# license : MIT
+
+import argparse
+import datetime
+from pathlib import Path
+from pydicom._dicom_dict import DicomDictionary
+import json
+import pyjq
+import sys
+import tempfile
+
+import pydicom
+from pydicom.dataset import Dataset, DataElement, FileMetaDataset
+from pydicom.uid import UID, ExplicitVRLittleEndian
+
+def dicomFindElement(d,sk):
+    for k in d:
+        for e in d[k]:
+            if (e == sk):
+                return(d[k])
+    return(None)
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument('-k', '--dicom-arg', action='append', nargs=2, metavar=("dicom_field", "dicom_value"), help='gear input key')
+
+args = ap.parse_args()
+
+#
+# date
+# key
+# 
+
+# from: https://www.pclviewer.com/help/required_dicom_tags.htm
+#
+# Group	Element	Tag name
+# 0008	0020	Study date
+# 0008	0030	Study time
+# 0010	0020	Patient's ID
+# 0020	0010	Study ID
+# 0020	0011	Series number
+# 
+# These tags must be set up on the first page of a DICOM document:
+# Group	Element	Tag name
+# 0008	0020	Study date
+# 0008	0030	Study time
+# 0008	0050	Accession Number
+# 0008	0090	Referring Physician's Name
+# 0010	0010	Patient's name
+# 0010	0020	Patient's ID
+# 0010	0030	Patient's date of birth
+# 0010	0040	Patient's sex
+# 0020	0010	Study ID
+# 0020	0011	Series number
+# 0020	0020	Patient orientation
+# 
+
+ds = Dataset()
+
+ds.PatientName = "Test^Firstname"
+ds.PatientID = "123456"
+dt = datetime.datetime.now()
+ds.ContentDate = dt.strftime("%Y%m%d")
+ds.ContentTime = dt.strftime("%H%M%S.%f")  # long format with micro seconds
+
+file_meta = FileMetaDataset()
+file_meta.MediaStorageSOPClassUID = UID("1.2.840.10008.5.1.4.1.1.2")    # *** can we just use generate_uid()
+file_meta.MediaStorageSOPInstanceUID = UID("1.2.3")  # *** can we just use generate_uid()
+file_meta.ImplementationClassUID = UID("1.2.3.4")    # *** can we just use generate_uid()
+file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+for dicom_arg in args.dicom_arg:
+    de = dicomFindElement(DicomDictionary,'StudyComments')
+    ds.add_new(dicom_arg[0],de[0],dicom_arg[1])
+
+ds.file_meta = file_meta
+
+path = Path(tempfile.NamedTemporaryFile(suffix=".dcm").name)
+
+ds.save_as(path, write_like_original=False)
+
+data = path.read_bytes()
+sys.stdout.buffer.write(data)
+
+# remove the created file
+path.unlink()

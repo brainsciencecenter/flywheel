@@ -1,0 +1,16 @@
+#
+# Generate a blank dicom with all specified de-id fields populated
+#  Allow field contents to be overridden/specified on the command line
+#  dcmValidator -g -d de-idprofile.yml -f StudyComments=hup6@holder:connectorCheck -f StudyDescription=2025-07-30 -t template.dcm -o /tmp/output.dcm
+#
+# Verify dcm file metadata has been de-identified correctly
+#  dcmValidator -V -d de-idprofile.yml {mydicom.dicom.zip|mydicom.dcm}
+# returns a list of dicom fields which do not comply with the de-id profile
+#
+# De-identify the dcm or dicom.zip file either with dcmdump/dcmodify or with the flywheel command line
+
+# -g generate dicom from dicom template and a de-id profile
+# -d deid-profile.{yml|yaml|json}
+# -f DicomField=value
+# -t Dicom template. Defaults to $FlywheelDir/lib/dicom-blank.dcm
+# -o output dicom file

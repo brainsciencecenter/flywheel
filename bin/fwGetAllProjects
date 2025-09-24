@@ -25,7 +25,7 @@ ap.add_argument('-l', '--limit', action='store', default=1000000, type=int, help
 
 args = ap.parse_args()
 
-fw = fwgearutils.getFW(args,Root=True)
+fw = fwgearutils.getFW(args,exhaustive=True)
 
 Projects = fw.get_all_projects(exhaustive=args.exhaustive,limit=args.limit)
 

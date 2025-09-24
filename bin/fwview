@@ -37,7 +37,7 @@ ap.add_argument('fields', nargs='+', type=str, default=None, help='fields')
 
 args = ap.parse_args()
 
-fw = fwgearutils.getFW(args, Root=True)
+fw = fwgearutils.getFW(args, exhaustive=True)
 if (not fw):
     print("{} : unable to initialize flywheel object".format(CmdName), file=sys.stderr)
     sys.exit(1)

@@ -324,7 +324,7 @@ if (args.epoch):
 
 UIDs2Labels = {}
 
-fw = fwgearutils.getFW(args, Root=True)
+fw = fwgearutils.getFW(args, exhaustive=True)
 
 InvoiceMonth = None
 

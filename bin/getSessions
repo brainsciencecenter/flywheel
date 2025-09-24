@@ -61,7 +61,7 @@ args = ap.parse_args()
 
 UIDs2Labels = {}
 
-fw = fwgearutils.getFW(args, Root=True)
+fw = fwgearutils.getFW(args, exhaustive=True)
 
 reapers = fw.get_all_devices()
 for r in reapers:

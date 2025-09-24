@@ -20,7 +20,7 @@ ap.add_argument('filter', nargs='*', type=str, default=None, help='arguments to 
 
 args = ap.parse_args()
 
-fw = fwgearutils.getFW(args, Root=True)
+fw = fwgearutils.getFW(args, exhaustive=True)
 
 project_data = []
 search = ','.join(["state=complete"] + args.filter)

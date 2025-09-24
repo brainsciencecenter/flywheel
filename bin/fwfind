@@ -46,6 +46,7 @@ if __name__ == '__main__':
     ap.add_argument('-g', '--get',  action='store_true', help='do fw.get on each session')
     ap.add_argument('-G', '--do-get',  action='store_true', help='do fw.get instead of iter_find')
     ap.add_argument('-R', '--recurse-acquisitions',  action='store_true', help='recurse through data structure')
+    ap.add_argument('--root',  action='store_true', help='recurse through data structure')
     ap.add_argument('-r', '--recurse',  action='store_true', help='recurse through data structure')
     ap.add_argument('-v', '--verbose',  action='store_true', help='print progress info')
     ap.add_argument('-z', '--zip-info',  action='store_true', help='include zip file information')
@@ -69,23 +70,16 @@ if __name__ == '__main__':
     if (args.debug):
         print("args.findargs = '{}'".format(','.join(args.findargs)), file=sys.stderr)
 
-    fw = fwgearutils.getFW({})
+    fw = fwgearutils.getFW({}, exhaustive=args.exhaustive)
     if (not fw):
         print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
         sys.exit(1)
-
-    ExhaustiveFlag = False
-    if (args.exhaustive):
-        ExhaustiveFlag = True
-        
-#    ExhaustiveFlag = fw.get_current_user().root
-
 
     res = None
 
     if (args.acquisitions):
         if (args.verbose):
-            print("%s : fw.acquisitions.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.acquisitions.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), args.exhaustive, args.limit), file=sys.stderr)
 
         try:
             i = (args.findargs.index("group=Collections"))
@@ -101,7 +95,7 @@ if __name__ == '__main__':
             
         except (ValueError) as e:
 #            print("type(fw.acquisitions) == '{}'".format(type(fw.acquisitions)), file=sys.stderr)
-            res = fw.acquisitions.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+            res = fw.acquisitions.iter_find(*args.findargs,exhaustive=args.exhaustive,limit=args.limit)
 
 #    if (args.analyses):
 #        print(fw.__dir__())
@@ -109,33 +103,33 @@ if __name__ == '__main__':
 
     if (args.jobs):
         if (args.verbose):
-            print("%s : fw.jobs.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.jobs.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), args.exhaustive,args.limit), file=sys.stderr)
         res = fw.jobs.iter_find(*args.findargs,limit=args.limit)
         # Need -gr to do job detail and profile
 
     if (args.gears):
         if (args.verbose):
-            print("%s : fw.gears.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.gears.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), args.exhaustive,args.limit), file=sys.stderr)
         res = fw.gears.iter_find(*args.findargs,limit=args.limit)
 
     if (args.projects):
         if (args.verbose):
-            print("%s : fw.projects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
-        res = fw.projects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+            print("%s : fw.projects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), args.exhaustive,args.limit), file=sys.stderr)
+        res = fw.projects.iter_find(*args.findargs,exhaustive=args.exhaustive,limit=args.limit)
 
     if (args.subjects):
         if (args.verbose):
-            print("%s : fw.subjects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs),ExhaustiveFlag,args.limit), file=sys.stderr)
-        res = fw.subjects.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+            print("%s : fw.subjects.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs),args.exhaustive,args.limit), file=sys.stderr)
+        res = fw.subjects.iter_find(*args.findargs,exhaustive=args.exhaustive,limit=args.limit)
 
     if (args.analyses):
         if (args.verbose):
-            print("%s : fw.analyses.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs),ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.analyses.iter_find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs),args.exhaustive,args.limit), file=sys.stderr)
         res = fw.analyses.iter_find(*args.findargs,limit=args.limit)
 
     if (args.sessions):
         if (args.verbose):
-            print("%s : fw.sessions.find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), ExhaustiveFlag,args.limit), file=sys.stderr)
+            print("%s : fw.sessions.find(%s,exhaustive=%s,limit=%s)" % (CmdName, ','.join(args.findargs), args.exhaustive,args.limit), file=sys.stderr)
 
         try:
             try:
@@ -149,7 +143,7 @@ if __name__ == '__main__':
 
             except (ValueError) as e:
                 # group=Collections not in args.findargs
-                res = fw.sessions.iter_find(*args.findargs,exhaustive=ExhaustiveFlag,limit=args.limit)
+                res = fw.sessions.iter_find(*args.findargs,exhaustive=args.exhaustive,limit=args.limit)
         except (flywheel.rest.ApiException) as e:
             print("fw.sessions.find failed",file=sys.stderr)
             res = [ fw.lookup(*args.findargs) ]

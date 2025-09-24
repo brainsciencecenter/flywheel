@@ -15,8 +15,8 @@ from os.path import expanduser
 '''
 csvjson /tmp/upload.csv > /tmp/json; 
 fwProjectInfoCrud  -u -p .ProjectFunding.businessAdministrator.name -j 'foe' holder/Test1
-fwProjectInfoCrud -p ProjectFunding -g | jq 'del(.[]|nulls)|select(. != {})' 		# returns all projectfunding group/projects with info
-fwProjectInfoCrud -p ProjectFunding -g | jq 'select(.[] == null) | keys | .[]' 		# returns all projectfunding group/projects without project funding 
+fwProjectInfoCrud -p ProjectFunding | jq 'del(.[]|nulls)|select(. != {})' 		# returns all projectfunding group/projects with info
+fwProjectInfoCrud -p ProjectFunding | jq 'select(.[] == null) | keys | .[]' 		# returns all projectfunding group/projects without project funding 
 
 pull json from group/project info
 
