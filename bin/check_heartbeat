@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-c YYYY-MM-DD][-g GroupId][-h][-l][-m YYYY-MM-DD][-n][-p ProjectLabel][-w YYYY-MM-DD][-v] [Scanner]" 
+Syntax="${CmdName} [-c YYYY-MM-DD][-g GroupId][-h][-j CachedScansJsonFile][-l][-m YYYY-MM-DD][-n][-p ProjectLabel][-w YYYY-MM-DD][-v] [Scanner]" 
 
 #
 # -l Leave, do not clean up the Scan Cache file
@@ -14,8 +14,9 @@ export PYTHONPATH="${FwDir}/lib"
 
 TmpDir="${TMPDIR:=/tmp}"
 
-ScannerMapJsonFile="${FwDir}/etc/ScannerMap.json"
-ScannerStationNamesJsonFile="${FwDir}/etc/ScannerStationNames.json"
+DeviceId2ScannerNameJsonFile="${FwDir}/etc/ScannerMap.json"
+StationName2ScannerNameJsonFile="${FwDir}/etc/ScannerStationNames.json"
+CheckType='"scanner.stationname"' # run the check against the stationname, vs the scanner.
 
 if [ -e /etc/profile.d/conda.sh ]
 then
@@ -33,25 +34,44 @@ function augmentFwViewJson {
     local WarningDate="$2"
     local ScannerStationNamesJsonFile="$3"
     
-	CategorizeCreatedDateJq='
-             .data[] | select(.["file.origin.type"] == "device")
+    CategorizeCreatedDateJq='
+          .data[] | select(.["file.origin.type"] == "device")
+
+        | (if (.["file.info.StationName"] | in($StationName2ScannerName[])) then
+              $StationName2ScannerName[][.["file.info.StationName"]] 
+          else
+              .["file.info.StationName"] + " unknown StationName"
+          end
+         ) as $ScannerNameFromStationName
+
+        | (if (.["acquisition.file.origin.id"] | in($DeviceId2ScannerName[])) then
+              $DeviceId2ScannerName[][.["acquisition.file.origin.id"]]
+           else
+              .["acquisition.file.origin.id"] + " unknown DeviceId"
+           end
+          ) as $ScannerNameFromDeviceId
+        | (.["acquisition.label"]) as $AcquisitionLabel
+        | (.["file.name"]) as $FileName
+        | ( .["acquisition.created"] | sub("\\..*$";"") ) as $AcquisitionCreatedDate
+
            | (.["acquisition.created"] | sub("T.*$";"") ) as $CreatedDate
            | {
-                "heartbeat.status": (
-                              if ($CreatedDate >= $WarningDate) then
-                                    "Ok"
-                              else if ( ($CreatedDate > $CriticalDate) and ($CreatedDate < $WarningDate)) then
-                                          "Warning"
-                                   else
-                                          "Critical"
-                                   end
+                  "scanner.stationname": $ScannerNameFromStationName
+                , "scanner.devicename": $ScannerNameFromDeviceId
+                , "heartbeat.status": (
+                          if ($AcquisitionCreatedDate >= $WarningDate) then
+                                "Ok"
+                          else if ( ($CreatedDate > $CriticalDate) and ($CreatedDate < $WarningDate)) then
+                                 "Warning"
+                              else
+                                 "Critical"
                               end
-                            )
+                          end
+                  )
                 , "created.date": $CreatedDate
-                , "scanner.name": $ScannerStationNames[][.["file.info.StationName"]]
              } + .
         '
-	jq -r --argjson CriticalDate '"'"$CriticalDate"'"' --argjson WarningDate '"'"$WarningDate"'"' --slurpfile ScannerStationNames "$ScannerStationNamesJsonFile" "$CategorizeCreatedDateJq" 
+	jq -r --argjson CriticalDate '"'"$CriticalDate"'"' --argjson WarningDate '"'"$WarningDate"'"' --slurpfile StationName2ScannerName "$StationName2ScannerNameJsonFile" --slurpfile DeviceId2ScannerName "$DeviceId2ScannerNameJsonFile" "$CategorizeCreatedDateJq" 
 }
 
 function cacheScans {
@@ -59,7 +79,7 @@ function cacheScans {
     local Project="$2"
     local MonthAgoDate="$3"
 
-    sys fwview -c acquisition -F json -f 'acquisition.created>"'"$MonthAgoDate"'"' -p "${Group}/${Project}" acquisition.created acquisition.file.origin.id file.origin.type file.info.{ManufacturerModelName,StationName,StudyComments,StudyDescription} | jq . 
+    sys fwview -c acquisition -F json -f 'acquisition.created>"'"$MonthAgoDate"'"' -p "${Group}/${Project}" acquisition.created acquisition.label acquisition.file.origin.id file.origin.type file.name file.info.ManufacturerModelName file.info.StationName file.info.StudyComments file.info.StudyDescription | jq .
 }
 
 
@@ -68,7 +88,8 @@ function checkScannerHeartbeat {
     local Scanner="$2"
     local ScannerMapJsonFile="$3"
     local ScannerStationNamesJsonFile="$4"
-    
+    local CheckType="$5"
+
     local ValidScanners=$(jq -r ".[]" "$ScannerMapJsonFile" "$ScannerStationNamesJsonFile" | sort -u)
     local CategorizedScanDatesFile=$(mktemp "${TmpDir}/${CmdName}-CategorizedScanDates-XXXXXX")
 
@@ -90,7 +111,7 @@ function checkScannerHeartbeat {
 		fi
 	fi	
 
-        jq  -r --argjson Scanner '"'"$Scanner"'"' 'select(.["scanner.name"] == $Scanner) | [ .["heartbeat.status"], .["created.date"], .["session.id"] ] | join(" ")' "$CachedScansJsonFile" > "$CategorizedScanDatesFile"
+        jq  -r --argjson CheckType "$CheckType" --argjson Scanner '"'"$Scanner"'"' 'select(.[$CheckType] == $Scanner) | [ .["heartbeat.status"], .["created.date"], .["session.id"] ] | join(" ")' "$CachedScansJsonFile" > "$CategorizedScanDatesFile"
 
 	OkCount=$(grep "Ok" "$CategorizedScanDatesFile" | wc -l)
 	WarningCount=$(grep "Warning" "$CategorizedScanDatesFile" | wc -l)
@@ -121,10 +142,10 @@ function checkScannerHeartbeat {
 	return "$ReturnCode"
 }
 
-while getopts c:g:hlm:np:w:v arg
+while getopts c:g:hj:lm:np:w:v arg
 do
 	case "$arg" in
-	     c|g|h|l|m|n|p|w|v)
+	     c|g|h|j|l|m|n|p|w|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -160,8 +181,16 @@ WarningDate=$(date --date='1 day ago' +%Y-%m-%d)T00:00:00
 [ -n "$opt_w" ] && WarningDate="${opt_w}"
 [ -n "$opt_v" ] && echo "${CmdName}: WarningDate = '${WarningDate}'" 1>&2
 
-CachedScansJsonFile=$(mktemp "${TmpDir}/${CmdName}-CachedScans-XXXXXXX.json")
-cacheScans "$GroupId" "$ProjectLabel" "$MonthAgoDate" | augmentFwViewJson "$CriticalDate" "$WarningDate" "$ScannerStationNamesJsonFile" > "$CachedScansJsonFile"
+[ -n "$opt_v" ] && echo "${CmdName}: CachecScansJsonFile = '${CachedScansJsonFile}'" 1>&2
+
+if [ -n "$opt_j" ]
+then
+    CachedScansJsonFile="$opt_j"
+    LeaveTmpFiles=true
+else
+    CachedScansJsonFile=$(mktemp "${TmpDir}/${CmdName}-CachedScans-XXXXXXX.json")
+    cacheScans "$GroupId" "$ProjectLabel" "$MonthAgoDate" | augmentFwViewJson "$CriticalDate" "$WarningDate" "$ScannerStationNamesJsonFile" > "$CachedScansJsonFile"
+fi
 
 if [ ! -s "$CachedScansJsonFile" ]
 then
@@ -171,7 +200,7 @@ fi
 
 for Scanner in "$@"
 do
-    Msg=$(checkScannerHeartbeat "$CachedScansJsonFile" "$Scanner" "$ScannerStationNamesJsonFile" "$ScannerStationNamesJsonFile" )
+    Msg=$(checkScannerHeartbeat "$CachedScansJsonFile" "$Scanner" "$StationName2ScannerNameJsonFile" "$DeviceId2StationNameJsonFile" $CheckType)
     ExitCode="$?"
 
     echo "$Msg"
