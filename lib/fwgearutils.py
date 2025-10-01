@@ -85,10 +85,10 @@ def getApiKey(args):
 
     return(ApiKey)
 
-def getFW(args, Root=False):
+def getFW(args, exhaustive=False):
    
     try:
-        fw = flywheel.Client(request_timeout=180, connect_timeout=180)
+        fw = flywheel.Client(request_timeout=180, connect_timeout=180,exhaustive=exhaustive)
         return(fw)
     except (OSError, Exception, flywheel.rest.ApiException) as e:
         try:
