@@ -128,6 +128,9 @@ import "SessionId2Tags" as $SessionId2Tags;
 	    , "DicomPixelSpacingX": .PixelSpacing[0]
 	    , "DicomPixelSpacingY": .PixelSpacing[1]
 
+	    , "MeanMotionScoreMaxPerMin": .MeanMotionScoreMaxPerMin
+	    , "MeanMotionScoreRMSPerMin": .MeanMotionScoreRMSPerMin
+
 	    , "ICV": $Icv
 	    , "LeftHippocampusVolume": $LeftHippocampusVolume
 	    , "RightHippocampusVolume": $RightHippocampusVolume
