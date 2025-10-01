@@ -138,6 +138,7 @@ if __name__ == '__main__':
              inputs[InputKey] = fw.get_file(InputValue)
           except (flywheel.rest.ApiException) as e:
              print("{} : No such flywheel Id '{}'".format(CmdName,InputValue), file=sys.stderr)
+             sys.exit(2)
 
     # *** just because we have a container doesn't mean we know where the output goes !
     file_obj = inputs[list(inputs.keys())[0]]
