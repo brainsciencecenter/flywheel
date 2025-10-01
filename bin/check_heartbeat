@@ -86,11 +86,11 @@ function cacheScans {
 function checkScannerHeartbeat {
     local CachedScansJsonFile="$1"
     local Scanner="$2"
-    local ScannerMapJsonFile="$3"
-    local ScannerStationNamesJsonFile="$4"
+    local ScannerName2ScannerNameJsonFile="$3"
+    local DeviceName2ScannerNameJsonFile="$4"
     local CheckType="$5"
 
-    local ValidScanners=$(jq -r ".[]" "$ScannerMapJsonFile" "$ScannerStationNamesJsonFile" | sort -u)
+    local ValidScanners=$(jq -r ".[]" "$StationName2ScannerNameJsonFile" "$DeviceId2ScannerNameJsonFile" | sort -u)
     local CategorizedScanDatesFile=$(mktemp "${TmpDir}/${CmdName}-CategorizedScanDates-XXXXXX")
 
 	if [ -z "$Scanner" ]
@@ -189,7 +189,7 @@ then
     LeaveTmpFiles=true
 else
     CachedScansJsonFile=$(mktemp "${TmpDir}/${CmdName}-CachedScans-XXXXXXX.json")
-    cacheScans "$GroupId" "$ProjectLabel" "$MonthAgoDate" | augmentFwViewJson "$CriticalDate" "$WarningDate" "$ScannerStationNamesJsonFile" > "$CachedScansJsonFile"
+    cacheScans "$GroupId" "$ProjectLabel" "$MonthAgoDate" | augmentFwViewJson "$CriticalDate" "$WarningDate" "$StationName2ScannerNameJsonFile" > "$CachedScansJsonFile"
 fi
 
 if [ ! -s "$CachedScansJsonFile" ]
@@ -200,7 +200,7 @@ fi
 
 for Scanner in "$@"
 do
-    Msg=$(checkScannerHeartbeat "$CachedScansJsonFile" "$Scanner" "$StationName2ScannerNameJsonFile" "$DeviceId2StationNameJsonFile" $CheckType)
+    Msg=$(checkScannerHeartbeat "$CachedScansJsonFile" "$Scanner" "$StationName2ScannerNameJsonFile" "$DeviceId2ScannerNameJsonFile" $CheckType)
     ExitCode="$?"
 
     echo "$Msg"
