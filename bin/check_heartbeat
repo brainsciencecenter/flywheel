@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-c YYYY-MM-DD][-g GroupId][-h][-j CachedScansJsonFile][-l][-m YYYY-MM-DD][-n][-p ProjectLabel][-w YYYY-MM-DD][-v] [Scanner]" 
+Syntax="${CmdName} [-C stationname|devicename][-c YYYY-MM-DD][-g GroupId][-h][-j CachedScansJsonFile][-l][-m YYYY-MM-DD][-n][-p ProjectLabel][-w YYYY-MM-DD][-v] [Scanner]" 
 
 #
 # -l Leave, do not clean up the Scan Cache file
@@ -142,10 +142,10 @@ function checkScannerHeartbeat {
 	return "$ReturnCode"
 }
 
-while getopts c:g:hj:lm:np:w:v arg
+while getopts C:c:g:hj:lm:np:w:v arg
 do
 	case "$arg" in
-	     c|g|h|j|l|m|n|p|w|v)
+	     C|c|g|h|j|l|m|n|p|w|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -160,6 +160,8 @@ then
 fi
 
 [ -n "$opt_l" ] && LeaveTmpFiles=1
+
+[ -n "$opt_C" ] && CheckType="$opt_C"
 
 CriticalDate=$(date --date='3 days ago' +%Y-%m-%d)T00:00:00
 [ -n "$opt_c" ] && CriticalDate="${opt_c}"
