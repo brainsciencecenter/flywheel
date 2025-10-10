@@ -34,7 +34,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
         fwRunGear  -g necktrim -i file  66e4743cf671b87d3bce278d
         fwRunGear  -g ashsharpicv -i dicom 675f2c7cd91310e6c4fcca51 -c '{"Age": "32" }'
         fwRunGear -w -g 'aloha' -c '{"MachineSize": "supersize", "Stages": "VerifyAlohaInputs,RunAloha"}' -i input-file 6740a5908c6dfc43b3cbb871
-   You can only submit one input at this time
+        fwRunGear -d -g bids-fmriprep -i 'freesurfer_license_file' cnds/DECODE/files/license.txt -c '{"ignore": "slicetiming", "output_spaces": "MNI152NLin6Asym", "skip-bids-validation": true, "use-aroma": true}' -D project 
         
    """
 
@@ -50,7 +50,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
                 f'{gear.gear.name} {now.strftime("%m-%d-%Y %H:%M:%S")} SDK launched'
              )
 
-          if (args.debug):
+          if (args.verbose or args.debug or args.noop):
              print("{} : gear.run(analysis_label={},config={},tags={},inputs={},destination={})".format(
                 CmdName,analysis_label,config,tags,inputs,dest['_id']), file=sys.stderr),
 
@@ -95,6 +95,7 @@ if __name__ == '__main__':
     ap.add_argument('-L', '--label', action='store', help='Job Label')
     ap.add_argument('-l', '--show-log', default=False, action='store_true', help='Dump log at the end of the job')
     ap.add_argument('-n', '--noop', default=False, action='store_true', help='do not actually submit the job')
+    ap.add_argument('-D', '--destination-container', default=False,  action='store', help='container to store output.  Usually the job for analysis gear, or the acquisition for utility gears, but may want to store output in a subject or project.  May be FlywheelId or flywheel path, or analysis, acquisition, session, subject, project, group')
     ap.add_argument('-o', '--output-file-info', default=False,  action='store_true', help='print output file ids')
     ap.add_argument('-q', '--quiet', default=False, action='store_true', help='do not print the job id')
     ap.add_argument('-t', '--tags', required=False, default=None, action='store', help='comma separated gear tags')
@@ -107,8 +108,10 @@ if __name__ == '__main__':
 
     args = ap.parse_args()
 
-    
-    InputArgs = pyjq.all('[.[]|{(.[0]): .[1]}] | add ',args.input_key)[0]
+    if (args.input_key):
+       InputArgs = pyjq.all('[.[]|{(.[0]): .[1]}] | add ',args.input_key)[0]
+    else:
+       InputArgs = None
     Version = args.version
 
     fw = fwgearutils.getFW(args)
@@ -123,30 +126,41 @@ if __name__ == '__main__':
        gear = fw.lookup('gears/{}'.format(args.gear_name))
 
     inputs={}
-    for InputKey, InputValue in InputArgs.items():
+    if (InputArgs):
+       for InputKey, InputValue in InputArgs.items():
 
-       if (re.search('/',InputValue)):
-          try:
-             inputs[InputKey] = fw.lookup(InputValue)
-          except (flywheel.rest.ApiException) as e:
-             print("{} : No such acquisition '{}'".format(CmdName,InputValue), file=sys.stderr)
+          if (re.search('/',InputValue)):
+             try:
+                inputs[InputKey] = fw.lookup(InputValue)
+             except (flywheel.rest.ApiException) as e:
+                print("{} : No such acquisition '{}'".format(CmdName,InputValue), file=sys.stderr)
 
-       else:          
-          try:
-             inputs[InputKey] = fw.get(InputValue)
-          except (flywheel.rest.ApiException) as e:
-             inputs[InputKey] = fw.get_file(InputValue)
-          except (flywheel.rest.ApiException) as e:
-             print("{} : No such flywheel Id '{}'".format(CmdName,InputValue), file=sys.stderr)
-             sys.exit(2)
+          else:          
+             try:
+                inputs[InputKey] = fw.get(InputValue)
+             except (flywheel.rest.ApiException) as e:
+                inputs[InputKey] = fw.get_file(InputValue)
+             except (flywheel.rest.ApiException) as e:
+                print("{} : No such flywheel Id '{}'".format(CmdName,InputValue), file=sys.stderr)
+                sys.exit(2)
 
-    # *** just because we have a container doesn't mean we know where the output goes !
-    file_obj = inputs[list(inputs.keys())[0]]
+          # *** just because we have a container doesn't mean we know where the output goes !
+          file_obj = inputs[list(inputs.keys())[0]]
 
-    if (args.debug):
-       print("type(file_obj) = '{}', file_obj = '{}'".format(type(file_obj), file_obj), file=sys.stderr)
+          if (args.debug):
+            print("type(file_obj) = '{}', file_obj = '{}'".format(type(file_obj), file_obj), file=sys.stderr)
     
-    if (gear.category == "analysis"):
+    # destination containers default to the session for analysis gears and the acquisition for utility ones
+    if (args.destination_container):
+       if (args.debug):
+          print(args.destination_container, file=sys.stderr)
+
+       ObjId = eval("file_obj.parents.{}".format(args.destination_container))
+       if (args.debug):
+          print("ObjId = '{}'".format(ObjId), file=sys.stderr)
+
+       dest = fw.get(ObjId)
+    elif (gear.category == "analysis"):
        dest = fw.get(file_obj.parents.session)
     else:
        dest = fw.get(file_obj.parents.acquisition)
