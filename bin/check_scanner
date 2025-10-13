@@ -1,0 +1,72 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+Syntax="${CmdName} [-c CriticalDaysAgo][-w WarningDaysAgo][-v][-n] [Scanner [...]]"
+
+FlywheelDir=$(dirname $(dirname $(which fwfind)))
+ScannerMapJsonFile="${FlywheelDir}/etc/ScannerMap.json"
+
+CriticalDate=$(date -d '5 days ago' +%Y-%m-%d)
+WarningDate=$(date -d '3 days ago' +%Y-%m-%d)
+
+#TmpDir=$(mktemp -d "${TMPDIR:=/tmp}/${CmdName}-XXXXXX"
+TmpDir=/tmp/check_scanner
+
+AcquisitionJsonFile="${TmpDir}/Acquisitions.json"
+ProjectId2LabelsJsonFile="${TmpDir}/ProjectId2Labels.json"
+
+[ -e "$AcquisitionJsonFile" ] || fwfind -1 -alr 'created>'"$CriticalDate" > "$AcquisitionJsonFile"
+[ -e "$ProjectId2LabelsJsonFile" ] || jq -r '.parents.project' "$AcquisitionJsonFile" | sort -u | fwget -1 | jq -r -s '[ .[] | { (._id): (.label) }] | add'  > "$ProjectId2LabelsJsonFile"
+
+
+CheckScannerJq='
+      .parents.group as $Group
+    | .files[]
+        | (.created | sub("\\+.*$";"") | sub("T.*$";"")) as $FileCreated
+	| ($ProjectId2Label[][.parents.project]) as $ProjectLabel
+	| select(.origin.type == "device") | ($DeviceId[][.origin.id]) as $ScannerName
+	| (if ($FileCreated > $WarningDate) then
+	     "OK"
+	  else
+	     if ($FileCreated > $CriticalDate) then
+	         "WARNING"
+            else
+	         "CRITICAL"
+            end
+	  end) as $CheckState
+	| [ $ScannerName, $CheckState, $FileCreated, $Group, $ProjectLabel ] | @csv'
+
+ScanStatusCsvFile="${TmpDir}/ScanStatus.csv"
+jq --argjson CriticalDate "\"$CriticalDate\"" --argjson WarningDate "\"$WarningDate\"" --slurpfile ProjectId2Label "$ProjectId2LabelsJsonFile" --slurpfile DeviceId "$ScannerMapJsonFile" -r "$CheckScannerJq" "$AcquisitionJsonFile" | sort > "$ScanStatusCsvFile"
+
+Scanners="$@"
+
+ValidScanners=$(jq -r '.[]' "$ScannerMapJsonFile" | sort -u)
+for Scanner in $Scanners
+do
+	Msg="Warning - ${Scanner} had no scans since ${CriticalDate}"
+	ExitCode=2
+
+	if [ -z $(echo "$ValidScanners" | grep "$Scanner") ]
+	then
+		echo "${CmdName} : '${Scanner}' not one of valid scanners '$ValidScanners'" 1>&2
+		continue
+	fi
+	
+	ScannerStateCount=$(grep "$Scanner" /tmp/check_scanner/ScanStatus.csv | csvcut -c 1,2 | sort | uniq -c | sort -n)
+	NumOk=$(echo "$ScannerStateCount" | grep OK | sed -E 's/^ *([0-9]+).*$/\1/')
+	NumWarning=$(echo "$ScannerStateCount" | grep WARNING | sed -E 's/^ *([0-9]+).*$/\1/')
+	NumCritical=$(echo "$ScannerStateCount" | grep CRITICAL | sed -E 's/^ *([0-9]+).*$/\1/')
+	if [ -n "$NumOk" ]
+	then
+		Msg="OK - ${Scanner} had ${NumOk} scans since ${WarningDate}"
+		ExitCode=0		
+	elif [ -n "$NumWarning" ]
+	then
+		Msg="Warning - ${Scanner} had ${NumWarning} scans from ${CriticalDate} to ${WarningDate}"
+	fi
+	echo "$Msg"
+done
+
+exit "$ExitCode"
