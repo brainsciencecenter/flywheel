@@ -2,7 +2,23 @@
 
 CmdName=$(basename "$0")
 
-Syntax="${CmdName} [-c CriticalDaysAgo][-w WarningDaysAgo][-v][-n] [Scanner [...]]"
+Syntax="${CmdName} [-c CriticalDaysAgo][-l][-n][-w WarningDaysAgo][-v] [Scanner [...]]"
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
+while getopts 'c:nw:v' arg
+do
+	case "$arg" in
+	     c|n|w|v)
+	         eval "opt_${arg}='${OPTARG:=1}'"
+		 ;;
+	esac
+done
+
+shift $(( "$OPTIND" - 1  ))
 
 FlywheelDir=$(dirname $(dirname $(which fwfind)))
 ScannerMapJsonFile="${FlywheelDir}/etc/ScannerMap.json"
@@ -10,15 +26,13 @@ ScannerMapJsonFile="${FlywheelDir}/etc/ScannerMap.json"
 CriticalDate=$(date -d '5 days ago' +%Y-%m-%d)
 WarningDate=$(date -d '3 days ago' +%Y-%m-%d)
 
-#TmpDir=$(mktemp -d "${TMPDIR:=/tmp}/${CmdName}-XXXXXX"
-TmpDir=/tmp/check_scanner
+TmpDir=$(sys mktemp -d "${TMPDIR:=/tmp}/${CmdName}-XXXXXX")
 
 AcquisitionJsonFile="${TmpDir}/Acquisitions.json"
 ProjectId2LabelsJsonFile="${TmpDir}/ProjectId2Labels.json"
 
-[ -e "$AcquisitionJsonFile" ] || fwfind -1 -alr 'created>'"$CriticalDate" > "$AcquisitionJsonFile"
-[ -e "$ProjectId2LabelsJsonFile" ] || jq -r '.parents.project' "$AcquisitionJsonFile" | sort -u | fwget -1 | jq -r -s '[ .[] | { (._id): (.label) }] | add'  > "$ProjectId2LabelsJsonFile"
-
+[ -e "$AcquisitionJsonFile" ] || sys fwfind -1 -alr 'created>'"$CriticalDate" > "$AcquisitionJsonFile"
+[ -e "$ProjectId2LabelsJsonFile" ] || (jq -r '.parents.project' "$AcquisitionJsonFile" | sort -u | fwget -1 | jq -r -s '[ .[] | { (._id): (.label) }] | add'  > "$ProjectId2LabelsJsonFile")
 
 CheckScannerJq='
       .parents.group as $Group
@@ -40,9 +54,14 @@ CheckScannerJq='
 ScanStatusCsvFile="${TmpDir}/ScanStatus.csv"
 jq --argjson CriticalDate "\"$CriticalDate\"" --argjson WarningDate "\"$WarningDate\"" --slurpfile ProjectId2Label "$ProjectId2LabelsJsonFile" --slurpfile DeviceId "$ScannerMapJsonFile" -r "$CheckScannerJq" "$AcquisitionJsonFile" | sort > "$ScanStatusCsvFile"
 
-Scanners="$@"
-
 ValidScanners=$(jq -r '.[]' "$ScannerMapJsonFile" | sort -u)
+if [ -n "$1" ]
+then
+	Scanners="$@"
+else
+	Scanners=$(echo "$ValidScanners" | grep -v 'flywheel')
+fi
+
 for Scanner in $Scanners
 do
 	Msg="Warning - ${Scanner} had no scans since ${CriticalDate}"
@@ -54,7 +73,7 @@ do
 		continue
 	fi
 	
-	ScannerStateCount=$(grep "$Scanner" /tmp/check_scanner/ScanStatus.csv | csvcut -c 1,2 | sort | uniq -c | sort -n)
+	ScannerStateCount=$(grep "$Scanner" "$ScanStatusCsvFile" | csvcut -c 1,2 | sort | uniq -c | sort -n)
 	NumOk=$(echo "$ScannerStateCount" | grep OK | sed -E 's/^ *([0-9]+).*$/\1/')
 	NumWarning=$(echo "$ScannerStateCount" | grep WARNING | sed -E 's/^ *([0-9]+).*$/\1/')
 	NumCritical=$(echo "$ScannerStateCount" | grep CRITICAL | sed -E 's/^ *([0-9]+).*$/\1/')
@@ -68,5 +87,7 @@ do
 	fi
 	echo "$Msg"
 done
+
+[ -n "$opt_l" ] || sys rm -rf "$TmpDir"
 
 exit "$ExitCode"
