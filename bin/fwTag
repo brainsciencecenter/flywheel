@@ -81,7 +81,8 @@ if __name__ == '__main__':
         UpdateParent = False
 
         if (TagOp == '+' and NewTags):
-            Container.add_tags(NewTags)
+            for Tag in NewTags:
+                Container.add_tag(Tag)
             UpdateParent = True
 
         elif (TagOp == '-'):
