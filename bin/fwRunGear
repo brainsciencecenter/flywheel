@@ -35,6 +35,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
         fwRunGear  -g ashsharpicv -i dicom 675f2c7cd91310e6c4fcca51 -c '{"Age": "32" }'
         fwRunGear -w -g 'aloha' -c '{"MachineSize": "supersize", "Stages": "VerifyAlohaInputs,RunAloha"}' -i input-file 6740a5908c6dfc43b3cbb871
         fwRunGear -d -g bids-fmriprep -i 'freesurfer_license_file' cnds/DECODE/files/license.txt -c '{"ignore": "slicetiming", "output_spaces": "MNI152NLin6Asym", "skip-bids-validation": true, "use-aroma": true}' -D project 
+        fwRunGear -v  -g xcpengine-fw -i fmriprepdir  63f586e3fdaef23d6ee817d7  -i designfile 63c07a6c93e165574b08071e -c '{  "analysis_type": "fc",  "session": "01",  "space": "MNI152NLin2009cAsym",  "task_name": "" }' # The first input tells fwRunGear which session to look for input and where to store the output.
         
    """
 
@@ -155,11 +156,18 @@ if __name__ == '__main__':
        if (args.debug):
           print(args.destination_container, file=sys.stderr)
 
-       ObjId = eval("file_obj.parents.{}".format(args.destination_container))
-       if (args.debug):
-          print("ObjId = '{}'".format(ObjId), file=sys.stderr)
+       if (re.search('/',args.destination_container)):
+             try:
+                dest = fw.lookup(args.destination_container)
+             except (flywheel.rest.ApiException) as e:
+                print("{} : Cannot find flywheel object for '{}'".format(CmdName,args.destination_container), file=sys.stderr)
+                sys.exit(2)
+       else:
+          ObjId = eval("file_obj.parents.{}".format(args.destination_container))
+          if (args.debug):
+             print("ObjId = '{}'".format(ObjId), file=sys.stderr)
 
-       dest = fw.get(ObjId)
+          dest = fw.get(ObjId)
     elif (gear.category == "analysis"):
        dest = fw.get(file_obj.parents.session)
     else:
