@@ -55,8 +55,6 @@ FieldsCommon=(
         'DicomSliceThickness'
         'DicomPixelSpacingX'
         'DicomPixelSpacingY'
-	'MeanMotionScoreMaxPerMin'
-	'MeanMotionScoreRMSPerMin'
 	'ICV'
 	'LeftHippocampusVolume'
 	'RightHippocampusVolume'
@@ -69,6 +67,8 @@ FieldsMisc=(
 )
 
 FieldsBidsUnique=(
+	'MeanMotionScoreMaxPerMin'
+	'MeanMotionScoreRMSPerMin'
 	'BidsAcq'
 	'BidsCe'
 	'BidsDir'
