@@ -95,8 +95,8 @@ if __name__ == '__main__':
             for Tag in CurrentTags:
                 Container.delete_tag(Tag)
 
-            if (NewTags):
-                Container.add_tags(NewTags)
+            for Tag in NewTags:
+                Container.add_tag(Tag)
             UpdateParent = True
 
         Container = Container.reload()
