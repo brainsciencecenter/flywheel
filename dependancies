@@ -1,0 +1,14 @@
+Ubuntu Packages
+autoreconf
+jq
+csvkit
+
+snaps:
+yq
+
+
+Pip3
+globre
+tzlocal
+pyjq
+
