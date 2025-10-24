@@ -1,0 +1,86 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+
+Syntax="${CmdName} [-g][-n][-v][-m Max] Scanner"
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "$opt_n" ] || "$@"
+}
+
+ScannerInfoJson='
+{
+    "hup6": {
+          "aet": "Mccormick"
+        , "aec": "MRC35069"
+        , "hostname": "hup6.uphs.upenn.edu"
+	, "port": "10404"
+    }
+  , "sc3t": {
+          "aet": "Mccormick"
+        , "aec": "AWP66044"
+	, "hostname": "sc3t.uphs.upenn.edu"
+	, "port": "101401"
+    }
+}'
+
+while getopts gm:nv arg
+do
+	case "$arg" in
+	     g|m|n|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift $(("$OPTIND" - 1))
+
+Host="\"$1\""
+
+ScannerOk=$(echo "$ScannerInfoJson" | jq -r --argjson 'Host' "$Host" 'keys | any(. == $Host)')
+if [ "$ScannerOk" == 'false' ]
+then
+	echo "${CmdName} : No scanner info for '${Host}'" 1>&2
+	exit 1
+fi
+
+read Aet Aec Hostname Port < <(echo $(jq -r -n --argjson 'Host' "$Host" --argjson 'ScannerInfo' "$ScannerInfoJson" '$ScannerInfo[$Host] | .aet, .aec, .hostname, port'))
+
+DicomDir='/tmp/DumbReaper'
+if [ -e "$DicomDir" ]
+then
+	rm -rf "$DicomDir"/*
+else
+	mkdir -p "$DicomDir"
+fi
+
+sys findscu -q -X -od "$DicomDir" -S -aet "$Aet" -aec "$Aec" -k QueryRetrieveLevel="SERIES" -k PatientID="" -k RETIRED_StudyComments="" -k SeriesInstanceUID -k StudyDate="" -k StudyInstanceUID="" -k StudyTime="" "$Hostname" 104
+
+Max=1
+for DicomFile in $(ls "$DicomDir" | head -n "$Max" | sed 's,^,'"$DicomDir"'/,')
+do
+	read StudyInstanceUID SeriesInstanceUID < <(echo $(sys dcmdump +P StudyInstanceUID +P SeriesInstanceUID "$DicomFile" | sed 's/\].*$//; s/^.*\[//'))
+	ScanDir=/tmp/scan
+	if [ -e "$ScanDir" ]
+	then
+		rm -rf "$ScanDir"/*
+	else
+		mkdir -p "$ScanDir"
+	fi
+	
+	if [ -n "$opt_g" ]
+	then
+		sys getscu -q -od "$ScanDir" -S -aet "$Aet" -aec "$Aec" -k QueryRetrieveLevel="SERIES" -k S
+eriesInstanceUID="$SeriesInstanceUID" -k StudyInstanceUID="$StudyInstanceUID" "$Hostname" 104
+	else
+		sys movescu -q -od "$ScanDir" --port "$Port" -S -aet "$Aet" -aec "$Aec -k QueryRetrieveLevel="SERIES" -k SeriesInstanceUID="$SeriesInstanceUID" -k StudyInstanceUID="$StudyInstanceUID" "$Host" 104
+	fi
+
+	Res="$?"
+	if [ "$Res" != 0 ]
+	then
+		echo "${CmdName} : getscu failed with '$Res'" 1>&2
+	fi
+done
+
