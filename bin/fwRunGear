@@ -34,7 +34,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
         fwRunGear  -g necktrim -i file  66e4743cf671b87d3bce278d
         fwRunGear  -g ashsharpicv -i dicom 675f2c7cd91310e6c4fcca51 -c '{"Age": "32" }'
         fwRunGear -w -g 'aloha' -c '{"MachineSize": "supersize", "Stages": "VerifyAlohaInputs,RunAloha"}' -i input-file 6740a5908c6dfc43b3cbb871
-        fwRunGear -d -g bids-fmriprep -i 'freesurfer_license_file' cnds/DECODE/files/license.txt -c '{"ignore": "slicetiming", "output_spaces": "MNI152NLin6Asym", "skip-bids-validation": true, "use-aroma": true}' -D project 
+        fwRunGear -d -g bids-fmriprep -i 'freesurfer_license_file' cnds/DECODE/files/license.txt -c '{"ignore": "slicetiming", "output_spaces": "MNI152NLin6Asym", "skip-bids-validation": true, "use-aroma": true}' -D cnds/DECODE/M87147738 
         fwRunGear -v  -g xcpengine-fw -i fmriprepdir  63f586e3fdaef23d6ee817d7  -i designfile 63c07a6c93e165574b08071e -c '{  "analysis_type": "fc",  "session": "01",  "space": "MNI152NLin2009cAsym",  "task_name": "" }' # The first input tells fwRunGear which session to look for input and where to store the output.
         
    """
