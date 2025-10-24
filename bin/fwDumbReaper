@@ -74,7 +74,7 @@ do
 		sys getscu -q -od "$ScanDir" -S -aet "$Aet" -aec "$Aec" -k QueryRetrieveLevel="SERIES" -k S
 eriesInstanceUID="$SeriesInstanceUID" -k StudyInstanceUID="$StudyInstanceUID" "$Hostname" 104
 	else
-		sys movescu -q -od "$ScanDir" --port "$Port" -S -aet "$Aet" -aec "$Aec -k QueryRetrieveLevel="SERIES" -k SeriesInstanceUID="$SeriesInstanceUID" -k StudyInstanceUID="$StudyInstanceUID" "$Host" 104
+		sys movescu -q -od "$ScanDir" --port "$Port" -S -aet "$Aet" -aec "$Aec" -k QueryRetrieveLevel="SERIES" -k SeriesInstanceUID="$SeriesInstanceUID" -k StudyInstanceUID="$StudyInstanceUID" "$Host" 104
 	fi
 
 	Res="$?"
