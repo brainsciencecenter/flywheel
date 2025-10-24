@@ -45,7 +45,7 @@ then
 	exit 1
 fi
 
-read Aet Aec Hostname Port < <(echo $(jq -r -n --argjson 'Host' "$Host" --argjson 'ScannerInfo' "$ScannerInfoJson" '$ScannerInfo[$Host] | .aet, .aec, .hostname, port'))
+read Aet Aec Hostname Port < <(echo $(jq -r -n --argjson 'Host' "$Host" --argjson 'ScannerInfo' "$ScannerInfoJson" '$ScannerInfo[$Host] | .aet, .aec, .hostname, .port'))
 
 DicomDir='/tmp/DumbReaper'
 if [ -e "$DicomDir" ]
