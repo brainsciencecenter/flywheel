@@ -163,7 +163,7 @@ if __name__ == '__main__':
                 print("{} : Cannot find flywheel object for '{}'".format(CmdName,args.destination_container), file=sys.stderr)
                 sys.exit(2)
        else:
-          ObjId = eval("file_obj.parents.{}".format(args.destination_container))
+          ObjId = args.destination_container
           if (args.debug):
              print("ObjId = '{}'".format(ObjId), file=sys.stderr)
 
