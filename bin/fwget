@@ -71,9 +71,9 @@ def getContainer(args=None, id=None):
             try:
                 Container = fw.get(id)
             except(flywheel.rest.ApiException) as e:
-                    m = re.search("^Collections/.*$", id)
-                    # *** need better error handling here
-                    if (m):
+                m = re.search("^Collections/.*$", id)
+                # *** need better error handling here
+                if (m):
                         CollectionName = re.sub('^.*/','', id)
 
                         AllCollections = fw.get_all_collections()
@@ -81,10 +81,16 @@ def getContainer(args=None, id=None):
                         SelectedCollectionArray = pyjq.all('.[]|select(.label == \"{}\") | ._id'.format(CollectionName), AllCollectionsDict)
                         CollectionId = SelectedCollectionArray[0]
                         Container = fw.get_collection(CollectionId)
-                    else:
+                else:
                         Container = fw.lookup(id)
 
     except (OSError, Exception) as e:
+        try:
+            Container = fw.get_file(id)
+            return(Container)
+        except (OSError, Exception) as e:
+            true
+
         if (not args.quiet):
             print("e",e, file=sys.stderr)
         return(None)
