@@ -11,6 +11,7 @@ import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-m', '--month', action='store', nargs=1, type=str, help='Month number, 1 = January, 12 = December')
+parser.add_argument('-v', '--verbose', action='store_true', help='verbose')
 parser.add_argument('-y', '--year', action='store', nargs=1, type=str, default=[2020], help='Year number')
 parser.add_argument('out', type=argparse.FileType('w', encoding='UTF-8'))
 args = parser.parse_args()
@@ -27,6 +28,9 @@ InvoiceMonth="{}{}".format(Year,Month)
 data = []
 
 #UsageReport = fw.get_usage_report(year=Year,month=Month,csv=False)
+if (args.verbose):
+    print("fw.get_usage_report(year={},month={})".format(Year,Month), file=sys.stderr)
+    
 UsageReport = fw.get_usage_report(year=Year,month=Month)
 
 #print(UsageReport)
