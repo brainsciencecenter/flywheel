@@ -9,10 +9,10 @@ function sys {
     [ -n "$opt_n" ] || "$@"
 }
 
-while getopts 'c:nw:v' arg
+while getopts 'c:lnw:v' arg
 do
 	case "$arg" in
-	     c|n|w|v)
+	     c|l|n|w|v)
 	         eval "opt_${arg}='${OPTARG:=1}'"
 		 ;;
 	esac
@@ -31,28 +31,32 @@ TmpDir=$(sys mktemp -d "${TMPDIR:=/tmp}/${CmdName}-XXXXXX")
 AcquisitionJsonFile="${TmpDir}/Acquisitions.json"
 ProjectId2LabelsJsonFile="${TmpDir}/ProjectId2Labels.json"
 
+#
+# fwfind -ar is used to get the file origin so we know which scanner the file came from.
+#
 [ -e "$AcquisitionJsonFile" ] || sys fwfind -1 -alr 'created>'"$CriticalDate" > "$AcquisitionJsonFile"
 [ -e "$ProjectId2LabelsJsonFile" ] || (jq -r '.parents.project' "$AcquisitionJsonFile" | sort -u | fwget -1 | jq -r -s '[ .[] | { (._id): (.label) }] | add'  > "$ProjectId2LabelsJsonFile")
 
 CheckScannerJq='
       .parents.group as $Group
+    | .parents.session as $SessionId
     | .files[]
-        | (.created | sub("\\+.*$";"") | sub("T.*$";"")) as $FileCreated
+        | (.created | sub("\\+.*$";"") | sub("T.*$";"")) as $FileCreatedDate
 	| ($ProjectId2Label[][.parents.project]) as $ProjectLabel
 	| select(.origin.type == "device") | ($DeviceId[][.origin.id]) as $ScannerName
-	| (if ($FileCreated > $WarningDate) then
+	| (if ($FileCreatedDate > $WarningDate) then
 	     "OK"
 	  else
-	     if ($FileCreated > $CriticalDate) then
+	     if ($FileCreatedDate > $CriticalDate) then
 	         "WARNING"
             else
 	         "CRITICAL"
             end
 	  end) as $CheckState
-	| [ $ScannerName, $CheckState, $FileCreated, $Group, $ProjectLabel ] | @csv'
+	| [ $ScannerName, $CheckState, $FileCreatedDate, $Group, $ProjectLabel, $SessionId ] | @csv'
 
 ScanStatusCsvFile="${TmpDir}/ScanStatus.csv"
-jq --argjson CriticalDate "\"$CriticalDate\"" --argjson WarningDate "\"$WarningDate\"" --slurpfile ProjectId2Label "$ProjectId2LabelsJsonFile" --slurpfile DeviceId "$ScannerMapJsonFile" -r "$CheckScannerJq" "$AcquisitionJsonFile" | sort > "$ScanStatusCsvFile"
+jq --argjson CriticalDate "\"$CriticalDate\"" --argjson WarningDate "\"$WarningDate\"" --slurpfile ProjectId2Label "$ProjectId2LabelsJsonFile" --slurpfile DeviceId "$ScannerMapJsonFile" -r "$CheckScannerJq" "$AcquisitionJsonFile" | sort -u > "$ScanStatusCsvFile"
 
 ValidScanners=$(jq -r '.[]' "$ScannerMapJsonFile" | sort -u)
 if [ -n "$1" ]
