@@ -9,6 +9,9 @@ function sys {
     [ -n "$opt_n" ] || "$@"
 }
 
+CriticalDate=$(date -d '5 days ago' +%Y-%m-%d)
+WarningDate=$(date -d '3 days ago' +%Y-%m-%d)
+
 while getopts 'c:lnw:v' arg
 do
 	case "$arg" in
@@ -23,10 +26,10 @@ shift $(( "$OPTIND" - 1  ))
 FlywheelDir=$(dirname $(dirname $(which fwfind)))
 ScannerMapJsonFile="${FlywheelDir}/etc/ScannerMap.json"
 
-CriticalDate=$(date -d '5 days ago' +%Y-%m-%d)
-WarningDate=$(date -d '3 days ago' +%Y-%m-%d)
-
 TmpDir=$(sys mktemp -d "${TMPDIR:=/tmp}/${CmdName}-XXXXXX")
+
+[ -n "$opt_c" ] && CriticalDate="$opt_c" 
+[ -n "$opt_w" ] && WarningDate="$opt_w" 
 
 AcquisitionJsonFile="${TmpDir}/Acquisitions.json"
 ProjectId2LabelsJsonFile="${TmpDir}/ProjectId2Labels.json"
@@ -68,7 +71,7 @@ fi
 
 for Scanner in $Scanners
 do
-	Msg="Warning - ${Scanner} had no scans since ${CriticalDate}"
+	Msg="Critical - ${Scanner} had no scans since at least ${CriticalDate}"
 	ExitCode=2
 
 	if [ -z $(echo "$ValidScanners" | grep "$Scanner") ]
