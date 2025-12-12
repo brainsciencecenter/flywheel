@@ -80,7 +80,7 @@ do
 		continue
 	fi
 	
-	ScannerStateCount=$(grep "$Scanner" "$ScanStatusCsvFile" | csvcut -c 1,2 | sort | uniq -c | sort -n)
+	ScannerStateCount=$(grep "^\"$Scanner\"" "$ScanStatusCsvFile" | csvcut -c 1,2 | sort | uniq -c | sort -n)
 	NumOk=$(echo "$ScannerStateCount" | grep OK | sed -E 's/^ *([0-9]+).*$/\1/')
 	NumWarning=$(echo "$ScannerStateCount" | grep WARNING | sed -E 's/^ *([0-9]+).*$/\1/')
 	NumCritical=$(echo "$ScannerStateCount" | grep CRITICAL | sed -E 's/^ *([0-9]+).*$/\1/')
