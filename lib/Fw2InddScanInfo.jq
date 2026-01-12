@@ -38,20 +38,27 @@ import "SessionId2Tags" as $SessionId2Tags;
       # Want Bids files and the first NoBids of type Dicom or Nifti
     | [
            # Select the Bids *files*
-	   [ .[] | select( ((.info.BIDS | type) == "object") ) ] | first
+	   [
+	      .[] | select( ((.info.BIDS | type) == "object") and ((.type == "dicom") or (.type == "nifti")) )
+           ]
+	   | first
       ] +
       [
-	 [ .[] | select( ((.info.BIDS | type) == "null") and  ((.type == "dicom") or (.type == "nifti")) ) ] | first
-      ] | .[]
-#    | [ .[] | if $Bids then select(.info.BIDS) else select((.name | test($FileExt))) end] | first
-      | .name as $AcquisitionFileName
-      | .file_id as $AcquisitionFileId
-      | .type as $AcquisitionType
-      | .size as $AcquisitionSize
-      | (if .classification.Intent then .classification.Intent|join(";") else "None" end) as $Intent
-      | (if .classification.Measurement then .classification.Measurement|join(";") else "None" end) as $Measurement
-      | (if .classification.Features then .classification.Features|join(";") else "" end) as $Features
-      | .info
+           [
+	      .[] | select( ((.info.BIDS | type) == "null")   and ((.type == "dicom") or (.type == "nifti")) )
+	   ]
+           | first
+      ]
+      | .[]
+
+           | .name as $AcquisitionFileName
+           | .file_id as $AcquisitionFileId
+           | .type as $AcquisitionType
+           | .size as $AcquisitionSize
+           | (if .classification.Intent then .classification.Intent|join(";") else "None" end) as $Intent
+           | (if .classification.Measurement then .classification.Measurement|join(";") else "None" end) as $Measurement
+           | (if .classification.Features then .classification.Features|join(";") else "" end) as $Features
+           | .info
 	        | (if ((.BIDS | type) == "object") then "Bids" else "NoBids" end) as $BidsNoBids
 		| (if ((.BIDS | type) == "object") then .BIDS.Acq else "" end) as $BidsAcq
 		| (if ((.BIDS | type) == "object") then .BIDS.Ce else "" end) as $BidsCe
