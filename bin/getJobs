@@ -28,7 +28,7 @@ from collections import OrderedDict
 from dateutil import parser
 
 CmdName = os.path.basename(sys.argv[0])
-Epoch = parser.parse('2020-01-01')
+Epoch = parser.parse('2010-01-01')
 
 def progress(count, total, status=''):
     bar_len = 60
@@ -173,8 +173,8 @@ def getBillableSessionIds(job=None, debug=False):
     BillableSessionIds = {}
 
     if (isAnalysisJob(job)):
-        if (debug):
-            print("Job {} is analysis".format(job.id), file=sys.stderr)
+        # if (debug):
+        #    print("Job {} is analysis".format(job.id), file=sys.stderr)
 
         PostEpochAcquisitionIds = getPostEpochAcquisitionIds(job=job, debug=debug)
         if (len(PostEpochAcquisitionIds.keys())):
@@ -195,8 +195,9 @@ def getBillableSessionIds(job=None, debug=False):
                 }
 
     else:
-        if (debug):
-            print("{} not analysis job".format(job.id), file=sys.stderr)
+        #if (debug):
+        #    print("{} not analysis job".format(job.id), file=sys.stderr)
+        True
 
     return(BillableSessionIds)
 
@@ -376,9 +377,11 @@ ComputeGCPMs = 0.0
 
 DefaultNodeName = 'upenn-flywheel-site'
 
-for job in jobs:
+#for job in jobs:
+for j in jobs:
 
-    job = job.reload()
+    #job = job.reload()
+    job = j.reload()
 
     if (args.progressbar):
         progress(i, l)
@@ -391,7 +394,7 @@ for job in jobs:
         print("detail = ", detail, file=sys.stderr)
 
     if (args.debug):
-        print("({}/{}) job.id = '{} '".format(i,l,job.id), file=sys.stderr, flush=True)
+        print("({}/{}) job.id = '{}'".format(i,l,job.id), file=sys.stderr, flush=True)
 
     job_id = job.id
     gear_id = job.gear_id
