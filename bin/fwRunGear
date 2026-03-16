@@ -39,25 +39,26 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
         
    """
 
+   now = datetime.now()
+
+   if (args.label):
+      job_label = ( args.label )
+   else:
+      job_label = (
+         f'{gear.gear.name} {now.strftime("%m-%d-%Y %H:%M:%S")} SDK launched'
+      )
+
    try:
         # Run the gear on the inputs provided, stored output in dest constainer and returns job ID
 
        if (gear.category == "analysis"):
-          now = datetime.now()
-          if (args.label):
-             analysis_label = ( args.label )
-          else:
-             analysis_label = (
-                f'{gear.gear.name} {now.strftime("%m-%d-%Y %H:%M:%S")} SDK launched'
-             )
-
           if (args.verbose or args.debug or args.noop):
              print("{} : gear.run(analysis_label={},config={},tags={},inputs={},destination={})".format(
-                CmdName,analysis_label,config,tags,inputs,dest['_id']), file=sys.stderr),
+                CmdName,job_label,config,tags,inputs,dest['_id']), file=sys.stderr),
 
           if (not args.noop):
              gear_job_id = gear.run(
-                analysis_label=analysis_label,
+                analysis_label=job_label,
                 config=config,
                 tags=tags,
                 inputs=inputs,
@@ -80,7 +81,7 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
              return gear_job_id
 
    except flywheel.rest.ApiException:
-        logging.exception('An exception was raised when attempting to submit a job for %s', file_obj.name)
+        logging.exception('An exception was raised when attempting to submit a job for %s', job_label)
 
 if __name__ == '__main__':
 
@@ -142,7 +143,7 @@ if __name__ == '__main__':
              except (flywheel.rest.ApiException) as e:
                 inputs[InputKey] = fw.get_file(InputValue)
              except (flywheel.rest.ApiException) as e:
-                print("{} : No such flywheel Id '{}'".format(CmdName,InputValue), file=sys.stderr)
+                #print("{} : No such flywheel Id '{}'".format(CmdName,InputValue), file=sys.stderr)
                 sys.exit(2)
 
           # *** just because we have a container doesn't mean we know where the output goes !
@@ -169,7 +170,11 @@ if __name__ == '__main__':
 
           dest = fw.get(ObjId)
     elif (gear.category == "analysis"):
-       dest = fw.get(file_obj.parents.session)
+       if ("session" in file_obj.parents):
+          print("{}  : file_obj.parents = '{}'".format(CmdName,file_obj.parents), file=sys.stderr)
+          dest = fw.get(file_obj.parents.session)
+       else:
+          dest = file_obj
     else:
        dest = fw.get(file_obj.parents.acquisition)
 
