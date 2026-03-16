@@ -89,7 +89,7 @@ def getContainer(args=None, id=None):
             Container = fw.get_file(id)
             return(Container)
         except (OSError, Exception) as e:
-            true
+            True
 
         if (not args.quiet):
             print("e",e, file=sys.stderr)
