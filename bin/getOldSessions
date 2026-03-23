@@ -6,6 +6,11 @@ Project=Unsorted
 CmdName=$(basename "$0")
 syntax="$CmdName [-d YYYY-MM-DD][-g Group][-j JsonFile][-m MinAge][-s SubjectJsonFile][-P ProjectJsonFile][-p Project][-t]"
 
+function sys {
+	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	 [ -n "$opt_n" ] || "$@"
+}
+
 function getFwProjectId {
     local Group="$1"
     local Project="$2"
@@ -40,7 +45,7 @@ function json2Csv () {
     ' | sort | grep "\"${Group}\",\"${Group}\",\"${Project}\""
 }
 
-while getopts d:g:j:m:p:s:t arg
+while getopts d:g:j:m:np:s:tv arg
 do
 	case "$arg" in
 	     d|g|j|m|p|s|t)
@@ -98,7 +103,7 @@ if [ -n "$opt_s" ]
 then
     Id2SubjectLabelJsonFilePath="$opt_s"
 else
-    genId2SubjectLabelsJson -g "$Group" -p "$Project" > "$Id2SubjectLabelJsonFilePath"
+    sys genId2SubjectLabelsJson -g "$Group" -p "$Project" > "$Id2SubjectLabelJsonFilePath"
 fi
 
 Id2SubjectLabelJsonDir=$(dirname "$Id2SubjectLabelJsonFilePath")
@@ -111,7 +116,7 @@ then
 else
     # The flywheel database has a few sessions which were moved, and parents.group = unknown, but group=<anothergroup>
     # The grep ensures we only release info sessions where .group == .parents.group
-    fwfind -1 -r -S group="$Group" project="$ProjectId" "${TimeField}<${TooOldDate}" | json2Csv
+    sys fwfind -1 -r -S group="$Group" project="$ProjectId" "${TimeField}<${TooOldDate}" | json2Csv
 
 fi
 			  
