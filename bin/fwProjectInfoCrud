@@ -99,7 +99,7 @@ if __name__ == '__main__':
                 JqString = "{} {}".format(args.update_path + '(',json.dumps(Json[i], indent=2) + ')[]')
                 i += 1
 
-#            print("JqString = '{}'".format(JqString), file=sys.stderr)
+            print("JqString = '{}'".format(JqString), file=sys.stderr)
             # pyjq.all() returns a list, not the object??
 
             UpdatedProjectInfoDict = pyjq.all(JqString, ProjectInfoDict)[0]
