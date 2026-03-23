@@ -31,19 +31,11 @@ else
 fi
 
 MinAge="3 months"
-if [ -n "$opt_m" ]
-then
-    MinAge="$opt_m"
-    Args+=( -m "$MinAge" )
-fi
+[ -n "$opt_m" ] && MinAge="$opt_m"
 
-ToOldDate=$(date --date="now - $MinAge" +'%Y-%m-%d')
-if [ -n "$opt_d" ]
-then
-    TooOldDate="$opt_d"
-
-    Args+=( -d "$TooOldDate" )
-fi
+TooOldDate=$(date --date="now - $MinAge" +'%Y-%m-%d')
+[ -n "$opt_d" ] && TooOldDate="$opt_d"
+Args+=( -d "$TooOldDate" )
 
 if [ -n "$opt_t" ]
 then
@@ -55,7 +47,7 @@ do
 	Group=$(echo "$gp" | cut -f 1 -d /)
 	Project=$(echo "$gp" | cut -f 2 -d /)
 
-	SessionsCsv=$(getOldSessions "${Args[@]}" -g "$Group" -p "$Project" -t)
+	SessionsCsv=$(sys getOldSessions "${Args[@]}" -g "$Group" -p "$Project" -t)
 	if [ "$opt_w" ]
 	then
 	       echo "$SessionsCsv"
@@ -63,7 +55,7 @@ do
 	   SessionUids=$(echo "$SessionsCsv" | csvcut -c SessionId | tail +2 | sort -u)
 	   if [ -n "$SessionUids" ]
 	   then
-	       sys fwrm $SessionUids
+	       sys echo fwrm $SessionUids
 	   else
 	       echo "${CmdName} : ${gp} : No Sessions Scheduled to be purged" 1>&2
 	   fi
