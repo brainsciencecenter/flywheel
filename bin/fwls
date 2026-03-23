@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+
+import argparse
+import flywheel
+import fwgearutils
+import json
+import os
+import pyjq
+import sys
+
+def get_all_file_paths(
+    fw: flywheel.Client,
+    ProjectId: str,
+):
+    """
+    Retrieve all file paths for a Flywheel project using fw.view(),
+    replacing per-container API calls with a single server-side data view query.
+
+    Args:
+        fw: An authenticated Flywheel client
+        project_path: Project path in 'group/project' format
+        include_analyses: Whether to include analysis output files
+
+     """
+    # Build a view that fans out to acquisition-level files,
+    # pulling labels from every level of the hierarchy.
+    view = fw.View(
+        columns=[
+                    'project.group'        
+		  , 'project.label'
+		  , 'subject.label'
+		  , 'session.label'
+		  , 'acquisition.label'
+		  , 'file.name'
+		  , 'file.size'
+		  , 'file.file_id'
+        ],
+	container='acquisition',
+        filename='*',
+        # One row per file; missing file rows are dropped by default
+        include_ids=True,
+        include_labels=True,
+    )
+
+    FilePaths=[]
+    try:
+        with fw.read_view_data(view, ProjectId) as resp:
+            ViewJson = json.loads(resp.readline().strip())
+            Output = pyjq.all('.data[] | [ .["project.group"]["label"], .["project.label"], .["subject.label"], .["session.label"], .["acquisition.label"], .["file.name"] ] | join("/") ', ViewJson)
+            for p in Output:
+                FilePaths.append(p)
+    except flywheel.rest.ApiException as e:
+        print("{} : read_view_data() failed", file=sys.stderr)
+        
+    return(FilePaths)
+
+# --- Example usage ---
+if __name__ == "__main__":
+    CmdName = os.path.basename(sys.argv[0])
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument('projectpath', nargs=1, type=str, default=None, help='Group/Project')
+    args = ap.parse_args()
+
+    fw = fwgearutils.getFW(args, exhaustive=True)
+    if (not fw):
+        print("%s : unable to initialize flywheel object" % (CmdName), file=sys.stderr)
+        sys.exit(1)
+
+    ProjectPath = args.projectpath[0]
+
+    try:
+        Project = fw.lookup(ProjectPath)
+    except flywheel.rest.ApiException as e:
+        print("{} : Could not find group/project '{}' .".format(CmdName, ProjectPath), file=sys.stderr)
+        sys.exit(2)
+        
+    ProjectId = Project.id
+    
+    FilePaths = get_all_file_paths(fw, ProjectId)
+    if (not FilePaths):
+        print("{} : No file paths found in '{}' .".format(CmdName, ProjectPath), file=sys.stderr)
+        sys.exit(3)
+        
+    for p in FilePaths:
+        print(p)
