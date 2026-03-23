@@ -44,12 +44,16 @@ FwBin="${FwDir}/bin"
 NaccScT13TNdScansCsvFile='/tmp/NaccScFilesT13TNd.csv'
 NaccScScansToTagCsvFile='/tmp/NaccScScansToTag.csv'
 
+Group='dwolklab'
+Project='NACC-SC'
+GroupProject="${Group}/${Project}"
+
 FileIdField='18'
 Tag='PreferredT1'
 
 if [ -n "$opt_u" ]
 then
-    jq -r --slurpfile Id2Labels dwolklab/NACC-SC/Id2Labels.json -f "${FwLib}/NaccScSelect.jq" dwolklab-NACC-SC-CachedFwAcquisitions.json | (LANG=C sort -u) | awk -f "${FwBin}/NaccScMerge.awk" |  grep 'x3T' | grep -E '[":]T1[:"]' | grep ND | grep '.nii.gz'  > "$NaccScT13TNdScansCsvFile"
+    jq -r --slurpfile Id2Labels "$GroupProject"/Id2Labels.json -f "${FwLib}/NaccScSelect.jq" "${Group}-${Project}-CachedFwAcquisitions.json | (LANG=C sort -u) | awk -f "${FwBin}/NaccScMerge.awk" |  grep 'x3T' | grep -E '[":]T1[:"]' | grep ND | grep '.nii.gz'  > "$NaccScT13TNdScansCsvFile"
 
     grep -v "$Tag" "$NaccScT13TNdScansCsvFile" > "$NaccScScansToTagCsvFile"
 fi
