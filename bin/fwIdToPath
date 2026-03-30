@@ -42,10 +42,15 @@ do
 		exit 1
 	    fi
 
+	    ParentOrder='[ "project", "subject", "session", "acquisition", "Analyses" ]'
+
 	    GroupId=$(echo "$FwJson" | jq -r .parents.group)
+	    ThingLabel=$(echo "$FwJson" | jq -r '(if .name then .name else .label end)')
+
+	    ParentIds=$(echo "$FwJson" | jq -r --argjson order "$ParentOrder" '.parents | with_entries({key, value}) as $o | reduce $order[] as $k ({}; if $o[$k] != null then . + { ($k): $o[$k] } else . end) | .[]' )
+	    ThingPath=$(echo "$ParentIds" | fwget -1 | jq -s -r --argjson GroupLabel "\"$GroupId\"" --argjson ThingLabel "\"$ThingLabel\"" '[ $GroupLabel ] + [ .[] | .label] + [$ThingLabel] | join("/")' )
 	    
-	    Thing=$(echo "$FwJson" | jq -r '(if .name then .name else .label end)')
-	    ThingPath=$(echo "$FwJson" | jq -r  '[.parents[] | select(.)][1:] | .[]' | fwget -1 | jq -s -r --argjson GroupId "\"$GroupId\"" --argjson Thing "\"$Thing\"" '([$GroupId] + [ .[] | .label ] + [$Thing]) | join("'"$Separator"'")')
+
 	fi
 	
 	if [ -n "$opt_d" ]
