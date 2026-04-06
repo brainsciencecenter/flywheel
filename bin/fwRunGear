@@ -197,10 +197,11 @@ if __name__ == '__main__':
         job_id = runGear(gear, dest=dest, config=Config, tags=tags)
 
 
+    job_id=None
     if (not args.quiet):
        print("{}".format(job_id))
 
-    if (args.wait):
+    if (args.wait) and job_id:
        count = 0
        state=None
        while True:
