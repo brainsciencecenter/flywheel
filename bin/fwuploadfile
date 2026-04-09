@@ -74,7 +74,7 @@ if __name__ == '__main__':
                fwgearutils.updateContainerModified(Container)
                 
             except(flywheel.rest.ApiException):
-                if (args.quiet == True)
+                if (args.quiet == True):
                     True
                 else:
                     print("{} : Could not update modified on '{}'".format(CmdName,Container),file=sys.stderr)
