@@ -56,7 +56,9 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
              print("{} : gear.run(analysis_label={},config={},tags={},inputs={},destination={})".format(
                 CmdName,job_label,config,tags,inputs,dest['_id']), file=sys.stderr),
 
-          if (not args.noop):
+          if (args.noop):
+             return(None)
+          else:
              gear_job_id = gear.run(
                 analysis_label=job_label,
                 config=config,
@@ -196,8 +198,6 @@ if __name__ == '__main__':
     else:
         job_id = runGear(gear, dest=dest, config=Config, tags=tags)
 
-
-    job_id=None
     if (not args.quiet):
        print("{}".format(job_id))
 
