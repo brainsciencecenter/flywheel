@@ -69,14 +69,15 @@ if __name__ == '__main__':
             print("Container id = {}".format(Container.id), file=sys.stderr)
 
         res = Container.upload_file(file)
-        try:
-            fwgearutils.updateContainerModified(Container)
-
-        except(flywheel.rest.ApiException):
-            if ((args.quiet == True) or (args.update_modified == False) ):
-                True
-            else:
-                print("{} : Could not update modified on '{}'".format(CmdName,Container),file=sys.stderr)
+        if (args.update_modified == True):
+            try:
+               fwgearutils.updateContainerModified(Container)
+                
+            except(flywheel.rest.ApiException):
+                if (args.quiet == True)
+                    True
+                else:
+                    print("{} : Could not update modified on '{}'".format(CmdName,Container),file=sys.stderr)
 
         try:
             UploadedFileUid = res[0].file_id
