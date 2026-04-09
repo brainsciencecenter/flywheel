@@ -69,7 +69,7 @@ if __name__ == '__main__':
             print("Container id = {}".format(Container.id), file=sys.stderr)
 
         res = Container.upload_file(file)
-        if (args.update_modified == True):
+        if (args.update_timestamp == True):
             try:
                fwgearutils.updateContainerModified(Container)
                 
