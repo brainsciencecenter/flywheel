@@ -81,6 +81,9 @@ def getContainer(args=None, id=None):
             try:
                 Container = fw.get(id)
             except(flywheel.rest.ApiException) as e:
+                if (re.search('[a-z0-9]{24}',id)):
+                    return(None)
+
                 m = re.search("^Collections/.*$", id)
                 # *** need better error handling here
                 if (m):
