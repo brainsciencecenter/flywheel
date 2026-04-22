@@ -25,12 +25,22 @@ def getContainer(args=None, id=None):
         elif (args.file):
             Container = fw.get_file(id)
         elif (args.gear):
-            if (id == "all"):
-                Container = fw.get_all_gears()
-                Reload = False
-            else:
+            if (re.search("[a-z0-9]{24}", id) ):
                 Container = fw.get_gear(id)
-                Reload = False
+            else:
+                AllGears = fw.get_all_gears()
+
+                Container = None
+                if (id != "all"):
+                    for Gear in AllGears:
+                        if (Gear.gear.name == id):
+                            Container = Gear
+                            break
+                else:
+                    Container = AllGears
+
+            Reload = False
+
         elif (args.collection):
             if (id == "all"):
                 Container = fw.get_all_collections()
