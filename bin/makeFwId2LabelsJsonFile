@@ -1,0 +1,31 @@
+#!/bin/bash
+
+TmpDir=/tmp
+ViewLabelsJsonFile="${TmpDir}/labels.json"
+
+Group=cnds
+Project=DECODE
+
+#fwview -F json -c acquisition -p "${Group}/${Project}"  project.label project.id subject.label subject.id session.label session.id acquisition.label acquisition.id | jq . > "$ViewLabelsJsonFile"
+
+Jq='
+     [
+       .data.[]
+          | .["project.label"] as $ProjectLabel
+          | .["project.id"] as $ProjectId
+          | .["subject.label"] as $SubjectLabel
+          | .["subject.id"] as $SubjectId
+          | .["session.label"] as $SessionLabel
+          | .["session.id"] as $SessionId
+          | .["acquisition.label"] as $AcquisitionLabel
+          | .["acquisition.id"] as $AcquisitionId
+          | {
+                 $ProjectId: $ProjectLabel
+               , $SubjectId: $SubjectLabel
+               , $SessionId: $SessionLabel
+               , $AcquisitionId: $AcquisitionLabel
+            }
+      ] | add
+'
+
+jq -r "$Jq" "$ViewLabelsJsonFile"
