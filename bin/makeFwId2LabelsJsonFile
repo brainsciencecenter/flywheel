@@ -1,12 +1,36 @@
 #!/bin/bash
 
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-f][-n][-t TmpDir][-v] Group/Project"
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "${opt_n}" ] || "$@"
+}
+
+while getopts fnt:v arg
+do
+    case "$arg" in
+	f|n|t|v)
+	    eval "opt_${arg}='${OPTIND:=1}'"
+	    ;;
+    esac
+done
+
+shift $(( "$OPTIND" - 1 ))
+
 TmpDir=/tmp
-ViewLabelsJsonFile="${TmpDir}/labels.json"
+[ -n "$opt_t" ] && TmpDir="$opt_t"
 
-Group=cnds
-Project=DECODE
+ViewLabelsJsonFile="${TmpDir}/ViewLabels.json"
 
-#fwview -F json -c acquisition -p "${Group}/${Project}"  project.label project.id subject.label subject.id session.label session.id acquisition.label acquisition.id | jq . > "$ViewLabelsJsonFile"
+Group=$(echo "$1" | cut -f 1 -d /)
+Project=$(echo "$1" | cut -f 2 -d /)
+
+if [ -n "$opt_f" ] || [ ! -e "$ViewLabelsJsonFile" ]
+then
+    sys fwview -F json -c acquisition -p "${Group}/${Project}"  project.label project.id subject.label subject.id session.label session.id acquisition.label acquisition.id | jq . > "$ViewLabelsJsonFile"
+fi
 
 Jq='
      [
@@ -28,4 +52,4 @@ Jq='
       ] | add
 '
 
-jq -r "$Jq" "$ViewLabelsJsonFile"
+sys jq -r "$Jq" "$ViewLabelsJsonFile"
