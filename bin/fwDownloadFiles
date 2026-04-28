@@ -194,7 +194,8 @@ then
     if [ -n "$opt_s" ]
     then
 	TotalOutputFileSizes=$(jq -s '[ .[].OutputFiles[].Size ] | add' "$GearOutputFileInfoJsonFile")
-	numfmt --to=si "$TotalOutputFileSizes"
+	FormattedTotalOutputFileSizes=$(numfmt --to=si "$TotalOutputFileSizes")
+	echo "TotalOutputFileSizes:,${FormattedTotalOutputFileSizes}"
     fi
     
     exit 0
