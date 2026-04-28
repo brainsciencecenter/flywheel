@@ -4,13 +4,14 @@
 # Download files from project/subject/session/acquisition or output gears
 #
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-c project|subject|session|acquisition][-D DownloadDir][-d][-f][-g GearName][-n][-r csv|json][-t TmpDir][-v] Group/Project|ProjectId"
+Syntax="${CmdName} [-c project|subject|session|acquisition][-D DownloadDir][-d][-f][-g GearName][-n][-r csv|json][-s][-t TmpDir][-v] Group/Project|ProjectId"
 
 # -c container to download from (project|subject|session|acquisition). Defaults to project.
 # -f force update - default is to reuse existing downloaded json files
 # -g name of gear to download from
 # -n no-op
 # -r csv|json
+# -s Total file sizes
 # -t Directory to store files in by path.  Defaults to current directory
 # -v verbose
 
@@ -56,10 +57,10 @@ function downloadSessionFiles {
     done < <(jq -r "$Jq" "$SessionOutputInfoFilesJsonFile")
 }
 
-while getopts 'c:D:dfg:nr:t:v' arg
+while getopts 'c:D:dfg:nr:st:v' arg
 do
 	case "$arg" in
-	     c|D|d|f|g|n|r|t|v)
+	     c|D|d|f|g|n|r|s|t|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -189,6 +190,13 @@ then
         
         sys jq -s -r --argjson ColumnHeaders "$ColumnHeaders" "$Jq" "$GearOutputFileInfoJsonFile"
     fi
+
+    if [ -n "$opt_s" ]
+    then
+	jq -s '[ .[].OutputFiles[].Size ] | add' "$GearOutputFileInfoJsonFile"
+	numfmt --to-si "$TotalOutputFileSize"
+    fi
+    
     exit 0
 fi
 
