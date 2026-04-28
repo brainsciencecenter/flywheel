@@ -98,14 +98,14 @@ fi
 
 if [ -n "$opt_g" ]
 then
+    GearName="$opt_g"
+    GearId=$(fwget -1 -g "$GearName" | jq -r '._id')
+
     if [ -n "$opt_f" ] || [ ! -e "$JobsJsonFile" ]
     then
 	sys fwfind -1 -j -rg group="$Group" "parents.project=${ProjectId}" 'state=complete' "gear_info.name=${GearName}" > "$JobsJsonFile"
     fi
     
-    GearName="$opt_g"
-    GearId=$(fwget -1 -g "$GearName" | jq -r '._id')
-
     # Sort the job entries by the session id, gearname, and date to order
     # Not adding .gear_info.name to group_by() args as we only collected jobs of one gear
     # Grab the last of the gears run under each session
