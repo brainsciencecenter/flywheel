@@ -1,0 +1,274 @@
+#!/bin/bash
+
+#
+# Download files from project/subject/session/acquisition or output gears
+#
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-c project|subject|session|acquisition][-D DownloadDir][-d][-f][-g GearName][-n][-r csv|json][-t TmpDir][-v] Group/Project|ProjectId"
+
+# -c container to download from (project|subject|session|acquisition). Defaults to project.
+# -f force update - default is to reuse existing downloaded json files
+# -g name of gear to download from
+# -n no-op
+# -r csv|json
+# -t Directory to store files in by path.  Defaults to current directory
+# -v verbose
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "${opt_n}" ] || "$@"
+}
+
+function downloadGearOutputFiles {
+    local GearOutputInfoJsonFile="$1"
+
+    Jq='
+	  .SessionPath as $SessionPath
+	| .OutputFiles[]
+    	| [ $SessionPath, .FileId ]
+	    | @csv
+    '
+
+    while read line
+    do
+	SessionPath=$(echo "$line" | csvcut -c 1)
+	FileId=$(echo "$line" | csvcut -c 2)
+
+	FullDownloadDir="${DownloadDir}/${SessionPath}"
+	echo "fwget -f --download --download-dir \"$FullDownloadDir\" \"$FileId\" "
+    done < <(jq -r "$Jq" "$GearOutputFileInfoJsonFile")
+}
+
+function downloadSessionFiles {
+    local SessionOutputInfoFilesJsonFile="$1"
+
+    Jq='
+    	  [ .SessionPath, .FileId ]
+	| @csv
+    '
+    while read line
+    do
+	SessionPath=$(echo "$line" | csvcut -c 1)
+	FileId=$(echo "$line" | csvcut -c 2)
+
+	FullDownloadDir="${DownloadDir}/${SessionPath}"
+	echo "fwget -f --download --download-dir \"$FullDownloadDir\" \"$FileId\" "
+    done < <(jq -r "$Jq" "$SessionOutputInfoFilesJsonFile")
+}
+
+while getopts 'c:D:dfg:nr:t:v' arg
+do
+	case "$arg" in
+	     c|D|d|f|g|n|r|t|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+shift $(("$OPTIND" -1))
+
+ProjectId="$1"
+if echo "$1" | grep -q '/'
+then
+	Group=$(echo "$1" | cut -f 1 -d '/')
+	Project=$(echo "$1" | cut -f 2 -d '/')
+	ProjectId=$(sys fwget -1 "${Group}/${Project}" | jq -r ._id)
+else
+	Group=$(sys fwget -1 "$1" | jq -r '.group')
+	Project=$(sys fwget -1 "$1" | jq -r '.label')
+	ProjectId="$1"
+fi
+
+TmpDir=/tmp
+[ -n "$opt_t" ] && TmpDir="$opt_t"
+
+DownloadDir="$TmpDir"
+[ -n "$opt_D" ] && DownloadDir="$opt_D"
+
+[ -e "$DownloadDir" ] || sys mkdir -p "$DownloadDir"
+
+ContainerType="$opt_c"
+JobsJsonFile="${TmpDir}/Jobs.json"
+Id2LabelsJsonFile="${TmpDir}/Id2LabelsJsonFile"
+
+
+if [ -n "$opt_f" ] || [ ! -e "$Id2LabelsJsonFile" ]
+then
+    makeFwId2LabelsJsonFile "${Group}/${Project}" > "$Id2LabelsJsonFile"
+fi
+
+if [ -n "$opt_g" ]
+then
+    if [ -n "$opt_f" ] || [ ! -e "$JobsJsonFile" ]
+    then
+	sys fwfind -1 -j -rg group="$Group" "parents.project=${ProjectId}" 'state=complete' "gear_info.name=${GearName}" > "$JobsJsonFile"
+    fi
+    
+    GearName="$opt_g"
+    GearId=$(fwget -1 -g "$GearName" | jq -r '._id')
+
+    # Sort the job entries by the session id, gearname, and date to order
+    # Not adding .gear_info.name to group_by() args as we only collected jobs of one gear
+    # Grab the last of the gears run under each session
+    #
+    # *** do we want the acquisition so if asking about a utility gear, the results can be downloaded under the acquisition name?
+    #
+
+    Jq='
+          sort_by(.parents.session, .gear_info.name, .created)
+        | group_by(.parents.session)
+        | .[][-1]
+        | .parents.group as $Group
+        | $Id2Label[][.parents.project] as $ProjectLabel
+        | $Id2Label[][.parents.subject] as $SubjectLabel
+        | $Id2Label[][.parents.session] as $SessionLabel
+        | (
+               .outputs
+             | [
+                   .[]
+                 | {
+                       "FileName": .name
+                     , "FileId": .file_id
+    		 , "Created": .created
+    		 , "Size": .size
+                   }
+               ]
+          ) as $OutputFiles
+        | {
+    	  "SessionPath": ([ $Group, $ProjectLabel, $SubjectLabel, $SessionLabel, $GearName ] | join("/"))
+    	, "GearName": .gear_info.name
+    	, "Created": .created
+    	, "OutputFiles": $OutputFiles
+          }
+    
+    ' 
+
+    GearOutputFileInfoJsonFile="${TmpDir}/GearOutputFileInfo.json"
+    sys jq -s -r --argjson 'GearName' "\"$GearName\"" --slurpfile Id2Label "$Id2LabelsJsonFile" "$Jq" "$JobsJsonFile" > "$GearOutputFileInfoJsonFile"
+
+    if [ -n "$opt_d" ]
+    then
+	downloadGearOutputFiles "$GearOutputFileInfoJsonFile"
+    fi
+
+    ColumnHeaders='
+      [
+           "SessionPath"
+         , "GearName"
+         , "Created"
+         , "FileName"
+         , "FileId"
+         , "Size"
+         , "Created"
+      ]
+    '
+    
+
+
+    if [ -n "$opt_r" ] && [ "$opt_r" == 'json' ]
+    then
+	cat "$GearOutputFileInfoJsonFile"
+    elif [ "$opt_r" == 'csv' ]
+    then
+        Jq='
+               $ColumnHeaders,
+             (  .[]
+             | .SessionPath as $SessionPath
+             | .GearName as $GearName
+             | .Created as $Created
+             | .OutputFiles[]
+             | [
+                    $SessionPath
+        	  , $GearName
+        	  , $Created
+        	  , .FileName
+        	  , .FileId
+        	  , .Size
+        	  , .Created
+               ]) | @csv
+        ' 
+        
+        sys jq -s -r --argjson ColumnHeaders "$ColumnHeaders" "$Jq" "$GearOutputFileInfoJsonFile"
+    fi
+    exit 0
+fi
+
+case "$opt_c" in
+    project)
+    ;;
+    subject)
+    ;;
+    session)
+       SessionViewInfoJsonFile="${TmpDir}/SessionViewInfo.json"
+       fwview -F json -p "${Group}/${Project}" -c "$ContainerType" project.label subject.label session.label session.file.name session.file.size session.file.file_id session.file.created | jq -r '.' > "$SessionViewInfoJsonFile"
+            
+    Jq='
+	  .data[]
+        | .["project.label"] as $ProjectLabel
+        | .["subject.label"] as $SubjectLabel
+        | .["session.label"] as $SessionLabel
+        | .["session.file.name"] as $FileName
+        | .["session.file.size"] as $FileSize
+        | .["session.file.file_id"] as $FileId
+        | .["session.file.created"] as $FileCreated
+	| {
+	      "SessionPath": ([$Group, $ProjectLabel, $SubjectLabel, $SessionLabel ] | join("/") )
+	    ,"FileName": $FileName
+            , "FileId": $FileId
+    	    , "FileCreated": $FileCreated
+    	    , "FileSize": $FileSize 
+           }
+    
+    ' 
+    SessionOutputFileInfoJsonFile="${TmpDir}/SessionOutputFileInfo.json"
+        jq -r --argjson Group "\"$Group\"" "$Jq" "$SessionViewInfoJsonFile" > "$SessionOutputFileInfoJsonFile"
+
+    ColumnHeaders='
+      [
+           "SessionPath"
+         , "FileName"
+         , "FileId"
+         , "FileSize"
+         , "FileCreated"
+      ]
+    '
+    if [ -n "$opt_d" ]
+    then
+	downloadSessionFiles "$SessionOutputFileInfoJsonFile"
+    fi
+
+    if [ -n "$opt_r" ] && [ "$opt_r" == 'json' ]
+    then
+	cat "$SessionOutputFileInfoJsonFile"
+    elif [ "$opt_r" == 'csv' ]
+    then
+	Jq='
+               $ColumnHeaders,
+               (
+	           .[]
+	 	 |
+   	  	    [ 
+                        .SessionPath
+		      , .FileName
+		      , .FileId
+        	      , .FileSize
+		      , .FileCreated
+                    ]
+		) | @csv
+        ' 
+	sys jq -s -r --argjson ColumnHeaders "$ColumnHeaders" "$Jq" "$SessionOutputFileInfoJsonFile"
+    else
+	echo "${CmdName} : Unknown format '$opt_c'" 1>&2
+	exit 1
+    fi
+    ;;
+
+    acquisition)
+	;;
+
+    *)
+	echo Bad container name 1>&2
+	;;
+    
+esac
+
+exit
