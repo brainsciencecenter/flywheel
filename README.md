@@ -6,6 +6,7 @@ You also need CC/GCC version 12.
 ### Anaconda Installation
 Need gcc-12, g++-12, and csvkit
 
+```
 export FLYWHEELDIR=~/flywheel
 git clone https://github.com/brainsciencecenter/flywheel.git $FLYHWHEELDIR
 
@@ -28,18 +29,22 @@ unset __conda_setup
 CC=gcc-12 CXX=g++-12 CFLAGS="-Wno-error=incompatible-pointer-types -Wno-incompatible-pointer-types" pip install --no-cache-dir --no-binary :all: pyjq
 
 [ -e ~/.config/flywheel ] || mkdir -p ~/.config/flywheel
+```
 
 Copy in your ~/.config/flywheel/user.json file to ~/.config/flywheel/user.json
 
 #### Update your environmet variables
 
+```
 export PATH=$PATH:$FLYWHEELDIR/bin
 export PYTHONPATH=$FLYWHEELDIR/lib
+```
 
 #### Test Installation
 
+```
 fwget -1 -d all | jq -r '.[].label'
-
+```
 should get you a list of the devices and without errors
 
 ## Useful things
@@ -56,14 +61,18 @@ Can also be used to download objects/files etc.
 ### fwDownloadFiles
 Download gear output files from a project
 
+```
 fwDownloadFiles -v -t /tmp -g ashs -c session -d holder/AlohaTesting3
+```
 
 Downloads the output files from the most recent ashs runs to /tmp/holder/AlohaTesting3
 (there may be conflicts with the temp files - updates for this in the queue)
 
 The -r option is also useful for summarizing the output files.
 
+```
 fwDownloadFiles -v -t /tmp -g ashs -c session -r csv holder/AlohaTesting3
+```
 
 prints a csv report of the gear's output files.
 
