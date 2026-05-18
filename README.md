@@ -1,41 +1,72 @@
-# XNAT 2 Flywheel
+# Tools to Interact with Flywheel
+## Installation
+Anaconda is currently the simpilest way I know to get a python version that will build pyjq.
+You also need CC/GCC version 12.
 
-Script pushs XNAT projects to flywheel.
+### Anaconda Installation
+Need gcc-12, g++-12, and csvkit
 
-Takes XNAT project, or project/subject and pushes to flywheel. 
-Needs to keep a log of what it pushed and where so it doesn't need to redo things (can be forced to redo it)
-and give the progress to the user.
-Also so it restart an interrupted transfer
+export FLYWHEELDIR=~/flywheel
+git clone https://github.com/brainsciencecenter/flywheel.git $FLYHWHEELDIR
 
-## XNAT Directory Structure
+CONTREPO=https://repo.continuum.io/archive
+ANACONDAURL=$(wget -q -O - $CONTREPO index.html | grep "Anaconda3-" | grep "Linux" | grep "86_64" | head -n 1 | cut -d \" -f 2)				        
+[ -e ~/Downloads ] || mkdir ~/Downloads
+wget -O ~/Downloads/anaconda.sh "${CONTREPO}/${ANACONDAURL}"
+bash ~/Downloads/anaconda.sh -b -p $HOME/anaconda3
 
-On tesla:
+~/anaconda3/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+~/anaconda3/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+~/anaconda3/bin/conda env create -f ${FLYWHEELDIR}/etc/FlywheelEnv.yaml
+~/anaconda3/bin/conda init
 
-XNATBaseDir=/data/XNAT/archive
+__conda_setup=$(~/anaconda3/bin/conda 'shell.bash' 'hook' 2> /dev/null)
+eval "$__conda_setup"
+conda activate FlywheelEnv
+unset __conda_setup
 
-Under archive are a list of projects eg: NACC-SA
-XNATProject=/data/XNAT/archive/NACC-SA
+CC=gcc-12 CXX=g++-12 CFLAGS="-Wno-error=incompatible-pointer-types -Wno-incompatible-pointer-types" pip install --no-cache-dir --no-binary :all: pyjq
 
-Under the project are subject directories
+[ -e ~/.config/flywheel ] || mkdir -p ~/.config/flywheel
+
+Copy in your ~/.config/flywheel/user.json file to ~/.config/flywheel/user.json
+
+#### Update your environmet variables
+
+export PATH=$PATH:$FLYWHEELDIR/bin
+export PYTHONPATH=$FLYWHEELDIR/lib
+
+#### Test Installation
+
+fwget -1 -d all | jq -r '.[].label'
+
+should get you a list of the devices and without errors
+
+## Useful things
+
+### fwget
+
+Takes flywheel paths, and fwids and returns the json representation of the object.
+Can also be used to download objects/files etc.
+
+### fwsearch
+
+### fwview
+
+### fwDownloadFiles
+Download gear output files from a project
+
+fwDownloadFiles -v -t /tmp -g ashs -c session -d holder/AlohaTesting3
+
+Downloads the output files from the most recent ashs runs to /tmp/holder/AlohaTesting3
+(there may be conflicts with the temp files - updates for this in the queue)
+
+The -r option is also useful for summarizing the output files.
+
+fwDownloadFiles -v -t /tmp -g ashs -c session -r csv holder/AlohaTesting3
+
+prints a csv report of the gear's output files.
+
+## Other dependancies
 
 
-/data/XNAT/archive/NACC-SC/arc001/107970_01_FlorbetabenPET_20180607/SCANS/201/DICOM/
-
-fw import dicom [flags] [folder] [group_id] [project_label]
-positional arguments:	 
-folder 	The path to the folder to import
-group_id  	The id of the group
-project_label       	The label of the project
-optional arguments:	 
- -h, --help	show this help message and exit
---de-identify	
-
-De-identify DICOM files, e-files and p-files prior to upload
---jobs JOBS, -j JOBS	
-
-The number of concurrent jobs to run (e.g. compression jobs)
---concurrent-uploads CONCURRENT_UPLOADS	The maximum number of concurrent uploads
---compression-level {-1,0,1,2,3,4,5,6,7,8}	
-
-The compression level to use for packfiles. -1 for default, 0 for store
---symlinks   	follow symbolic links that resolve to directories
