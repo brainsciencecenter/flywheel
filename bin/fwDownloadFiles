@@ -53,6 +53,7 @@ function downloadSessionFiles {
 	FileId=$(echo "$line" | csvcut -c 2)
 
 	FullDownloadDir="${DownloadDir}/${SessionPath}"
+	[ -e "$FullDownloadDir" ] || sys mkdir -p "$FullDownloadDir"
 	sys fwget -f --download --download-dir "$FullDownloadDir" "$FileId"
     done < <(jq -r "$Jq" "$SessionOutputInfoFilesJsonFile")
 }
