@@ -137,6 +137,7 @@ then
         | {
     	  "SessionPath": ([ $Group, $ProjectLabel, $SubjectLabel, $SessionLabel, $GearName ] | join("/"))
     	, "GearName": .gear_info.name
+	, "GearVersion": .gear_info.version
     	, "Created": .created
     	, "OutputFiles": $OutputFiles
           }
@@ -155,6 +156,7 @@ then
       [
            "SessionPath"
          , "GearName"
+         , "GearVersion"
          , "Created"
          , "FileName"
          , "FileId"
@@ -175,11 +177,13 @@ then
              (  .[]
              | .SessionPath as $SessionPath
              | .GearName as $GearName
+             | .GearVersion as $GearVersion
              | .Created as $Created
              | .OutputFiles[]
              | [
                     $SessionPath
         	  , $GearName
+        	  , $GearVersion
         	  , $Created
         	  , .FileName
         	  , .FileId

@@ -12,7 +12,7 @@ while getopts fnt:v arg
 do
     case "$arg" in
 	f|n|t|v)
-	    eval "opt_${arg}='${OPTIND:=1}'"
+	    eval "opt_${arg}='${OPTARG:=1}'"
 	    ;;
     esac
 done
@@ -21,6 +21,11 @@ shift $(( "$OPTIND" - 1 ))
 
 TmpDir=/tmp
 [ -n "$opt_t" ] && TmpDir="$opt_t"
+if [ ! -e "$TmpDir" ]
+then
+     echo "${CmdName} : '${TmpDir}' does not exist.  Exiting" 1>&2
+     exit 1
+fi
 
 ViewLabelsJsonFile="${TmpDir}/ViewLabels.json"
 
