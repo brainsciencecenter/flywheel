@@ -36,7 +36,8 @@ function downloadGearOutputFiles {
 	FileId=$(echo "$line" | csvcut -c 2)
 
 	FullDownloadDir="${DownloadDir}/${SessionPath}"
-	echo "fwget -f --download --download-dir \"$FullDownloadDir\" \"$FileId\" "
+	[ -e "$FullDownloadDir" ] || sys mkdir -p "$FullDownloadDir"
+	fwget -f --download --download-dir "$FullDownloadDir" "$FileId"
     done < <(jq -r "$Jq" "$GearOutputFileInfoJsonFile")
 }
 
