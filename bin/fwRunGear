@@ -201,7 +201,12 @@ if __name__ == '__main__':
     if (not args.quiet):
        print("{}".format(job_id))
 
+    # exit with success if we're not waiting for the job to complete
+    ExitCode=0
     if (args.wait) and job_id:
+       # assume the worst
+       ExitCode=1
+
        count = 0
        state=None
        while True:
@@ -222,5 +227,10 @@ if __name__ == '__main__':
 
              if (job_info.state == 'complete' and args.output_file_info):
                 print(*pyjq.all('.outputs[] | [ .name, .file_id ] | @csv', fwgearutils.sloppyCopy(job_info)), sep="\n")
-
+             if (job_info.state == "complete"):
+                # job completed ok
+                ExitCode=0
+                
              break
+
+    sys.exit(ExitCode)
