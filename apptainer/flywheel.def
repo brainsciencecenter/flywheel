@@ -1,0 +1,45 @@
+# Filename: flywheel.def
+
+Bootstrap: docker
+From: ubuntu:22.04
+
+%environment
+
+export FLYWHEELDIR=/opt/flywheel
+export PYTHONPATH=/opt/flywheel/lib
+export PATH=/opt/flywheel/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+%post
+
+apt-get autoclean
+apt-get update
+ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    cmake ksh bash tzdata git gcc-12 \
+    autoconf automake libtool \
+    python3 python3-pip python3-venv python3-lib2to3
+dpkg-reconfigure --frontend noninteractive tzdata
+
+git clone https://github.com/brainsciencecenter/flywheel.git /opt/flywheel
+
+python3 -m venv /opt/venvs/flywheel
+
+. /opt/venvs/flywheel/bin/activate
+
+python3 -m pip install -U pip wheel setuptools
+
+python3 -m pip install pyjq
+
+python3 -m pip install \
+    flywheel-gear-toolkit \
+    flywheel-sdk \
+    globre \
+    numpy \
+    pandas \
+    pytz \
+    requests \
+    tzlocal
+
+%runscript
+
+. /opt/venvs/flywheel/bin/activate && "$@"
