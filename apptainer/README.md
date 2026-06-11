@@ -6,6 +6,8 @@ Uses:
 
 -   Ubuntu 22.04 (Jammy)
 -   Ubuntu-provided Python 3.10.12 instead of Anaconda
+-   Latest [Flywheel CLI](https://flywheel-io.gitlab.io/tools/app/cli/0.34/flyw/) installed 
+    using [https://storage.googleapis.com/flywheel-dist/fw-cli/stable/install.sh](https://storage.googleapis.com/flywheel-dist/fw-cli/stable/install.sh)
 
 ## Build instructions
 
