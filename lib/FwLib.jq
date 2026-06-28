@@ -1,5 +1,47 @@
 #
 
+#
+# jq -n -L ../lib 'include "FwLib"; 567.1234 | scale(2)'
+# 567.12
+#
+def scale(ndecimal): (
+    ( . * (ndecimal | exp10) | round ) / (ndecimal | exp10)
+) ;
+
+
+def formatIlabNote: (
+           (.BscChargePerTbPerYear / 12) as $PricePerTbPerMonth
+        |
+          .FundName
+        + " ("
+        + .BenNumber
+        + ") - "
+        + .ProjectPath
+        +  " - "
+        + (.TotalTerabytesUsed | scale(4) | tostring)
+        + " * $"
+        + ($PricePerTbPerMonth | tostring)
+        + "/Tb/M = $"
+        + ( .BscBill | scale(2) | tostring)
+        + " * "
+        + ((.AllocationPercent / 100.0 | scale(2)) | tostring)
+        + "% = "
+ );
+
+def backedupTotalTerabytesUsed(TerabytesUsed): (
+    (
+	TerabytesUsed
+      | .BackedUpGPFS + .BackedUpbscfiles1 + .BackedUpbscfiles2 + .BackedUpbscfiles3
+    )
+) ;
+
+def nonBackedupTotalTerabytesUsed(TerabytesUsed): (
+    (
+          TerabytesUsed
+  	| .NotBackedUpGPFS + .NotBackedUpbscfiles1 + .NotBackedUpbscfiles2 + .NotBackedUpbscfiles3
+    )
+) ;
+
 def getLastPicslBioMarkersDateTime(p): (
       if ((p) and ((p) | [ keys[] | test("ASHS-") ] | any) )
       then

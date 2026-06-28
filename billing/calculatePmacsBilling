@@ -290,15 +290,15 @@ function allocatePmacsStorageCosts {
 		   ) as $TotalTerabytesUsed
                  | .AllocationInfo[]
 	         | (
-		       (
-	                   if ($BackedupTotalTerabytesUsed > 0.0) then
-	       	              $PmacsBackedupPricePerTeraBytePerYear
-		           else
-		              $PmacsNonBackedupPricePerTeraBytePerYear
-		           end
-	               ) * $BscPmacsStorageOverheadPercent
-                   ) as $BscChargePerTbPerYear
+	               if ($BackedupTotalTerabytesUsed > 0.0) then
+	       	          $PmacsBackedupPricePerTeraBytePerYear
+		       else
+		          $PmacsNonBackedupPricePerTeraBytePerYear
+		       end
+	           ) as $PmacsChargePerTbPerYear
+		 | ( $PmacsChargePerTbPerYear * $BscPmacsStorageOverheadPercent) as $BscChargePerTbPerYear
 	         | ($TotalTerabytesUsed * ($BscChargePerTbPerYear/12)) as $BscBill
+	         | ($TotalTerabytesUsed * ($PmacsChargePerTbPerYear/12)) as $PmacsBill
 	         | {
 	                "ProjectPath": $ProjectPath
 	              , "BenNumber": .BenNumber
@@ -306,9 +306,12 @@ function allocatePmacsStorageCosts {
 	              , "iLabServiceRequestId": (.iLabServiceRequestId | tostring | sub("\\..$"; ""))
 	              , "AllocationPercent": .AllocationPercent
 		      , "TotalTerabytesUsed": $TotalTerabytesUsed
+		      , "PmacChargePerTbPerYear": $PmacsChargePerTbPerYear
 	              , "BscChargePerTbPerYear": $BscChargePerTbPerYear
 	              , "BscBill": $BscBill
 	              , "AllocatedBscBill": (.AllocationPercent/100.0) * $BscBill
+		      , "AllocatedPmacsBill": (.AllocationPercent/100.0) * $PmacsBill
+		      , "AllocatedTerabytesUsed": (.AllocationPercent/100.0) * $TotalTerabytesUsed
 	           }
                else
                       # $ProjectPath + " no billing allocation"
@@ -385,7 +388,7 @@ function storageInvoiceToIlabCharges {
         | {
               "service_id": $service_id
             , "note": $IlabNote
-            , "service_quantity": ( .AllocatedBscBill | scale(2) | tostring )
+            , "service_quantity": .AllocatedBscBill
             , "price": ""
             , "purchased_on": $Date
             , "service_request_id": (.iLabServiceRequestId | tostring)
@@ -442,9 +445,6 @@ JsonTotals=$(sys jq -L "$FwLibDir" -r '
     ' "$TotalStoragePoolsJsonFile"
 )
 
-echo "$CsvTotals" 1>&2
-echo "$JsonTotals" 1>&2
-
 BscPmacsStorageInvoicesJsonFile="${TmpDir}/BscPmacsStorageInvoices.json"
 sys allocatePmacsStorageCosts "$BscPmacsStorageOverheadPercent"					\
 			  "$PmacsBackedupPricePerTeraBytePerYear"				\
@@ -462,5 +462,19 @@ sys storageInvoiceToIlabCharges "$FwLibDir" "$Date" "$BscPmacsStorageInvoicesJso
 
 convertJsonToCsv "$iLabBscPmacsClusterChargesJsonFile"
 
+echo "$CsvTotals" 1>&2
+echo "$JsonTotals" 1>&2
 
+jq -s 'reduce .[] as $i (
+{
+      "AllocatedBscBill": 0
+    , "AllocatedPmacsBill": 0
+    , "TotalTerabytesUsed": 0
+};
+{
+      "AllocatedBscBill": .AllocatedBscBill + $i.AllocatedBscBill
+    , "AllocatedPmacsBill": .AllocatedPmacsBill + $i.AllocatedPmacsBill
+    , "AllocatedTerabytesUsed": .AllocatedTerabytesUsed + $i.AllocatedTerabytesUsed
+}
+)' "$BscPmacsStorageInvoicesJsonFile"
 
