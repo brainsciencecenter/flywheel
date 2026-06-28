@@ -4,7 +4,7 @@
 
 opt_v=1
 
-InputFiles=( /home/holder/Downloads/projectGpfsreport.txt /home/holder/Downloads/projectreport.txt)
+InputFiles=( "$@" )
 
 Date=$(date +%Y%m01)
 TmpDir=/tmp/PmacsBilling
