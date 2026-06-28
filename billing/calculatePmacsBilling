@@ -402,24 +402,59 @@ function storageInvoiceToIlabCharges {
 
 
 CsvTotals=$(sys calculatePmacsReportTotals "${InputFiles[@]}")
-
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: calculatePmacsReportTotals failed" 1>&2
+	exit
+fi
+	
 PmacsProjectReportJsonFile="${TmpDir}/PmacsProjectReport.json"
 sys convertPmacsCsvReportsToJson "${InputFiles[@]}" > "$PmacsProjectReportJsonFile"
-
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: convertPmacsCsvReportsToJson failed" 1>&2
+	exit
+fi
+	
 NotBackedUpIndexJsonFile="${TmpDir}/NotBackedUpIndex.json"
 sys indexNotBackedUpProjects "$PmacsProjectReportJsonFile" > "$NotBackedUpIndexJsonFile"
-
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: indexNotBackedUpProjects failed" 1>&2
+	exit
+fi
+	
 ProjectItemizedPmacsStorageJsonFile="${TmpDir}/ProjectItemizedStorage.json"
 sys itemizeProjectPmacsStorage "$NotBackedUpIndexJsonFile" "$Date" "$PmacsProjectReportJsonFile" > "$ProjectItemizedPmacsStorageJsonFile"
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: itemizeProjectPmacsStorage failed" 1>&2
+	exit
+fi
 
 ProjectBillingAllocationInfoJsonFile="${TmpDir}/ProjectBillingAllocation.json"
 sys createProjectBillingAllocationJson "$BillingAllocationFileName" "$ProjectItemizedPmacsStorageJsonFile" > "$ProjectBillingAllocationInfoJsonFile"
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: createProjectBillingAllocationJson failed" 1>&2
+	exit
+fi
 
 ProjectStorageAndAllocationJsonFile="${TmpDir}/ProjectStorageAndAllocation.json"
 sys jq -s 'reduce .[] as $item ({}; . * $item)' "$ProjectItemizedPmacsStorageJsonFile" "$ProjectBillingAllocationInfoJsonFile" > "$ProjectStorageAndAllocationJsonFile"
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: Reduce ProjectBillingAllocation failed" 1>&2
+	exit
+fi
 
 TotalStoragePoolsJsonFile="${TmpDir}/TotalStoragePools.json"
 sys totalPmacsStoragePools "$ProjectItemizedPmacsStorageJsonFile" > "$TotalStoragePoolsJsonFile"
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: totalPmacsStoragePools failed" 1>&2
+	exit
+fi
 
 JsonTotals=$(sys jq -L "$FwLibDir" -r '
         include "FwLib";
@@ -444,12 +479,22 @@ JsonTotals=$(sys jq -L "$FwLibDir" -r '
         ] | @csv
     ' "$TotalStoragePoolsJsonFile"
 )
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: JsonTotals failed" 1>&2
+	exit
+fi
 
 BscPmacsStorageInvoicesJsonFile="${TmpDir}/BscPmacsStorageInvoices.json"
 sys allocatePmacsStorageCosts "$BscPmacsStorageOverheadPercent"					\
 			  "$PmacsBackedupPricePerTeraBytePerYear"				\
 			  "$PmacsNonBackedupPricePerTeraBytePerYear"				\
 			  "$ProjectStorageAndAllocationJsonFile" > "$BscPmacsStorageInvoicesJsonFile"
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: allocatePmacsStorageCosts failed" 1>&2
+	exit
+fi
 
 #
 # service_id,note,service_quantity,price,purchased_on,service_request_id,owner_email,pi_email_or_group_id,payment_number
@@ -459,8 +504,18 @@ sys allocatePmacsStorageCosts "$BscPmacsStorageOverheadPercent"					\
 
 iLabBscPmacsClusterChargesJsonFile="${TmpDir}/iLabBscPmacsClusterCharges.json"
 sys storageInvoiceToIlabCharges "$FwLibDir" "$Date" "$BscPmacsStorageInvoicesJsonFile" > "$iLabBscPmacsClusterChargesJsonFile"
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: storageInvoiceToIlabCharges failed" 1>&2
+	exit
+fi
 
-convertJsonToCsv "$iLabBscPmacsClusterChargesJsonFile"
+sys convertJsonToCsv "$iLabBscPmacsClusterChargesJsonFile"
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: convertJsonToCsv failed" 1>&2
+	exit
+fi
 
 echo "$CsvTotals" 1>&2
 echo "$JsonTotals" 1>&2
@@ -477,4 +532,9 @@ jq -s 'reduce .[] as $i (
     , "AllocatedTerabytesUsed": .AllocatedTerabytesUsed + $i.AllocatedTerabytesUsed
 }
 )' "$BscPmacsStorageInvoicesJsonFile"
+if [ "$?" -ne 0 ]
+then
+	echo "${CmdName}: Total Allocated Sums failed" 1>&2
+	exit
+fi
 
