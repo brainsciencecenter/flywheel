@@ -15,6 +15,9 @@ Syntax="${CmdName} [-c project|subject|session|acquisition][-D DownloadDir][-d][
 # -t Directory to store files in by path.  Defaults to current directory
 # -v verbose
 
+# fwDownloadFiles -v -t /tmp -g ashs -c session -d holder/AlohaTesting
+#
+
 function sys {
     [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
     [ -n "${opt_n}" ] || "$@"

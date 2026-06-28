@@ -2,7 +2,7 @@
 
 CmdName=$(basename "$0")
 
-Syntax="${CmdName} [-l][-n][-v][-p ProjectInfoJsonFile]"
+Syntax="${CmdName} [-a][-l][-n][-v][-p ProjectInfoJsonFile]"
 
 ProjectInfoPath='.ProjectFunding'
 TmpDir="${TMPDIR:=/tmp}"
@@ -17,30 +17,31 @@ InternalGroupJson='[
 InternalGroupRegex=$(echo "$InternalGroupJson" | jq -j 'join("|")')
 
 JqFindProjectFundingInfo='
-  .[]
-| to_entries[]
-     | .key as $GroupProjectPath
-         | (if ($GroupProjectPath | test("^('"$InternalGroupRegex"')/")) then
+      (.group + "/" + .label) as $GroupProjectPath
+    | (if ($GroupProjectPath | test("^('"$InternalGroupRegex"')/")) then
                    "Free"
                else
                    "Paid"
                end) as $GroupType
-	    | .value.accountNumber as $AccountNumber
-            | (if (.value.PIs) then 
-                 .value.PIs | join(":")
+    | .info.ProjectFunding
+	    | .accountNumber as $AccountNumber
+	    | .businessAdministrator.name as $BaName
+	    | .businessAdministrator.email as $BaEmail
+            | (if (.PIs) then 
+                 .PIs | join(":")
                 else
 	         ""
 	        end) as $PiNamesAndEmails
-             | (.value.iLabServiceRequestNumber) as $ServiceRequestNumber
-             | [ $GroupProjectPath, $GroupType, $PiNamesAndEmails, $AccountNumber, $ServiceRequestNumber ]
+             | (.iLabServiceRequestNumber) as $ServiceRequestNumber
+             | [ $GroupProjectPath, $GroupType, $PiNamesAndEmails, $BaName, $BaEmail, $AccountNumber, $ServiceRequestNumber ]
              | @csv
 '
 
 
-while getopts "lnp:v" arg
+while getopts "alnp:v" arg
 do
     case "$arg" in
-	l|n|p|v)
+	a|l|n|p|v)
 	    eval "opt_${arg}='${OPTARG:=1}'"
 	    ;;
     esac
@@ -62,8 +63,16 @@ fi
 
 if [ ! -s "$ProjectInfoJsonFile" ]
 then
-   fwProjectInfoCrud  -p .ProjectFunding > "$ProjectInfoJsonFile"
+   fwfind --exhaustive -1  -p > "$ProjectInfoJsonFile"
 fi
+
+# Print all project funding info
+if [ -n "$opt_a" ]
+then
+    jq -r "$JqFindProjectFundingInfo" "$ProjectInfoJsonFile"
+    exit 0
+fi
+
 
 ProjectsMissingPis=$(jq -r "$JqFindProjectFundingInfo" "$ProjectInfoJsonFile" | csvcut -c 1-3 | grep -v ',Free,' | grep ',$' | sort)
 if [ -n "$ProjectsMissingPis" ]
@@ -74,7 +83,7 @@ then
     echo
 fi
 
-ProjectsMissingServiceRequestNumbers=$(jq -r "$JqFindProjectFundingInfo" "$ProjectInfoJsonFile"| csvcut -c 1-5 | grep -v ',Free,' | grep -v ',InternalBenNumber,' | grep ',$' | sort)
+ProjectsMissingServiceRequestNumbers=$(jq -r "$JqFindProjectFundingInfo" "$ProjectInfoJsonFile"| csvcut -c 1-6 | grep -v ',Free,' | grep -v ',InternalBenNumber,' | grep ',$' | sort)
 if [ -n "$ProjectsMissingServiceRequestNumbers" ]
 then
     echo "Projects Missing Service Request Numbers"

@@ -117,5 +117,7 @@ sys v5 "${Args[@]}"
 
 sys downloadILabCharges -5 -f "${Args[@]}" > "${Year}-${Month}-iLabFlywheelCharges.csv"
 sys downloadILabCharges -5 -g "${Args[@]}" > "${Year}-${Month}-iLabNonFwGcpILabCharges.csv"
-sys downloadILabCharges -5 -M "${Args[@]}" > "${Year}-${Month}-iLabFlywheelMriCharges.csv"
+
+#Billing for this is now done monthly through the BSC business office
+#sys downloadILabCharges -5 -M "${Args[@]}" > "${Year}-${Month}-iLabFlywheelMriCharges.csv"
   

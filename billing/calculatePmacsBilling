@@ -1,0 +1,466 @@
+#!/bin/bash
+
+# ***
+
+opt_v=1
+
+InputFiles=( /home/holder/Downloads/projectGpfsreport.txt /home/holder/Downloads/projectreport.txt)
+
+Date=$(date +%Y%m01)
+TmpDir=/tmp/PmacsBilling
+NotBackedUpFileName='_This_Directory_Tree_Is_Not_Backed_Up_'
+BillingAllocationFileName='BillingAllocation.csv'
+FwLibDir=/home/holder/flywheel/lib
+
+BscPmacsStorageOverheadPercent='1.50'
+PmacsBackedupPricePerTeraBytePerYear='360.0'
+PmacsNonBackedupPricePerTeraBytePerYear='120.0'
+
+# *** /project is the root of the project paths - one variable please
+
+function sys {
+	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	 [ -n "$opt_z" ] || "$@"
+}
+
+[ -e "$TmpDir" ] || sys mkdir -p "$TmpDir"
+
+function calculatePmacsReportTotals {
+    local InputFiles=( "$@" )
+
+    AwkScript='
+            BEGIN {
+                Gpfs = 0;
+                BscFiles1 = 0;
+		    	        BscFiles2 = 0;
+    	        Bscfiles3 = 0;
+    	        Count = 0
+            } ;
+
+            {
+                if ($2 == "GPFS") {
+    	           Gpfs = Gpfs + ($1 / 1024)
+    	        };
+    	        if ($2 == "bscfiles1") {
+    	           BscFiles1 = BscFiles1 + ($1 / 1024)
+    	        } ;
+    	        if ($2 == "bscfiles2") {
+       	           BscFiles2 = BscFiles2 + ($1 / 1024)
+    	        } ;
+    	        if ($2 == "bscfiles3") {
+    	           BscFiles3 = BscFiles3 + ($1 / 1024)
+    	        } ;
+
+                Count = Count + 1
+            } ;
+
+            END {
+	        printf("%s,%s,%s,%s,%s,%s\n", "GpfsTb", "BscFiles1Tb", "BscFiles2Tb", "BscFiles3Tb", "TotalStorageTb", "ProjectCount");
+                printf("%.4f,%.4f,%.4f,%.4f,%.4f,%d\n", Gpfs, BscFiles1, BscFiles2, BscFiles3, Gpfs + BscFiles1 + BscFiles2 + BscFiles3, Count);
+            }
+    '
+
+    (
+          grep '^# NAME' "${InputFiles[0]}" | dos2unix;
+          grep -h -v '^#' "${InputFiles[@]}" | grep -v '^$' | dos2unix;
+    ) | csvcut -t -c "Size in gb",SERVER | tail -n +2 | awk -F , "$AwkScript"
+}
+
+function convertPmacsCsvReportsToJson {
+    local InputFiles=( "$@" )
+
+    (
+        grep '^# NAME' "${InputFiles[0]}" | dos2unix;
+        grep -h -v '^#' "${InputFiles[@]}" | grep -v '^$' | dos2unix
+    ) | csvcut -t -c "# NAME","Size in gb","SERVER" | csvjson | jq . 
+}
+
+#
+# Find non-backed up projects
+#
+function indexNotBackedUpProjects {
+    local PmacsProjectReportJsonFile="$1"
+
+    while read ProjectLabel
+    do
+        ProjectPath="/project/${ProjectLabel}"
+        NotBackedUpFile="${ProjectPath}/${NotBackedUpFileName}"
+        [ -e "$NotBackedUpFile" ] && echo "{ \""${ProjectPath}"\": true }"
+    done < <(jq -r '.[]["# NAME"]' "$PmacsProjectReportJsonFile" | sort -u) | jq -s 'add'
+}
+
+function itemizeProjectPmacsStorage {
+    local NotBackedUpIndexJsonFile="$1"
+    local Date="$2"
+    local PmacsProjectReportJsonFile="$3"
+
+    ItemizeProjectPmacsStorageJq='
+         .[]
+       | ("/project/" + .["# NAME"]) as $ProjectPath
+       | ($NotBackedUpIndex[] | has($ProjectPath) | not) as $BackedUp
+       | {
+           ($ProjectPath): {
+               "TerabytesUsed": {
+                     "BackedUpGPFS": if (.SERVER == "GPFS" and $BackedUp) then (.["Size in gb"] / 1024) else 0 end
+	           , "BackedUpbscfiles1": if (.SERVER == "bscfiles1" and $BackedUp) then (.["Size in gb"] / 1024) else 0 end
+    	           , "BackedUpbscfiles2": if (.SERVER == "bscfiles2" and $BackedUp) then (.["Size in gb"] / 1024) else 0 end
+    	           , "BackedUpbscfiles3": if (.SERVER == "bscfiles3" and $BackedUp) then (.["Size in gb"] / 1024) else 0 end
+
+	           , "NotBackedUpGPFS": if (.SERVER == "GPFS" and ($BackedUp == false)) then (.["Size in gb"] / 1024) else 0 end
+	           , "NotBackedUpbscfiles1": if (.SERVER == "bscfiles1" and ($BackedUp == false)) then (.["Size in gb"] / 1024) else 0 end
+    	           , "NotBackedUpbscfiles2": if (.SERVER == "bscfiles2" and ($BackedUp == false)) then (.["Size in gb"] / 1024) else 0 end
+    	           , "NotBackedUpbscfiles3": if (.SERVER == "bscfiles3" and ($BackedUp == false)) then (.["Size in gb"] / 1024) else 0 end
+                }
+	    }
+         }
+    ' 
+    jq --slurpfile NotBackedUpIndex "$NotBackedUpIndexJsonFile" --argjson Date "\"${Date}\"" "$ItemizeProjectPmacsStorageJq" "$PmacsProjectReportJsonFile" | jq -s 'add' 
+}
+
+
+#
+# Pull all the projects out of the ProjectMetrics file.
+# for each Project
+#    Verify there is a BillingAllocation file
+#    Make sure the allocations add to 100%
+#    Create json entry in the form
+# {
+#   "/project/hippogang": {
+#     "AllocationInfo": [
+#       {
+#         "AllocationPercent": 30.0,
+#         "iLabServiceRequestId": 4334346.0,
+#         "BenNumber": "400-4452-4-571661-5340-2810-2992",
+#         "FundName": "R01 AG056014",
+#         "BaName": "Bonna Mean",
+#         "BaEmail": "Bonna.Mean@pennmedicine.upenn.edu"
+#       },
+#       {
+#         "AllocationPercent": 30.0,
+#         "iLabServiceRequestId": 4329982.0,
+#         "BenNumber": "400-4452-4-589891-5340-2810-2992",
+#         "FundName": "R01 AG069474",
+#         "BaName": "Bonna Mean",
+#         "BaEmail": "Bonna.Mean@pennmedicine.upenn.edu"
+#       },
+#       {
+#         "AllocationPercent": 40.0,
+#         "iLabServiceRequestId": 5040001.0,
+#         "BenNumber": "400-4322-4-502965-5340-2810-2992",
+#         "FundName": "P30 AG010124",
+#         "BaName": "Bonna Mean",
+#         "BaEmail": "Bonna.Mean@pennmedicine.upenn.edu"
+#       }
+#     ]
+#   }
+# }
+# 
+#
+function createProjectBillingAllocationJson {
+    local BillingAllocationFileName="$1"
+    local PmacsProjectMetricsJsonFile="$2"
+
+    local ProjectPath
+    local BillingAllocationFile
+    local AllocationInfoJson
+    local TotalAllocationPercent
+    local AllocationPercents
+
+    while read ProjectPath
+    do
+	# [ -n "$opt_v" ] && echo "$ProjectPath" 1>&2
+	
+	BillingAllocationFile="${ProjectPath}/${BillingAllocationFileName}"
+	if [ ! -e "$BillingAllocationFile" ]
+	then
+		echo "${ProjectPath} : '${BillingAllocationFile}' not found. Skipping" 1>&2
+		continue
+	fi
+
+	AllocationInfoJson=$(csvjson --stream "$BillingAllocationFile" | jq -s --argjson ProjectPath "\"${ProjectPath}\"" '{ ($ProjectPath): { "AllocationInfo": . }}' )
+
+	TotalAllocationPercent=$(echo "$AllocationInfoJson" | jq '.[] | [ .AllocationInfo[].AllocationPercent ]| add'| sed 's/\.0$//')
+	if [ "$TotalAllocationPercent" != '100' ]
+	then
+		AllocationPercents=$(echo "$AllocationInfoJson" | jq '[ .[] | .AllocationInfo[].AllocationPercent ] | join(" + ") ' | sed 's/\.0//g')
+		echo "${ProjectPath} : Allocation Percents: ${AllocationPercents} != 100 : Skipping" 1>&2
+		continue
+	fi
+
+	echo "$AllocationInfoJson"
+    done < <(jq -r 'to_entries[] | .key' "$PmacsProjectMetricsJsonFile") | jq -s 'add'
+}
+
+function totalPmacsStoragePools {
+    local ProjectItemizedPmacsStorageJsonFile="$1"
+
+    jq '
+          (
+	      reduce .[] as $p (
+                  {};
+                  reduce ($p.TerabytesUsed | to_entries[]) as $e (
+                      .;
+                      .[$e.key] += $e.value
+                  )
+              )
+          )
+          +
+          {
+              ProjectCount: length
+          }
+    ' "$ProjectItemizedPmacsStorageJsonFile"
+}
+
+#
+# Take the TerabytesUsed and BillingAllocations and do the math to so the bill can be formatted for iLab
+# Input:
+#  "/project/hippogang": {
+#    "TerabytesUsed": {
+#      "BackedUpGPFS": 0.207216796875,
+#      "BackedUpbscfiles1": 0,
+#      "BackedUpbscfiles2": 0,
+#      "BackedUpbscfiles3": 0,
+#      "NotBackedUpGPFS": 0,
+#      "NotBackedUpbscfiles1": 0,
+#      "NotBackedUpbscfiles2": 0,
+#      "NotBackedUpbscfiles3": 0
+#    },
+#    "AllocationInfo": [
+#      {
+#        "AllocationPercent": 30.0,
+#        "iLabServiceRequestId": 4334346.0,
+#        "BenNumber": "400-4452-4-571661-5340-2810-2992",
+#        "FundName": "R01 AG056014",
+#        "BaName": "Bonna Mean",
+#        "BaEmail": "Bonna.Mean@pennmedicine.upenn.edu"
+#      },
+#      {
+#        "AllocationPercent": 30.0,
+#        "iLabServiceRequestId": 4329982.0,
+#        "BenNumber": "400-4452-4-589891-5340-2810-2992",
+#        "FundName": "R01 AG069474",
+#        "BaName": "Bonna Mean",
+#        "BaEmail": "Bonna.Mean@pennmedicine.upenn.edu"
+#      },
+#      {
+#        "AllocationPercent": 40.0,
+#        "iLabServiceRequestId": 5040001.0,
+#        "BenNumber": "400-4322-4-502965-5340-2810-2992",
+#        "FundName": "P30 AG010124",
+#        "BaName": "Bonna Mean",
+#        "BaEmail": "Bonna.Mean@pennmedicine.upenn.edu"
+#      }
+#    ]
+#  },
+#
+# Output:
+# {
+#  "ProjectPath": "/project/hippogang",
+#  "BenNumber": "400-4452-4-571661-5340-2810-2992",
+#  "FundName": "R01 AG056014",
+#  "iLabServiceRequestId": "4334346",
+#  "AllocationPercent": 30.0,
+#  "BackedupTotalTerabyesUsed": 0.207216796875,
+#  "NonBackedupTotalTerabytesUsed": 0,
+#  "PmacsBackedupPricePerTeraBytePerYear": 360.0,
+#  "PmacsNonBackedupPricePerTeraBytePerYear": 120.0,
+#  "BscPmacsStorageCharge": 74.598046875,
+#  "BscBill": 111.89707031249999,
+#  "AllocatedBscBill": 33.56912109375
+# }
+#
+
+function allocatePmacsStorageCosts {
+    local BscPmacsStorageOverheadPercent="$1"
+    local PmacsBackedupPricePerTeraBytePerYear="$2"
+    local PmacsNonBackedupPricePerTeraBytePerYear="$3"
+    local ProjectStorageAndAlloctationJsonFile="$4"
+
+    Jq='
+          include "FwLib";
+
+          to_entries[]
+             | (.key) as $ProjectPath
+             | .value
+             | if (. | has("AllocationInfo")) then
+	           ( backedupTotalTerabytesUsed( .TerabytesUsed ) ) as $BackedupTotalTerabytesUsed
+                 | (
+		      $BackedupTotalTerabytesUsed
+                     + nonBackedupTotalTerabytesUsed(.TerabytesUsed)
+		   ) as $TotalTerabytesUsed
+                 | .AllocationInfo[]
+	         | (
+		       (
+	                   if ($BackedupTotalTerabytesUsed > 0.0) then
+	       	              $PmacsBackedupPricePerTeraBytePerYear
+		           else
+		              $PmacsNonBackedupPricePerTeraBytePerYear
+		           end
+	               ) * $BscPmacsStorageOverheadPercent
+                   ) as $BscChargePerTbPerYear
+	         | ($TotalTerabytesUsed * ($BscChargePerTbPerYear/12)) as $BscBill
+	         | {
+	                "ProjectPath": $ProjectPath
+	              , "BenNumber": .BenNumber
+	              , "FundName": .FundName
+	              , "iLabServiceRequestId": (.iLabServiceRequestId | tostring | sub("\\..$"; ""))
+	              , "AllocationPercent": .AllocationPercent
+		      , "TotalTerabytesUsed": $TotalTerabytesUsed
+	              , "BscChargePerTbPerYear": $BscChargePerTbPerYear
+	              , "BscBill": $BscBill
+	              , "AllocatedBscBill": (.AllocationPercent/100.0) * $BscBill
+	           }
+               else
+                      # $ProjectPath + " no billing allocation"
+	              empty
+               end
+    '
+
+    jq -L "$FwLibDir"											\
+       --argjson BscPmacsStorageOverheadPercent "$BscPmacsStorageOverheadPercent"			\
+       --argjson PmacsBackedupPricePerTeraBytePerYear "$PmacsBackedupPricePerTeraBytePerYear"		\
+       --argjson PmacsNonBackedupPricePerTeraBytePerYear "$PmacsNonBackedupPricePerTeraBytePerYear"	\
+           "$Jq" "$ProjectStorageAndAlloctationJsonFile"
+
+}
+
+function convertJsonToCsv {
+    local BscPmacsStorageInvoicesJsonFile="$1"
+
+    jq -r -n '
+            input as $Input
+	  | 
+          (
+	    [
+	        $Input | to_entries[].key
+	    ] | @csv
+	  ) as $Headers
+	| $Headers,
+	  ($Input, inputs | [.[] ] | @csv)
+    ' "$BscPmacsStorageInvoicesJsonFile"
+}
+
+#
+# reformat json invoices for ilab
+# {
+#  "ProjectPath": "/project/hippogang",
+#  "BenNumber": "400-4452-4-571661-5340-2810-2992",
+#  "FundName": "R01 AG056014",
+#  "iLabServiceRequestId": "4334346",
+#  "AllocationPercent": 30.0,
+#  "TotalTerabytesUsed": 0.207216796875,
+#  "BscChargePerTbPerYear": 180,
+#  "BscBill": 3.108251953125,
+#  "AllocatedBscBill": 0.9324755859374999
+# }
+#
+# to
+#
+# {
+#  "service_id": "484515",
+#  "note": "R01 AG056014 (400-4452-4-571661-5340-2810-2992) - /project/hippogang - 0.2072 * $15/Tb/M = $3.11 * 0.3% = ",
+#  "service_quantity": "0.93",
+#  "price": "",
+#  "purchased_on": "20260601",
+#  "service_request_id": "4334346",
+#  "owner_email": "",
+#  "pi_email_or_group_id": "",
+#  "payment_number": ""
+# }
+#
+function storageInvoiceToIlabCharges {
+    local FwLibDir="$1"
+    local Date="$2"
+    local BscPmacsStorageInvoicesJsonFile="$3"
+
+    # PMACS storage service id
+    local service_id='484515'
+
+    local Jq
+
+    Jq='
+        include "FwLib";
+    
+          (. | formatIlabNote) as $IlabNote
+        | {
+              "service_id": $service_id
+            , "note": $IlabNote
+            , "service_quantity": ( .AllocatedBscBill | scale(2) | tostring )
+            , "price": ""
+            , "purchased_on": $Date
+            , "service_request_id": (.iLabServiceRequestId | tostring)
+            , "owner_email": ""
+            , "pi_email_or_group_id": ""
+            , "payment_number": ""
+        }
+    '
+    jq -r -L "$FwLibDir" -r --argjson Date "\"$Date\"" --argjson service_id "\"$service_id\"" "$Jq" "$BscPmacsStorageInvoicesJsonFile"
+}
+
+
+CsvTotals=$(sys calculatePmacsReportTotals "${InputFiles[@]}")
+
+PmacsProjectReportJsonFile="${TmpDir}/PmacsProjectReport.json"
+sys convertPmacsCsvReportsToJson "${InputFiles[@]}" > "$PmacsProjectReportJsonFile"
+
+NotBackedUpIndexJsonFile="${TmpDir}/NotBackedUpIndex.json"
+sys indexNotBackedUpProjects "$PmacsProjectReportJsonFile" > "$NotBackedUpIndexJsonFile"
+
+ProjectItemizedPmacsStorageJsonFile="${TmpDir}/ProjectItemizedStorage.json"
+sys itemizeProjectPmacsStorage "$NotBackedUpIndexJsonFile" "$Date" "$PmacsProjectReportJsonFile" > "$ProjectItemizedPmacsStorageJsonFile"
+
+ProjectBillingAllocationInfoJsonFile="${TmpDir}/ProjectBillingAllocation.json"
+sys createProjectBillingAllocationJson "$BillingAllocationFileName" "$ProjectItemizedPmacsStorageJsonFile" > "$ProjectBillingAllocationInfoJsonFile"
+
+ProjectStorageAndAllocationJsonFile="${TmpDir}/ProjectStorageAndAllocation.json"
+sys jq -s 'reduce .[] as $item ({}; . * $item)' "$ProjectItemizedPmacsStorageJsonFile" "$ProjectBillingAllocationInfoJsonFile" > "$ProjectStorageAndAllocationJsonFile"
+
+TotalStoragePoolsJsonFile="${TmpDir}/TotalStoragePools.json"
+sys totalPmacsStoragePools "$ProjectItemizedPmacsStorageJsonFile" > "$TotalStoragePoolsJsonFile"
+
+JsonTotals=$(sys jq -L "$FwLibDir" -r '
+        include "FwLib";
+
+        [
+              (.BackedUpGPFS + .NotBackedUpGPFS | scale(4))
+            , (.BackedUpbscfiles1 + .NotBackedUpbscfiles1 | scale(4))
+            , (.BackedUpbscfiles2 + .NotBackedUpbscfiles2 | scale(4))
+            , (.BackedUpbscfiles3 + .NotBackedUpbscfiles3 | scale(4))
+            , ((
+	            .BackedUpGPFS
+		  + .NotBackedUpGPFS
+		  + .BackedUpbscfiles1
+		  + .NotBackedUpbscfiles1
+		  + .BackedUpbscfiles2 
+		  + .NotBackedUpbscfiles2
+		  + .BackedUpbscfiles3
+		  + .NotBackedUpbscfiles3
+              ) | scale(4))
+            , .ProjectCount
+
+        ] | @csv
+    ' "$TotalStoragePoolsJsonFile"
+)
+
+echo "$CsvTotals" 1>&2
+echo "$JsonTotals" 1>&2
+
+BscPmacsStorageInvoicesJsonFile="${TmpDir}/BscPmacsStorageInvoices.json"
+sys allocatePmacsStorageCosts "$BscPmacsStorageOverheadPercent"					\
+			  "$PmacsBackedupPricePerTeraBytePerYear"				\
+			  "$PmacsNonBackedupPricePerTeraBytePerYear"				\
+			  "$ProjectStorageAndAllocationJsonFile" > "$BscPmacsStorageInvoicesJsonFile"
+
+#
+# service_id,note,service_quantity,price,purchased_on,service_request_id,owner_email,pi_email_or_group_id,payment_number
+# 484515,"R01 AG056014 (400-4452-4-571661-5340-2810-2992) - /project/hippogang - .2072TB * $45.00/TB/M = $9.32 * 30% = ",
+#2.79,,20260501,4334346
+#
+
+iLabBscPmacsClusterChargesJsonFile="${TmpDir}/iLabBscPmacsClusterCharges.json"
+sys storageInvoiceToIlabCharges "$FwLibDir" "$Date" "$BscPmacsStorageInvoicesJsonFile" > "$iLabBscPmacsClusterChargesJsonFile"
+
+convertJsonToCsv "$iLabBscPmacsClusterChargesJsonFile"
+
+
+

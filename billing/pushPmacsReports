@@ -45,7 +45,7 @@ function findReportFile {
     then
 	
 	ReportDate=$(dos2unix < "$FileName" | head -n 1 | awk '{print $NF}' )
-	if ( [[ "$ReportDate" > "$Date" ]] || [ "$ReportDate" = "$Date" ] ) && ( [[ "$ReportDate" < "$NextYearMonth" ]] || [[ "$ReportDate" -eq "$NextYearMonth" ]] )
+	if ( [[ "$ReportDate" -eq "$Date" ]] || [[ "$ReportDate" > "$Date" ]] || [ "$ReportDate" = "$Date" ] ) && ( [[ "$ReportDate" < "$NextYearMonth" ]] || [[ "$ReportDate" -eq "$NextYearMonth" ]] )
 	then
 	    echo "$FileName"
 	    return
@@ -60,7 +60,7 @@ function ssh2bscsub {
 
     local Cmd=( cat )
 
-    [ "$(hostname -s)" == "fritz" ] && Cmd=( ssh vpn-uphs ssh chead ssh bscsub "${RCmd[@]}" )
+    [ "$(hostname -s)" == "fritz" ] && Cmd=( ssh vpn ssh chead ssh bscsub "${RCmd[@]}" )
     [ "$(hostname -s)" == "chead" ] && Cmd=( ssh bscsub "${RCmd[@]}" )
 
     echo "${Cmd[@]}"
@@ -94,12 +94,16 @@ YearMonth="${Year}-${Month}"
 NextYearMonth=$(date -d "${Date} + month" +"%Y-%m-01")
 
 RHost=$(ssh2bscsub hostname -s | bash)
-if [ "$RHost" != "bscsub1" ]
+if [ "$RHost" != "bscsub2" ]
 then
-    echo "${CmdName} : Can not get to bscsub1" 1>&2
+    echo "${CmdName} : Can not get to bscsub2" 1>&2
     exit 2
 fi
 
+if [ -e ~/Downloads/"BSC Report ${Year}-${Month}-"*".zip" ]
+then
+    (cd ~/Downloads; unzip -o ~/Downloads/"BSC Report ${Year}-${Month}-"*".zip" )
+fi
 
 LPmacsUserReportFile=$(findReportFile "$UserReportBasename" "$Date" "$YearMonth" "$NextYearMonth")
 if [ -z "$LPmacsUserReportFile" ]
