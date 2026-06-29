@@ -36,7 +36,7 @@ BillingAllocationFileName='BillingAllocation.csv'
 FwDir=$(dirname $(dirname $(which "$0")))
 FwLibDir="${FwDir}/lib"
 
-MinimumCharge='100'
+MinimumCharge='0.01'
 BscPmacsStorageOverheadPercent='1.50'
 PmacsBackedupPricePerTeraBytePerYear='360.0'
 PmacsNonBackedupPricePerTeraBytePerYear='120.0'
