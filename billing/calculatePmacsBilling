@@ -2,7 +2,17 @@
 
 CmdName=$(basename "$0")
 Syntax="${CmdName} [-d day][-m month][-n][-v][-y year] PmacsReports.csv"
-
+#
+# calculatePmacsBilling -m 06 ~/Downloads/project*report*.txt
+#
+PurchaseDate="${Year}${Month}${Day}"
+MinimumCharge='0.01'
+BscPmacsStorageOverheadPercent='1.50'
+PmacsBackedupPricePerTeraBytePerYear='360.0'
+PmacsNonBackedupPricePerTeraBytePerYear='120.0'
+ProjectRoot='/project'
+NotBackedupFileName='_This_Directory_Tree_Is_Not_Backed_Up_'
+BillingAllocationFileName='BillingAllocation.csv'
 
 while getopts 'd:m:nvy:' arg
 do
@@ -27,19 +37,10 @@ Month=$(date +%m)
 Year=$(date +%Y)
 [ -n "$opt_y" ] && Year="$opt_y"
 
-PurchaseDate="${Year}${Month}${Day}"
-
 TmpDir=/tmp/PmacsBilling
-NotBackedupFileName='_This_Directory_Tree_Is_Not_Backed_Up_'
-BillingAllocationFileName='BillingAllocation.csv'
 
 FwDir=$(dirname $(dirname $(which "$0")))
 FwLibDir="${FwDir}/lib"
-
-MinimumCharge='0.01'
-BscPmacsStorageOverheadPercent='1.50'
-PmacsBackedupPricePerTeraBytePerYear='360.0'
-PmacsNonBackedupPricePerTeraBytePerYear='120.0'
 
 # *** /project is the root of the project paths - one variable please
 
@@ -110,7 +111,7 @@ function indexNotBackedupProjects {
 
     while read ProjectLabel
     do
-        ProjectPath="/project/${ProjectLabel}"
+        ProjectPath="${ProjectRoot}/${ProjectLabel}"
         NotBackedupFile="${ProjectPath}/${NotBackedupFileName}"
         [ -e "$NotBackedupFile" ] && echo "{ \""${ProjectPath}"\": true }"
     done < <(jq -r '.[]["# NAME"]' "$PmacsProjectReportJsonFile" | sort -u) | jq -s 'add'
@@ -124,7 +125,7 @@ function itemizeProjectPmacsStorage {
 
     Jq='
          .[]
-       | ("/project/" + .["# NAME"]) as $ProjectPath
+       | ($ProjectRoot + "/" + .["# NAME"]) as $ProjectPath
        | ($NotBackedupIndex[] | has($ProjectPath) | not) as $Backedup
        | ( if ($Backedup) then "Backedup" else "NotBackedup" end) as $Prefix 
        | {
@@ -143,7 +144,7 @@ function itemizeProjectPmacsStorage {
 	    }
          }
     ' 
-    jq --slurpfile NotBackedupIndex "$NotBackedupIndexJsonFile" "$Jq" "$PmacsProjectReportJsonFile" | jq -s 'add' 
+    jq --argjson ProjectRoot "\"$ProjectRoot\"" --slurpfile NotBackedupIndex "$NotBackedupIndexJsonFile" "$Jq" "$PmacsProjectReportJsonFile" | jq -s 'add' 
 }
 
 
