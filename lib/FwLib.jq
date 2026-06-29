@@ -1,13 +1,28 @@
 #
 
+def abs:
+  if . < 0 then -. else . end;
+
+def zeros($n):
+  reduce range(0; $n) as $i (""; . + "0");
+
 #
+# formats a number as a ndecimal string
+# 
 # jq -n -L ../lib 'include "FwLib"; 567.1234 | scale(2)'
 # 567.12
 #
-def scale(ndecimal): (
-    ( . * (ndecimal | exp10) | round ) / (ndecimal | exp10)
-) ;
-
+# Handles negative numbers
+# Pads leading zeros in case of -0.08333999999999997
+#
+def scale($d):
+  (. < 0) as $neg
+  | ((abs * ($d|exp10) | round | tostring) as $n
+     | (zeros($d) + $n) as $p
+     | ($p[($p|length - (if ($n|length) > $d then ($n|length) else $d end)):])) as $n
+  | (($n[:-$d]) + "." + ($n[-$d:])) as $s
+  | (if $s[0:1] == "." then "0" + $s else $s end)
+  | if $neg then "-" + . else . end;
 
 def formatIlabNote: (
            (.BscChargePerTbPerYear / 12) as $PricePerTbPerMonth
