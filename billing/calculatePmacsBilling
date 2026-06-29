@@ -8,9 +8,11 @@ InputFiles=( "$@" )
 
 Date=$(date +%Y%m01)
 TmpDir=/tmp/PmacsBilling
-NotBackedUpFileName='_This_Directory_Tree_Is_Not_Backed_Up_'
+NotBackedupFileName='_This_Directory_Tree_Is_Not_Backed_Up_'
 BillingAllocationFileName='BillingAllocation.csv'
-FwLibDir=/home/holder/flywheel/lib
+
+FwDir=$(dirname $(dirname $(which "$0")))
+FwLibDir="${FwDir}/lib"
 
 BscPmacsStorageOverheadPercent='1.50'
 PmacsBackedupPricePerTeraBytePerYear='360.0'
@@ -78,43 +80,44 @@ function convertPmacsCsvReportsToJson {
 #
 # Find non-backed up projects
 #
-function indexNotBackedUpProjects {
+function indexNotBackedupProjects {
     local PmacsProjectReportJsonFile="$1"
 
     while read ProjectLabel
     do
         ProjectPath="/project/${ProjectLabel}"
-        NotBackedUpFile="${ProjectPath}/${NotBackedUpFileName}"
-        [ -e "$NotBackedUpFile" ] && echo "{ \""${ProjectPath}"\": true }"
+        NotBackedupFile="${ProjectPath}/${NotBackedupFileName}"
+        [ -e "$NotBackedupFile" ] && echo "{ \""${ProjectPath}"\": true }"
     done < <(jq -r '.[]["# NAME"]' "$PmacsProjectReportJsonFile" | sort -u) | jq -s 'add'
 }
 
 function itemizeProjectPmacsStorage {
-    local NotBackedUpIndexJsonFile="$1"
+    local NotBackedupIndexJsonFile="$1"
     local Date="$2"
     local PmacsProjectReportJsonFile="$3"
 
     ItemizeProjectPmacsStorageJq='
          .[]
        | ("/project/" + .["# NAME"]) as $ProjectPath
-       | ($NotBackedUpIndex[] | has($ProjectPath) | not) as $BackedUp
+       | ($NotBackedupIndex[] | has($ProjectPath) | not) as $Backedup
+       | ( if ($Backedup) then "Backedup" else "NotBackedup" end) as $Prefix 
        | {
            ($ProjectPath): {
                "TerabytesUsed": {
-                     "BackedUpGPFS": if (.SERVER == "GPFS" and $BackedUp) then (.["Size in gb"] / 1024) else 0 end
-	           , "BackedUpbscfiles1": if (.SERVER == "bscfiles1" and $BackedUp) then (.["Size in gb"] / 1024) else 0 end
-    	           , "BackedUpbscfiles2": if (.SERVER == "bscfiles2" and $BackedUp) then (.["Size in gb"] / 1024) else 0 end
-    	           , "BackedUpbscfiles3": if (.SERVER == "bscfiles3" and $BackedUp) then (.["Size in gb"] / 1024) else 0 end
+                     "BackedupGPFS": (if (.SERVER == "GPFS" and $Backedup) then (.["Size in gb"] / 1024) else 0 end )
+	           , "Backedupbscfiles1": (if (.SERVER == "bscfiles1" and $Backedup) then (.["Size in gb"] / 1024) else 0 end )
+    	           , "Backedupbscfiles2": (if (.SERVER == "bscfiles2" and $Backedup) then (.["Size in gb"] / 1024) else 0 end )
+    	           , "Backedupbscfiles3": (if (.SERVER == "bscfiles3" and $Backedup) then (.["Size in gb"] / 1024) else 0 end )
 
-	           , "NotBackedUpGPFS": if (.SERVER == "GPFS" and ($BackedUp == false)) then (.["Size in gb"] / 1024) else 0 end
-	           , "NotBackedUpbscfiles1": if (.SERVER == "bscfiles1" and ($BackedUp == false)) then (.["Size in gb"] / 1024) else 0 end
-    	           , "NotBackedUpbscfiles2": if (.SERVER == "bscfiles2" and ($BackedUp == false)) then (.["Size in gb"] / 1024) else 0 end
-    	           , "NotBackedUpbscfiles3": if (.SERVER == "bscfiles3" and ($BackedUp == false)) then (.["Size in gb"] / 1024) else 0 end
+	           , "NotBackedupGPFS": (if (.SERVER == "GPFS" and ($Backedup == false)) then (.["Size in gb"] / 1024) else 0 end )
+	           , "NotBackedupbscfiles1": (if (.SERVER == "bscfiles1" and ($Backedup == false)) then (.["Size in gb"] / 1024) else 0 end )
+    	           , "NotBackedupbscfiles2": (if (.SERVER == "bscfiles2" and ($Backedup == false)) then (.["Size in gb"] / 1024) else 0 end )
+    	           , "NotBackedupbscfiles3": (if (.SERVER == "bscfiles3" and ($Backedup == false)) then (.["Size in gb"] / 1024) else 0 end )
                 }
 	    }
          }
     ' 
-    jq --slurpfile NotBackedUpIndex "$NotBackedUpIndexJsonFile" --argjson Date "\"${Date}\"" "$ItemizeProjectPmacsStorageJq" "$PmacsProjectReportJsonFile" | jq -s 'add' 
+    jq --slurpfile NotBackedupIndex "$NotBackedupIndexJsonFile" --argjson Date "\"${Date}\"" "$ItemizeProjectPmacsStorageJq" "$PmacsProjectReportJsonFile" | jq -s 'add' 
 }
 
 
@@ -216,14 +219,14 @@ function totalPmacsStoragePools {
 # Input:
 #  "/project/hippogang": {
 #    "TerabytesUsed": {
-#      "BackedUpGPFS": 0.207216796875,
-#      "BackedUpbscfiles1": 0,
-#      "BackedUpbscfiles2": 0,
-#      "BackedUpbscfiles3": 0,
-#      "NotBackedUpGPFS": 0,
-#      "NotBackedUpbscfiles1": 0,
-#      "NotBackedUpbscfiles2": 0,
-#      "NotBackedUpbscfiles3": 0
+#      "BackedupGPFS": 0.207216796875,
+#      "Backedupbscfiles1": 0,
+#      "Backedupbscfiles2": 0,
+#      "Backedupbscfiles3": 0,
+#      "NotBackedupGPFS": 0,
+#      "NotBackedupbscfiles1": 0,
+#      "NotBackedupbscfiles2": 0,
+#      "NotBackedupbscfiles3": 0
 #    },
 #    "AllocationInfo": [
 #      {
@@ -271,10 +274,11 @@ function totalPmacsStoragePools {
 #
 
 function allocatePmacsStorageCosts {
-    local BscPmacsStorageOverheadPercent="$1"
-    local PmacsBackedupPricePerTeraBytePerYear="$2"
-    local PmacsNonBackedupPricePerTeraBytePerYear="$3"
-    local ProjectStorageAndAlloctationJsonFile="$4"
+    local FwLibDir="$1"
+    local BscPmacsStorageOverheadPercent="$2"
+    local PmacsBackedupPricePerTeraBytePerYear="$3"
+    local PmacsNonBackedupPricePerTeraBytePerYear="$4"
+    local ProjectStorageAndAlloctationJsonFile="$5"
 
     Jq='
           include "FwLib";
@@ -282,13 +286,11 @@ function allocatePmacsStorageCosts {
           to_entries[]
              | (.key) as $ProjectPath
              | .value
-             | if (. | has("AllocationInfo")) then
-	           ( backedupTotalTerabytesUsed( .TerabytesUsed ) ) as $BackedupTotalTerabytesUsed
-                 | (
-		      $BackedupTotalTerabytesUsed
-                     + nonBackedupTotalTerabytesUsed(.TerabytesUsed)
-		   ) as $TotalTerabytesUsed
-                 | .AllocationInfo[]
+	     | ( backedupTotalTerabytesUsed( .TerabytesUsed ) ) as $BackedupTotalTerabytesUsed
+	     | ( nonBackedupTotalTerabytesUsed( .TerabytesUsed ) ) as $NonBackedupTotalTerabytesUsed
+	     | ( $BackedupTotalTerabytesUsed + $NonBackedupTotalTerabytesUsed) as $TotalTerabytesUsed
+	     | if (($TotalTerabytesUsed > 0) and (. | has("AllocationInfo"))) then
+                   .AllocationInfo[]
 	         | (
 	               if ($BackedupTotalTerabytesUsed > 0.0) then
 	       	          $PmacsBackedupPricePerTeraBytePerYear
@@ -309,9 +311,9 @@ function allocatePmacsStorageCosts {
 		      , "PmacChargePerTbPerYear": $PmacsChargePerTbPerYear
 	              , "BscChargePerTbPerYear": $BscChargePerTbPerYear
 	              , "BscBill": $BscBill
-	              , "AllocatedBscBill": (.AllocationPercent/100.0) * $BscBill
-		      , "AllocatedPmacsBill": (.AllocationPercent/100.0) * $PmacsBill
-		      , "AllocatedTerabytesUsed": (.AllocationPercent/100.0) * $TotalTerabytesUsed
+		      , "AllocatedBscBill": ((.AllocationPercent/100.0) * $BscBill)
+		      , "AllocatedPmacsBill": ((.AllocationPercent/100.0) * $PmacsBill)
+		      , "AllocatedTerabytesUsed": ((.AllocationPercent/100.0) * $TotalTerabytesUsed)
 	           }
                else
                       # $ProjectPath + " no billing allocation"
@@ -416,16 +418,16 @@ then
 	exit
 fi
 	
-NotBackedUpIndexJsonFile="${TmpDir}/NotBackedUpIndex.json"
-sys indexNotBackedUpProjects "$PmacsProjectReportJsonFile" > "$NotBackedUpIndexJsonFile"
+NotBackedupIndexJsonFile="${TmpDir}/NotBackedupIndex.json"
+sys indexNotBackedupProjects "$PmacsProjectReportJsonFile" > "$NotBackedupIndexJsonFile"
 if [ "$?" -ne 0 ]
 then
-	echo "${CmdName}: indexNotBackedUpProjects failed" 1>&2
+	echo "${CmdName}: indexNotBackedupProjects failed" 1>&2
 	exit
 fi
 	
 ProjectItemizedPmacsStorageJsonFile="${TmpDir}/ProjectItemizedStorage.json"
-sys itemizeProjectPmacsStorage "$NotBackedUpIndexJsonFile" "$Date" "$PmacsProjectReportJsonFile" > "$ProjectItemizedPmacsStorageJsonFile"
+sys itemizeProjectPmacsStorage "$NotBackedupIndexJsonFile" "$Date" "$PmacsProjectReportJsonFile" > "$ProjectItemizedPmacsStorageJsonFile"
 if [ "$?" -ne 0 ]
 then
 	echo "${CmdName}: itemizeProjectPmacsStorage failed" 1>&2
@@ -460,19 +462,19 @@ JsonTotals=$(sys jq -L "$FwLibDir" -r '
         include "FwLib";
 
         [
-              (.BackedUpGPFS + .NotBackedUpGPFS | scale(4))
-            , (.BackedUpbscfiles1 + .NotBackedUpbscfiles1 | scale(4))
-            , (.BackedUpbscfiles2 + .NotBackedUpbscfiles2 | scale(4))
-            , (.BackedUpbscfiles3 + .NotBackedUpbscfiles3 | scale(4))
+	      ((.BackedupGPFS + .NotBackedupGPFS) | scale(4))
+	    , ((.Backedupbscfiles1 + .NotBackedupbscfiles1) | scale(4))
+	    , ((.Backedupbscfiles2 + .NotBackedupbscfiles2) | scale(4))
+	    , ((.Backedupbscfiles3 + .NotBackedupbscfiles3) | scale(4))
             , ((
-	            .BackedUpGPFS
-		  + .NotBackedUpGPFS
-		  + .BackedUpbscfiles1
-		  + .NotBackedUpbscfiles1
-		  + .BackedUpbscfiles2 
-		  + .NotBackedUpbscfiles2
-		  + .BackedUpbscfiles3
-		  + .NotBackedUpbscfiles3
+	            .BackedupGPFS
+		  + .NotBackedupGPFS
+		  + .Backedupbscfiles1
+		  + .NotBackedupbscfiles1
+		  + .Backedupbscfiles2 
+		  + .NotBackedupbscfiles2
+		  + .Backedupbscfiles3
+		  + .NotBackedupbscfiles3
               ) | scale(4))
             , .ProjectCount
 
@@ -486,10 +488,11 @@ then
 fi
 
 BscPmacsStorageInvoicesJsonFile="${TmpDir}/BscPmacsStorageInvoices.json"
-sys allocatePmacsStorageCosts "$BscPmacsStorageOverheadPercent"					\
-			  "$PmacsBackedupPricePerTeraBytePerYear"				\
-			  "$PmacsNonBackedupPricePerTeraBytePerYear"				\
-			  "$ProjectStorageAndAllocationJsonFile" > "$BscPmacsStorageInvoicesJsonFile"
+sys allocatePmacsStorageCosts "$FwLibDir"							\
+          	"$BscPmacsStorageOverheadPercent"						\
+		"$PmacsBackedupPricePerTeraBytePerYear"						\
+		"$PmacsNonBackedupPricePerTeraBytePerYear"					\
+		"$ProjectStorageAndAllocationJsonFile" > "$BscPmacsStorageInvoicesJsonFile"
 if [ "$?" -ne 0 ]
 then
 	echo "${CmdName}: allocatePmacsStorageCosts failed" 1>&2
@@ -527,9 +530,9 @@ jq -s 'reduce .[] as $i (
     , "TotalTerabytesUsed": 0
 };
 {
-      "AllocatedBscBill": .AllocatedBscBill + $i.AllocatedBscBill
-    , "AllocatedPmacsBill": .AllocatedPmacsBill + $i.AllocatedPmacsBill
-    , "AllocatedTerabytesUsed": .AllocatedTerabytesUsed + $i.AllocatedTerabytesUsed
+      "AllocatedBscBill": (.AllocatedBscBill + $i.AllocatedBscBill)
+    , "AllocatedPmacsBill": (.AllocatedPmacsBill + $i.AllocatedPmacsBill)
+    , "AllocatedTerabytesUsed": (.AllocatedTerabytesUsed + $i.AllocatedTerabytesUsed)
 }
 )' "$BscPmacsStorageInvoicesJsonFile"
 if [ "$?" -ne 0 ]

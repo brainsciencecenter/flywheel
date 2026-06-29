@@ -31,14 +31,14 @@ def formatIlabNote: (
 def backedupTotalTerabytesUsed(TerabytesUsed): (
     (
 	TerabytesUsed
-      | .BackedUpGPFS + .BackedUpbscfiles1 + .BackedUpbscfiles2 + .BackedUpbscfiles3
+      | .BackedupGPFS + .Backedupbscfiles1 + .Backedupbscfiles2 + .Backedupbscfiles3
     )
 ) ;
 
 def nonBackedupTotalTerabytesUsed(TerabytesUsed): (
     (
           TerabytesUsed
-  	| .NotBackedUpGPFS + .NotBackedUpbscfiles1 + .NotBackedUpbscfiles2 + .NotBackedUpbscfiles3
+  	| .NotBackedupGPFS + .NotBackedupbscfiles1 + .NotBackedupbscfiles2 + .NotBackedupbscfiles3
     )
 ) ;
 
