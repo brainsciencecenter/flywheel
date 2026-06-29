@@ -36,6 +36,7 @@ BillingAllocationFileName='BillingAllocation.csv'
 FwDir=$(dirname $(dirname $(which "$0")))
 FwLibDir="${FwDir}/lib"
 
+MinimumCharge='100'
 BscPmacsStorageOverheadPercent='1.50'
 PmacsBackedupPricePerTeraBytePerYear='360.0'
 PmacsNonBackedupPricePerTeraBytePerYear='120.0'
@@ -355,9 +356,11 @@ function allocatePmacsStorageCosts {
 }
 
 function convertJsonToCsv {
-    local BscPmacsStorageInvoicesJsonFile="$1"
+    local iLabBscPmacsClusterChargesJsonFile="$1"
 
-    jq -r -n '
+    local Jq
+
+    Jq='
             input as $Input
 	  | 
           (
@@ -367,7 +370,9 @@ function convertJsonToCsv {
 	  ) as $Headers
 	| $Headers,
 	  ($Input, inputs | [.[] ] | @csv)
-    ' "$BscPmacsStorageInvoicesJsonFile"
+    ' 
+
+    jq -r -n "$Jq" "$iLabBscPmacsClusterChargesJsonFile"
 }
 
 #
@@ -400,15 +405,32 @@ function convertJsonToCsv {
 #
 function storageInvoiceToIlabCharges {
     local FwLibDir="$1"
-    local PurchaseDate="$2"
-    local BscPmacsStorageInvoicesJsonFile="$3"
+    local MinimumCharge="$2"
+    local PurchaseDate="$3"
+    local BscPmacsStorageInvoicesJsonFile="$4"
 
     # PMACS storage service id
     local service_id='484515'
 
-    local Jq
+    local Jq1
+    local Jq2
 
-    Jq='
+    Jq1='
+        include "FwLib";
+
+        if (.AllocatedBscBill < $MinimumCharge) then
+              .ProjectPath
+            + ": AllocatedBscBill, "
+            + ( .AllocatedBscBill | scale(4))
+            + ", is less than minimum charge of "
+            + ($MinimumCharge | scale(2))
+            | debug | empty
+        else
+            .
+        end
+    '
+
+    Jq2='
         include "FwLib";
     
           (. | formatIlabNote) as $IlabNote
@@ -424,7 +446,8 @@ function storageInvoiceToIlabCharges {
             , "payment_number": ""
         }
     '
-    jq -r -L "$FwLibDir" -r --argjson PurchaseDate "\"$PurchaseDate\"" --argjson service_id "\"$service_id\"" "$Jq" "$BscPmacsStorageInvoicesJsonFile"
+
+    jq -L "$FwLibDir" --argjson MinimumCharge "$MinimumCharge" "$Jq1" "$BscPmacsStorageInvoicesJsonFile" | jq -r -L "$FwLibDir" -r --argjson PurchaseDate "\"$PurchaseDate\"" --argjson service_id "\"$service_id\"" "$Jq2"
 }
 
 
@@ -531,7 +554,7 @@ fi
 #
 
 iLabBscPmacsClusterChargesJsonFile="${TmpDir}/iLabBscPmacsClusterCharges.json"
-sys storageInvoiceToIlabCharges "$FwLibDir" "$PurchaseDate" "$BscPmacsStorageInvoicesJsonFile" > "$iLabBscPmacsClusterChargesJsonFile"
+sys storageInvoiceToIlabCharges "$FwLibDir" "$MinimumCharge" "$PurchaseDate" "$BscPmacsStorageInvoicesJsonFile" > "$iLabBscPmacsClusterChargesJsonFile"
 if [ "$?" -ne 0 ]
 then
 	echo "${CmdName}: storageInvoiceToIlabCharges failed" 1>&2
@@ -556,11 +579,11 @@ jq -s 'reduce .[] as $i (
     , "TotalTerabytesUsed": 0
 };
 {
-      "AllocatedBscBill": (.AllocatedBscBill + $i.AllocatedBscBill)
-    , "AllocatedPmacsBill": (.AllocatedPmacsBill + $i.AllocatedPmacsBill)
+      "AllocatedPmacsBill": (.AllocatedPmacsBill + $i.AllocatedPmacsBill)
+    , "AllocatedBscBill": (.AllocatedBscBill + $i.AllocatedBscBill)
     , "AllocatedTerabytesUsed": (.AllocatedTerabytesUsed + $i.AllocatedTerabytesUsed)
 }
-)' "$BscPmacsStorageInvoicesJsonFile"
+)' "$BscPmacsStorageInvoicesJsonFile" 1>&2
 if [ "$?" -ne 0 ]
 then
 	echo "${CmdName}: Total Allocated Sums failed" 1>&2
