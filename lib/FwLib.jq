@@ -19,13 +19,13 @@ def formatIlabNote: (
         + .ProjectPath
         +  " - "
         + (.TotalTerabytesUsed | scale(4) | tostring)
-        + " * $"
+        + "TB * $"
         + ($PricePerTbPerMonth | tostring)
         + "/Tb/M = $"
         + ( .BscBill | scale(2) | tostring)
         + " * "
         + ((.AllocationPercent / 100.0 | scale(2)) | tostring)
-        + "% = "
+        + " = "
  );
 
 def backedupTotalTerabytesUsed(TerabytesUsed): (
