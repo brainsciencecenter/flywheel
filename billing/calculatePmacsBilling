@@ -1,12 +1,34 @@
 #!/bin/bash
 
-# ***
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-d day][-m month][-n][-v][-y year] PmacsReports.csv"
 
-opt_v=1
+
+while getopts 'd:m:nvy:' arg
+do
+	case "$arg" in 
+		d|m|n|v|y)
+			eval "opt_${arg}='${OPTARG:=1}'"
+			;;
+	esac
+done
+
+shift $(( "$OPTIND" - 1 ))
+
 
 InputFiles=( "$@" )
 
-Date=$(date +%Y%m01)
+Day='01'
+[ -n "$opt_d" ] && Day="$opt_d"
+
+Month=$(date +%m)
+[ -n "$opt_m" ] && Month="$opt_m"
+
+Year=$(date +%Y)
+[ -n "$opt_y" ] && Year="$opt_y"
+
+PurchaseDate="${Year}${Month}${Day}"
+
 TmpDir=/tmp/PmacsBilling
 NotBackedupFileName='_This_Directory_Tree_Is_Not_Backed_Up_'
 BillingAllocationFileName='BillingAllocation.csv'
@@ -19,6 +41,8 @@ PmacsBackedupPricePerTeraBytePerYear='360.0'
 PmacsNonBackedupPricePerTeraBytePerYear='120.0'
 
 # *** /project is the root of the project paths - one variable please
+
+
 
 function sys {
 	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
@@ -93,10 +117,11 @@ function indexNotBackedupProjects {
 
 function itemizeProjectPmacsStorage {
     local NotBackedupIndexJsonFile="$1"
-    local Date="$2"
-    local PmacsProjectReportJsonFile="$3"
+    local PmacsProjectReportJsonFile="$2"
 
-    ItemizeProjectPmacsStorageJq='
+    local Jq
+
+    Jq='
          .[]
        | ("/project/" + .["# NAME"]) as $ProjectPath
        | ($NotBackedupIndex[] | has($ProjectPath) | not) as $Backedup
@@ -117,7 +142,7 @@ function itemizeProjectPmacsStorage {
 	    }
          }
     ' 
-    jq --slurpfile NotBackedupIndex "$NotBackedupIndexJsonFile" --argjson Date "\"${Date}\"" "$ItemizeProjectPmacsStorageJq" "$PmacsProjectReportJsonFile" | jq -s 'add' 
+    jq --slurpfile NotBackedupIndex "$NotBackedupIndexJsonFile" "$Jq" "$PmacsProjectReportJsonFile" | jq -s 'add' 
 }
 
 
@@ -375,7 +400,7 @@ function convertJsonToCsv {
 #
 function storageInvoiceToIlabCharges {
     local FwLibDir="$1"
-    local Date="$2"
+    local PurchaseDate="$2"
     local BscPmacsStorageInvoicesJsonFile="$3"
 
     # PMACS storage service id
@@ -390,16 +415,16 @@ function storageInvoiceToIlabCharges {
         | {
               "service_id": $service_id
             , "note": $IlabNote
-            , "service_quantity": .AllocatedBscBill
+	    , "service_quantity": (.AllocatedBscBill | scale(2))
             , "price": ""
-            , "purchased_on": $Date
+            , "purchased_on": $PurchaseDate
             , "service_request_id": (.iLabServiceRequestId | tostring)
             , "owner_email": ""
             , "pi_email_or_group_id": ""
             , "payment_number": ""
         }
     '
-    jq -r -L "$FwLibDir" -r --argjson Date "\"$Date\"" --argjson service_id "\"$service_id\"" "$Jq" "$BscPmacsStorageInvoicesJsonFile"
+    jq -r -L "$FwLibDir" -r --argjson PurchaseDate "\"$PurchaseDate\"" --argjson service_id "\"$service_id\"" "$Jq" "$BscPmacsStorageInvoicesJsonFile"
 }
 
 
@@ -427,7 +452,7 @@ then
 fi
 	
 ProjectItemizedPmacsStorageJsonFile="${TmpDir}/ProjectItemizedStorage.json"
-sys itemizeProjectPmacsStorage "$NotBackedupIndexJsonFile" "$Date" "$PmacsProjectReportJsonFile" > "$ProjectItemizedPmacsStorageJsonFile"
+sys itemizeProjectPmacsStorage "$NotBackedupIndexJsonFile" "$PmacsProjectReportJsonFile" > "$ProjectItemizedPmacsStorageJsonFile"
 if [ "$?" -ne 0 ]
 then
 	echo "${CmdName}: itemizeProjectPmacsStorage failed" 1>&2
@@ -506,14 +531,15 @@ fi
 #
 
 iLabBscPmacsClusterChargesJsonFile="${TmpDir}/iLabBscPmacsClusterCharges.json"
-sys storageInvoiceToIlabCharges "$FwLibDir" "$Date" "$BscPmacsStorageInvoicesJsonFile" > "$iLabBscPmacsClusterChargesJsonFile"
+sys storageInvoiceToIlabCharges "$FwLibDir" "$PurchaseDate" "$BscPmacsStorageInvoicesJsonFile" > "$iLabBscPmacsClusterChargesJsonFile"
 if [ "$?" -ne 0 ]
 then
 	echo "${CmdName}: storageInvoiceToIlabCharges failed" 1>&2
 	exit
 fi
 
-sys convertJsonToCsv "$iLabBscPmacsClusterChargesJsonFile"
+iLabBscPmacsClusterChargesCsvFile="${TmpDir}/${Year}-${Month}-iLabBscPmacsClusterCharges.csv"
+sys convertJsonToCsv "$iLabBscPmacsClusterChargesJsonFile" > "$iLabBscPmacsClusterChargesCsvFile"
 if [ "$?" -ne 0 ]
 then
 	echo "${CmdName}: convertJsonToCsv failed" 1>&2
