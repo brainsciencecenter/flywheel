@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-d day][-m month][-n][-v][-y year] PmacsReports.csv"
+Syntax="${CmdName} [-d day][-m month][-n][-o outputfile][-v][-y year] PmacsReports.csv"
 #
 # calculatePmacsBilling -m 06 ~/Downloads/project*report*.txt
 #
@@ -14,17 +14,16 @@ ProjectRoot='/project'
 NotBackedupFileName='_This_Directory_Tree_Is_Not_Backed_Up_'
 BillingAllocationFileName='BillingAllocation.csv'
 
-while getopts 'd:m:nvy:' arg
+while getopts 'd:m:no:vy:' arg
 do
 	case "$arg" in 
-		d|m|n|v|y)
+		d|m|n|o|v|y)
 			eval "opt_${arg}='${OPTARG:=1}'"
 			;;
 	esac
 done
 
 shift $(( "$OPTIND" - 1 ))
-
 
 InputFiles=( "$@" )
 
@@ -41,9 +40,6 @@ TmpDir=/tmp/PmacsBilling
 
 FwDir=$(dirname $(dirname $(which "$0")))
 FwLibDir="${FwDir}/lib"
-
-# *** /project is the root of the project paths - one variable please
-
 
 
 function sys {
@@ -589,5 +585,15 @@ if [ "$?" -ne 0 ]
 then
 	echo "${CmdName}: Total Allocated Sums failed" 1>&2
 	exit
+fi
+
+if [ -n "$opt_o" ]
+then
+    if [ "$opt_o" == 'stdout' ]
+    then
+	cat "$iLabBscPmacsClusterChargesCsvFile"
+    else
+        cat "$iLabBscPmacsClusterChargesCsvFile" > "$opt_n"
+    fi
 fi
 
