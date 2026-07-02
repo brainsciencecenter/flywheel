@@ -34,6 +34,8 @@ CmdName = os.path.basename(sys.argv[0])
 #
 # -r analysis 'analysis.created > 2023-11-01'
 #
+# Print all the group_id/ProjectLabels
+#     fwsearch -r project | jq '.[]| [ .group._id, .project.label] | join("/")'
 
 
 ap = argparse.ArgumentParser()
@@ -50,7 +52,7 @@ ap.add_argument('-g', '--do_get', default=False,  action='store_true', help='run
 ap.add_argument('-R', '--recurse', default=False,  action='store_true', help='Recurse deeper into the structure')
 ap.add_argument('-m', '--max-to-return', default='10000',  action='store', help='Maximum number of entries to return')
 ap.add_argument('-v', '--verbose', default=False,  action='store_true', help='verbose')
-ap.add_argument('terms', nargs='+', type=str, default=None, help='Structured query terms to be anded together')
+ap.add_argument('terms', nargs='*', type=str, default=None, help='Structured query terms to be anded together')
 
 args = ap.parse_args()
 
