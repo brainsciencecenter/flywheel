@@ -3,6 +3,7 @@
 CmdName=$(basename "$0")
 CmdDir=$(dirname $(which "$CmdName"))
 FwDir=$(dirname "$CmdDir")
+FwLibDir="${FwDir}/lib"
 
 Jq='
   .label as $AcquisitionLabel
