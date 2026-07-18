@@ -43,6 +43,38 @@ def formatIlabNote: (
         + " = "
  );
 
+#
+# Returns true if the string ends in 'CLARiTI'.  Case is important.
+#
+def isClaritiSession(SessionLabel): (
+    SessionLabel | test("CLARiTI$")
+);
+
+def createdDate(Session): (
+    .CreatedDate | sub("T.*$"; "") 
+); 
+
+def hasAcquisition(AcquisitionLabel): (
+    [ .Acquisitions[].AcquisitionLabel ] | any(. | test(AcquisitionLabel))
+);
+
+def markForTagging(AcquisitionLabel;Tag): (
+      .Acquisitions[] | select(.AcquisitionLabel | test(AcquisitionLabel))
+    | [ .Files[].FileName ] as $FileNames
+    | [ .Files[] | select(.FileType == "dicom" or .FileType == "nifti") ]
+       | sort_by(.FileType)[-1] as $FileToTag
+           | $FileToTag
+           | ((.FileType == "nifti") | not) as $RunDcm2Niix
+           | {
+	           "FileIdToTag": .FileId
+		 , "FileType": .FileType
+		 , "Tag": Tag
+		 , "RunDcm2niix": $RunDcm2Niix
+		 , "FilePath": .FilePath
+		 , "FileNames": $FileNames
+	     }
+);
+
 def backedupTotalTerabytesUsed(TerabytesUsed): (
     (
 	TerabytesUsed
