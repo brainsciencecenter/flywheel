@@ -1,6 +1,8 @@
 #!/bin/bash
 
-FwLibDir=/home/holder/flywheel/lib
+CmdName=$(basename "$0")
+CmdDir=$(dirname $(which "$CmdName"))
+FwDir=$(dirname "$CmdDir")
 
 Jq='
   .label as $AcquisitionLabel
