@@ -87,8 +87,7 @@ TagDeterminationJq='
        .[]
       | "T1_3D_0.8x0.8x0.8$" as $T1_Label
       | "T1_3D_0.8x0.8x0.8_ND$" as $T1_Nd_Label
-      | "Accelerated Sagittal MPRAGE$" as $AcceleratedSagittalLabel
-      | "Accelerated Sagittal MPRAGE \\(MSV21\\)$" as $AcceleratedSagittalMsv21Label
+      | "Accelerated Sagittal MPRAGE.*$" as $AcceleratedSagittalLabel
       | "ABCD_T1w_MPR_vNav RMS" as $AbcdT1RmsLabel
       | ( [ .Acquisitions[].AcquisitionLabel ] | join(":") ) as $AcquisitionLabels
       | if (isClaritiSession(.SessionLabel))
@@ -129,9 +128,9 @@ TagDeterminationJq='
 	     then
                  markForTagging($T1_Label; $Tag)
              else
-                 if (hasAcquisition($AcceleratedSagittalMsv21Label))
+                 if (hasAcquisition($AcceleratedSagittalLabel))
 		 then
-                     markForTagging($AcceleratedSagittalMsv21Label; $Tag)
+                     markForTagging($AcceleratedSagittalLabel; $Tag)
                  else
                      debug("non-CLARiTI Session \(.SessionLabel) after cutoff missing Acquisitions \($AcquisitionLabels)") | empty
 		 end
