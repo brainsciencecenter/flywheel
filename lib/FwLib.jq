@@ -62,6 +62,7 @@ def markForTagging(AcquisitionLabel;NewTag): (
       .Acquisitions[] | select(.AcquisitionLabel | test(AcquisitionLabel))
     | [ .Files[].FileName ] as $FileNames
     | [ .Files[] | select(.FileType == "dicom" or .FileType == "nifti") ]
+       # if the last file is a dicom, there are no nifti files, so set the RunDcm2Niix flag
        | sort_by(.FileType)[-1] as $FileToTag
            | $FileToTag
            | ((.FileType == "nifti") | not) as $RunDcm2Niix
