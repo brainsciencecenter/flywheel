@@ -58,7 +58,7 @@ def hasAcquisition(AcquisitionLabel): (
     [ .Acquisitions[].AcquisitionLabel ] | any(. | test(AcquisitionLabel))
 );
 
-def markForTagging(AcquisitionLabel;Tag): (
+def markForTagging(AcquisitionLabel;NewTag): (
       .Acquisitions[] | select(.AcquisitionLabel | test(AcquisitionLabel))
     | [ .Files[].FileName ] as $FileNames
     | [ .Files[] | select(.FileType == "dicom" or .FileType == "nifti") ]
@@ -68,9 +68,10 @@ def markForTagging(AcquisitionLabel;Tag): (
            | {
 	           "FileIdToTag": .FileId
 		 , "FileType": .FileType
-		 , "Tag": Tag
+		 , "NewTag": NewTag
 		 , "RunDcm2niix": $RunDcm2Niix
 		 , "FilePath": .FilePath
+		 , "FileTags": .FileTags
 		 , "FileNames": $FileNames
 	     }
 );

@@ -1,9 +1,71 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
+Syntax="${CmdName} {-i Id2LabeleJsonFile}[-r][-t] {CachedJsonFile}"
+
+#
+# -d debug 
+# -i Id2LabelJsonFile
+# -r generate report
+# -t do the actual tagging
+#
+# cd Fw2InddCache
+# tagNaccScPreferredT1sV2 -rtu dwolklab-NACC-SC-CachedFwAcquisitions.json
+#
+
 CmdDir=$(dirname $(which "$CmdName"))
 FwDir=$(dirname "$CmdDir")
 FwLibDir="${FwDir}/lib"
+
+TagCutOffDate='2025-07-09'
+Debug=false
+
+TmpDir="${TMPDIR:=/tmp}"
+[ -e "$TmpDir" ] || mkdir -p "$TmpDir"
+
+
+while getopts 'i:rt' arg
+do
+    case "$arg" in
+	i|r|t)
+	    eval "opt_${arg}='${OPTARG:=1}'"
+	    ;;
+    esac
+done
+
+shift $(( "$OPTIND" - 1 )) 
+
+GroupProjectCachedJsonFile="$1"
+if [ -z "$GroupProjectCachedJsonFile" ]
+then
+    echo "${CmdName} : Missing CachedJsonFile" 1>&2
+    echo "$Syntax" 1>&2
+    exit 1
+fi
+
+if [ ! -e "$GroupProjectCachedJsonFile" ]
+then
+    echo "${CmdName} : Can not open '${GroupProjectCachedJsonFile}'" 1>&2
+    echo "$Syntax" 1>&2
+    exit 2
+fi
+
+Id2LabelJsonFile="$opt_i"
+if [ -z "$Id2LabelJsonFile" ]
+then
+    echo "${CmdName} : Missing Id2LabelJsonFile" 1>&2
+    echo "$Syntax" 1>&2
+    exit 3
+fi
+
+if [ ! -e "$Id2LabelJsonFile" ]
+then
+    echo "${CmdName} : Can not open '${Id2LabelJsonFile}'" 1>&2
+    echo "$Syntax" 1>&2
+    exit 4
+fi
+
+[ -n "$opt_d" ] && Debug=true
 
 Jq='
   .label as $AcquisitionLabel
@@ -18,8 +80,15 @@ Jq='
     | .file_id as $FileId
     | .name as $FileName
     | .type as $FileType
+    | ( .tags | sort | join(":") ) as $FileTags
     | .modality as $FileModality
     | .classification.Measurement[0] as $ClassificationMeasurement
+    | if ($Debug)
+      then
+          debug("Tags: " + (.tags | join(":")) )
+      else
+          .
+      end
     | ([ $GroupLabel, $ProjectLabel, $SubjectLabel, $SessionLabel, $AcquisitionLabel, $FileName ] | join("/") )as $FilePath
     | {
            "SessionId": $SessionId
@@ -32,16 +101,14 @@ Jq='
  	 , "FileType": $FileType
  	 , "FileModality": $FileModality
  	 , "ClassificationMeasurement": $ClassificationMeasurement
- 	 , "FilePath": $FilePath
+         , "FileTags": $FileTags
+	 , "FilePath": $FilePath
        }
 
 '
-Id2LabelJsonFile='dwolklab/NACC-SC/Id2Labels.json'
-AcquisitionSequenceJsonFile='/tmp/AcquisitionsSequence.json'
-if [ -n "$Force" ] || [ ! -e "$AcquisitionSequenceJsonFile" ] || [ ! -s "$AcquisitionSequenceJsonFile" ]
-then
-	jq -r --slurpfile 'Id2Label' "$Id2LabelJsonFile" "$Jq" "$1" > "$AcquisitionSequenceJsonFile"
-fi
+
+AcquisitionSequenceJsonFile="${TmpDir}/AcquisitionsSequence.json"
+jq --argjson Debug "$Debug" --slurpfile 'Id2Label' "$Id2LabelJsonFile" "$Jq" "$GroupProjectCachedJsonFile" > "$AcquisitionSequenceJsonFile"
 
 GroupBySessionJq='
     sort_by(.SessionId)
@@ -63,24 +130,22 @@ GroupBySessionJq='
               FileType,
               FileModality,
               ClassificationMeasurement,
+	      FileTags,
               FilePath
             })
           })
       )})
 '
 
-SessionAcquisitionJsonFile='/tmp/SessionAcquisition.json'
-if [ -n "$Force" ] || [ ! -e "$SessionAcquisitionJsonFile" ] || [ ! -s "$SessionAcquisitionJsonFile" ]
-then
-    jq -r -s "$GroupBySessionJq" "$AcquisitionSequenceJsonFile" > "$SessionAcquisitionJsonFile"
-fi
+SessionAcquisitionJsonFile="${TmpDir}/SessionAcquisition.json"
+jq -r -s "$GroupBySessionJq" "$AcquisitionSequenceJsonFile" > "$SessionAcquisitionJsonFile"
 
 #
-# *** What about
 # Accelerated Sagittal MPRAGE_1
 # Accelerated Sagittal MPRAGE_18_18
 # Accelerated Sagittal MPRAGE_2_2
-
+# are also counted
+#
 TagDeterminationJq='
       include "FwLib";
 
@@ -92,9 +157,9 @@ TagDeterminationJq='
       | ( [ .Acquisitions[].AcquisitionLabel ] | join(":") ) as $AcquisitionLabels
       | if (isClaritiSession(.SessionLabel))
       then
-         if (createdDate(.) >= "2025-07-09") 
+         if (createdDate(.) >= "'"$TagCutOffDate"'") 
 	 then
-             "PreferredT1-2025-07-09" as $Tag
+             "PreferredT1-'"$TagCutOffDate"'" as $Tag
 |             if (hasAcquisition($AbcdT1RmsLabel)) 
 	     then
                  markForTagging($AbcdT1RmsLabel; $Tag) 
@@ -103,7 +168,12 @@ TagDeterminationJq='
 		 then
                      markForTagging($AcceleratedSagittalLabel; $Tag)
                  else 
-                     debug("CLARiTI Session \(.SessionLabel) after cutoff missing Acquisitions \($AcquisitionLabels)") | empty
+                     if ($Debug)
+                     then
+                         debug("CLARiTI Session \(.SessionLabel) after cutoff missing Acquisitions \($AcquisitionLabels)")
+                     else
+                          empty
+                     end
                  end
 	     end
          else
@@ -116,14 +186,19 @@ TagDeterminationJq='
 		 then
                      markForTagging($AcceleratedSagittalLabel; $Tag)
 		 else
-                     debug("CLARiTI Session \(.SessionLabel) before cutoff missing Acquisitions \($AcquisitionLabels)") | empty
+                     if ($Debug)
+                     then
+                         debug("CLARiTI Session \(.SessionLabel) before cutoff missing Acquisitions \($AcquisitionLabels)")
+                     else
+                         empty
+                     end
                  end
 	     end
          end
      else
-        if (createdDate(.) >= "2025-07-09")
+        if (createdDate(.) >= "'"$TagCutOffDate"'")
         then
-             "PreferredT1-2025-07-09" as $Tag
+             "PreferredT1-'"$TagCutOffDate"'" as $Tag
 |             if (hasAcquisition($T1_Label))
 	     then
                  markForTagging($T1_Label; $Tag)
@@ -132,7 +207,12 @@ TagDeterminationJq='
 		 then
                      markForTagging($AcceleratedSagittalLabel; $Tag)
                  else
-                     debug("non-CLARiTI Session \(.SessionLabel) after cutoff missing Acquisitions \($AcquisitionLabels)") | empty
+                     if ($Debug)
+                     then
+                         debug("non-CLARiTI Session \(.SessionLabel) after cutoff missing Acquisitions \($AcquisitionLabels)")
+                     else
+                         empty
+                     end
 		 end
 	     end
          else
@@ -145,12 +225,72 @@ TagDeterminationJq='
 		 then
                      markForTagging($AcceleratedSagittalLabel; $Tag)
                  else
-                     debug("non-CLARiTI Session \(.SessionLabel) before cutoff missing Acquisitions \($AcquisitionLabels)") | empty
+                     if ($Debug)
+                     then
+                         debug("non-CLARiTI Session \(.SessionLabel) before cutoff missing Acquisitions \($AcquisitionLabels)")
+                     else
+                         empty
+                     end
                  end
              end
          end
      end
 '
 
+FileTaggedStatusJsonFile="${TmpDir}/FileTaggedStatus.json"
+jq -L "$FwLibDir" --argjson Debug "$Debug" "$TagDeterminationJq" "$SessionAcquisitionJsonFile" > "$FileTaggedStatusJsonFile"
 
-jq -r -L "$FwLibDir" "$TagDeterminationJq" "$SessionAcquisitionJsonFile"
+FilesToTagJsonFile="${TmpDir}/FilesToTagJsonFile.json"
+jq '.NewTag as $NewTag | select(.FileTags | split(":") | (any($NewTag) | not))' "$FileTaggedStatusJsonFile" > "$FilesToTagJsonFile"
+
+GroupByTagJq='
+    group_by(.NewTag)
+    | map({
+        NewTag: .[0].NewTag,
+        FilesToTag: map({
+          FileIdToTag,
+          FilePath
+        })
+      })
+      | .[]
+'
+GroupedFilesToTagJsonFile="${TmpDir}/GroupedFilesToTag.json"
+jq -s "$GroupByTagJq" "$FilesToTagJsonFile" > "$GroupedFilesToTagJsonFile"
+
+if [ -n "$opt_t" ]
+then
+    while read Tag
+    do
+	FileIdsToTag=$(jq -r --argjson Tag '"'"$Tag"'"' 'select(.NewTag == $Tag) | .FilesToTag[].FileIdToTag' "$GroupedFilesToTagJsonFile")
+	[ -n "$FileIdsToTag" ] && echo fwTag -up -t "$Tag" $FileIdsToTag
+    done < <(jq -r '.NewTag' "$GroupedFilesToTagJsonFile")
+fi
+
+Now=$(date '+%Y-%m-%dT%H:%M:%d%z')
+TotalFilesToTag=$(jq '.FilesToTag[].FileIdToTag' "$GroupedFilesToTagJsonFile"  | wc -l)
+
+if [ -n "$opt_r" ]
+then
+    if [ "$TotalFilesToTag" -gt 0 ]
+    then
+	echo "NACC-SC Preferred T1 Tag Report: ${TotalFilesToTag} files to tag ${Now}"
+	echo
+	while read Tag
+	do
+	    FilePathsToTag=$(jq -r --argjson Tag '"'"$Tag"'"' 'select(.NewTag == $Tag) | .FilesToTag[].FilePath' "$GroupedFilesToTagJsonFile")
+    
+	    if [ -n "$FilePathsToTag" ]
+	    then
+		NumFilesForTag=$(echo "$FilePathsToTag" | wc -l)
+		echo "${Tag} (${NumFilesForTag})"
+		echo "$FilePathsToTag" | sed 's/^/	/'
+		echo
+	    fi
+	done < <(jq -r '.NewTag' "$GroupedFilesToTagJsonFile")
+    else
+	echo "No files to tag ${Now}"
+    fi
+fi
+
+
+
