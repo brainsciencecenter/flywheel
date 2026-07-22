@@ -262,7 +262,7 @@ then
     while read Tag
     do
 	FileIdsToTag=$(jq -r --argjson Tag '"'"$Tag"'"' 'select(.NewTag == $Tag) | .FilesToTag[].FileIdToTag' "$GroupedFilesToTagJsonFile")
-	[ -n "$FileIdsToTag" ] && echo fwTag -up -t "$Tag" $FileIdsToTag
+	[ -n "$FileIdsToTag" ] && fwTag -up -t "$Tag" $FileIdsToTag
     done < <(jq -r '.NewTag' "$GroupedFilesToTagJsonFile")
 fi
 
