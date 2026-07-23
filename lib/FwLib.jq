@@ -70,7 +70,7 @@ def markForTagging(AcquisitionLabel;NewTag): (
 	           "FileIdToTag": .FileId
 		 , "FileType": .FileType
 		 , "NewTag": NewTag
-		 , "RunDcm2niix": $RunDcm2Niix
+		 , "RunDcm2Niix": $RunDcm2Niix
 		 , "FilePath": .FilePath
 		 , "FileTags": .FileTags
 		 , "FileNames": $FileNames

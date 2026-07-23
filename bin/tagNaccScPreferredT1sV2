@@ -1,10 +1,11 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} {-i Id2LabeleJsonFile}[-r][-t] {CachedJsonFile}"
+Syntax="${CmdName} [-D][-d]{-i Id2LabeleJsonFile}[-r][-t] {CachedJsonFile}"
 
 #
-# -d debug 
+# -D debug
+# -d run dcm2niix when needed
 # -i Id2LabelJsonFile
 # -r generate report
 # -t do the actual tagging
@@ -24,10 +25,10 @@ TmpDir="${TMPDIR:=/tmp}"
 [ -e "$TmpDir" ] || mkdir -p "$TmpDir"
 
 
-while getopts 'i:rt' arg
+while getopts 'Ddi:rt' arg
 do
     case "$arg" in
-	i|r|t)
+	D|d|i|r|t)
 	    eval "opt_${arg}='${OPTARG:=1}'"
 	    ;;
     esac
@@ -65,7 +66,7 @@ then
     exit 4
 fi
 
-[ -n "$opt_d" ] && Debug=true
+[ -n "$opt_D" ] && Debug=true
 
 Jq='
   .label as $AcquisitionLabel
@@ -240,8 +241,20 @@ TagDeterminationJq='
 FileTaggedStatusJsonFile="${TmpDir}/FileTaggedStatus.json"
 jq -L "$FwLibDir" --argjson Debug "$Debug" "$TagDeterminationJq" "$SessionAcquisitionJsonFile" > "$FileTaggedStatusJsonFile"
 
+if [ -n "$opt_d" ]
+then
+    for FileId in $(jq -r 'select(.RunDcm2Niix) | .FileIdToTag' "$FileTaggedStatusJsonFile")
+    do
+	fwRunGear -w -g dcm2niix -i dcm2niix_input "$FileId"
+    done
+fi
+
+#
+# Filter out dicom files which need to be converted to nifti.  We'll
+# tag these the next time this program is run
+#
 FilesToTagJsonFile="${TmpDir}/FilesToTagJsonFile.json"
-jq '.NewTag as $NewTag | select(.FileTags | split(":") | (any($NewTag) | not))' "$FileTaggedStatusJsonFile" > "$FilesToTagJsonFile"
+jq '.NewTag as $NewTag | select((.RunDcm2Niix == false) and (.FileTags | split(":") | (any($NewTag) | not)))' "$FileTaggedStatusJsonFile" > "$FilesToTagJsonFile"
 
 GroupByTagJq='
     group_by(.NewTag)
@@ -266,29 +279,46 @@ then
     done < <(jq -r '.NewTag' "$GroupedFilesToTagJsonFile")
 fi
 
-Now=$(date '+%Y-%m-%dT%H:%M:%d%z')
-TotalFilesToTag=$(jq '.FilesToTag[].FileIdToTag' "$GroupedFilesToTagJsonFile"  | wc -l)
-
 if [ -n "$opt_r" ]
 then
+    Now=$(date '+%Y-%m-%dT%H:%M:%d%z')
+    echo "NACC-SC Preferred T1 Tag Report ${Now}"
+    echo ""	
+
+    TotalFilesToConvert=$(jq -r 'select(.RunDcm2Niix) | .FileIdToTag' "$FileTaggedStatusJsonFile" | wc -l)
+    echo "${TotalFilesToConvert} file(s) to run dcm2niix on"
+
+    if [ "$TotalFilesToConvert" -gt 0 ]
+    then
+	while read FilePathToConvert
+	do
+		echo "$FilePathToConvert" | sed 's/^/	/'
+	done < <(jq -r 'select(.RunDcm2Niix) | .FilePath' "$FileTaggedStatusJsonFile")
+    fi
+    echo
+
+    TotalFilesToTag=$(jq '.FilesToTag[].FileIdToTag' "$GroupedFilesToTagJsonFile" | wc -l)
     if [ "$TotalFilesToTag" -gt 0 ]
     then
-	echo "NACC-SC Preferred T1 Tag Report: ${TotalFilesToTag} files to tag ${Now}"
+	echo "${TotalFilesToTag} files to tag"
 	echo
 	while read Tag
 	do
-	    FilePathsToTag=$(jq -r --argjson Tag '"'"$Tag"'"' 'select(.NewTag == $Tag) | .FilesToTag[].FilePath' "$GroupedFilesToTagJsonFile")
-    
-	    if [ -n "$FilePathsToTag" ]
+	    NumFilesForTag=$(jq -r --argjson Tag "\"${Tag}\"" 'select(.NewTag == $Tag) | .FilesToTag[].FileIdToTag' "$GroupedFilesToTagJsonFile" | wc -l)
+	    echo "${Tag} (${NumFilesForTag})"
+
+	    if [ "$NumFilesForTag" -gt 0 ]
 	    then
-		NumFilesForTag=$(echo "$FilePathsToTag" | wc -l)
-		echo "${Tag} (${NumFilesForTag})"
-		echo "$FilePathsToTag" | sed 's/^/	/'
-		echo
-	    fi
+	        while read FilePath
+	        do
+		    echo "$FilePath" | sed 's/^/	/'
+    	        done < <(jq -r --argjson Tag "\"${Tag}\"" 'select(.NewTag == $Tag) | .FilesToTag[].FilePath' "$GroupedFilesToTagJsonFile")
+            fi
+	    echo	        
+
 	done < <(jq -r '.NewTag' "$GroupedFilesToTagJsonFile")
     else
-	echo "No files to tag ${Now}"
+	echo "No files to tag"
     fi
 fi
 
