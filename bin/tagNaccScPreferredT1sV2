@@ -1,7 +1,12 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-D][-d]{-i Id2LabeleJsonFile}[-r][-t] {CachedJsonFile}"
+Syntax="${CmdName} [-D][-d]{-i Id2LabeleJsonFile}[-n][-r][-t][-v] {CachedJsonFile}"
+
+function sys {
+	 [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+	 [ -n "$opt_z" ] || "$@"
+}
 
 #
 # -D debug
@@ -25,10 +30,10 @@ TmpDir="${TMPDIR:=/tmp}"
 [ -e "$TmpDir" ] || mkdir -p "$TmpDir"
 
 
-while getopts 'Ddi:rt' arg
+while getopts 'Ddi:nrtv' arg
 do
     case "$arg" in
-	D|d|i|r|t)
+	D|d|i|n|r|t|v)
 	    eval "opt_${arg}='${OPTARG:=1}'"
 	    ;;
     esac
@@ -245,7 +250,7 @@ if [ -n "$opt_d" ]
 then
     for FileId in $(jq -r 'select(.RunDcm2Niix) | .FileIdToTag' "$FileTaggedStatusJsonFile")
     do
-	fwRunGear -w -g dcm2niix -i dcm2niix_input "$FileId"
+	sys fwRunGear -w -g dcm2niix -i dcm2niix_input "$FileId"
     done
 fi
 
@@ -275,7 +280,7 @@ then
     while read Tag
     do
 	FileIdsToTag=$(jq -r --argjson Tag '"'"$Tag"'"' 'select(.NewTag == $Tag) | .FilesToTag[].FileIdToTag' "$GroupedFilesToTagJsonFile")
-	[ -n "$FileIdsToTag" ] && fwTag -up -t "$Tag" $FileIdsToTag
+	[ -n "$FileIdsToTag" ] && sys fwTag -up -t "$Tag" $FileIdsToTag
     done < <(jq -r '.NewTag' "$GroupedFilesToTagJsonFile")
 fi
 
