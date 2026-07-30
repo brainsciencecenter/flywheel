@@ -1,0 +1,15 @@
+name: flywheel-utils
+channels:
+ - defaults
+dependencies:
+ - python=3.10
+ - pip
+ - pip:
+    - flywheel-gear-toolkit
+    - flywheel-sdk
+    - globre
+    - numpy
+    - pandas
+    - pytz
+    - requests
+    - tzlocal
