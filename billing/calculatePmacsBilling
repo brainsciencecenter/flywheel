@@ -3,7 +3,7 @@
 CmdName=$(basename "$0")
 Syntax="${CmdName} [-d day][-m month][-n][-o outputfile][-v][-y year] PmacsReports.csv"
 #
-# calculatePmacsBilling -m 06 ~/Downloads/project*report*.txt
+# calculatePmacsBilling -o stdout -m 06 ~/Downloads/project*report*.txt
 #
 PurchaseDate="${Year}${Month}${Day}"
 MinimumCharge='0.01'
@@ -589,11 +589,13 @@ fi
 
 if [ -n "$opt_o" ]
 then
-    if [ "$opt_o" == 'stdout' ]
+    if [ "$opt_o" == '-' ]
     then
 	cat "$iLabBscPmacsClusterChargesCsvFile"
     else
-        cat "$iLabBscPmacsClusterChargesCsvFile" > "$opt_n"
+        cat "$iLabBscPmacsClusterChargesCsvFile" > "$opt_o"
     fi
+else
+    cat "$iLabBscPmacsClusterChargesCsvFile"
 fi
 
