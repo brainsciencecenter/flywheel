@@ -81,21 +81,22 @@ def getContainer(args=None, id=None):
             try:
                 Container = fw.get(id)
             except(flywheel.rest.ApiException) as e:
-                if (re.search('[a-z0-9]{24}',id)):
+                if (re.search('^[a-z0-9]{24}$',id)):
                     return(None)
 
                 m = re.search("^Collections/.*$", id)
                 # *** need better error handling here
-                if (m):
-                        CollectionName = re.sub('^.*/','', id)
 
-                        AllCollections = fw.get_all_collections()
-                        AllCollectionsDict = fwgearutils.sloppyCopy(AllCollections,UTC=(not args.localtime), Verbose=args.debug)
-                        SelectedCollectionArray = pyjq.all('.[]|select(.label == \"{}\") | ._id'.format(CollectionName), AllCollectionsDict)
-                        CollectionId = SelectedCollectionArray[0]
-                        Container = fw.get_collection(CollectionId)
+                if (m):
+                    CollectionName = re.sub('^.*/','', id)
+
+                    AllCollections = fw.get_all_collections()
+                    AllCollectionsDict = fwgearutils.sloppyCopy(AllCollections,UTC=(not args.localtime), Verbose=args.debug)
+                    SelectedCollectionArray = pyjq.all('.[]|select(.label == \"{}\") | ._id'.format(CollectionName), AllCollectionsDict)
+                    CollectionId = SelectedCollectionArray[0]
+                    Container = fw.get_collection(CollectionId)
                 else:
-                        Container = fw.lookup(id)
+                    Container = fw.lookup(id)
 
     except (OSError, Exception) as e:
         try:
