@@ -36,6 +36,8 @@ def runGear(gear, inputs=None, dest=None, config={}, tags=None):
         fwRunGear -w -g 'aloha' -c '{"MachineSize": "supersize", "Stages": "VerifyAlohaInputs,RunAloha"}' -i input-file 6740a5908c6dfc43b3cbb871
         fwRunGear -d -g bids-fmriprep -i 'freesurfer_license_file' 'cnds/DECODE/files/license.txt' -c '{"ignore": "slicetiming", "output_spaces": "MNI152NLin6Asym", "skip-bids-validation": true, "use-aroma": true}' -D cnds/DECODE/M87147738 
         fwRunGear -v  -g xcpengine-fw -i fmriprepdir  '63f586e3fdaef23d6ee817d7'  -i designfile 63c07a6c93e165574b08071e -c '{  "analysis_type": "fc",  "session": "01",  "space": "MNI152NLin2009cAsym",  "task_name": "" }' # The first input tells fwRunGear which session to look for input and where to store the output.
+        fwRunGear -vw -g deid-inplace -i input-file 673f710cf9c4354ea8fc331f  -i deid-profile 6a74af2814cd9f824e5b1dac  -D 673f70f2d040ca62ad10e6d1
+
         
    """
 
