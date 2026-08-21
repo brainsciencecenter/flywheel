@@ -45,7 +45,7 @@ function findReportFile {
     then
 	
 	ReportDate=$(dos2unix < "$FileName" | head -n 1 | awk '{print $NF}' )
-	if ( [[ "$ReportDate" -eq "$Date" ]] || [[ "$ReportDate" > "$Date" ]] || [ "$ReportDate" = "$Date" ] ) && ( [[ "$ReportDate" < "$NextYearMonth" ]] || [[ "$ReportDate" -eq "$NextYearMonth" ]] )
+	if ( [ "$ReportDate" '=' "$Date" ] || [ "$ReportDate" '>' "$Date" ] || [ "$ReportDate" '=' "$Date" ] ) && ( [ "$ReportDate" '<' "$NextYearMonth" ] || [ "$ReportDate" '=' "$NextYearMonth" ] )
 	then
 	    echo "$FileName"
 	    return
