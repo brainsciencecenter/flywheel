@@ -17,6 +17,7 @@ if __name__ == '__main__':
     import argparse
 
     CmdName = os.path.basename(sys.argv[0])
+    BogusTag = 'BogusTag'
 
     ParentOrder = [ 'acquisition', 'session', 'subject', 'project' ]
     
@@ -80,9 +81,14 @@ if __name__ == '__main__':
 
         UpdateParent = False
 
-        if (TagOp == '+' and NewTags):
-            for Tag in NewTags:
-                Container.add_tag(Tag)
+        if (TagOp == '+'):
+            if (NewTags):
+                for Tag in NewTags:
+                    Container.add_tag(Tag)
+            else:
+                print(type(Container), file=sys.stderr)
+                Container.add_tag(BogusTag)
+                Container.delete_tag(BogusTag)
             UpdateParent = True
 
         elif (TagOp == '-'):
