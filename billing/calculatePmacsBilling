@@ -312,7 +312,7 @@ function allocatePmacsStorageCosts {
 	     | ( backedupTotalTerabytesUsed( .TerabytesUsed ) ) as $BackedupTotalTerabytesUsed
 	     | ( nonBackedupTotalTerabytesUsed( .TerabytesUsed ) ) as $NonBackedupTotalTerabytesUsed
 	     | ( $BackedupTotalTerabytesUsed + $NonBackedupTotalTerabytesUsed) as $TotalTerabytesUsed
-	     | if (($TotalTerabytesUsed > 0) and (. | has("AllocationInfo"))) then
+	     | if ((.AllocationInfo[0].iLabServiceRequestId != $InternalBenString) and (.AllocationInfo[0].BenNumber != $InternalBenString) and ($TotalTerabytesUsed > 0) and (. | has("AllocationInfo"))) then
                    .AllocationInfo[]
 	         | (
 	               if ($BackedupTotalTerabytesUsed > 0.0) then
