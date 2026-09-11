@@ -59,8 +59,8 @@ else:
     ViewId = fw.View(columns=args.fields, container=args.container_type, sort=False, include_ids=False, include_labels=False)
 
 ProjectIds = args.project_id.split(',')
-ProjectIdCount = len(ProjectIds)
 N = 0
+ProjectIdCount = len(ProjectIds)
 for ProjectId in ProjectIds:
     try:
         fw.get(ProjectId)
