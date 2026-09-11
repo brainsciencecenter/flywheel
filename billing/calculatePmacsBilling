@@ -11,6 +11,7 @@ BscPmacsStorageOverheadPercent='1.50'
 PmacsBackedupPricePerTeraBytePerYear='360.0'
 PmacsNonBackedupPricePerTeraBytePerYear='120.0'
 ProjectRoot='/project'
+InternalBenString='InternalBenNumber'
 NotBackedupFileName='_This_Directory_Tree_Is_Not_Backed_Up_'
 BillingAllocationFileName='BillingAllocation.csv'
 
@@ -345,6 +346,7 @@ function allocatePmacsStorageCosts {
     '
 
     jq -L "$FwLibDir"											\
+       --argjson InternalBenString "\"$InternalBenString\""						\
        --argjson BscPmacsStorageOverheadPercent "$BscPmacsStorageOverheadPercent"			\
        --argjson PmacsBackedupPricePerTeraBytePerYear "$PmacsBackedupPricePerTeraBytePerYear"		\
        --argjson PmacsNonBackedupPricePerTeraBytePerYear "$PmacsNonBackedupPricePerTeraBytePerYear"	\
