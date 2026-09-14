@@ -34,27 +34,19 @@ Project=$(echo "$1" | cut -f 2 -d /)
 
 if [ -n "$opt_f" ] || [ ! -e "$ViewLabelsJsonFile" ]
 then
-    sys fwview -F json -c acquisition -p "${Group}/${Project}"  project.label project.id subject.label subject.id session.label session.id acquisition.label acquisition.id | jq . > "$ViewLabelsJsonFile"
+    sys fwview -F json -c acquisition -p "${Group}/${Project}" project.group.label project.group._id project.label project.id subject.label subject.id session.label session.id acquisition.label acquisition.id | jq . > "$ViewLabelsJsonFile"
 fi
 
 Jq='
      [
-       .data.[]
-          | .["project.label"] as $ProjectLabel
-          | .["project.id"] as $ProjectId
-          | .["subject.label"] as $SubjectLabel
-          | .["subject.id"] as $SubjectId
-          | .["session.label"] as $SessionLabel
-          | .["session.id"] as $SessionId
-          | .["acquisition.label"] as $AcquisitionLabel
-          | .["acquisition.id"] as $AcquisitionId
-          | {
-                 $ProjectId: $ProjectLabel
-               , $SubjectId: $SubjectLabel
-               , $SessionId: $SessionLabel
-               , $AcquisitionId: $AcquisitionLabel
-            }
-      ] | add
-'
-
-sys jq -r "$Jq" "$ViewLabelsJsonFile"
+       .data.[] as $x
+           | {
+                   ($x["project.group._id"]): $x["project.group.label"]
+		 , ($x["project.id"]): $x["project.label"]
+		 , ($x["subject.id"]): $x["subject.label"]
+		 , ($x["session.id"]): $x["session.label"]
+		 , ($x["acquisition.id"]): $x["acquisition.label"] 
+	     }
+     ] | add
+' 
+sys jq "$Jq" "$ViewLabelsJsonFile"
