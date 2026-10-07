@@ -57,24 +57,25 @@ function calculatePmacsReportTotals {
             BEGIN {
                 Gpfs = 0;
                 BscFiles1 = 0;
-		    	        BscFiles2 = 0;
+		BscFiles2 = 0;
     	        Bscfiles3 = 0;
     	        Count = 0
             } ;
 
             {
-                if ($2 == "GPFS") {
-    	           Gpfs = Gpfs + ($1 / 1024)
-    	        };
-    	        if ($2 == "bscfiles1") {
-    	           BscFiles1 = BscFiles1 + ($1 / 1024)
-    	        } ;
-    	        if ($2 == "bscfiles2") {
-       	           BscFiles2 = BscFiles2 + ($1 / 1024)
-    	        } ;
-    	        if ($2 == "bscfiles3") {
-    	           BscFiles3 = BscFiles3 + ($1 / 1024)
-    	        } ;
+#                if ($2 == "GPFS") {
+#    	           Gpfs = Gpfs + ($1 / 1024)
+#    	        };
+#    	        if ($2 == "bscfiles1") {
+#    	           BscFiles1 = BscFiles1 + ($1 / 1024)
+#    	        } ;
+#    	        if ($2 == "bscfiles2") {
+#       	           BscFiles2 = BscFiles2 + ($1 / 1024)
+#    	        } ;
+#    	        if ($2 == "bscfiles3") {
+#    	           BscFiles3 = BscFiles3 + ($1 / 1024)
+#    	        } ;
+                Gpfs = Gpfs + ($1 / 1024)
 
                 Count = Count + 1
             } ;
@@ -85,19 +86,22 @@ function calculatePmacsReportTotals {
             }
     '
 
+    sys cleanupPmacsCsvReports "${InputFiles[@]}" | csvcut -c "SIZE GB,PATH TO" | awk -F , "$AwkScript"
+}
+
+function cleanupPmacsCsvReports {
+    local InputFiles=( "$@" )
+
     (
-          grep '^# NAME' "${InputFiles[0]}" | dos2unix;
-          grep -h -v '^#' "${InputFiles[@]}" | grep -v '^$' | dos2unix;
-    ) | csvcut -t -c "Size in gb",SERVER | tail -n +2 | awk -F , "$AwkScript"
+        grep '^# NAME' "${InputFiles[0]}" ;
+        grep -h -v '^#' "${InputFiles[@]}" | grep -v '^Report' | sort
+    ) | dos2unix | grep -v '^$' | csvcut -t -c "# NAME,SIZE GB,PATH TO"
 }
 
 function convertPmacsCsvReportsToJson {
     local InputFiles=( "$@" )
 
-    (
-        grep '^# NAME' "${InputFiles[0]}" | dos2unix;
-        grep -h -v '^#' "${InputFiles[@]}" | grep -v '^$' | dos2unix
-    ) | csvcut -t -c "# NAME","Size in gb","SERVER" | csvjson | jq . 
+    cleanupPmacsCsvReports "${InputFiles[@]}" | csvjson | jq . 
 }
 
 #
@@ -125,18 +129,19 @@ function itemizeProjectPmacsStorage {
        | ($ProjectRoot + "/" + .["# NAME"]) as $ProjectPath
        | ($NotBackedupIndex[] | has($ProjectPath) | not) as $Backedup
        | ( if ($Backedup) then "Backedup" else "NotBackedup" end) as $Prefix 
+       | ( "GPFS" ) as $Server
        | {
            ($ProjectPath): {
                "TerabytesUsed": {
-                     "BackedupGPFS": (if (.SERVER == "GPFS" and $Backedup) then (.["Size in gb"] / 1024) else 0 end )
-	           , "Backedupbscfiles1": (if (.SERVER == "bscfiles1" and $Backedup) then (.["Size in gb"] / 1024) else 0 end )
-    	           , "Backedupbscfiles2": (if (.SERVER == "bscfiles2" and $Backedup) then (.["Size in gb"] / 1024) else 0 end )
-    	           , "Backedupbscfiles3": (if (.SERVER == "bscfiles3" and $Backedup) then (.["Size in gb"] / 1024) else 0 end )
+                     "BackedupGPFS": (if ($Server == "GPFS" and $Backedup) then (.["SIZE GB"] / 1024) else 0 end )
+	           , "Backedupbscfiles1": (if ($Server == "bscfiles1" and $Backedup) then (.["SIZE GB"] / 1024) else 0 end )
+    	           , "Backedupbscfiles2": (if ($Server == "bscfiles2" and $Backedup) then (.["SIZE GB"] / 1024) else 0 end )
+    	           , "Backedupbscfiles3": (if ($Server == "bscfiles3" and $Backedup) then (.["SIZE GB"] / 1024) else 0 end )
 
-	           , "NotBackedupGPFS": (if (.SERVER == "GPFS" and ($Backedup == false)) then (.["Size in gb"] / 1024) else 0 end )
-	           , "NotBackedupbscfiles1": (if (.SERVER == "bscfiles1" and ($Backedup == false)) then (.["Size in gb"] / 1024) else 0 end )
-    	           , "NotBackedupbscfiles2": (if (.SERVER == "bscfiles2" and ($Backedup == false)) then (.["Size in gb"] / 1024) else 0 end )
-    	           , "NotBackedupbscfiles3": (if (.SERVER == "bscfiles3" and ($Backedup == false)) then (.["Size in gb"] / 1024) else 0 end )
+	           , "NotBackedupGPFS": (if ($Server == "GPFS" and ($Backedup == false)) then (.["SIZE GB"] / 1024) else 0 end )
+	           , "NotBackedupbscfiles1": (if ($Server == "bscfiles1" and ($Backedup == false)) then (.["SIZE GB"] / 1024) else 0 end )
+    	           , "NotBackedupbscfiles2": (if ($Server == "bscfiles2" and ($Backedup == false)) then (.["SIZE GB"] / 1024) else 0 end )
+    	           , "NotBackedupbscfiles3": (if ($Server == "bscfiles3" and ($Backedup == false)) then (.["SIZE GB"] / 1024) else 0 end )
                 }
 	    }
          }
@@ -195,7 +200,7 @@ function createProjectBillingAllocationJson {
 
     while read ProjectPath
     do
-	# [ -n "$opt_v" ] && echo "$ProjectPath" 1>&2
+	[ -n "$opt_v" ] && echo "$ProjectPath" 1>&2
 	
 	BillingAllocationFile="${ProjectPath}/${BillingAllocationFileName}"
 	if [ ! -e "$BillingAllocationFile" ]

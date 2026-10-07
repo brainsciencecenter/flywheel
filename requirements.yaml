@@ -1,3 +1,11 @@
+#
+# Update the conda installation
+# conda update -n base -c defaults conda
+#
+# Install flywheel
+# conda env create -f flywheel/requirements.yaml
+#
+
 name: flywheel
 channels:
  - defaults
@@ -10,6 +18,7 @@ dependencies:
     - globre
     - numpy
     - pandas
+    - pyjq
     - pytz
     - requests
     - tzlocal
