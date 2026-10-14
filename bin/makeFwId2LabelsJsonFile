@@ -41,7 +41,7 @@ Jq='
      [
        .data.[] as $x
            | {
-                   ($x["project.group._id"]): $x["project.group.label"]
+                   ($x["project.group._id"]): $x["project.group._id"] # fw.lookup needs the group.id, not group.label
 		 , ($x["project.id"]): $x["project.label"]
 		 , ($x["subject.id"]): $x["subject.label"]
 		 , ($x["session.id"]): $x["session.label"]
