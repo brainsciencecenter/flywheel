@@ -1,5 +1,28 @@
 #
 
+#
+# flatten a json object
+#  { "a": {"b": 1}} -> {"a.b":1}
+#
+def flatten:
+    [paths(scalars) as $p
+      | {key: ($p | map(tostring) | join(".")),
+         value: getpath($p)}
+    ]
+    | from_entries
+    ;
+
+#
+# Convert a stream of json objects to csv format with headers
+#
+def json2csv:
+  [., inputs] as $objects
+  | ($objects[0] | keys_unsorted) as $headers
+  | $headers,
+    ($objects[] | [.[ $headers[] ]])
+  | @csv
+  ;
+
 def abs:
   if . < 0 then -. else . end;
 
@@ -23,6 +46,21 @@ def scale($d):
   | (($n[:-$d]) + "." + ($n[-$d:])) as $s
   | (if $s[0:1] == "." then "0" + $s else $s end)
   | if $neg then "-" + . else . end;
+
+
+def parents2Path($parents; $Id2Labels):
+     $parents
+   | [
+       to_entries[]
+       | select(.key != "analysis" and .value)
+     ]
+     | [
+           $Id2Labels[]
+           [
+               from_entries[]
+           ]
+       ] | join("/") 
+   ;
 
 def formatIlabNote: (
            (.BscChargePerTbPerYear / 12) as $PricePerTbPerMonth
