@@ -13,10 +13,12 @@ dependencies:
  - python=3.10
  - pip
  - pip:
+    - dictdiffer
     - flywheel-gear-toolkit
     - flywheel-sdk
     - globre
     - numpy
+    - pydantic
     - pandas
     - pyjq
     - pytz
