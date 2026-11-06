@@ -101,7 +101,7 @@ Id2LabelsJsonFile="${TmpDir}/Id2LabelsJsonFile"
 
 if [ -n "$opt_f" ] || [ ! -e "$Id2LabelsJsonFile" ]
 then
-    makeFwId2LabelsJsonFile -t "$TmpDir" "${Group}/${Project}" > "$Id2LabelsJsonFile"
+    makeId2LabelsJsonFile -t "$TmpDir" "${Group}/${Project}" > "$Id2LabelsJsonFile"
 fi
 
 if [ -n "$opt_g" ]
