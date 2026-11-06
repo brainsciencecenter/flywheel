@@ -1,0 +1,104 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-G Container]{-g GearName}[-l][-n][-s GearState][-t TmpDir][-V GearVersion][-v] {Group/Project}"
+
+FwBinDir=$(dirname $(which fwget))
+FwDir=$(dirname "$FwBinDir")
+FwLibDir="${FwDir}/lib"
+FwFindArgs=()
+#
+# Get's the most recent gear run at the desired container level.
+# Gears can be grouped at the project/subject/session or acquisition level.
+# This script returns the most recent run at the selected level
+#
+
+# -f force redoing time consuming downloads
+# -G parent container to group by.  Defaults to acquisition.  May be project, subject, session, acquisition
+# -g gear name
+# -l leave temp files for debugging
+# -n
+# -s state, defaults to complete, can be pending, running, complete, failed, cancelled
+# -t tmpdir
+# -V gear version number
+# -v
+
+# group/project
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "${opt_n}" ] || "$@"
+}
+
+while getopts fG:g:lns:t:V:v arg 
+do
+	case "$arg" in
+	     f|G|g|l|n|s|t|V|v)
+		eval "opt_${arg}='${OPTARG:=1}'"
+		;;
+	esac
+done
+
+shift "$(($OPTIND - 1))"
+
+Group=$(echo "$1" | cut -f 1 -d /)
+Project=$(echo "$1" | cut -f 2 -d /)
+
+if [ -z "$Group" ]
+then
+	echo "${CmdName} : Null Group" 1>&2
+	echo "$Syntax" 1>&2
+	exit 1
+fi
+	
+if ! (echo "$1" | grep /) || [ -z "$Project" ]
+then
+	echo "${CmdName} : Null Project" 1>&2
+	echo "$Syntax" 1>&2
+	exit 2
+fi
+GroupProject="${Group}/${Project}"
+
+TmpDir=${TMPDIR:=/tmp}
+[ -n "$opt_t" ] && TmpDir="$opt_t"
+
+CleanTmpDir=false
+[ ! -e "$TmpDir" ] && CleanTmpDir=true
+[ -n "$opt_l" ] && CleanTmpDir=false
+
+[ -e "$TmpDir" ] || sys mkdir -p "$TmpDir"
+
+
+if [ -z "$opt_g" ]
+then
+	echo "${CmdName} : Missing -g GearName" 1>&2
+	echo "$Syntax" 1>&2
+	exit 3
+fi
+GearName="$opt_g"
+
+GroupBy='acquisition'
+[ -n "$opt_G" ] && GroupBy="$opt_G"
+
+State='complete'
+[ -n "$opt_s" ] && State="$opt_s"
+
+[ -n "$opt_V" ] && FwFindArgs+=( "gear_info.version=\"${opt_V}\"" )
+
+ProjectId=$(fwget -1 "$GroupProject" | jq -r '._id')
+JobsGearJsonFile="${TmpDir}/Jobs${GearName}.json"
+if [ -n "$opt_f" ] || [ ! -e "$JobsGearJsonFile" ]
+then
+	sys fwfind -1 -j -rg group="$Group" parents.project="$ProjectId" gear_info.name="$GearName" "${FwFindArgs[@]}" "state=${State}" > "$JobsGearJsonFile"
+fi
+
+Id2LabelsJsonFile="${TmpDir}/Id2Labels.json"
+if [ -n "$opt_f" ] || [ ! -e "$Id2LabelsJsonFile" ]
+then
+	sys makeId2LabelsJsonFile "$GroupProject" > "$Id2LabelsJsonFile"
+fi
+
+jq -s --argjson GroupBy "\"${GroupBy}\"" 'group_by(.parents[$GroupBy]) | map(max_by(.created))' "$JobsGearJsonFile" | jq -r -L "$FwLibDir" --slurpfile Id2Labels "$Id2LabelsJsonFile" 'include "FwLib"; .[] | [ parents2Path(.parents; $Id2Labels), .created, .gear_info.version ] | @csv' | sort
+
+[ "$CleanTmpDir" == 'true' ] && sys echo rm -rf "$TmpDir"
+
