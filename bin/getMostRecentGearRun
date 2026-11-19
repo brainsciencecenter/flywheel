@@ -30,6 +30,10 @@ function sys {
     [ -n "${opt_n}" ] || "$@"
 }
 
+function cleanup {
+    [ "$RemoveTmpDir" = 'true' ] && sys rm -rf "$TmpDir" 1>&2
+}
+
 while getopts fG:g:i:lns:t:V:v arg 
 do
 	case "$arg" in
@@ -59,21 +63,27 @@ then
 fi
 GroupProject="${Group}/${Project}"
 
+[ -n "$opt_f" ] && opt_f='-f'
+
+RemoveTmpDir='true'
+[ -n "$opt_l" ] && RemoveTmpDir='false'
+
 TmpDir=${TMPDIR:=/tmp}
 [ -n "$opt_t" ] && TmpDir="$opt_t"
 
-CleanTmpDir=false
-[ ! -e "$TmpDir" ] && CleanTmpDir=true
-[ -n "$opt_l" ] && CleanTmpDir=false
-
-[ -e "$TmpDir" ] || sys mkdir -p "$TmpDir"
-
-[ -n "$opt_f" ] && opt_f='-f'
+if [ -e "$TmpDir" ]
+then
+    RemoveTmpDir='false'
+else
+    mkdir -p "$TmpDir"
+fi
 
 if [ -z "$opt_g" ]
 then
 	echo "${CmdName} : Missing -g GearName" 1>&2
 	echo "$Syntax" 1>&2
+
+	cleanup
 	exit 3
 fi
 GearName="$opt_g"
@@ -118,5 +128,6 @@ map({
 
 jq -s -r -L "$FwLibDir" --slurpfile Id2Labels "$Id2LabelsJsonFile" "$Jq" "$JobsGearJsonFile"
 
-[ "$CleanTmpDir" == 'true' ] && sys echo rm -rf "$TmpDir"
+cleanup
 
+exit 0
