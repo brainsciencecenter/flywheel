@@ -1,0 +1,152 @@
+#!/bin/bash
+
+CmdName=$(basename "$0")
+Syntax="${CmdName} [-G ContainerType]{-g GearName}[-i Id2LabelsJsonFile][-l][-n][-r OutputFileNameRegEx][-s GearState][-t TmpDir][-V GearVersion][-v] {Group/Project}"
+
+# -G ContainerType - which container type the gear is run at.  May be project, subject, session, or acquisition. Defaults to acquisition
+# -g GearName - Required.  Name of the gear (not the label)
+# -i Id2LabelsJsonFile File to use for the Id2Labels.  Specified so higher level scripts can access the resulting json file
+# -l Don't remove the TmpDir
+# -n no-op
+# -q quiet - silence the fwget for the files
+# -r OutputFileNameRegEx RegEx to select gear output files.  Defaults to '.', or all files
+# -s GearState Maybe pending, running, completed, failed, cancelled.  Defaults to complete
+# -t TmpDir Directory to use for temporary files.  Good for debugging.
+# -V GearVersion.  Defaults to no gear version.
+# -v
+# Group/Project
+#
+# ./downloadGearOutputFiles -v -r "^greedyPOP_[0-9_-]*.csv$" -g greedypop -G subject -t /tmp/dwolklab/ATM  dwolklab/ATM
+
+
+FwBinDir=$(dirname $(which fwget))
+FwDir=$(dirname "$FwBinDir")
+FwLibDir="${FwDir}/lib"
+
+function sys {
+    [ -n "${opt_n}${opt_v}" ] && echo "$@" 1>&2
+    [ -n "${opt_n}" ] || "$@"
+}
+
+function ColumnIndex {
+    local ColumnName="$1"
+
+    grep ": ${ColumnName}\$" | cut -f 1 -d : | sed 's/^ *//'
+}
+
+while getopts G:g:i:lnr:s:t:V:v arg
+do
+    case "$arg" in
+	G|g|i|l|n|r|s|t|V|v)
+	    eval "opt_${arg}='${OPTARG:=1}'"
+	    ;;
+    esac
+done
+
+shift $(( "$OPTIND" - 1 ))
+
+GroupProject="$1"
+
+[ -n "$opt_f" ] && opt_f='-f'
+
+[ -n "$opt_G" ] && ContainerType="$opt_G"
+[ -n "$opt_g" ] && GearName="$opt_g"
+
+if [ -z "$GearName" ]
+then
+    echo "${CmdName} : Missing gear name" 1>&2
+    echo "$Syntax" 1>&2
+    exit
+fi
+
+RemoveTmpDir='true'
+TmpDir=/tmp
+[ -n "$opt_t" ] && TmpDir="$opt_t"
+( [ -n "$opt_l" ] || [ -e "$TmpDir" ] ) && RemoveTmpDir='false'
+
+[ -e "$TmpDir" ] || mkdir -p "$TmpDir"
+JobsJsonFile="${TmpDir}/Jobs.json"
+
+[ -n "$opt_r" ] && OutputFileRegEx="$opt_r"
+
+Id2LabelsJsonFile="${TmpDir}/Id2Labels.json"
+[ -n "$opt_i" ] && Id2LabelsJsonFile="$opt_i"
+
+# No quotes around opt_f
+sys getMostRecentGearRun $opt_f -G "$ContainerType" -i "$Id2LabelsJsonFile" -l -t "$TmpDir" -g "$GearName" "$GroupProject" > "$JobsJsonFile"
+
+GearOutputFileInfoJsonFile="${TmpDir}/GearOutputFileInfo.json"
+GearOutputFileInfoCsvFile="${TmpDir}/GearOutputFileInfo.csv"
+
+#
+# *** there needs to be a way of adjusting for subject/session/acquisition gear differences
+#
+
+Jq='
+    include "FwLib";
+
+    (.FwPath | split("/") | .[:-1] | join("/")) as $FwPath 
+  | (if (.parents.subject) then ($Id2Labels[][.parents.subject]) else "NullSubject" end) as $SubjectLabel 
+  | (if (.parents.session) then ($Id2Labels[][.parents.session]) else "NullSession" end)  as $SessionLabel 
+  | (if (.parents.acquisition) then ($Id2Labels[][.parents.acquisition]) else "NullAcquisition" end) as $AcquisitionLabel 
+  | .created as $Created
+  | .id as $JobId
+  | .outputs[] 
+      | select(.name | test($OutputFileRegEx))
+          |
+               {
+ 	           "FwPath": $FwPath
+		 , "JobId": $JobId
+                 , "SubjectLabel": $SubjectLabel
+                 , "SessionLabel": $SessionLabel
+                 , "AcquisitionLabel": $AcquisitionLabel
+                 , "FileName": .name
+	         , "Created": $Created
+                 , "FileId": .file_id
+               }
+'
+
+jq -L "$FwLibDir" --argjson OutputFileRegEx "\"$OutputFileRegEx\"" --slurpfile 'Id2Labels' "$Id2LabelsJsonFile"  -r "$Jq" "$JobsJsonFile" > "$GearOutputFileInfoJsonFile"
+
+
+jq -r -s 'sort_by(.FwPath)[]' "$GearOutputFileInfoJsonFile" | jq -L "$FwLibDir" -r 'include "FwLib"; json2csv' > "$GearOutputFileInfoCsvFile"
+
+if [ ! -s "$GearOutputFileInfoCsvFile" ]
+then
+    echo "${CmdLine} : No output for '$GearOutputFileInfoCsvFile' : exiting" 1>&2
+    exit 1
+fi
+
+
+ColumnIndexes=$(csvcut -n "$GearOutputFileInfoCsvFile")
+
+FwPathIndex=$(echo "$ColumnIndexes" | ColumnIndex 'FwPath')
+FileNameIndex=$(echo "$ColumnIndexes" | ColumnIndex 'FileName')
+FileIdIndex=$(echo "$ColumnIndexes" | ColumnIndex 'FileId')
+
+TotalFileCount=$(tail -n +2 "$GearOutputFileInfoCsvFile" | wc -l)
+N=0
+while read Line
+do
+    N=$(($N + 1))
+
+    FwPath=$(echo "$Line" | cut -d , -f "$FwPathIndex" | sed 's/"//g' )
+    FileName=$(echo "$Line" | cut -d , -f "$FileNameIndex" | sed 's/"//g' )
+    FileId=$(echo "$Line" | cut -d , -f "$FileIdIndex" | sed 's/"//g' )
+
+    DownloadDir="${TmpDir}/${FwPath}"
+    [ -e "$DownloadDir" ] || mkdir -p "$DownloadDir"
+
+    DownloadFileName="${DownloadDir}/${FileName}"
+    if [ ! -e "$DownloadFileName" ]
+    then
+	FwGetOutput=$(fwget -1 -f --download --download-dir "$DownloadDir" "$FileId")
+	Res="$?"
+	[ "$Res" -eq 0 ] || echo "${CmdName} : fwget failed on '$FileId'" 1>&2
+
+	[ -n "$opt_v" ] && echo "${N}/${TotalFileCount}: ${FwGetOutput}" 1>&2
+    fi
+
+done < <(tail -n +2 "$GearOutputFileInfoCsvFile")
+
+cat "$GearOutputFileInfoCsvFile"

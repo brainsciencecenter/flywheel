@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-G Container]{-g GearName}[-l][-n][-s GearState][-t TmpDir][-V GearVersion][-v] {Group/Project}"
+Syntax="${CmdName} [-G Container]{-g GearName}[-i Id2LabelsJsonFile][-l][-n][-s GearState][-t TmpDir][-V GearVersion][-v] {Group/Project}"
 
 FwBinDir=$(dirname $(which fwget))
 FwDir=$(dirname "$FwBinDir")
@@ -30,10 +30,10 @@ function sys {
     [ -n "${opt_n}" ] || "$@"
 }
 
-while getopts fG:g:lns:t:V:v arg 
+while getopts fG:g:i:lns:t:V:v arg 
 do
 	case "$arg" in
-	     f|G|g|l|n|s|t|V|v)
+	     f|G|g|i:l|n|s|t|V|v)
 		eval "opt_${arg}='${OPTARG:=1}'"
 		;;
 	esac
@@ -51,7 +51,7 @@ then
 	exit 1
 fi
 	
-if ! (echo "$1" | grep /) || [ -z "$Project" ]
+if ! (echo "$1" | grep -q /) || [ -z "$Project" ]
 then
 	echo "${CmdName} : Null Project" 1>&2
 	echo "$Syntax" 1>&2
@@ -68,6 +68,7 @@ CleanTmpDir=false
 
 [ -e "$TmpDir" ] || sys mkdir -p "$TmpDir"
 
+[ -n "$opt_f" ] && opt_f='-f'
 
 if [ -z "$opt_g" ]
 then
@@ -89,16 +90,33 @@ ProjectId=$(fwget -1 "$GroupProject" | jq -r '._id')
 JobsGearJsonFile="${TmpDir}/Jobs${GearName}.json"
 if [ -n "$opt_f" ] || [ ! -e "$JobsGearJsonFile" ]
 then
-	sys fwfind -1 -j -rg group="$Group" parents.project="$ProjectId" gear_info.name="$GearName" "${FwFindArgs[@]}" "state=${State}" > "$JobsGearJsonFile"
+	sys fwfind -1 -j -rg group="$Group" parents.project="$ProjectId" gear_info.name="$GearName" "${FwFindArgs[@]}" "state=${State}" | jq -s --argjson GroupBy "\"${GroupBy}\"" 'group_by(.parents[$GroupBy]) | map(max_by(.created)) | .[]'  > "$JobsGearJsonFile"
 fi
 
 Id2LabelsJsonFile="${TmpDir}/Id2Labels.json"
+[ -n "$opt_i" ] && Id2LabelsJsonFile="$opt_i"
+
 if [ -n "$opt_f" ] || [ ! -e "$Id2LabelsJsonFile" ]
 then
-	sys makeId2LabelsJsonFile "$GroupProject" > "$Id2LabelsJsonFile"
+	# Do not quote the $opt_f so our -f can be passwd
+	sys makeId2LabelsJsonFile -t "$TmpDir" $opt_f "$GroupProject" > "$Id2LabelsJsonFile"
 fi
 
-jq -s --argjson GroupBy "\"${GroupBy}\"" 'group_by(.parents[$GroupBy]) | map(max_by(.created))' "$JobsGearJsonFile" | jq -r -L "$FwLibDir" --slurpfile Id2Labels "$Id2LabelsJsonFile" 'include "FwLib"; .[] | [ parents2Path(.parents; $Id2Labels), .created, .gear_info.version ] | @csv' | sort
+Jq='
+include "FwLib";
+map({
+  id,
+  created,
+  "gear_name": .gear_info.name,
+  "gear_id": .gear_info.id,
+  "gear_version": .gear_info.version,
+  "FwPath": parents2Path(.parents; $Id2Labels),
+  parents,
+  inputs: [.config.inputs | to_entries[] | { "input_name": (.key), "container": .value.hierarchy.type, "container_id": .value.hierarchy.id,  "file_id": .value.object.file_id, "name": .value.location.name}],
+  outputs: [ .outputs[] | { file_id, name}]
+}) | .[]'
+
+jq -s -r -L "$FwLibDir" --slurpfile Id2Labels "$Id2LabelsJsonFile" "$Jq" "$JobsGearJsonFile"
 
 [ "$CleanTmpDir" == 'true' ] && sys echo rm -rf "$TmpDir"
 
