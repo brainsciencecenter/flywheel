@@ -1,8 +1,9 @@
 #!/bin/bash
 
 CmdName=$(basename "$0")
-Syntax="${CmdName} [-G ContainerType]{-g GearName}[-i Id2LabelsJsonFile][-l][-n][-r OutputFileNameRegEx][-s GearState][-t TmpDir][-V GearVersion][-v] {Group/Project}"
+Syntax="${CmdName} [-f][-G ContainerType]{-g GearName}[-i Id2LabelsJsonFile][-l][-n][-r OutputFileNameRegEx][-s GearState][-t TmpDir][-V GearVersion][-v] {Group/Project}"
 
+# -f force cached file updates
 # -G ContainerType - which container type the gear is run at.  May be project, subject, session, or acquisition. Defaults to acquisition
 # -g GearName - Required.  Name of the gear (not the label)
 # -i Id2LabelsJsonFile File to use for the Id2Labels.  Specified so higher level scripts can access the resulting json file
@@ -34,10 +35,10 @@ function ColumnIndex {
     grep ": ${ColumnName}\$" | cut -f 1 -d : | sed 's/^ *//'
 }
 
-while getopts G:g:i:lnr:s:t:V:v arg
+while getopts fG:g:i:lnr:s:t:V:v arg
 do
     case "$arg" in
-	G|g|i|l|n|r|s|t|V|v)
+	f|G|g|i|l|n|r|s|t|V|v)
 	    eval "opt_${arg}='${OPTARG:=1}'"
 	    ;;
     esac
@@ -60,11 +61,18 @@ then
 fi
 
 RemoveTmpDir='true'
-TmpDir=/tmp
-[ -n "$opt_t" ] && TmpDir="$opt_t"
-( [ -n "$opt_l" ] || [ -e "$TmpDir" ] ) && RemoveTmpDir='false'
+[ -n "$opt_l" ] && RemoveTmpDir='false'
 
-[ -e "$TmpDir" ] || mkdir -p "$TmpDir"
+TmpDir="${TMPDIR:=/tmp}/${GroupProject}"
+[ -n "$opt_t" ] && TmpDir="$opt_t"
+
+if [ -e "$TmpDir" ]
+then
+    RemoveTmpDir='false'
+else
+    mkdir -p "$TmpDir"
+fi
+
 JobsJsonFile="${TmpDir}/Jobs.json"
 
 [ -n "$opt_r" ] && OutputFileRegEx="$opt_r"
@@ -73,7 +81,14 @@ Id2LabelsJsonFile="${TmpDir}/Id2Labels.json"
 [ -n "$opt_i" ] && Id2LabelsJsonFile="$opt_i"
 
 # No quotes around opt_f
-sys getMostRecentGearRun $opt_f -G "$ContainerType" -i "$Id2LabelsJsonFile" -l -t "$TmpDir" -g "$GearName" "$GroupProject" > "$JobsJsonFile"
+sys getMostRecentGearRun $opt_f -G "$ContainerType" -i "$Id2LabelsJsonFile" -l -t "$TmpDir" -g "$GearName" "$GroupProject" > "$JobsJsonFile" 2> /dev/null
+Res="$?"
+
+if [ "$Res" -ne '0' ]
+then
+    [ -n "$opt_v" ] && echo "${CmdName} : getMostRecentGearRun failed with '${Res}'. Exiting" 1>&2
+    exit "$Res"
+fi
 
 GearOutputFileInfoJsonFile="${TmpDir}/GearOutputFileInfo.json"
 GearOutputFileInfoCsvFile="${TmpDir}/GearOutputFileInfo.csv"
@@ -142,7 +157,7 @@ do
     then
 	FwGetOutput=$(fwget -1 -f --download --download-dir "$DownloadDir" "$FileId")
 	Res="$?"
-	[ "$Res" -eq 0 ] || echo "${CmdName} : fwget failed on '$FileId'" 1>&2
+	[ "$Res" -ne '0' ] && echo "${CmdName} : fwget failed on '$FileId'" 1>&2
 
 	[ -n "$opt_v" ] && echo "${N}/${TotalFileCount}: ${FwGetOutput}" 1>&2
     fi
@@ -150,3 +165,4 @@ do
 done < <(tail -n +2 "$GearOutputFileInfoCsvFile")
 
 cat "$GearOutputFileInfoCsvFile"
+
